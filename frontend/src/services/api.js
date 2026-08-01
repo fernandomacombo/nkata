@@ -48,7 +48,21 @@ function normalizeProfile(profile) {
       null,
     verificado: profile.verificado ?? false,
     interesse_ativo: profile.interesse_ativo ?? false,
+    status: profile.status || "",
+    visivel: profile.visivel ?? true,
     criado_em: profile.criado_em || null,
+  };
+}
+
+function normalizeAccount(account) {
+  if (!account) return null;
+
+  return {
+    ...normalizeProfile(account),
+    email: account.email || "",
+    membro_desde: account.membro_desde || account.criado_em || null,
+    total_matches: Number(account.total_matches || 0),
+    total_interesses_enviados: Number(account.total_interesses_enviados || 0),
   };
 }
 
@@ -87,6 +101,17 @@ async function readJson(response) {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) return null;
   return response.json();
+}
+
+function firstPayloadMessage(payload) {
+  if (!payload || typeof payload !== "object") return "";
+
+  for (const value of Object.values(payload)) {
+    if (Array.isArray(value) && value.length) return String(value[0]);
+    if (typeof value === "string") return value;
+  }
+
+  return "";
 }
 
 async function request(
@@ -128,6 +153,7 @@ async function request(
     const message =
       payload?.detail ||
       payload?.message ||
+      firstPayloadMessage(payload) ||
       `Não foi possível concluir o pedido (${response.status}).`;
     throw new ApiError(message, response.status, payload);
   }
@@ -175,6 +201,19 @@ export async function toggleProfileInterest(profileId) {
   });
 }
 
+export async function fetchMyAccount({ signal } = {}) {
+  const payload = await request("/api/minha-conta/", { signal });
+  return normalizeAccount(payload);
+}
+
+export async function updateMyAccount(values) {
+  const payload = await request("/api/minha-conta/", {
+    method: "PATCH",
+    body: values,
+  });
+  return normalizeAccount(payload);
+}
+
 export async function fetchMyInterests({ signal } = {}) {
   const payload = await request("/api/minha-conta/interesses/", { signal });
   const results = Array.isArray(payload) ? payload : payload?.results || [];
@@ -213,6 +252,7 @@ export async function sendMatchMessage(matchId, text) {
 
 export {
   API_BASE_URL,
+  normalizeAccount,
   normalizeMatch,
   normalizeMessage,
   normalizeProfile,
