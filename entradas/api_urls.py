@@ -18,6 +18,11 @@ urlpatterns = [
     ),
     path("minha-conta/", api_views.api_minha_conta, name="minha_conta"),
     path(
+        "minha-conta/foto/",
+        api_views.api_atualizar_foto_perfil,
+        name="atualizar_foto_perfil",
+    ),
+    path(
         "minha-conta/interesses/",
         api_views.api_meus_interesses,
         name="meus_interesses",
