@@ -8,6 +8,7 @@ import "./features.css";
 import "./auth.css";
 import "./messaging.css";
 import "./account.css";
+import "./account-enhancements.css";
 import "./home-refresh.css";
 
 createRoot(document.getElementById("root")).render(
