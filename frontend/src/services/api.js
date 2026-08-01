@@ -104,11 +104,20 @@ async function readJson(response) {
 }
 
 function firstPayloadMessage(payload) {
-  if (!payload || typeof payload !== "object") return "";
+  if (!payload) return "";
+  if (typeof payload === "string") return payload;
+  if (Array.isArray(payload)) {
+    for (const value of payload) {
+      const message = firstPayloadMessage(value);
+      if (message) return message;
+    }
+    return "";
+  }
+  if (typeof payload !== "object") return "";
 
   for (const value of Object.values(payload)) {
-    if (Array.isArray(value) && value.length) return String(value[0]);
-    if (typeof value === "string") return value;
+    const message = firstPayloadMessage(value);
+    if (message) return message;
   }
 
   return "";
@@ -129,8 +138,9 @@ async function request(
   };
 
   const normalizedMethod = method.toUpperCase();
+  const isFormData = body instanceof FormData;
 
-  if (body !== undefined) {
+  if (body !== undefined && !isFormData) {
     requestHeaders["Content-Type"] = "application/json";
   }
 
@@ -143,7 +153,12 @@ async function request(
     method: normalizedMethod,
     credentials: "include",
     headers: requestHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body:
+      body === undefined
+        ? undefined
+        : isFormData
+          ? body
+          : JSON.stringify(body),
     signal,
   });
 
@@ -212,6 +227,21 @@ export async function updateMyAccount(values) {
     body: values,
   });
   return normalizeAccount(payload);
+}
+
+export async function uploadMyProfilePhoto(file) {
+  const form = new FormData();
+  form.append("foto", file);
+
+  const payload = await request("/api/minha-conta/foto/", {
+    method: "POST",
+    body: form,
+  });
+
+  return {
+    message: payload?.message || "Fotografia atualizada.",
+    account: normalizeAccount(payload?.account),
+  };
 }
 
 export async function fetchMyInterests({ signal } = {}) {
