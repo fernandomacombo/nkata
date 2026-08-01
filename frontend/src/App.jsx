@@ -3,9 +3,11 @@ import { LockKeyhole, ShieldCheck } from "lucide-react";
 import AppHeader from "./components/layout/AppHeader.jsx";
 import BottomNavigation from "./components/layout/BottomNavigation.jsx";
 import { demoProfiles } from "./data/demoProfiles.js";
+import useProfileLibrary from "./hooks/useProfileLibrary.js";
 import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
+import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
 import { fetchProfileDetail, fetchProfiles } from "./services/api.js";
 
 function ReservedArea({ title }) {
@@ -13,19 +15,19 @@ function ReservedArea({ title }) {
     <main className="nk-reserved">
       <section className="nk-shell nk-reserved__card">
         <span className="nk-reserved__icon"><LockKeyhole size={25} /></span>
-        <span className="nk-eyebrow nk-eyebrow--dark"><ShieldCheck size={15} /> Área reservada</span>
+        <span className="nk-eyebrow nk-eyebrow--dark"><ShieldCheck size={15} /> Precisa de entrar</span>
         <h1>{title}</h1>
-        <p>Esta área será ligada à tua conta NKATA depois da autenticação React estar concluída.</p>
-        <button type="button" className="nk-button nk-button--wine" onClick={() => window.location.assign("/entrar/")}>Entrar na conta</button>
+        <p>Entre na sua conta para consultar esta área.</p>
+        <button type="button" className="nk-button nk-button--wine" onClick={() => window.location.assign("/entrar/")}>Entrar</button>
       </section>
     </main>
   );
 }
 
 const reservedTitles = {
-  matches: "Os teus matches",
-  messages: "Mensagens privadas",
-  account: "A tua conta NKATA",
+  matches: "Os seus matches",
+  messages: "Mensagens",
+  account: "A sua conta",
 };
 
 export default function App() {
@@ -38,6 +40,14 @@ export default function App() {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const {
+    savedProfiles,
+    recentProfiles,
+    isSaved,
+    toggleSaved,
+    addRecent,
+    clearRecent,
+  } = useProfileLibrary();
 
   const loadProfiles = useCallback(async ({ signal } = {}) => {
     setLoading(true);
@@ -56,7 +66,7 @@ export default function App() {
       if (error.name !== "AbortError") {
         setProfiles(demoProfiles);
         setUsingDemoData(true);
-        setLoadError(error.message || "Não foi possível ligar ao NKATA neste momento.");
+        setLoadError(error.message || "Não foi possível atualizar os perfis.");
       }
     } finally {
       if (!signal?.aborted) setLoading(false);
@@ -85,6 +95,7 @@ export default function App() {
   const handleOpenProfile = async (profile) => {
     setPreviousPage(activePage === "profile" ? "discover" : activePage);
     setSelectedProfile(profile);
+    addRecent(profile);
     setProfileError("");
     setActivePage("profile");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -95,8 +106,9 @@ export default function App() {
     try {
       const detail = await fetchProfileDetail(profile.id);
       setSelectedProfile((current) => ({ ...current, ...detail }));
+      addRecent({ ...profile, ...detail });
     } catch (error) {
-      setProfileError(error.message || "Alguns detalhes não puderam ser carregados.");
+      setProfileError(error.message || "Alguns dados não foram carregados.");
     } finally {
       setProfileLoading(false);
     }
@@ -111,13 +123,19 @@ export default function App() {
 
   return (
     <div className="nk-app">
-      <AppHeader activePage={visiblePage} onNavigate={handleNavigate} />
+      <AppHeader
+        activePage={visiblePage}
+        onNavigate={handleNavigate}
+        savedCount={savedProfiles.length}
+      />
 
       {activePage === "home" && (
         <HomePage
           profiles={profiles}
           onNavigate={handleNavigate}
           onOpenProfile={handleOpenProfile}
+          isSaved={isSaved}
+          onToggleSaved={toggleSaved}
         />
       )}
 
@@ -129,6 +147,20 @@ export default function App() {
           loadError={loadError}
           onReload={() => loadProfiles()}
           onOpenProfile={handleOpenProfile}
+          isSaved={isSaved}
+          onToggleSaved={toggleSaved}
+        />
+      )}
+
+      {activePage === "saved" && (
+        <SavedProfilesPage
+          savedProfiles={savedProfiles}
+          recentProfiles={recentProfiles}
+          onOpenProfile={handleOpenProfile}
+          isSaved={isSaved}
+          onToggleSaved={toggleSaved}
+          onClearRecent={clearRecent}
+          onDiscover={() => handleNavigate("discover")}
         />
       )}
 
@@ -137,6 +169,8 @@ export default function App() {
           profile={selectedProfile}
           loading={profileLoading}
           error={profileError}
+          saved={selectedProfile ? isSaved(selectedProfile) : false}
+          onToggleSaved={toggleSaved}
           onBack={handleBackFromProfile}
         />
       )}
@@ -145,7 +179,11 @@ export default function App() {
         <ReservedArea title={reservedTitles[activePage]} />
       )}
 
-      <BottomNavigation activePage={visiblePage} onNavigate={handleNavigate} />
+      <BottomNavigation
+        activePage={visiblePage}
+        onNavigate={handleNavigate}
+        savedCount={savedProfiles.length}
+      />
     </div>
   );
 }
