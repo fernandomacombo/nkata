@@ -5,7 +5,8 @@ import BottomNavigation from "./components/layout/BottomNavigation.jsx";
 import { demoProfiles } from "./data/demoProfiles.js";
 import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
-import { fetchProfiles } from "./services/api.js";
+import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
+import { fetchProfileDetail, fetchProfiles } from "./services/api.js";
 
 function ReservedArea({ title }) {
   return (
@@ -29,16 +30,21 @@ const reservedTitles = {
 
 export default function App() {
   const [activePage, setActivePage] = useState("home");
+  const [previousPage, setPreviousPage] = useState("discover");
   const [profiles, setProfiles] = useState(demoProfiles);
   const [loading, setLoading] = useState(true);
   const [usingDemoData, setUsingDemoData] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
-  const loadProfiles = useCallback(async () => {
-    const controller = new AbortController();
+  const loadProfiles = useCallback(async ({ signal } = {}) => {
     setLoading(true);
+    setLoadError("");
 
     try {
-      const apiProfiles = await fetchProfiles({ signal: controller.signal });
+      const apiProfiles = await fetchProfiles({ signal });
       if (apiProfiles.length) {
         setProfiles(apiProfiles);
         setUsingDemoData(false);
@@ -50,16 +56,17 @@ export default function App() {
       if (error.name !== "AbortError") {
         setProfiles(demoProfiles);
         setUsingDemoData(true);
+        setLoadError(error.message || "Não foi possível ligar ao NKATA neste momento.");
       }
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-
-    return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    loadProfiles();
+    const controller = new AbortController();
+    loadProfiles({ signal: controller.signal });
+    return () => controller.abort();
   }, [loadProfiles]);
 
   const handleNavigate = (page) => {
@@ -75,12 +82,43 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleOpenProfile = async (profile) => {
+    setPreviousPage(activePage === "profile" ? "discover" : activePage);
+    setSelectedProfile(profile);
+    setProfileError("");
+    setActivePage("profile");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (!profile?.id || String(profile.id).startsWith("demo-")) return;
+
+    setProfileLoading(true);
+    try {
+      const detail = await fetchProfileDetail(profile.id);
+      setSelectedProfile((current) => ({ ...current, ...detail }));
+    } catch (error) {
+      setProfileError(error.message || "Alguns detalhes não puderam ser carregados.");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleBackFromProfile = () => {
+    setActivePage(previousPage || "discover");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const visiblePage = activePage === "profile" ? previousPage : activePage;
+
   return (
     <div className="nk-app">
-      <AppHeader activePage={activePage} onNavigate={handleNavigate} />
+      <AppHeader activePage={visiblePage} onNavigate={handleNavigate} />
 
       {activePage === "home" && (
-        <HomePage profiles={profiles} onNavigate={handleNavigate} />
+        <HomePage
+          profiles={profiles}
+          onNavigate={handleNavigate}
+          onOpenProfile={handleOpenProfile}
+        />
       )}
 
       {activePage === "discover" && (
@@ -88,7 +126,18 @@ export default function App() {
           profiles={profiles}
           loading={loading}
           usingDemoData={usingDemoData}
-          onReload={loadProfiles}
+          loadError={loadError}
+          onReload={() => loadProfiles()}
+          onOpenProfile={handleOpenProfile}
+        />
+      )}
+
+      {activePage === "profile" && (
+        <ProfileDetailPage
+          profile={selectedProfile}
+          loading={profileLoading}
+          error={profileError}
+          onBack={handleBackFromProfile}
         />
       )}
 
@@ -96,7 +145,7 @@ export default function App() {
         <ReservedArea title={reservedTitles[activePage]} />
       )}
 
-      <BottomNavigation activePage={activePage} onNavigate={handleNavigate} />
+      <BottomNavigation activePage={visiblePage} onNavigate={handleNavigate} />
     </div>
   );
 }
