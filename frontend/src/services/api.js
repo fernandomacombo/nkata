@@ -216,6 +216,30 @@ export async function toggleProfileInterest(profileId) {
   });
 }
 
+export async function reportProfile(profileId, { reason, details = "" }) {
+  if (!profileId || String(profileId).startsWith("demo-")) {
+    throw new ApiError("Este perfil não pode ser denunciado.", 400);
+  }
+
+  return request(`/api/perfis/${profileId}/denunciar/`, {
+    method: "POST",
+    body: {
+      motivo: reason,
+      detalhes: details,
+    },
+  });
+}
+
+export async function blockProfile(profileId) {
+  if (!profileId || String(profileId).startsWith("demo-")) {
+    throw new ApiError("Este perfil não pode ser bloqueado.", 400);
+  }
+
+  return request(`/api/perfis/${profileId}/bloquear/`, {
+    method: "POST",
+  });
+}
+
 export async function fetchMyAccount({ signal } = {}) {
   const payload = await request("/api/minha-conta/", { signal });
   return normalizeAccount(payload);
@@ -254,6 +278,12 @@ export async function fetchMyMatches({ signal } = {}) {
   const payload = await request("/api/minha-conta/matches/", { signal });
   const results = Array.isArray(payload) ? payload : payload?.results || [];
   return results.map(normalizeMatch).filter(Boolean);
+}
+
+export async function closeMatch(matchId) {
+  return request(`/api/minha-conta/matches/${matchId}/encerrar/`, {
+    method: "POST",
+  });
 }
 
 export async function fetchMatchConversation(matchId, { signal } = {}) {
