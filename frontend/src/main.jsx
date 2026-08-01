@@ -4,6 +4,7 @@ import App from "./App.jsx";
 import "./styles.css";
 import "./profile-detail.css";
 import "./integration.css";
+import "./features.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
