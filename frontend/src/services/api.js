@@ -6,6 +6,8 @@ function normalizeProfile(profile) {
     nome_publico: profile.nome_publico || profile.nome || "Perfil NKATA",
     idade: profile.idade,
     cidade: profile.cidade || "Moçambique",
+    genero: profile.genero,
+    genero_display: profile.genero_display || profile.genero || "",
     objetivo: profile.objetivo,
     objetivo_display:
       profile.objetivo_display ||
@@ -15,18 +17,27 @@ function normalizeProfile(profile) {
     sobre_si:
       profile.sobre_si ||
       "Perfil aprovado pela comunidade NKATA, com intenção clara e dados pessoais protegidos.",
+    o_que_valoriza: profile.o_que_valoriza || "",
+    o_que_nao_aceita: profile.o_que_nao_aceita || "",
     foto_url:
       profile.foto_url ||
       profile.foto_principal_url ||
       profile.foto_principal ||
       profile.foto ||
       null,
-    verificado: profile.verificado ?? true,
+    verificado: profile.verificado ?? false,
+    criado_em: profile.criado_em || null,
   };
 }
 
-export async function fetchProfiles({ signal } = {}) {
-  const response = await fetch(`${API_BASE_URL}/api/perfis/`, {
+async function readJson(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) return null;
+  return response.json();
+}
+
+async function request(path, { signal } = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
     headers: {
       Accept: "application/json",
@@ -34,13 +45,29 @@ export async function fetchProfiles({ signal } = {}) {
     signal,
   });
 
+  const payload = await readJson(response);
+
   if (!response.ok) {
-    throw new Error(`Não foi possível carregar os perfis (${response.status}).`);
+    const message = payload?.detail || `Não foi possível concluir o pedido (${response.status}).`;
+    throw new Error(message);
   }
 
-  const payload = await response.json();
-  const results = Array.isArray(payload) ? payload : payload.results || [];
+  return payload;
+}
+
+export async function fetchProfiles({ signal } = {}) {
+  const payload = await request("/api/perfis/", { signal });
+  const results = Array.isArray(payload) ? payload : payload?.results || [];
   return results.map(normalizeProfile);
 }
 
-export { API_BASE_URL };
+export async function fetchProfileDetail(profileId, { signal } = {}) {
+  if (!profileId || String(profileId).startsWith("demo-")) {
+    throw new Error("Este é um perfil demonstrativo.");
+  }
+
+  const payload = await request(`/api/perfis/${profileId}/`, { signal });
+  return normalizeProfile(payload);
+}
+
+export { API_BASE_URL, normalizeProfile };
