@@ -1,9 +1,16 @@
 import { useMemo, useState } from "react";
-import { LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertCircle, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import ProfileFilters from "../components/profiles/ProfileFilters.jsx";
 
-export default function DiscoverPage({ profiles, loading, usingDemoData, onReload }) {
+export default function DiscoverPage({
+  profiles,
+  loading,
+  usingDemoData,
+  loadError,
+  onReload,
+  onOpenProfile,
+}) {
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
 
@@ -59,6 +66,16 @@ export default function DiscoverPage({ profiles, loading, usingDemoData, onReloa
           onCityChange={setCity}
         />
 
+        {loadError && (
+          <div className="nk-api-notice" role="status">
+            <AlertCircle size={18} />
+            <div>
+              <strong>Pré-visualização segura ativa</strong>
+              <span>{loadError} Estamos a mostrar perfis demonstrativos enquanto a ligação é restabelecida.</span>
+            </div>
+          </div>
+        )}
+
         <div className="nk-results-heading">
           <div>
             <strong>{filteredProfiles.length} perfis</strong>
@@ -83,7 +100,11 @@ export default function DiscoverPage({ profiles, loading, usingDemoData, onReloa
         ) : filteredProfiles.length ? (
           <div className="nk-profile-grid">
             {filteredProfiles.map((profile) => (
-              <ProfileCard key={profile.id} profile={profile} />
+              <ProfileCard
+                key={profile.id}
+                profile={profile}
+                onOpen={() => onOpenProfile(profile)}
+              />
             ))}
           </div>
         ) : (
