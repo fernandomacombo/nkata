@@ -5,6 +5,7 @@ import "./styles.css";
 import "./profile-detail.css";
 import "./integration.css";
 import "./features.css";
+import "./auth.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
