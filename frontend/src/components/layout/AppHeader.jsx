@@ -11,6 +11,7 @@ export default function AppHeader({
   activePage,
   onNavigate,
   savedCount = 0,
+  unreadMatches = 0,
   session,
   sessionLoading = false,
   onSignOut,
@@ -53,6 +54,15 @@ export default function AppHeader({
           >
             Guardados {savedCount > 0 ? `(${savedCount})` : ""}
           </button>
+          {authenticated && (
+            <button
+              type="button"
+              className={activePage === "matches" ? "is-active" : ""}
+              onClick={() => onNavigate("matches")}
+            >
+              Matches {unreadMatches > 0 ? `(${unreadMatches})` : ""}
+            </button>
+          )}
           <button type="button" onClick={() => onNavigate("security")}>Segurança</button>
         </nav>
 
