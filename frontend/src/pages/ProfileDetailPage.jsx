@@ -5,6 +5,7 @@ import {
   Heart,
   LockKeyhole,
   MapPin,
+  Share2,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -23,16 +24,45 @@ export default function ProfileDetailPage({
   profile,
   loading,
   error,
+  saved,
+  onToggleSaved,
   onBack,
 }) {
-  const [saved, setSaved] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
 
   const hasImage = Boolean(profile?.foto_url) && !imageFailed;
   const profileUrl = useMemo(() => {
     if (!profile?.id || String(profile.id).startsWith("demo-")) return null;
     return `/perfis/${profile.id}/`;
   }, [profile?.id]);
+
+  const handleShare = async () => {
+    if (!profile) return;
+
+    const shareUrl = profileUrl
+      ? new URL(profileUrl, window.location.origin).toString()
+      : window.location.href;
+    const shareData = {
+      title: `${profile.nome_publico} no NKATA`,
+      text: `Veja o perfil de ${profile.nome_publico} no NKATA.`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareStatus("Partilhado");
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareStatus("Link copiado");
+      }
+    } catch (shareError) {
+      if (shareError.name !== "AbortError") setShareStatus("Não foi possível partilhar");
+    }
+
+    window.setTimeout(() => setShareStatus(""), 2200);
+  };
 
   if (!profile && loading) {
     return (
@@ -54,8 +84,8 @@ export default function ProfileDetailPage({
       <main className="nk-profile-detail nk-profile-detail--empty">
         <div className="nk-shell nk-profile-detail__empty-card">
           <ShieldCheck size={30} />
-          <h1>Perfil indisponível</h1>
-          <p>{error || "Não foi possível apresentar este perfil neste momento."}</p>
+          <h1>Perfil não disponível</h1>
+          <p>{error || "Não foi possível abrir este perfil agora."}</p>
           <button type="button" className="nk-button nk-button--wine" onClick={onBack}>
             Voltar aos perfis
           </button>
@@ -83,7 +113,7 @@ export default function ProfileDetailPage({
             ) : (
               <div className="nk-profile-detail__fallback">
                 <UserRound size={64} strokeWidth={1.15} />
-                <span>Fotografia protegida</span>
+                <span>Sem fotografia</span>
               </div>
             )}
 
@@ -91,11 +121,11 @@ export default function ProfileDetailPage({
 
             <span className="nk-profile-detail__verified">
               <BadgeCheck size={16} />
-              {profile.verificado ? "Perfil aprovado" : "Perfil em análise"}
+              {profile.verificado ? "Perfil verificado" : "Em análise"}
             </span>
 
             <div className="nk-profile-detail__media-copy">
-              <span>Comunidade privada</span>
+              <span>{profile.objetivo_display}</span>
               <strong>{profile.nome_publico}</strong>
               <small><MapPin size={14} /> {profile.cidade}</small>
             </div>
@@ -105,7 +135,7 @@ export default function ProfileDetailPage({
             <div className="nk-profile-detail__heading">
               <div>
                 <span className="nk-eyebrow nk-eyebrow--dark">
-                  <ShieldCheck size={15} /> Perfil protegido
+                  <ShieldCheck size={15} /> Perfil verificado
                 </span>
                 <h1>
                   {profile.nome_publico}
@@ -114,42 +144,48 @@ export default function ProfileDetailPage({
                 <p>{profile.objetivo_display}</p>
               </div>
 
-              <button
-                type="button"
-                className={`nk-profile-detail__save ${saved ? "is-saved" : ""}`}
-                onClick={() => setSaved((current) => !current)}
-                aria-pressed={saved}
-              >
-                <Heart size={19} fill={saved ? "currentColor" : "none"} />
-                {saved ? "Guardado" : "Guardar"}
-              </button>
+              <div className="nk-profile-detail__quick-actions">
+                <button
+                  type="button"
+                  className={`nk-profile-detail__save ${saved ? "is-saved" : ""}`}
+                  onClick={() => onToggleSaved?.(profile)}
+                  aria-pressed={saved}
+                >
+                  <Heart size={19} fill={saved ? "currentColor" : "none"} />
+                  {saved ? "Guardado" : "Guardar"}
+                </button>
+                <button type="button" className="nk-profile-detail__share" onClick={handleShare}>
+                  <Share2 size={18} />
+                  {shareStatus || "Partilhar"}
+                </button>
+              </div>
             </div>
 
             {error && (
               <div className="nk-profile-detail__notice">
-                A informação principal está disponível, mas alguns detalhes não foram atualizados.
+                Alguns dados deste perfil não foram atualizados.
               </div>
             )}
 
             <div className="nk-profile-detail__blocks">
               <DetailBlock title="Sobre mim">
-                {profile.sobre_si || "Este perfil prefere apresentar-se durante uma conversa segura."}
+                {profile.sobre_si || "Esta pessoa ainda não acrescentou uma apresentação."}
               </DetailBlock>
 
               <DetailBlock title="O que valorizo">
-                {profile.o_que_valoriza || "Respeito, clareza e intenção são prioridades nesta comunidade."}
+                {profile.o_que_valoriza || "Ainda não foi preenchido."}
               </DetailBlock>
 
               <DetailBlock title="O que não aceito">
-                {profile.o_que_nao_aceita || "Limites pessoais são partilhados apenas no contexto apropriado."}
+                {profile.o_que_nao_aceita || "Ainda não foi preenchido."}
               </DetailBlock>
             </div>
 
             <div className="nk-profile-detail__assurance">
               <span><LockKeyhole size={18} /></span>
               <div>
-                <strong>Contacto e documentos permanecem privados</strong>
-                <p>O NKATA mostra apenas informação aprovada para descoberta. A aproximação acontece de forma controlada.</p>
+                <strong>Telefone, email e documentos não são mostrados</strong>
+                <p>Os contactos só são partilhados quando existir autorização e interesse dos dois lados.</p>
               </div>
             </div>
 
@@ -161,15 +197,15 @@ export default function ProfileDetailPage({
                 disabled={!profileUrl}
               >
                 <Sparkles size={18} />
-                {profileUrl ? "Demonstrar interesse" : "Interação disponível após aprovação"}
+                {profileUrl ? "Tenho interesse" : "Disponível depois da aprovação"}
               </button>
               <button type="button" className="nk-button nk-button--quiet" onClick={onBack}>
-                Continuar a descobrir
+                Ver outros perfis
               </button>
             </div>
 
             {loading && (
-              <span className="nk-profile-detail__updating">A atualizar detalhes do perfil…</span>
+              <span className="nk-profile-detail__updating">A atualizar o perfil…</span>
             )}
           </section>
         </div>
