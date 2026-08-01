@@ -7,6 +7,7 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
     foto_principal = serializers.SerializerMethodField()
     objetivo_display = serializers.CharField(source="get_objetivo_display", read_only=True)
     genero_display = serializers.CharField(source="get_genero_display", read_only=True)
+    verificado = serializers.SerializerMethodField()
 
     class Meta:
         model = PerfilNKATA
@@ -21,6 +22,7 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
             "objetivo_display",
             "sobre_si",
             "foto_principal",
+            "verificado",
             "status",
             "visivel",
         ]
@@ -36,6 +38,19 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(url)
         return url
+
+    def get_verificado(self, obj):
+        pedido_status = getattr(obj.pedido, "status", "")
+        return pedido_status == "APROVADO" and obj.status == "ATIVO" and obj.visivel
+
+
+class PerfilDetalheSerializer(PerfilResumoSerializer):
+    class Meta(PerfilResumoSerializer.Meta):
+        fields = PerfilResumoSerializer.Meta.fields + [
+            "o_que_valoriza",
+            "o_que_nao_aceita",
+            "criado_em",
+        ]
 
 
 class MensagemMatchSerializer(serializers.ModelSerializer):
