@@ -1,0 +1,495 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Questionário | NKATA</title>
+
+  <link rel="stylesheet" href="{% static 'entradas/css/nkata_base.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/questionario.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/mobile_app.css' %}">
+</head>
+<body>
+
+  <div class="page">
+
+    <header class="nk-header">
+      <div class="nk-container nk-header-inner">
+        <a href="{% url 'entradas:home' %}" class="nk-logo">
+          <span>N</span>KATA
+        </a>
+        <div class="nk-mobile-top-account">
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <a href="{% url 'entradas:minha_conta' %}">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <strong>
+                  {% if user_perfil %}
+                    {{ user_perfil.nome_publico|truncatechars:14 }}
+                  {% else %}
+                    Conta
+                  {% endif %}
+                </strong>
+              </a>
+            {% endwith %}
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              <strong>Entrar</strong>
+            </a>
+          {% endif %}
+        </div>
+
+
+        <nav class="nk-desktop-nav" aria-label="Navegação principal">
+          <a href="{% url 'entradas:home' %}">Início</a>
+          <a href="{% url 'entradas:listar_perfis' %}">Perfis</a>
+        </nav>
+
+        <div class="nk-header-actions">
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}" class="nk-btn nk-btn-dark">
+              Minha conta
+            </a>
+
+            <a href="{% url 'entradas:sair' %}" class="nk-btn nk-btn-ghost">
+              Sair
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}" class="nk-btn nk-btn-ghost">
+              Entrar
+            </a>
+          {% endif %}
+        </div>
+
+        <button
+          type="button"
+          class="nk-menu-button"
+          data-menu-button
+          aria-label="Abrir menu"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+      </div>
+
+      <div class="nk-mobile-menu" data-mobile-menu>
+        <div class="nk-mobile-menu-inner">
+
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <div class="nk-mobile-user-card">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <div>
+                  <strong>
+                    {% if user_perfil %}
+                      {{ user_perfil.nome_publico }}
+                    {% else %}
+                      Minha conta
+                    {% endif %}
+                  </strong>
+                  <small>Conta NKATA</small>
+                </div>
+              </div>
+            {% endwith %}
+          {% endif %}
+
+          <a href="{% url 'entradas:home' %}">
+            <span>⌂</span>
+            Início
+          </a>
+
+          <a href="{% url 'entradas:listar_perfis' %}">
+            <span>♡</span>
+            Perfis
+          </a>
+
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}">
+              <span>●</span>
+              Minha conta
+            </a>
+
+            <a href="{% url 'entradas:meus_matches' %}">
+              <span>✦</span>
+              Matches
+            </a>
+
+            {% with user_perfil=request.user.perfil_nkata %}
+              {% if user_perfil %}
+                <a href="{% url 'entradas:detalhe_perfil' user_perfil.id %}">
+                  <span>👁</span>
+                  Meu perfil
+                </a>
+
+                <a href="{% url 'entradas:perfil_interacoes' user_perfil.id %}">
+                  <span>✉</span>
+                  Interações
+                </a>
+              {% endif %}
+            {% endwith %}
+
+            <a href="{% url 'entradas:editar_perfil' %}">
+              <span>✎</span>
+              Editar perfil
+            </a>
+
+            <a href="{% url 'entradas:password_change' %}">
+              <span>🔐</span>
+              Alterar senha
+            </a>
+
+            <a href="{% url 'entradas:sair' %}" class="danger">
+              <span>↩</span>
+              Sair
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              Entrar
+            </a>
+
+            <a href="{% url 'entradas:solicitar_entrada' %}">
+              <span>＋</span>
+              Solicitar entrada
+            </a>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </header>
+
+    <main>
+
+      <section class="quiz-hero">
+        <div class="nk-container quiz-layout">
+
+          <section class="quiz-copy">
+            <span class="nk-badge">Questionário obrigatório</span>
+
+            <h1>
+              Queremos conhecer<br>
+              a sua intenção.
+            </h1>
+
+            <p>
+              Olá, {{ pedido.nome_completo }}. O seu pedido foi aprovado para esta etapa.
+              Responda com sinceridade para ajudar o NKATA a criar uma comunidade mais séria.
+            </p>
+
+            <div class="quiz-points">
+              <div>
+                <span>✓</span>
+                <p>Respostas verdadeiras ajudam a construir confiança.</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>O NKATA valoriza respeito, clareza e maturidade.</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Informações falsas podem afetar o acesso à comunidade.</p>
+              </div>
+            </div>
+          </section>
+
+          <aside class="approved-card">
+            <div class="approved-icon">✓</div>
+
+            <h2>Pedido aprovado</h2>
+
+            <p>
+              Esta etapa ajuda a perceber melhor quem procura relações sérias,
+              compatíveis e respeitosas.
+            </p>
+
+            <div class="approved-list">
+              <div>
+                <span>01</span>
+                <p>Intenção</p>
+              </div>
+
+              <div>
+                <span>02</span>
+                <p>Valores</p>
+              </div>
+
+              <div>
+                <span>03</span>
+                <p>Limites</p>
+              </div>
+            </div>
+          </aside>
+
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="nk-container form-layout">
+
+          <section class="form-card">
+            <div class="form-head">
+              <span>✦</span>
+
+              <div>
+                <h2>Questionário NKATA</h2>
+
+                <p>
+                  Estas respostas ajudam a perceber melhor quem procura relações sérias
+                  e compatíveis.
+                </p>
+              </div>
+            </div>
+
+            {% if form.errors %}
+              <div class="error-box">
+                <strong>Corrija os campos abaixo:</strong>
+                {{ form.errors }}
+              </div>
+            {% endif %}
+
+            <form method="POST">
+              {% csrf_token %}
+
+              <div class="form-block">
+                <div class="block-title">
+                  <span>01</span>
+
+                  <div>
+                    <h3>Situação e disponibilidade</h3>
+                    <p>Começamos com algumas informações simples sobre a sua fase atual.</p>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="{{ form.disponibilidade.id_for_label }}">
+                      Está disponível para conhecer alguém?
+                    </label>
+                    {{ form.disponibilidade }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="{{ form.tem_filhos.id_for_label }}">
+                      Tem filhos?
+                    </label>
+                    {{ form.tem_filhos }}
+                  </div>
+
+                  <div class="form-group full">
+                    <label for="{{ form.aceita_pessoa_com_filhos.id_for_label }}">
+                      Aceita conhecer alguém que tem filhos?
+                    </label>
+                    {{ form.aceita_pessoa_com_filhos }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-block">
+                <div class="block-title">
+                  <span>02</span>
+
+                  <div>
+                    <h3>Preferências</h3>
+                    <p>Ajude-nos a perceber melhor o tipo de conexão que procura.</p>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="{{ form.cidade_preferida.id_for_label }}">
+                      Cidade ou região preferida
+                    </label>
+                    {{ form.cidade_preferida }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="{{ form.faixa_etaria_preferida.id_for_label }}">
+                      Faixa etária preferida
+                    </label>
+                    {{ form.faixa_etaria_preferida }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-block">
+                <div class="block-title">
+                  <span>03</span>
+
+                  <div>
+                    <h3>Apresentação pessoal</h3>
+                    <p>Estas respostas aparecem no seu perfil público depois da criação.</p>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group full">
+                    <label for="{{ form.sobre_si.id_for_label }}">
+                      Fale um pouco sobre si
+                    </label>
+                    {{ form.sobre_si }}
+                    <small>Escreva de forma simples, verdadeira e respeitosa.</small>
+                  </div>
+
+                  <div class="form-group full">
+                    <label for="{{ form.o_que_valoriza.id_for_label }}">
+                      O que valoriza numa relação?
+                    </label>
+                    {{ form.o_que_valoriza }}
+                    <small>Fale sobre respeito, comunicação, fidelidade, maturidade ou outros valores importantes.</small>
+                  </div>
+
+                  <div class="form-group full">
+                    <label for="{{ form.o_que_nao_aceita.id_for_label }}">
+                      O que não aceita numa relação?
+                    </label>
+                    {{ form.o_que_nao_aceita }}
+                    <small>Defina os seus limites com clareza e respeito.</small>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rules-box">
+                <div class="rules-icon">✓</div>
+
+                <div>
+                  <h3>Regras da comunidade</h3>
+
+                  <label class="check-row" for="{{ form.aceita_regras.id_for_label }}">
+                    {{ form.aceita_regras }}
+
+                    <span>
+                      Confirmo que aceito as regras da comunidade NKATA e compreendo que
+                      comportamentos falsos, ofensivos ou desrespeitosos podem afetar o meu acesso.
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <a href="{% url 'entradas:home' %}" class="nk-btn nk-btn-ghost">
+                  Cancelar
+                </a>
+
+                <button type="submit" class="nk-btn nk-btn-primary">
+                  Enviar respostas →
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="privacy-panel">
+            <div class="privacy-icon">🛡</div>
+
+            <h3>Responda com sinceridade</h3>
+
+            <p>
+              O questionário ajuda a formar perfis mais humanos, claros e sérios.
+              A intenção do NKATA é criar um ambiente onde as pessoas possam confiar
+              antes de iniciar uma conversa.
+            </p>
+
+            <div class="privacy-list">
+              <div>
+                <span>✓</span>
+                <p>Intenção clara</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Valores visíveis</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Limites respeitados</p>
+              </div>
+            </div>
+          </aside>
+
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <nav class="nk-bottom-nav nk-bottom-nav-five" aria-label="Navegação inferior">
+    <a href="{% url 'entradas:home' %}" class="nk-bottom-item">
+      <span>⌂</span>
+      <small>Início</small>
+    </a>
+
+    <a href="{% url 'entradas:listar_perfis' %}" class="nk-bottom-item">
+      <span>♡</span>
+      <small>Perfis</small>
+    </a>
+
+    {% if request.user.is_authenticated %}
+      <a href="{% url 'entradas:meus_matches' %}" class="nk-bottom-item">
+        <span>✦</span>
+        <small>Matches</small>
+
+        {% if total_mensagens_nao_lidas %}
+          <em>{{ total_mensagens_nao_lidas }}</em>
+        {% endif %}
+      </a>
+
+      <a href="{% url 'entradas:minha_conta' %}" class="nk-bottom-item">
+        <span>●</span>
+        <small>Conta</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% else %}
+      <a href="{% url 'entradas:entrar' %}" class="nk-bottom-item">
+        <span>↗</span>
+        <small>Entrar</small>
+      </a>
+
+      <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-bottom-item">
+        <span>＋</span>
+        <small>Entrada</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% endif %}
+  </nav>
+
+<script src="{% static 'entradas/js/nkata_ui.js' %}"></script>
+</body>
+</html>

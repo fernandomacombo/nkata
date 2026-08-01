@@ -1,0 +1,498 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>NKATA | Conversas reais. Relações sérias.</title>
+
+  <meta
+    name="description"
+    content="NKATA é uma comunidade para adultos que procuram conversas reais, perfis analisados e relações sérias."
+  >
+
+  <link rel="stylesheet" href="{% static 'entradas/css/nkata_base.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/home.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/mobile_app.css' %}">
+</head>
+<body>
+
+  <div class="page">
+
+    <header class="nk-header home-header">
+      <div class="nk-container nk-header-inner">
+        <a href="{% url 'entradas:home' %}" class="nk-logo">
+          <span>N</span>KATA
+        </a>
+        <div class="nk-mobile-top-account">
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <a href="{% url 'entradas:minha_conta' %}">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <strong>
+                  {% if user_perfil %}
+                    {{ user_perfil.nome_publico|truncatechars:14 }}
+                  {% else %}
+                    Conta
+                  {% endif %}
+                </strong>
+              </a>
+            {% endwith %}
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              <strong>Entrar</strong>
+            </a>
+          {% endif %}
+        </div>
+
+
+        <nav class="nk-desktop-nav" aria-label="Navegação principal">
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#diferencial">Diferencial</a>
+          <a href="#requisitos">Requisitos</a>
+          <a href="{% url 'entradas:listar_perfis' %}">Perfis</a>
+        </nav>
+
+        <div class="nk-header-actions">
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}" class="nk-btn nk-btn-dark">
+              Minha conta
+            </a>
+
+            <a href="{% url 'entradas:sair' %}" class="nk-btn nk-btn-ghost">
+              Sair
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}" class="nk-btn nk-btn-ghost">
+              Entrar
+            </a>
+
+            <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-btn nk-btn-primary">
+              Solicitar entrada
+            </a>
+          {% endif %}
+        </div>
+
+        <button
+          type="button"
+          class="nk-menu-button"
+          data-menu-button
+          aria-label="Abrir menu"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+      </div>
+
+      <div class="nk-mobile-menu" data-mobile-menu>
+        <div class="nk-mobile-menu-inner">
+
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <div class="nk-mobile-user-card">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <div>
+                  <strong>
+                    {% if user_perfil %}
+                      {{ user_perfil.nome_publico }}
+                    {% else %}
+                      Minha conta
+                    {% endif %}
+                  </strong>
+                  <small>Conta NKATA</small>
+                </div>
+              </div>
+            {% endwith %}
+          {% endif %}
+
+          <a href="{% url 'entradas:home' %}">
+            <span>⌂</span>
+            Início
+          </a>
+
+          <a href="{% url 'entradas:listar_perfis' %}">
+            <span>♡</span>
+            Perfis
+          </a>
+
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}">
+              <span>●</span>
+              Minha conta
+            </a>
+
+            <a href="{% url 'entradas:meus_matches' %}">
+              <span>✦</span>
+              Matches
+            </a>
+
+            {% with user_perfil=request.user.perfil_nkata %}
+              {% if user_perfil %}
+                <a href="{% url 'entradas:detalhe_perfil' user_perfil.id %}">
+                  <span>👁</span>
+                  Meu perfil
+                </a>
+
+                <a href="{% url 'entradas:perfil_interacoes' user_perfil.id %}">
+                  <span>✉</span>
+                  Interações
+                </a>
+              {% endif %}
+            {% endwith %}
+
+            <a href="{% url 'entradas:editar_perfil' %}">
+              <span>✎</span>
+              Editar perfil
+            </a>
+
+            <a href="{% url 'entradas:password_change' %}">
+              <span>🔐</span>
+              Alterar senha
+            </a>
+
+            <a href="{% url 'entradas:sair' %}" class="danger">
+              <span>↩</span>
+              Sair
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              Entrar
+            </a>
+
+            <a href="{% url 'entradas:solicitar_entrada' %}">
+              <span>＋</span>
+              Solicitar entrada
+            </a>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </header>
+
+    <main>
+
+      <section class="hero-showroom">
+        
+        <div class="hero-image-layer"></div>
+        <div class="hero-gradient"></div>
+
+        <div class="nk-container hero-content">
+          <div class="hero-copy">
+            <span class="nk-badge">Acesso controlado • 18+</span>
+
+            <h1>
+              Relações sérias<br>
+              começam com<br>
+              confiança.
+            </h1>
+
+            <p>
+              Uma comunidade privada para adultos com intenção clara,
+              perfis analisados e conversas mais seguras.
+            </p>
+
+            <div class="hero-actions">
+              {% if request.user.is_authenticated %}
+                <a href="{% url 'entradas:minha_conta' %}" class="nk-btn nk-btn-primary">
+                  Abrir minha conta
+                </a>
+
+                <a href="{% url 'entradas:listar_perfis' %}" class="nk-btn nk-btn-hero-ghost">
+                  Ver perfis
+                </a>
+              {% else %}
+                <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-btn nk-btn-primary">
+                  Solicitar entrada
+                </a>
+
+                <a href="#como-funciona" class="nk-btn nk-btn-hero-ghost">
+                  Como funciona
+                </a>
+              {% endif %}
+            </div>
+
+            <div class="hero-trust-icons" aria-label="Pontos de confiança">
+              <div title="Somente adultos">
+                <span>18+</span>
+              </div>
+
+              <div title="Perfis analisados">
+                <span>✓</span>
+              </div>
+
+              <div title="Verificação interna">
+                <span>BI</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <a href="#como-funciona" class="scroll-hint" aria-label="Descer">
+          <span></span>
+          Deslize
+        </a>
+      </section>
+
+      <section id="como-funciona" class="section light-section">
+        <div class="nk-container section-grid">
+
+          <div class="section-copy">
+            <span class="section-kicker">Como funciona</span>
+
+            <h2>
+              Entrada simples,<br>
+              processo sério.
+            </h2>
+
+            <p>
+              O NKATA não começa com chat livre. Primeiro existe pedido,
+              análise, questionário e criação de acesso.
+            </p>
+          </div>
+
+          <div class="steps-grid">
+            <article class="step-card">
+              <span>01</span>
+              <h3>Solicita entrada</h3>
+              <p>
+                A pessoa envia dados básicos, fotos e documentos para análise interna.
+              </p>
+            </article>
+
+            <article class="step-card">
+              <span>02</span>
+              <h3>Passa por análise</h3>
+              <p>
+                A equipa verifica se o pedido cumpre os requisitos mínimos da comunidade.
+              </p>
+            </article>
+
+            <article class="step-card">
+              <span>03</span>
+              <h3>Responde questionário</h3>
+              <p>
+                As respostas ajudam a criar um perfil mais humano, claro e sério.
+              </p>
+            </article>
+
+            <article class="step-card">
+              <span>04</span>
+              <h3>Acede à conta</h3>
+              <p>
+                Depois da aprovação, o usuário cria senha e acompanha o seu espaço.
+              </p>
+            </article>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="diferencial" class="section dark-section">
+        <div class="nk-container difference-layout">
+
+          <div class="difference-card main-difference">
+            <span class="section-kicker light">Diferencial</span>
+
+            <h2>
+              Não é grupo aberto.<br>
+              Não é brincadeira.
+            </h2>
+
+            <p>
+              O NKATA foi pensado para adultos que querem conhecer pessoas
+              com mais respeito, intenção e segurança.
+            </p>
+          </div>
+
+          <div class="difference-list">
+            <article>
+              <span>♡</span>
+              <h3>Intenção real</h3>
+              <p>
+                A plataforma valoriza pessoas que procuram conversas sérias e compatíveis.
+              </p>
+            </article>
+
+            <article>
+              <span>🔒</span>
+              <h3>Dados protegidos</h3>
+              <p>
+                Email, telefone e documentos não aparecem publicamente no perfil.
+              </p>
+            </article>
+
+            <article>
+              <span>✓</span>
+              <h3>Perfis analisados</h3>
+              <p>
+                A entrada controlada ajuda a reduzir perfis falsos e comportamentos ruins.
+              </p>
+            </article>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="requisitos" class="section light-section">
+        <div class="nk-container requirements-layout">
+
+          <div class="section-copy">
+            <span class="section-kicker">Requisitos</span>
+
+            <h2>
+              Nem todos entram.<br>
+              E isso é parte da segurança.
+            </h2>
+
+            <p>
+              O NKATA precisa manter um ambiente sério. Por isso, cada pedido
+              deve respeitar regras básicas antes de avançar.
+            </p>
+          </div>
+
+          <div class="requirements-card">
+            <div class="requirement-item">
+              <span>18+</span>
+              <div>
+                <h3>Somente adultos</h3>
+                <p>A comunidade é apenas para pessoas com 18 anos ou mais.</p>
+              </div>
+            </div>
+
+            <div class="requirement-item">
+              <span>✓</span>
+              <div>
+                <h3>Fotos claras</h3>
+                <p>Fotos devem mostrar o rosto com nitidez e respeito.</p>
+              </div>
+            </div>
+
+            <div class="requirement-item">
+              <span>BI</span>
+              <div>
+                <h3>Verificação interna</h3>
+                <p>Documentos são usados apenas para análise e segurança.</p>
+              </div>
+            </div>
+
+            <div class="requirement-item">
+              <span>!</span>
+              <div>
+                <h3>Respeito obrigatório</h3>
+                <p>Comportamentos falsos ou ofensivos podem levar à suspensão.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <div class="nk-container final-card">
+          <div>
+            <span class="section-kicker light">NKATA</span>
+
+            <h2>
+              Conversas reais.<br>
+              Relações sérias.
+            </h2>
+
+            <p>
+              Comece pelo pedido de entrada. A confiança vem antes da conexão.
+            </p>
+          </div>
+
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}" class="nk-btn nk-btn-primary">
+              Abrir minha conta
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-btn nk-btn-primary">
+              Solicitar entrada
+            </a>
+          {% endif %}
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <nav class="nk-bottom-nav nk-bottom-nav-five" aria-label="Navegação inferior">
+    <a href="{% url 'entradas:home' %}" class="nk-bottom-item">
+      <span>⌂</span>
+      <small>Início</small>
+    </a>
+
+    <a href="{% url 'entradas:listar_perfis' %}" class="nk-bottom-item">
+      <span>♡</span>
+      <small>Perfis</small>
+    </a>
+
+    {% if request.user.is_authenticated %}
+      <a href="{% url 'entradas:meus_matches' %}" class="nk-bottom-item">
+        <span>✦</span>
+        <small>Matches</small>
+
+        {% if total_mensagens_nao_lidas %}
+          <em>{{ total_mensagens_nao_lidas }}</em>
+        {% endif %}
+      </a>
+
+      <a href="{% url 'entradas:minha_conta' %}" class="nk-bottom-item">
+        <span>●</span>
+        <small>Conta</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% else %}
+      <a href="{% url 'entradas:entrar' %}" class="nk-bottom-item">
+        <span>↗</span>
+        <small>Entrar</small>
+      </a>
+
+      <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-bottom-item">
+        <span>＋</span>
+        <small>Entrada</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% endif %}
+  </nav>
+
+<script src="{% static 'entradas/js/nkata_ui.js' %}"></script>
+</body>
+</html>

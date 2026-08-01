@@ -1,0 +1,338 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Criar senha | NKATA</title>
+
+  <link rel="stylesheet" href="{% static 'entradas/css/nkata_base.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/auth.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/mobile_app.css' %}">
+</head>
+<body>
+
+  <div class="page">
+
+    <header class="nk-header">
+      <div class="nk-container nk-header-inner">
+        <a href="{% url 'entradas:home' %}" class="nk-logo">
+          <span>N</span>KATA
+        </a>
+        <div class="nk-mobile-top-account">
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <a href="{% url 'entradas:minha_conta' %}">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <strong>
+                  {% if user_perfil %}
+                    {{ user_perfil.nome_publico|truncatechars:14 }}
+                  {% else %}
+                    Conta
+                  {% endif %}
+                </strong>
+              </a>
+            {% endwith %}
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              <strong>Entrar</strong>
+            </a>
+          {% endif %}
+        </div>
+
+
+        <nav class="nk-desktop-nav" aria-label="Navegação principal">
+          <a href="{% url 'entradas:home' %}">Início</a>
+          <a href="{% url 'entradas:listar_perfis' %}">Perfis</a>
+        </nav>
+
+        <div class="nk-header-actions">
+          <a href="{% url 'entradas:entrar' %}" class="nk-btn nk-btn-ghost">
+            Entrar
+          </a>
+        </div>
+
+        <button
+          type="button"
+          class="nk-menu-button"
+          data-menu-button
+          aria-label="Abrir menu"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+      </div>
+
+      <div class="nk-mobile-menu" data-mobile-menu>
+        <div class="nk-mobile-menu-inner">
+
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <div class="nk-mobile-user-card">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <div>
+                  <strong>
+                    {% if user_perfil %}
+                      {{ user_perfil.nome_publico }}
+                    {% else %}
+                      Minha conta
+                    {% endif %}
+                  </strong>
+                  <small>Conta NKATA</small>
+                </div>
+              </div>
+            {% endwith %}
+          {% endif %}
+
+          <a href="{% url 'entradas:home' %}">
+            <span>⌂</span>
+            Início
+          </a>
+
+          <a href="{% url 'entradas:listar_perfis' %}">
+            <span>♡</span>
+            Perfis
+          </a>
+
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}">
+              <span>●</span>
+              Minha conta
+            </a>
+
+            <a href="{% url 'entradas:meus_matches' %}">
+              <span>✦</span>
+              Matches
+            </a>
+
+            {% with user_perfil=request.user.perfil_nkata %}
+              {% if user_perfil %}
+                <a href="{% url 'entradas:detalhe_perfil' user_perfil.id %}">
+                  <span>👁</span>
+                  Meu perfil
+                </a>
+
+                <a href="{% url 'entradas:perfil_interacoes' user_perfil.id %}">
+                  <span>✉</span>
+                  Interações
+                </a>
+              {% endif %}
+            {% endwith %}
+
+            <a href="{% url 'entradas:editar_perfil' %}">
+              <span>✎</span>
+              Editar perfil
+            </a>
+
+            <a href="{% url 'entradas:password_change' %}">
+              <span>🔐</span>
+              Alterar senha
+            </a>
+
+            <a href="{% url 'entradas:sair' %}" class="danger">
+              <span>↩</span>
+              Sair
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              Entrar
+            </a>
+
+            <a href="{% url 'entradas:solicitar_entrada' %}">
+              <span>＋</span>
+              Solicitar entrada
+            </a>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </header>
+
+    <main>
+      <section class="auth-hero">
+        <div class="nk-container auth-layout">
+
+          <section class="auth-copy">
+            <span class="nk-badge">Acesso aprovado</span>
+
+            <h1>
+              Proteja o seu<br>
+              acesso.
+            </h1>
+
+            <p>
+              O seu perfil já foi criado. Agora defina uma senha para entrar
+              novamente e acompanhar a sua conta NKATA.
+            </p>
+
+            <div class="profile-mini-card">
+              {% if perfil.foto_principal %}
+                <img src="{{ perfil.foto_principal.url }}" alt="Foto de {{ perfil.nome_publico }}">
+              {% endif %}
+
+              <div>
+                <strong>{{ perfil.nome_publico }}</strong>
+                <p>{{ pedido.email }}</p>
+              </div>
+            </div>
+
+            <div class="auth-points">
+              <div>
+                <span>✓</span>
+                <p>Use uma senha que só você conhece</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Não partilhe o acesso com terceiros</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>A sua conta ficará ligada ao seu perfil</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="auth-card">
+            <div class="auth-card-head">
+              <span>🔑</span>
+
+              <div>
+                <h2>Criar senha</h2>
+                <p>Defina a sua senha de acesso.</p>
+              </div>
+            </div>
+
+            {% if erro_senha %}
+  <div class="auth-message-box">
+    <p>{{ erro_senha }}</p>
+  </div>
+{% endif %}
+
+            <form method="POST">
+              {% csrf_token %}
+
+              <div class="auth-form-grid">
+                <div class="auth-form-group">
+                  <label for="senha">Senha</label>
+                  <input
+                    type="password"
+                    name="senha"
+                    id="senha"
+                    placeholder="Crie uma senha"
+                    autocomplete="new-password"
+                    required
+                  >
+                </div>
+
+                <div class="auth-form-group">
+                  <label for="confirmar_senha">Confirmar senha</label>
+                  <input
+                    type="password"
+                    name="confirmar_senha"
+                    id="confirmar_senha"
+                    placeholder="Repita a senha"
+                    autocomplete="new-password"
+                    required
+                  >
+                </div>
+              </div>
+
+              <button type="submit" class="nk-btn nk-btn-primary auth-submit">
+                Criar senha →
+              </button>
+            </form>
+
+            <div class="auth-footer-note">
+              <p>
+                Depois de criar a senha, será direcionado para a sua conta.
+              </p>
+            </div>
+          </section>
+
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <nav class="nk-bottom-nav nk-bottom-nav-five" aria-label="Navegação inferior">
+    <a href="{% url 'entradas:home' %}" class="nk-bottom-item">
+      <span>⌂</span>
+      <small>Início</small>
+    </a>
+
+    <a href="{% url 'entradas:listar_perfis' %}" class="nk-bottom-item">
+      <span>♡</span>
+      <small>Perfis</small>
+    </a>
+
+    {% if request.user.is_authenticated %}
+      <a href="{% url 'entradas:meus_matches' %}" class="nk-bottom-item">
+        <span>✦</span>
+        <small>Matches</small>
+
+        {% if total_mensagens_nao_lidas %}
+          <em>{{ total_mensagens_nao_lidas }}</em>
+        {% endif %}
+      </a>
+
+      <a href="{% url 'entradas:minha_conta' %}" class="nk-bottom-item">
+        <span>●</span>
+        <small>Conta</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% else %}
+      <a href="{% url 'entradas:entrar' %}" class="nk-bottom-item">
+        <span>↗</span>
+        <small>Entrar</small>
+      </a>
+
+      <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-bottom-item">
+        <span>＋</span>
+        <small>Entrada</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% endif %}
+  </nav>
+
+
+  <script src="{% static 'entradas/js/nkata_ui.js' %}"></script>
+</body>
+</html>

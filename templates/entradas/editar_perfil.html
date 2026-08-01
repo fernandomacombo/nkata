@@ -1,0 +1,524 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Editar perfil | NKATA</title>
+
+  <link rel="stylesheet" href="{% static 'entradas/css/nkata_base.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/editar_perfil.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/mobile_app.css' %}">
+</head>
+<body>
+
+  <div class="page">
+
+    <header class="nk-header">
+      <div class="nk-container nk-header-inner">
+        <a href="{% url 'entradas:home' %}" class="nk-logo">
+          <span>N</span>KATA
+        </a>
+        <div class="nk-mobile-top-account">
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <a href="{% url 'entradas:minha_conta' %}">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <strong>
+                  {% if user_perfil %}
+                    {{ user_perfil.nome_publico|truncatechars:14 }}
+                  {% else %}
+                    Conta
+                  {% endif %}
+                </strong>
+              </a>
+            {% endwith %}
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              <strong>Entrar</strong>
+            </a>
+          {% endif %}
+        </div>
+
+
+        <nav class="nk-desktop-nav" aria-label="Navegação principal">
+          <a href="{% url 'entradas:home' %}">Início</a>
+          <a href="{% url 'entradas:listar_perfis' %}">Perfis</a>
+          <a href="{% url 'entradas:minha_conta' %}">Minha conta</a>
+          <a href="{% url 'entradas:detalhe_perfil' perfil.id %}">Meu perfil</a>
+        </nav>
+
+        <div class="nk-header-actions">
+          <a href="{% url 'entradas:sair' %}" class="nk-btn nk-btn-ghost">
+            Sair
+          </a>
+        </div>
+
+        <button
+          type="button"
+          class="nk-menu-button"
+          data-menu-button
+          aria-label="Abrir menu"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+      </div>
+
+      <div class="nk-mobile-menu" data-mobile-menu>
+        <div class="nk-mobile-menu-inner">
+
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <div class="nk-mobile-user-card">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <div>
+                  <strong>
+                    {% if user_perfil %}
+                      {{ user_perfil.nome_publico }}
+                    {% else %}
+                      Minha conta
+                    {% endif %}
+                  </strong>
+                  <small>Conta NKATA</small>
+                </div>
+              </div>
+            {% endwith %}
+          {% endif %}
+
+          <a href="{% url 'entradas:home' %}">
+            <span>⌂</span>
+            Início
+          </a>
+
+          <a href="{% url 'entradas:listar_perfis' %}">
+            <span>♡</span>
+            Perfis
+          </a>
+
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}">
+              <span>●</span>
+              Minha conta
+            </a>
+
+            <a href="{% url 'entradas:meus_matches' %}">
+              <span>✦</span>
+              Matches
+            </a>
+
+            {% with user_perfil=request.user.perfil_nkata %}
+              {% if user_perfil %}
+                <a href="{% url 'entradas:detalhe_perfil' user_perfil.id %}">
+                  <span>👁</span>
+                  Meu perfil
+                </a>
+
+                <a href="{% url 'entradas:perfil_interacoes' user_perfil.id %}">
+                  <span>✉</span>
+                  Interações
+                </a>
+              {% endif %}
+            {% endwith %}
+
+            <a href="{% url 'entradas:editar_perfil' %}">
+              <span>✎</span>
+              Editar perfil
+            </a>
+
+            <a href="{% url 'entradas:password_change' %}">
+              <span>🔐</span>
+              Alterar senha
+            </a>
+
+            <a href="{% url 'entradas:sair' %}" class="danger">
+              <span>↩</span>
+              Sair
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              Entrar
+            </a>
+
+            <a href="{% url 'entradas:solicitar_entrada' %}">
+              <span>＋</span>
+              Solicitar entrada
+            </a>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </header>
+
+    <main>
+
+      <section class="edit-hero">
+        <div class="nk-container edit-layout">
+
+          <aside class="profile-preview-card">
+            <div class="preview-photo">
+              {% if perfil.foto_principal %}
+                <img src="{{ perfil.foto_principal.url }}" alt="Foto de {{ perfil.nome_publico }}">
+              {% else %}
+                <div class="profile-placeholder">
+                  {{ perfil.nome_publico|slice:":1" }}
+                </div>
+              {% endif %}
+
+              <span class="verified-pill">
+                <strong>✓</strong>
+                Verificado
+              </span>
+            </div>
+
+            <div class="preview-info">
+              <span class="profile-status">
+                <i></i>
+                {{ perfil.get_status_display }}
+              </span>
+
+              <h1>{{ perfil.nome_publico }}</h1>
+
+              <p>
+                {{ perfil.idade }} anos • {{ perfil.cidade }}
+              </p>
+
+              <div class="preview-tags">
+                <span>{{ perfil.get_objetivo_display }}</span>
+                <span>{{ perfil.get_genero_display }}</span>
+              </div>
+            </div>
+          </aside>
+
+          <section class="edit-main">
+            <span class="nk-badge">Editar perfil</span>
+
+            <h2>
+              Atualize a sua<br>
+              apresentação.
+            </h2>
+
+            <p class="edit-intro">
+              Edite apenas as informações públicas do seu perfil. Dados privados,
+              documentos, telefone e email continuam protegidos.
+            </p>
+
+            <div class="edit-rules">
+              <div>
+                <span>✓</span>
+                <p>Nome público, cidade e objetivo podem ser ajustados.</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Os textos devem comunicar intenção, respeito e maturidade.</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Documentos e dados sensíveis não aparecem publicamente.</p>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="nk-container form-layout">
+
+          <section class="form-card">
+            <div class="form-head">
+              <span>✎</span>
+
+              <div>
+                <h2>Informações públicas</h2>
+                <p>Estas informações aparecem no seu perfil público.</p>
+              </div>
+            </div>
+
+            {% if messages %}
+              <div class="message-box">
+                {% for message in messages %}
+                  <p>{{ message }}</p>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if form.errors %}
+              <div class="error-box">
+                <strong>Corrija os erros abaixo:</strong>
+                {{ form.errors }}
+              </div>
+            {% endif %}
+
+            <form method="POST">
+              {% csrf_token %}
+
+              <div class="form-grid">
+
+                <div class="form-group full">
+                  <label for="{{ form.nome_publico.id_for_label }}">
+                    Nome público
+                  </label>
+                  {{ form.nome_publico }}
+                </div>
+
+                <div class="form-group">
+                  <label for="{{ form.cidade.id_for_label }}">
+                    Cidade
+                  </label>
+                  {{ form.cidade }}
+                </div>
+
+                <div class="form-group">
+                  <label for="{{ form.objetivo.id_for_label }}">
+                    Objetivo
+                  </label>
+                  {{ form.objetivo }}
+                </div>
+
+                <div class="form-group full">
+                  <label for="{{ form.sobre_si.id_for_label }}">
+                    Sobre mim
+                  </label>
+                  {{ form.sobre_si }}
+                  <small>Escreva de forma simples, verdadeira e respeitosa.</small>
+                </div>
+
+                <div class="form-group full">
+                  <label for="{{ form.o_que_valoriza.id_for_label }}">
+                    O que valorizo
+                  </label>
+                  {{ form.o_que_valoriza }}
+                  <small>Fale sobre valores, comportamento e intenção.</small>
+                </div>
+
+                <div class="form-group full">
+                  <label for="{{ form.o_que_nao_aceita.id_for_label }}">
+                    O que não aceito
+                  </label>
+                  {{ form.o_que_nao_aceita }}
+                  <small>Defina limites com maturidade e respeito.</small>
+                </div>
+
+              </div>
+
+              <div class="form-actions">
+                <a href="{% url 'entradas:minha_conta' %}" class="nk-btn nk-btn-ghost">
+                  Cancelar
+                </a>
+
+                <button type="submit" class="nk-btn nk-btn-primary">
+                  Guardar alterações
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="side-note">
+            <div class="side-note-icon">🔒</div>
+
+            <h3>O que não pode ser editado aqui?</h3>
+
+            <div class="locked-list">
+              <div>
+                <span>BI</span>
+                <p>Documentos de verificação</p>
+              </div>
+
+              <div>
+                <span>@</span>
+                <p>Email de conta</p>
+              </div>
+
+              <div>
+                <span>☎</span>
+                <p>Telefone privado</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Estado de verificação</p>
+              </div>
+            </div>
+
+            <p>
+              Estes dados continuam sob controlo interno para proteger a confiança
+              e a segurança da comunidade.
+            </p>
+          </aside>
+
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+<div class="nk-mobile-menu" data-mobile-menu>
+  <div class="nk-mobile-menu-inner">
+
+    {% if request.user.is_authenticated %}
+      <div class="nk-mobile-user-card">
+        {% if request.user.perfil_nkata.foto_principal %}
+          <img
+            src="{{ request.user.perfil_nkata.foto_principal.url }}"
+            alt="Foto de {{ request.user.perfil_nkata.nome_publico }}"
+          >
+        {% else %}
+          <span>{{ request.user.username|slice:":1" }}</span>
+        {% endif %}
+
+        <div>
+          <strong>
+            {% if request.user.perfil_nkata %}
+              {{ request.user.perfil_nkata.nome_publico }}
+            {% else %}
+              Minha conta
+            {% endif %}
+          </strong>
+          <small>Conta NKATA</small>
+        </div>
+      </div>
+    {% endif %}
+
+    <a href="{% url 'entradas:home' %}">
+      <span>⌂</span>
+      Início
+    </a>
+
+    <a href="{% url 'entradas:listar_perfis' %}">
+      <span>♡</span>
+      Perfis
+    </a>
+
+    {% if request.user.is_authenticated %}
+      <a href="{% url 'entradas:minha_conta' %}">
+        <span>●</span>
+        Minha conta
+      </a>
+
+      <a href="{% url 'entradas:meus_matches' %}">
+        <span>✦</span>
+        Matches
+      </a>
+
+      {% if perfil %}
+        <a href="{% url 'entradas:detalhe_perfil' perfil.id %}">
+          <span>👁</span>
+          Meu perfil público
+        </a>
+
+        <a href="{% url 'entradas:perfil_interacoes' perfil.id %}">
+          <span>✉</span>
+          Interações
+        </a>
+      {% endif %}
+
+      <a href="{% url 'entradas:editar_perfil' %}">
+        <span>✎</span>
+        Editar perfil
+      </a>
+
+      <a href="{% url 'entradas:password_change' %}">
+        <span>🔐</span>
+        Alterar senha
+      </a>
+
+      <a href="{% url 'entradas:sair' %}" class="danger">
+        <span>↩</span>
+        Sair
+      </a>
+    {% else %}
+      <a href="{% url 'entradas:entrar' %}">
+        <span>↗</span>
+        Entrar
+      </a>
+
+      <a href="{% url 'entradas:solicitar_entrada' %}">
+        <span>＋</span>
+        Solicitar entrada
+      </a>
+    {% endif %}
+
+  </div>
+</div>
+
+  <nav class="nk-bottom-nav nk-bottom-nav-five" aria-label="Navegação inferior">
+    <a href="{% url 'entradas:home' %}" class="nk-bottom-item">
+      <span>⌂</span>
+      <small>Início</small>
+    </a>
+
+    <a href="{% url 'entradas:listar_perfis' %}" class="nk-bottom-item">
+      <span>♡</span>
+      <small>Perfis</small>
+    </a>
+
+    {% if request.user.is_authenticated %}
+      <a href="{% url 'entradas:meus_matches' %}" class="nk-bottom-item">
+        <span>✦</span>
+        <small>Matches</small>
+
+        {% if total_mensagens_nao_lidas %}
+          <em>{{ total_mensagens_nao_lidas }}</em>
+        {% endif %}
+      </a>
+
+      <a href="{% url 'entradas:minha_conta' %}" class="nk-bottom-item">
+        <span>●</span>
+        <small>Conta</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% else %}
+      <a href="{% url 'entradas:entrar' %}" class="nk-bottom-item">
+        <span>↗</span>
+        <small>Entrar</small>
+      </a>
+
+      <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-bottom-item">
+        <span>＋</span>
+        <small>Entrada</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% endif %}
+  </nav>
+
+  <script src="{% static 'entradas/js/nkata_ui.js' %}"></script>
+</body>
+</html>

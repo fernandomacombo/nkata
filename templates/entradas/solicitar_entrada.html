@@ -1,0 +1,507 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Solicitar entrada | NKATA</title>
+
+  <meta
+    name="description"
+    content="Solicite entrada no NKATA, uma comunidade para adultos que procuram conversas reais e relações sérias."
+  >
+
+  <link rel="stylesheet" href="{% static 'entradas/css/nkata_base.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/solicitar_entrada.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/mobile_app.css' %}">
+</head>
+<body>
+
+  <div class="page">
+
+    <header class="nk-header">
+      <div class="nk-container nk-header-inner">
+        <a href="{% url 'entradas:home' %}" class="nk-logo">
+          <span>N</span>KATA
+        </a>
+        <div class="nk-mobile-top-account">
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <a href="{% url 'entradas:minha_conta' %}">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <strong>
+                  {% if user_perfil %}
+                    {{ user_perfil.nome_publico|truncatechars:14 }}
+                  {% else %}
+                    Conta
+                  {% endif %}
+                </strong>
+              </a>
+            {% endwith %}
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              <strong>Entrar</strong>
+            </a>
+          {% endif %}
+        </div>
+
+
+        <nav class="nk-desktop-nav" aria-label="Navegação principal">
+          <a href="{% url 'entradas:home' %}">Início</a>
+          <a href="{% url 'entradas:listar_perfis' %}">Perfis</a>
+        </nav>
+
+        <div class="nk-header-actions">
+          <a href="{% url 'entradas:entrar' %}" class="nk-btn nk-btn-ghost">
+            Entrar
+          </a>
+        </div>
+
+        <button
+          type="button"
+          class="nk-menu-button"
+          data-menu-button
+          aria-label="Abrir menu"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+      </div>
+
+      <div class="nk-mobile-menu" data-mobile-menu>
+        <div class="nk-mobile-menu-inner">
+
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <div class="nk-mobile-user-card">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <div>
+                  <strong>
+                    {% if user_perfil %}
+                      {{ user_perfil.nome_publico }}
+                    {% else %}
+                      Minha conta
+                    {% endif %}
+                  </strong>
+                  <small>Conta NKATA</small>
+                </div>
+              </div>
+            {% endwith %}
+          {% endif %}
+
+          <a href="{% url 'entradas:home' %}">
+            <span>⌂</span>
+            Início
+          </a>
+
+          <a href="{% url 'entradas:listar_perfis' %}">
+            <span>♡</span>
+            Perfis
+          </a>
+
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}">
+              <span>●</span>
+              Minha conta
+            </a>
+
+            <a href="{% url 'entradas:meus_matches' %}">
+              <span>✦</span>
+              Matches
+            </a>
+
+            {% with user_perfil=request.user.perfil_nkata %}
+              {% if user_perfil %}
+                <a href="{% url 'entradas:detalhe_perfil' user_perfil.id %}">
+                  <span>👁</span>
+                  Meu perfil
+                </a>
+
+                <a href="{% url 'entradas:perfil_interacoes' user_perfil.id %}">
+                  <span>✉</span>
+                  Interações
+                </a>
+              {% endif %}
+            {% endwith %}
+
+            <a href="{% url 'entradas:editar_perfil' %}">
+              <span>✎</span>
+              Editar perfil
+            </a>
+
+            <a href="{% url 'entradas:password_change' %}">
+              <span>🔐</span>
+              Alterar senha
+            </a>
+
+            <a href="{% url 'entradas:sair' %}" class="danger">
+              <span>↩</span>
+              Sair
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              Entrar
+            </a>
+
+            <a href="{% url 'entradas:solicitar_entrada' %}">
+              <span>＋</span>
+              Solicitar entrada
+            </a>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </header>
+
+    <main>
+
+      <section class="entry-hero">
+        <div class="nk-container entry-layout">
+
+          <section class="entry-copy">
+            <span class="nk-badge">Pedido de entrada</span>
+
+            <h1>
+              Primeiro segurança.<br>
+              Depois conexão.
+            </h1>
+
+            <p>
+              O NKATA é uma comunidade para adultos que procuram relações sérias.
+              Por isso, todos os pedidos passam por análise antes de qualquer acesso.
+            </p>
+
+            <div class="entry-points">
+              <div>
+                <span>18+</span>
+                <p>Somente adultos</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Fotos nítidas</p>
+              </div>
+
+              <div>
+                <span>BI</span>
+                <p>Verificação interna</p>
+              </div>
+            </div>
+          </section>
+
+          <aside class="entry-side-card">
+            <div class="side-icon">🔒</div>
+
+            <h2>Antes de enviar</h2>
+
+            <div class="side-list">
+              <div>
+                <span>✓</span>
+                <p>Tenha 18 anos ou mais.</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Use fotos claras e recentes.</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>BI frente e verso devem estar legíveis.</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Selfie segurando o BI deve estar nítida.</p>
+              </div>
+            </div>
+
+            <p class="side-note">
+              Pedidos com dados falsos, fotos desfocadas ou documentos ilegíveis
+              podem ser rejeitados.
+            </p>
+          </aside>
+
+        </div>
+      </section>
+
+      <section class="form-section" id="formulario">
+        <div class="nk-container form-layout">
+
+          <section class="form-card">
+            <div class="form-head">
+              <span>✦</span>
+
+              <div>
+                <h2>Solicitar entrada</h2>
+                <p>
+                  Preencha com atenção. A equipa NKATA irá analisar as informações,
+                  fotos e documentos antes de liberar qualquer acesso.
+                </p>
+              </div>
+            </div>
+
+            {% if form.errors %}
+              <div class="error-box">
+                <strong>Corrija os campos abaixo:</strong>
+                {{ form.errors }}
+              </div>
+            {% endif %}
+
+            <form method="POST" enctype="multipart/form-data">
+              {% csrf_token %}
+
+              <div class="form-block">
+                <div class="block-title">
+                  <span>01</span>
+                  <div>
+                    <h3>Dados básicos</h3>
+                    <p>Estas informações ajudam a confirmar quem está a solicitar entrada.</p>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group full">
+                    <label for="{{ form.nome_completo.id_for_label }}">Nome completo</label>
+                    {{ form.nome_completo }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="{{ form.email.id_for_label }}">Email</label>
+                    {{ form.email }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="{{ form.telefone.id_for_label }}">Telefone</label>
+                    {{ form.telefone }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="{{ form.idade.id_for_label }}">Idade</label>
+                    {{ form.idade }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="{{ form.cidade.id_for_label }}">Cidade</label>
+                    {{ form.cidade }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="{{ form.genero.id_for_label }}">Género</label>
+                    {{ form.genero }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="{{ form.objetivo.id_for_label }}">O que procura?</label>
+                    {{ form.objetivo }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-block">
+                <div class="block-title">
+                  <span>02</span>
+                  <div>
+                    <h3>Fotos pessoais</h3>
+                    <p>Envie uma foto principal e mais três fotos diferentes.</p>
+                  </div>
+                </div>
+
+                <div class="upload-grid">
+                  <div class="upload-box">
+                    <strong>Foto principal</strong>
+                    <p>Esta será a foto principal do perfil.</p>
+                    {{ form.foto_perfil }}
+                  </div>
+
+                  <div class="upload-box">
+                    <strong>Foto adicional 1</strong>
+                    <p>Uma foto diferente e nítida.</p>
+                    {{ form.foto_extra_1 }}
+                  </div>
+
+                  <div class="upload-box">
+                    <strong>Foto adicional 2</strong>
+                    <p>Evite fotos repetidas ou escuras.</p>
+                    {{ form.foto_extra_2 }}
+                  </div>
+
+                  <div class="upload-box">
+                    <strong>Foto adicional 3</strong>
+                    <p>Mostre claramente o rosto.</p>
+                    {{ form.foto_extra_3 }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-block">
+                <div class="block-title">
+                  <span>03</span>
+                  <div>
+                    <h3>Verificação de identidade</h3>
+                    <p>Estes documentos são usados apenas para análise interna.</p>
+                  </div>
+                </div>
+
+                <div class="upload-grid">
+                  <div class="upload-box">
+                    <strong>BI frente</strong>
+                    <p>Imagem clara da frente do BI.</p>
+                    {{ form.bi_frente }}
+                  </div>
+
+                  <div class="upload-box">
+                    <strong>BI verso</strong>
+                    <p>Imagem clara do verso do BI.</p>
+                    {{ form.bi_verso }}
+                  </div>
+
+                  <div class="upload-box wide">
+                    <strong>Selfie segurando o BI</strong>
+                    <p>O rosto e o BI devem aparecer de forma nítida.</p>
+                    {{ form.selfie_com_bi }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="verification-box">
+                <div class="verification-icon">✓</div>
+
+                <div>
+                  <h3>Confirmação</h3>
+
+                  <label class="check-row" for="{{ form.aceita_verificacao.id_for_label }}">
+                    {{ form.aceita_verificacao }}
+                    <span>
+                      Confirmo que aceito passar por verificação e compreendo que o pedido
+                      pode ser aprovado, recusado ou devolvido para correção.
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <a href="{% url 'entradas:home' %}" class="nk-btn nk-btn-ghost">
+                  Cancelar
+                </a>
+
+                <button type="submit" class="nk-btn nk-btn-primary">
+                  Enviar pedido →
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="privacy-panel">
+            <div class="privacy-icon">🛡</div>
+
+            <h3>Privacidade em primeiro lugar</h3>
+
+            <p>
+              O NKATA não mostra publicamente documentos, telefone ou email.
+              A verificação existe para proteger a comunidade e reduzir perfis falsos.
+            </p>
+
+            <div class="privacy-list">
+              <div>
+                <span>✓</span>
+                <p>Documentos privados</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Análise antes do acesso</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+                <p>Comunidade controlada</p>
+              </div>
+            </div>
+          </aside>
+
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <nav class="nk-bottom-nav nk-bottom-nav-five" aria-label="Navegação inferior">
+    <a href="{% url 'entradas:home' %}" class="nk-bottom-item">
+      <span>⌂</span>
+      <small>Início</small>
+    </a>
+
+    <a href="{% url 'entradas:listar_perfis' %}" class="nk-bottom-item">
+      <span>♡</span>
+      <small>Perfis</small>
+    </a>
+
+    {% if request.user.is_authenticated %}
+      <a href="{% url 'entradas:meus_matches' %}" class="nk-bottom-item">
+        <span>✦</span>
+        <small>Matches</small>
+
+        {% if total_mensagens_nao_lidas %}
+          <em>{{ total_mensagens_nao_lidas }}</em>
+        {% endif %}
+      </a>
+
+      <a href="{% url 'entradas:minha_conta' %}" class="nk-bottom-item">
+        <span>●</span>
+        <small>Conta</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% else %}
+      <a href="{% url 'entradas:entrar' %}" class="nk-bottom-item">
+        <span>↗</span>
+        <small>Entrar</small>
+      </a>
+
+      <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-bottom-item">
+        <span>＋</span>
+        <small>Entrada</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% endif %}
+  </nav>
+
+<script src="{% static 'entradas/js/nkata_ui.js' %}"></script>
+</body>
+</html>

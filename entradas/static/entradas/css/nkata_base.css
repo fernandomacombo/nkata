@@ -1,0 +1,379 @@
+:root {
+  --nk-red: #c8102e;
+  --nk-red-dark: #9f0d24;
+  --nk-black: #070707;
+  --nk-black-2: #111111;
+  --nk-white: #ffffff;
+  --nk-cream: #f8f6f3;
+  --nk-muted: #6f6f6f;
+  --nk-border: rgba(0, 0, 0, 0.08);
+  --nk-border-light: rgba(255, 255, 255, 0.12);
+  --nk-glass: rgba(255, 255, 255, 0.07);
+  --nk-shadow: 0 26px 80px rgba(0, 0, 0, 0.18);
+  --nk-radius-xl: 34px;
+  --nk-radius-lg: 24px;
+  --nk-radius-md: 18px;
+  --nk-container: min(1180px, 92vw);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--nk-cream);
+  color: var(--nk-black);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: inherit;
+  font-weight: 820;
+  letter-spacing: -0.045em;
+}
+
+p {
+  font-weight: 450;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  border: 0;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.nk-container {
+  width: var(--nk-container);
+  margin-inline: auto;
+}
+
+/* HEADER */
+
+.nk-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--nk-border);
+}
+
+.nk-header-inner {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+}
+
+.nk-logo {
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  font-weight: 950;
+  letter-spacing: 0.15em;
+  line-height: 1;
+}
+
+.nk-logo span {
+  color: var(--nk-red);
+}
+
+.nk-desktop-nav {
+  display: none;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.nk-desktop-nav a {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: rgba(7, 7, 7, 0.78);
+  transition: 0.22s ease;
+}
+
+.nk-desktop-nav a:hover {
+  color: var(--nk-red);
+}
+
+.nk-header-actions {
+  display: none;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.nk-menu-button {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: var(--nk-black);
+  color: var(--nk-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.nk-mobile-menu {
+  display: none;
+  border-top: 1px solid var(--nk-border);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(18px);
+}
+
+.nk-mobile-menu.is-open {
+  display: block;
+}
+
+.nk-mobile-menu-inner {
+  width: var(--nk-container);
+  margin-inline: auto;
+  padding: 1rem 0 1.2rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.nk-mobile-menu a {
+  min-height: 48px;
+  padding: 0 1rem;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  font-weight: 900;
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.nk-mobile-menu a:hover {
+  background: rgba(200, 16, 46, 0.08);
+  color: var(--nk-red);
+}
+
+/* BUTTONS */
+
+.nk-btn {
+  min-height: 46px;
+  padding: 0 1.05rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: 0.22s ease;
+  white-space: nowrap;
+}
+
+.nk-btn-primary {
+  background: var(--nk-red);
+  color: var(--nk-white);
+  box-shadow: 0 18px 40px rgba(200, 16, 46, 0.22);
+}
+
+.nk-btn-primary:hover {
+  background: var(--nk-red-dark);
+  transform: translateY(-2px);
+}
+
+.nk-btn-dark {
+  background: var(--nk-black);
+  color: var(--nk-white);
+}
+
+.nk-btn-dark:hover {
+  background: var(--nk-red);
+  transform: translateY(-2px);
+}
+
+.nk-btn-ghost {
+  background: rgba(0, 0, 0, 0.045);
+  color: var(--nk-black);
+}
+
+.nk-btn-ghost:hover {
+  background: rgba(200, 16, 46, 0.1);
+  color: var(--nk-red);
+}
+
+.nk-icon-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--nk-white);
+  border: 1px solid var(--nk-border-light);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 850;
+  cursor: pointer;
+  transition: 0.22s ease;
+}
+
+.nk-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-2px);
+}
+
+.nk-icon-btn.is-active {
+  background: var(--nk-red);
+  border-color: var(--nk-red);
+  color: var(--nk-white);
+  box-shadow: 0 18px 40px rgba(200, 16, 46, 0.25);
+}
+
+.nk-icon-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* BADGES / CHIPS */
+
+.nk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 34px;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.nk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 900;
+  background: rgba(200, 16, 46, 0.14);
+  border: 1px solid rgba(200, 16, 46, 0.25);
+  color: var(--nk-white);
+}
+
+/* TOAST */
+
+.nk-toast {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 100;
+  min-height: 54px;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: var(--nk-black);
+  color: var(--nk-white);
+  border: 1px solid var(--nk-border-light);
+  box-shadow: var(--nk-shadow);
+  font-weight: 900;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: 0.25s ease;
+}
+
+.nk-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* RESPONSIVE */
+
+@media (min-width: 900px) {
+  .nk-desktop-nav,
+  .nk-header-actions {
+    display: flex;
+  }
+
+  .nk-menu-button {
+    display: none;
+  }
+
+  .nk-mobile-menu {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .nk-toast {
+    left: auto;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    width: auto;
+    max-width: 420px;
+    text-align: left;
+  }
+}
+
+
+
+/* PREMIUM TYPOGRAPHY TUNING */
+
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 760;
+  letter-spacing: -0.042em;
+}
+
+p,
+small,
+a,
+button {
+  letter-spacing: -0.01em;
+}
+
+.nk-logo {
+  font-weight: 780;
+  letter-spacing: 0.16em;
+}
+
+.nk-desktop-nav a {
+  font-weight: 680;
+}
+
+.nk-btn {
+  font-weight: 720;
+}

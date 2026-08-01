@@ -1,0 +1,367 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Meus matches | NKATA</title>
+
+  <link rel="stylesheet" href="{% static 'entradas/css/nkata_base.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/meus_matches.css' %}">
+  <link rel="stylesheet" href="{% static 'entradas/css/mobile_app.css' %}">
+</head>
+<body>
+
+  <div class="page">
+
+    <header class="nk-header">
+      <div class="nk-container nk-header-inner">
+        <a href="{% url 'entradas:home' %}" class="nk-logo">
+          <span>N</span>KATA
+        </a>
+        <div class="nk-mobile-top-account">
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <a href="{% url 'entradas:minha_conta' %}">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <strong>
+                  {% if user_perfil %}
+                    {{ user_perfil.nome_publico|truncatechars:14 }}
+                  {% else %}
+                    Conta
+                  {% endif %}
+                </strong>
+              </a>
+            {% endwith %}
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              <strong>Entrar</strong>
+            </a>
+          {% endif %}
+        </div>
+
+
+        <nav class="nk-desktop-nav" aria-label="Navegação principal">
+          <a href="{% url 'entradas:home' %}">Início</a>
+          <a href="{% url 'entradas:listar_perfis' %}">Perfis</a>
+          <a href="{% url 'entradas:minha_conta' %}">Minha conta</a>
+          <a href="{% url 'entradas:detalhe_perfil' perfil.id %}">Meu perfil</a>
+        </nav>
+
+        <div class="nk-header-actions">
+          <a href="{% url 'entradas:sair' %}" class="nk-btn nk-btn-ghost">
+            Sair
+          </a>
+        </div>
+
+        <button
+          type="button"
+          class="nk-menu-button"
+          data-menu-button
+          aria-label="Abrir menu"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+      </div>
+
+      <div class="nk-mobile-menu" data-mobile-menu>
+        <div class="nk-mobile-menu-inner">
+
+          {% if request.user.is_authenticated %}
+            {% with user_perfil=request.user.perfil_nkata %}
+              <div class="nk-mobile-user-card">
+                {% if user_perfil and user_perfil.foto_principal %}
+                  <img src="{{ user_perfil.foto_principal.url }}" alt="Foto de {{ user_perfil.nome_publico }}">
+                {% else %}
+                  <span>{{ request.user.username|slice:":1" }}</span>
+                {% endif %}
+
+                <div>
+                  <strong>
+                    {% if user_perfil %}
+                      {{ user_perfil.nome_publico }}
+                    {% else %}
+                      Minha conta
+                    {% endif %}
+                  </strong>
+                  <small>Conta NKATA</small>
+                </div>
+              </div>
+            {% endwith %}
+          {% endif %}
+
+          <a href="{% url 'entradas:home' %}">
+            <span>⌂</span>
+            Início
+          </a>
+
+          <a href="{% url 'entradas:listar_perfis' %}">
+            <span>♡</span>
+            Perfis
+          </a>
+
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'entradas:minha_conta' %}">
+              <span>●</span>
+              Minha conta
+            </a>
+
+            <a href="{% url 'entradas:meus_matches' %}">
+              <span>✦</span>
+              Matches
+            </a>
+
+            {% with user_perfil=request.user.perfil_nkata %}
+              {% if user_perfil %}
+                <a href="{% url 'entradas:detalhe_perfil' user_perfil.id %}">
+                  <span>👁</span>
+                  Meu perfil
+                </a>
+
+                <a href="{% url 'entradas:perfil_interacoes' user_perfil.id %}">
+                  <span>✉</span>
+                  Interações
+                </a>
+              {% endif %}
+            {% endwith %}
+
+            <a href="{% url 'entradas:editar_perfil' %}">
+              <span>✎</span>
+              Editar perfil
+            </a>
+
+            <a href="{% url 'entradas:password_change' %}">
+              <span>🔐</span>
+              Alterar senha
+            </a>
+
+            <a href="{% url 'entradas:sair' %}" class="danger">
+              <span>↩</span>
+              Sair
+            </a>
+          {% else %}
+            <a href="{% url 'entradas:entrar' %}">
+              <span>↗</span>
+              Entrar
+            </a>
+
+            <a href="{% url 'entradas:solicitar_entrada' %}">
+              <span>＋</span>
+              Solicitar entrada
+            </a>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </header>
+
+    <main>
+
+      <section class="matches-hero">
+        <div class="nk-container matches-hero-layout">
+
+          <section class="matches-copy">
+            <span class="nk-badge">Matches</span>
+
+            <h1>
+              Interesse dos<br>
+              dois lados.
+            </h1>
+
+            <p>
+              Aqui aparecem perfis onde houve sinal mútuo. Ou seja:
+              você demonstrou interesse e a outra pessoa também demonstrou interesse em si.
+            </p>
+
+            <div class="matches-points">
+              <div>
+                <span>♡</span>
+                <p>Gostos mútuos podem gerar match.</p>
+              </div>
+
+              <div>
+                <span>✦</span>
+                <p>Interesse mútuo também pode gerar match.</p>
+              </div>
+
+              <div>
+                <span>🔒</span>
+                <p>O contacto direto continua protegido.</p>
+              </div>
+            </div>
+          </section>
+
+          <aside class="matches-summary-card">
+            <div class="summary-icon">✦</div>
+
+            <h2>{{ total_matches }}</h2>
+
+            <p>
+              match{{ total_matches|pluralize:" ativo, ativos" }} no momento.
+            </p>
+
+            <a href="{% url 'entradas:listar_perfis' %}" class="nk-btn nk-btn-primary">
+              Ver mais perfis
+            </a>
+          </aside>
+
+        </div>
+      </section>
+
+      <section class="matches-section">
+        <div class="nk-container">
+
+          {% if matches_processados %}
+
+            <div class="matches-grid">
+              {% for item in matches_processados %}
+                <article class="match-card">
+
+                  <a href="{% url 'entradas:detalhe_perfil' item.outro_perfil.id %}" class="match-photo">
+                    {% if item.outro_perfil.foto_principal %}
+                      <img
+                        src="{{ item.outro_perfil.foto_principal.url }}"
+                        alt="Foto de {{ item.outro_perfil.nome_publico }}"
+                      >
+                    {% else %}
+                      <div class="match-placeholder">
+                        {{ item.outro_perfil.nome_publico|slice:":1" }}
+                      </div>
+                    {% endif %}
+
+                    <span class="match-badge">
+                      ✦ Match
+                    </span>
+                  </a>
+
+                  <div class="match-content">
+                    <div class="match-head">
+                      <div>
+                        <h2>{{ item.outro_perfil.nome_publico }}</h2>
+                        <p>{{ item.outro_perfil.idade }} anos • {{ item.outro_perfil.cidade }}</p>
+                      </div>
+                    </div>
+
+                    <div class="match-tags">
+                      <span>{{ item.outro_perfil.get_objetivo_display }}</span>
+                      <span>{{ item.match.get_tipo_origem_display }}</span>
+                    </div>
+
+                    <p class="match-text">
+                      {{ item.outro_perfil.sobre_si|truncatechars:120 }}
+                    </p>
+
+                    <div class="match-actions two-actions">
+  <a href="{% url 'entradas:conversa_match' item.match.id %}" class="nk-btn nk-btn-primary">
+    Conversar
+  </a>
+
+  <a href="{% url 'entradas:detalhe_perfil' item.outro_perfil.id %}" class="nk-btn nk-btn-ghost">
+    Ver perfil
+  </a>
+</div>
+                  </div>
+
+                </article>
+              {% endfor %}
+            </div>
+
+          {% else %}
+
+            <div class="empty-matches">
+              <div class="empty-icon">♡</div>
+
+              <h2>Ainda não existem matches</h2>
+
+              <p>
+                Os matches aparecem quando existe interesse dos dois lados.
+                Continue explorando perfis com calma e respeito.
+              </p>
+
+              <a href="{% url 'entradas:listar_perfis' %}" class="nk-btn nk-btn-primary">
+                Ver perfis
+              </a>
+            </div>
+
+          {% endif %}
+
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <nav class="nk-bottom-nav nk-bottom-nav-five" aria-label="Navegação inferior">
+    <a href="{% url 'entradas:home' %}" class="nk-bottom-item">
+      <span>⌂</span>
+      <small>Início</small>
+    </a>
+
+    <a href="{% url 'entradas:listar_perfis' %}" class="nk-bottom-item">
+      <span>♡</span>
+      <small>Perfis</small>
+    </a>
+
+    {% if request.user.is_authenticated %}
+      <a href="{% url 'entradas:meus_matches' %}" class="nk-bottom-item">
+        <span>✦</span>
+        <small>Matches</small>
+
+        {% if total_mensagens_nao_lidas %}
+          <em>{{ total_mensagens_nao_lidas }}</em>
+        {% endif %}
+      </a>
+
+      <a href="{% url 'entradas:minha_conta' %}" class="nk-bottom-item">
+        <span>●</span>
+        <small>Conta</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% else %}
+      <a href="{% url 'entradas:entrar' %}" class="nk-bottom-item">
+        <span>↗</span>
+        <small>Entrar</small>
+      </a>
+
+      <a href="{% url 'entradas:solicitar_entrada' %}" class="nk-bottom-item">
+        <span>＋</span>
+        <small>Entrada</small>
+      </a>
+
+      <button
+        type="button"
+        class="nk-bottom-item nk-bottom-more"
+        data-menu-button
+        aria-label="Abrir mais opções"
+        aria-expanded="false"
+      >
+        <span>☰</span>
+        <small>Mais</small>
+      </button>
+    {% endif %}
+  </nav>
+
+<script src="{% static 'entradas/js/nkata_ui.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+.status-page {
+  min-height: calc(100vh - 78px);
+  background:
+    radial-gradient(circle at 16% 28%, rgba(200, 16, 46, 0.14), transparent 30%),
+    linear-gradient(135deg, #070707 0%, #101010 48%, #060606 100%);
+  color: var(--nk-white);
+  padding: 2.2rem 0 3rem;
+  display: flex;
+  align-items: center;
+}
+
+.status-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.4rem;
+  align-items: center;
+}
+
+.status-copy h1 {
+  max-width: 780px;
+  font-size: clamp(2.65rem, 9vw, 4.8rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+  font-weight: 760;
+  margin: 1rem 0;
+}
+
+.status-copy p {
+  max-width: 650px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.75;
+  font-size: 1rem;
+}
+
+.status-points {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+  max-width: 680px;
+}
+
+.status-points div {
+  min-height: 58px;
+  padding: 0.85rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.status-points span {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: rgba(200, 16, 46, 0.18);
+  color: var(--nk-red);
+  display: grid;
+  place-items: center;
+  font-weight: 760;
+}
+
+.status-points p {
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.5;
+}
+
+.status-card {
+  background: var(--nk-white);
+  color: var(--nk-black);
+  border: 1px solid var(--nk-border);
+  border-radius: 30px;
+  padding: 1.4rem;
+  box-shadow: 0 34px 110px rgba(0, 0, 0, 0.28);
+}
+
+.status-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 999px;
+  background: var(--nk-red);
+  color: var(--nk-white);
+  display: grid;
+  place-items: center;
+  font-size: 1.6rem;
+  font-weight: 760;
+  margin-bottom: 1.2rem;
+}
+
+.status-card h2 {
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 760;
+  margin-bottom: 0.8rem;
+}
+
+.status-card p {
+  color: var(--nk-muted);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+
+.status-info {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+}
+
+.status-info div {
+  min-height: 56px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.035);
+  padding: 0.75rem;
+}
+
+.status-info small {
+  display: block;
+  color: var(--nk-muted);
+  margin-bottom: 0.25rem;
+  font-weight: 620;
+}
+
+.status-info strong {
+  font-weight: 700;
+}
+
+.status-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1.2rem;
+}
+
+.status-actions .nk-btn {
+  width: 100%;
+}
+
+.warning-card .status-icon {
+  background: var(--nk-black);
+}
+
+.warning-card {
+  border-color: rgba(200, 16, 46, 0.18);
+}
+
+@media (min-width: 760px) {
+  .status-layout {
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 2rem;
+  }
+
+  .status-actions {
+    flex-direction: row;
+  }
+
+  .status-actions .nk-btn {
+    width: auto;
+  }
+}
+
+@media (min-width: 1100px) {
+  .status-page {
+    padding: 4rem 0 5rem;
+  }
+
+  .status-layout {
+    grid-template-columns: 1.25fr 0.75fr;
+    gap: 3.5rem;
+  }
+
+  .status-copy h1 {
+    font-size: clamp(3.6rem, 4.6vw, 4.8rem);
+  }
+
+  .status-card {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-page {
+    min-height: auto;
+    align-items: flex-start;
+    padding: 1.25rem 0 2.8rem;
+  }
+
+  .status-copy h1 {
+    font-size: clamp(2.35rem, 11vw, 3rem);
+  }
+
+  .status-points div {
+    align-items: flex-start;
+  }
+
+  .status-card {
+    border-radius: 24px;
+    padding: 1.1rem;
+  }
+
+  .status-icon {
+    width: 58px;
+    height: 58px;
+    font-size: 1.35rem;
+  }
+}
