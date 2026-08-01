@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
+import { API_BASE_URL } from "../services/api.js";
 
 const objectiveOptions = [
   { value: "RELACIONAMENTO_SERIO", label: "Relacionamento sério" },
@@ -328,7 +329,9 @@ export default function AccountPage({
             <div className="nk-account-security__actions">
               <button
                 type="button"
-                onClick={() => window.location.assign("/minha-conta/alterar-senha/")}
+                onClick={() => window.location.assign(
+                  new URL("/minha-conta/alterar-senha/", API_BASE_URL).toString(),
+                )}
               >
                 Alterar palavra-passe
               </button>
