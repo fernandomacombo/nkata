@@ -7,6 +7,7 @@ import {
   Mail,
   ShieldCheck,
 } from "lucide-react";
+import { API_BASE_URL } from "../services/api.js";
 
 export default function LoginPage({ onBack, onSubmit, loading, error }) {
   const [email, setEmail] = useState("");
@@ -100,14 +101,14 @@ export default function LoginPage({ onBack, onSubmit, loading, error }) {
               {loading ? "A entrar…" : "Entrar"}
             </button>
 
-            <a href="/recuperar-senha/" className="nk-login-form__forgot">
+            <a href={`${API_BASE_URL}/recuperar-senha/`} className="nk-login-form__forgot">
               Esqueci a palavra-passe
             </a>
           </form>
 
           <div className="nk-login-card__footer">
             <span>Ainda não faz parte?</span>
-            <a href="/solicitar-entrada/">Solicitar entrada</a>
+            <a href={`${API_BASE_URL}/solicitar-entrada/`}>Solicitar entrada</a>
           </div>
         </section>
       </div>
