@@ -1,0 +1,104 @@
+import { useCallback, useEffect, useState } from "react";
+
+const STATIC_PATHS = {
+  home: "/",
+  discover: "/perfis/",
+  saved: "/guardados/",
+  matches: "/matches/",
+  account: "/conta/",
+  login: "/entrar/",
+};
+
+function cleanPath(pathname = "/") {
+  const path = pathname.split("?")[0].split("#")[0] || "/";
+  if (path === "/") return path;
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
+export function pathForPage(page, { profileId, matchId } = {}) {
+  if (page === "profile" && profileId) return `/perfis/${profileId}/`;
+  if (page === "conversation" && matchId) return `/matches/${matchId}/conversa/`;
+  return STATIC_PATHS[page] || "/";
+}
+
+export function routeFromPath(pathname) {
+  const path = cleanPath(pathname);
+
+  const profileMatch = path.match(/^\/perfis\/([^/]+)\/$/);
+  if (profileMatch) {
+    return {
+      page: "profile",
+      profileId: profileMatch[1],
+      matchId: null,
+      canonicalPath: path,
+    };
+  }
+
+  const conversationMatch = path.match(/^\/matches\/(\d+)\/conversa\/$/);
+  if (conversationMatch) {
+    return {
+      page: "conversation",
+      profileId: null,
+      matchId: Number(conversationMatch[1]),
+      canonicalPath: path,
+    };
+  }
+
+  const page = Object.entries(STATIC_PATHS).find(([, value]) => value === path)?.[0];
+  if (page) {
+    return {
+      page,
+      profileId: null,
+      matchId: null,
+      canonicalPath: path,
+    };
+  }
+
+  // Endereços pertencentes ao Django não devem prender a SPA numa página errada.
+  return {
+    page: "home",
+    profileId: null,
+    matchId: null,
+    canonicalPath: "/",
+  };
+}
+
+export default function useAppRoute() {
+  const [route, setRoute] = useState(() => routeFromPath(window.location.pathname));
+
+  const setActivePage = useCallback((page, options = {}) => {
+    const nextRoute = {
+      page,
+      profileId: options.profileId ?? null,
+      matchId: options.matchId ?? null,
+    };
+    const path = pathForPage(page, nextRoute);
+    const method = options.replace ? "replaceState" : "pushState";
+
+    window.history[method]({}, "", path);
+    setRoute({ ...nextRoute, canonicalPath: path });
+  }, []);
+
+  useEffect(() => {
+    const initial = routeFromPath(window.location.pathname);
+    if (initial.canonicalPath !== cleanPath(window.location.pathname)) {
+      window.history.replaceState({}, "", initial.canonicalPath);
+      setRoute(initial);
+    }
+
+    const handlePopState = () => {
+      setRoute(routeFromPath(window.location.pathname));
+      window.scrollTo({ top: 0, behavior: "auto" });
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  return {
+    activePage: route.page,
+    routeProfileId: route.profileId,
+    routeMatchId: route.matchId,
+    setActivePage,
+  };
+}
