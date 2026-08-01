@@ -10,6 +10,7 @@ from .models import AcaoPerfil, MatchPerfil, MensagemMatch, PerfilNKATA
 from .serializers import (
     MatchSerializer,
     MensagemMatchSerializer,
+    MinhaContaSerializer,
     PerfilDetalheSerializer,
     PerfilResumoSerializer,
 )
@@ -184,6 +185,38 @@ def api_login(request):
 def api_logout(request):
     logout(request)
     return Response({"ok": True})
+
+
+@api_view(["GET", "PATCH"])
+@permission_classes([permissions.IsAuthenticated])
+def api_minha_conta(request):
+    perfil = _perfil_do_utilizador(request.user)
+
+    if not perfil:
+        return Response(
+            {"detail": "A sua conta ainda não tem um perfil NKATA."},
+            status=404,
+        )
+
+    if request.method == "PATCH":
+        serializer = MinhaContaSerializer(
+            perfil,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        perfil = serializer.save()
+
+        if "nome_publico" in serializer.validated_data:
+            request.user.first_name = perfil.nome_publico[:150]
+            request.user.save(update_fields=["first_name"])
+
+    serializer = MinhaContaSerializer(
+        perfil,
+        context={"request": request},
+    )
+    return Response(serializer.data)
 
 
 @api_view(["GET"])
