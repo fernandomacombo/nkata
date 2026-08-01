@@ -1,6 +1,8 @@
 import json
 import tempfile
+from io import BytesIO
 
+from PIL import Image
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -19,6 +21,14 @@ TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="nkata-tests-")
 
 def uploaded_file(name):
     return SimpleUploadedFile(name, b"nkata-test-file", content_type="image/jpeg")
+
+
+def valid_image_file(name="perfil.jpg", size=(700, 700), image_format="JPEG"):
+    stream = BytesIO()
+    Image.new("RGB", size, color=(126, 38, 56)).save(stream, format=image_format)
+    stream.seek(0)
+    content_type = "image/png" if image_format == "PNG" else "image/jpeg"
+    return SimpleUploadedFile(name, stream.read(), content_type=content_type)
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
@@ -115,7 +125,7 @@ class NkataApiTests(TestCase):
                 "nome_publico": "Nome Novo",
                 "cidade": "Vilankulo",
                 "objetivo": "CASAMENTO_FUTURO",
-                "sobre_si": "Uma apresentação atualizada.",
+                "sobre_si": "Sou uma pessoa tranquila, responsável e gosto de conversar com sinceridade.",
                 "visivel": False,
             }),
             content_type="application/json",
@@ -129,6 +139,53 @@ class NkataApiTests(TestCase):
         self.assertEqual(perfil.objetivo, "CASAMENTO_FUTURO")
         self.assertFalse(perfil.visivel)
         self.assertEqual(user.first_name, "Nome Novo")
+
+    def test_conta_rejeita_texto_sem_sentido(self):
+        user, perfil = self.create_profile("texto@example.com", "Pessoa")
+        self.client.force_login(user)
+
+        response = self.client.patch(
+            "/api/minha-conta/",
+            data=json.dumps({
+                "sobre_si": "jhj jjj dffd jkjd jdfd jkjd jfdj jdfj",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("sobre_si", response.json())
+        perfil.refresh_from_db()
+        self.assertEqual(perfil.sobre_si, "Gosto de conversas simples e sinceras.")
+
+    def test_foto_perfil_pode_ser_atualizada(self):
+        user, perfil = self.create_profile("foto@example.com", "Fotografia")
+        nome_anterior = perfil.pedido.foto_perfil.name
+        self.client.force_login(user)
+
+        response = self.client.post(
+            "/api/minha-conta/foto/",
+            data={"foto": valid_image_file()},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        perfil.pedido.refresh_from_db()
+        self.assertNotEqual(perfil.pedido.foto_perfil.name, nome_anterior)
+        self.assertIn("account", response.json())
+        self.assertTrue(response.json()["account"]["foto_principal"])
+
+    def test_foto_pequena_e_rejeitada(self):
+        user, perfil = self.create_profile("foto-pequena@example.com", "Fotografia")
+        nome_anterior = perfil.pedido.foto_perfil.name
+        self.client.force_login(user)
+
+        response = self.client.post(
+            "/api/minha-conta/foto/",
+            data={"foto": valid_image_file(size=(300, 300))},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        perfil.pedido.refresh_from_db()
+        self.assertEqual(perfil.pedido.foto_perfil.name, nome_anterior)
 
     def test_interesse_exige_login(self):
         _, perfil = self.create_profile("alvo@example.com", "Alvo")
