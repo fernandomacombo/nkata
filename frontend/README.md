@@ -40,13 +40,7 @@ Abrir no telemóvel ligado à mesma rede:
 http://IP_DO_COMPUTADOR:5173
 ```
 
-Exemplo:
-
-```text
-http://192.168.0.100:5173
-```
-
-## API
+## Configuração
 
 O frontend utiliza por defeito o mesmo endereço do navegador, na porta `8000`.
 Também pode ser configurado através de:
@@ -55,13 +49,43 @@ Também pode ser configurado através de:
 VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-## Páginas disponíveis
+A fotografia de fundo da Home também pode ser substituída sem alterar o código:
 
-- Home premium;
-- Descobrir perfis;
-- detalhe do perfil;
-- estados de carregamento, erro e ausência de resultados;
-- áreas reservadas preparadas para autenticação, matches e mensagens.
+```env
+VITE_HERO_IMAGE_URL=https://exemplo.com/fotografia-horizontal.jpg
+```
+
+## Endereços da aplicação
+
+```text
+/                         Início
+/perfis/                  Perfis
+/perfis/<id>/             Detalhe de um perfil
+/guardados/               Perfis guardados
+/matches/                 Matches
+/matches/<id>/conversa/   Conversa privada
+/conta/                   Conta do membro
+/entrar/                  Login React
+```
+
+Os formulários Django continuam no backend, incluindo:
+
+```text
+http://localhost:8000/solicitar-entrada/
+http://localhost:8000/recuperar-senha/
+```
+
+## Funcionalidades atuais
+
+- Home com hero de ecrã inteiro;
+- descoberta e filtros de perfis;
+- detalhe e partilha de perfil;
+- perfis guardados e vistos recentemente;
+- login por sessão Django;
+- demonstração de interesse e criação de match;
+- lista de matches e conversa privada;
+- área da conta, edição e controlo de visibilidade;
+- rotas sincronizadas com o histórico do navegador.
 
 ## Verificação antes do commit
 
