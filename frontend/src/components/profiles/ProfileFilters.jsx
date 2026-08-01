@@ -1,6 +1,20 @@
 import { MapPin, Search, SlidersHorizontal } from "lucide-react";
 
-export default function ProfileFilters({ query, city, onQueryChange, onCityChange }) {
+export default function ProfileFilters({
+  query,
+  city,
+  objective,
+  minAge,
+  maxAge,
+  showAdvanced,
+  onQueryChange,
+  onCityChange,
+  onObjectiveChange,
+  onMinAgeChange,
+  onMaxAgeChange,
+  onToggleAdvanced,
+  onClear,
+}) {
   return (
     <section className="nk-filters" aria-label="Filtros de perfis">
       <label className="nk-search-field">
@@ -9,7 +23,7 @@ export default function ProfileFilters({ query, city, onQueryChange, onCityChang
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Pesquisar por nome, cidade ou intenção"
+          placeholder="Nome, cidade ou intenção"
         />
       </label>
 
@@ -24,10 +38,58 @@ export default function ProfileFilters({ query, city, onQueryChange, onCityChang
         </select>
       </label>
 
-      <button type="button" className="nk-filter-button">
+      <button
+        type="button"
+        className={`nk-filter-button ${showAdvanced ? "is-active" : ""}`}
+        onClick={onToggleAdvanced}
+        aria-expanded={showAdvanced}
+      >
         <SlidersHorizontal size={17} />
         Mais filtros
       </button>
+
+      {showAdvanced && (
+        <div className="nk-filters__advanced">
+          <label>
+            <span>O que procura</span>
+            <select value={objective} onChange={(event) => onObjectiveChange(event.target.value)}>
+              <option value="">Qualquer intenção</option>
+              <option value="Relacionamento sério">Relacionamento sério</option>
+              <option value="Conhecer com intenção">Conhecer com intenção</option>
+              <option value="Casamento no futuro">Casamento no futuro</option>
+              <option value="Amizade que pode evoluir">Amizade que pode evoluir</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Idade mínima</span>
+            <input
+              type="number"
+              min="18"
+              max="99"
+              value={minAge}
+              onChange={(event) => onMinAgeChange(event.target.value)}
+              placeholder="18"
+            />
+          </label>
+
+          <label>
+            <span>Idade máxima</span>
+            <input
+              type="number"
+              min="18"
+              max="99"
+              value={maxAge}
+              onChange={(event) => onMaxAgeChange(event.target.value)}
+              placeholder="60"
+            />
+          </label>
+
+          <button type="button" className="nk-filters__clear" onClick={onClear}>
+            Limpar filtros
+          </button>
+        </div>
+      )}
     </section>
   );
 }
