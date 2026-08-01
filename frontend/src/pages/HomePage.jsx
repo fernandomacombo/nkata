@@ -30,7 +30,7 @@ const processSteps = [
   },
 ];
 
-export default function HomePage({ profiles, onNavigate }) {
+export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
   const featured = profiles.slice(0, 3);
   const heroProfile = featured[0];
 
@@ -62,7 +62,11 @@ export default function HomePage({ profiles, onNavigate }) {
                   Descobrir perfis
                   <ArrowRight size={18} />
                 </button>
-                <button type="button" className="nk-button nk-button--quiet">
+                <button
+                  type="button"
+                  className="nk-button nk-button--quiet"
+                  onClick={() => window.location.assign("/solicitar-entrada/")}
+                >
                   Solicitar entrada
                 </button>
               </div>
@@ -74,14 +78,20 @@ export default function HomePage({ profiles, onNavigate }) {
               </div>
             </div>
 
-            <div className="nk-hero__visual" aria-label="Apresentação de perfil NKATA">
+            <button
+              type="button"
+              className="nk-hero__visual"
+              aria-label={heroProfile ? `Abrir perfil de ${heroProfile.nome_publico}` : "Perfis em preparação"}
+              onClick={() => heroProfile && onOpenProfile(heroProfile)}
+              disabled={!heroProfile}
+            >
               {heroProfile ? (
                 <>
                   <img src={heroProfile.foto_url} alt={`Perfil de ${heroProfile.nome_publico}`} />
                   <div className="nk-hero__visual-shade" />
                   <div className="nk-hero__visual-badge">
                     <ShieldCheck size={16} />
-                    Perfil verificado
+                    Perfil aprovado
                   </div>
                   <div className="nk-hero__visual-caption">
                     <span>Conhecer com propósito</span>
@@ -92,7 +102,7 @@ export default function HomePage({ profiles, onNavigate }) {
               ) : (
                 <div className="nk-hero__empty">Perfis em preparação</div>
               )}
-            </div>
+            </button>
           </div>
         </section>
 
@@ -120,7 +130,11 @@ export default function HomePage({ profiles, onNavigate }) {
 
             <div className="nk-profile-grid">
               {featured.map((profile) => (
-                <ProfileCard key={profile.id} profile={profile} onOpen={() => onNavigate("discover")} />
+                <ProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  onOpen={() => onOpenProfile(profile)}
+                />
               ))}
             </div>
           </div>
