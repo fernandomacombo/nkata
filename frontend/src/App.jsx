@@ -1,53 +1,45 @@
 import { useCallback, useEffect, useState } from "react";
-import { Clock3, LockKeyhole, ShieldCheck } from "lucide-react";
+import { LockKeyhole, ShieldCheck } from "lucide-react";
 import AppHeader from "./components/layout/AppHeader.jsx";
 import BottomNavigation from "./components/layout/BottomNavigation.jsx";
 import { demoProfiles } from "./data/demoProfiles.js";
 import useProfileLibrary from "./hooks/useProfileLibrary.js";
 import useSession from "./hooks/useSession.js";
+import ConversationPage from "./pages/ConversationPage.jsx";
 import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import MatchesPage from "./pages/MatchesPage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
 import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
 import {
+  fetchMatchConversation,
+  fetchMyMatches,
   fetchProfileDetail,
   fetchProfiles,
+  sendMatchMessage,
   toggleProfileInterest,
 } from "./services/api.js";
 
 function ReservedArea({ title, onLogin, authenticated }) {
-  if (authenticated) {
-    return (
-      <main className="nk-reserved">
-        <section className="nk-shell nk-reserved__card">
-          <span className="nk-reserved__icon"><Clock3 size={25} /></span>
-          <span className="nk-eyebrow nk-eyebrow--dark"><ShieldCheck size={15} /> Próxima etapa</span>
-          <h1>{title}</h1>
-          <p>Esta área está a ser ligada à nova interface. A sua sessão continua ativa.</p>
-        </section>
-      </main>
-    );
-  }
-
   return (
     <main className="nk-reserved">
       <section className="nk-shell nk-reserved__card">
         <span className="nk-reserved__icon"><LockKeyhole size={25} /></span>
-        <span className="nk-eyebrow nk-eyebrow--dark"><ShieldCheck size={15} /> Precisa de entrar</span>
+        <span className="nk-eyebrow nk-eyebrow--dark"><ShieldCheck size={15} /> Conta NKATA</span>
         <h1>{title}</h1>
-        <p>Entre na sua conta para consultar esta área.</p>
-        <button type="button" className="nk-button nk-button--wine" onClick={onLogin}>Entrar</button>
+        {authenticated ? (
+          <p>Os dados da conta serão apresentados aqui na próxima etapa.</p>
+        ) : (
+          <>
+            <p>Entre na sua conta para consultar esta área.</p>
+            <button type="button" className="nk-button nk-button--wine" onClick={onLogin}>Entrar</button>
+          </>
+        )}
       </section>
     </main>
   );
 }
-
-const reservedTitles = {
-  matches: "Os seus matches",
-  messages: "Mensagens",
-  account: "A sua conta",
-};
 
 export default function App() {
   const [activePage, setActivePage] = useState("home");
@@ -68,6 +60,14 @@ export default function App() {
     loading: false,
     message: "",
   });
+  const [matches, setMatches] = useState([]);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchesError, setMatchesError] = useState("");
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [conversationMessages, setConversationMessages] = useState([]);
+  const [conversationLoading, setConversationLoading] = useState(false);
+  const [conversationError, setConversationError] = useState("");
+  const [messageSending, setMessageSending] = useState(false);
 
   const {
     savedProfiles,
@@ -110,11 +110,37 @@ export default function App() {
     }
   }, []);
 
+  const loadMatches = useCallback(async ({ signal } = {}) => {
+    if (!authenticated) return;
+
+    setMatchesLoading(true);
+    setMatchesError("");
+
+    try {
+      const results = await fetchMyMatches({ signal });
+      setMatches(results);
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        setMatchesError(error.message || "Não foi possível atualizar os matches.");
+      }
+    } finally {
+      if (!signal?.aborted) setMatchesLoading(false);
+    }
+  }, [authenticated]);
+
   useEffect(() => {
     const controller = new AbortController();
     loadProfiles({ signal: controller.signal });
     return () => controller.abort();
   }, [loadProfiles]);
+
+  useEffect(() => {
+    if (activePage !== "matches" || !authenticated) return undefined;
+
+    const controller = new AbortController();
+    loadMatches({ signal: controller.signal });
+    return () => controller.abort();
+  }, [activePage, authenticated, loadMatches]);
 
   const openLogin = (returnPage = activePage) => {
     setReturnPageAfterLogin(returnPage === "login" ? "home" : returnPage);
@@ -134,6 +160,11 @@ export default function App() {
 
     if (page === "login") {
       openLogin(activePage);
+      return;
+    }
+
+    if (["matches", "account"].includes(page) && !authenticated) {
+      openLogin(page);
       return;
     }
 
@@ -161,7 +192,10 @@ export default function App() {
       await signOut();
     } finally {
       setInterestState({ profileId: null, active: false, loading: false, message: "" });
-      if (["matches", "messages", "account"].includes(activePage)) {
+      setMatches([]);
+      setSelectedMatch(null);
+      setConversationMessages([]);
+      if (["matches", "conversation", "account"].includes(activePage)) {
         setActivePage("home");
       }
     }
@@ -225,6 +259,10 @@ export default function App() {
         ...current,
         interesse_ativo: Boolean(result.active),
       }));
+
+      if (result.match) {
+        loadMatches();
+      }
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         setInterestState((current) => ({ ...current, loading: false }));
@@ -240,14 +278,79 @@ export default function App() {
     }
   };
 
+  const handleOpenConversation = async (match) => {
+    setSelectedMatch(match);
+    setConversationMessages([]);
+    setConversationError("");
+    setConversationLoading(true);
+    setActivePage("conversation");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    try {
+      const result = await fetchMatchConversation(match.id);
+      setSelectedMatch(result.match || match);
+      setConversationMessages(result.messages);
+      setMatches((current) => current.map((item) => (
+        item.id === match.id
+          ? { ...(result.match || item), unreadCount: 0 }
+          : item
+      )));
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) {
+        openLogin("matches");
+        return;
+      }
+      setConversationError(error.message || "Não foi possível abrir a conversa.");
+    } finally {
+      setConversationLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (text) => {
+    if (!selectedMatch || !text.trim()) return false;
+
+    setMessageSending(true);
+    setConversationError("");
+
+    try {
+      const message = await sendMatchMessage(selectedMatch.id, text.trim());
+      setConversationMessages((current) => [...current, message]);
+      setMatches((current) => current.map((item) => (
+        item.id === selectedMatch.id
+          ? {
+              ...item,
+              lastMessage: message,
+              unreadCount: 0,
+              updatedAt: message.createdAt,
+            }
+          : item
+      )));
+      return true;
+    } catch (error) {
+      setConversationError(error.message || "Não foi possível enviar a mensagem.");
+      return false;
+    } finally {
+      setMessageSending(false);
+    }
+  };
+
   const handleBackFromProfile = () => {
     setActivePage(previousPage || "discover");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleBackFromConversation = () => {
+    setActivePage("matches");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const visiblePage = activePage === "profile" || activePage === "login"
     ? previousPage
-    : activePage;
+    : activePage === "conversation"
+      ? "matches"
+      : activePage;
+
+  const totalUnread = matches.reduce((total, match) => total + match.unreadCount, 0);
 
   return (
     <div className="nk-app">
@@ -255,6 +358,7 @@ export default function App() {
         activePage={visiblePage}
         onNavigate={handleNavigate}
         savedCount={savedProfiles.length}
+        unreadMatches={totalUnread}
         session={session}
         sessionLoading={sessionLoading}
         onSignOut={handleSignOut}
@@ -325,11 +429,34 @@ export default function App() {
         />
       )}
 
-      {reservedTitles[activePage] && (
+      {activePage === "matches" && authenticated && (
+        <MatchesPage
+          matches={matches}
+          loading={matchesLoading}
+          error={matchesError}
+          onReload={() => loadMatches()}
+          onOpenConversation={handleOpenConversation}
+          onDiscover={() => handleNavigate("discover")}
+        />
+      )}
+
+      {activePage === "conversation" && authenticated && (
+        <ConversationPage
+          match={selectedMatch}
+          messages={conversationMessages}
+          loading={conversationLoading}
+          sending={messageSending}
+          error={conversationError}
+          onBack={handleBackFromConversation}
+          onSend={handleSendMessage}
+        />
+      )}
+
+      {activePage === "account" && (
         <ReservedArea
-          title={reservedTitles[activePage]}
+          title="A sua conta"
           authenticated={authenticated}
-          onLogin={() => openLogin(activePage)}
+          onLogin={() => openLogin("account")}
         />
       )}
 
@@ -337,6 +464,7 @@ export default function App() {
         activePage={visiblePage}
         onNavigate={handleNavigate}
         savedCount={savedProfiles.length}
+        unreadMatches={totalUnread}
       />
     </div>
   );
