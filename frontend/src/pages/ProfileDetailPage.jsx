@@ -10,6 +10,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
+import { API_BASE_URL } from "../services/api.js";
 
 function DetailBlock({ title, children }) {
   return (
@@ -34,15 +35,13 @@ export default function ProfileDetailPage({
   const hasImage = Boolean(profile?.foto_url) && !imageFailed;
   const profileUrl = useMemo(() => {
     if (!profile?.id || String(profile.id).startsWith("demo-")) return null;
-    return `/perfis/${profile.id}/`;
+    return new URL(`/perfis/${profile.id}/`, API_BASE_URL).toString();
   }, [profile?.id]);
 
   const handleShare = async () => {
     if (!profile) return;
 
-    const shareUrl = profileUrl
-      ? new URL(profileUrl, window.location.origin).toString()
-      : window.location.href;
+    const shareUrl = profileUrl || window.location.href;
     const shareData = {
       title: `${profile.nome_publico} no NKATA`,
       text: `Veja o perfil de ${profile.nome_publico} no NKATA.`,
