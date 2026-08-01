@@ -56,6 +56,7 @@ class PerfilDetalheSerializer(PerfilResumoSerializer):
 class MensagemMatchSerializer(serializers.ModelSerializer):
     remetente_id = serializers.IntegerField(source="remetente.id", read_only=True)
     remetente_nome = serializers.SerializerMethodField()
+    minha = serializers.SerializerMethodField()
 
     class Meta:
         model = MensagemMatch
@@ -66,6 +67,7 @@ class MensagemMatchSerializer(serializers.ModelSerializer):
             "remetente_nome",
             "texto",
             "lida",
+            "minha",
             "criado_em",
         ]
 
@@ -74,12 +76,21 @@ class MensagemMatchSerializer(serializers.ModelSerializer):
             return obj.remetente.perfil_nkata.nome_publico
         if obj.remetente:
             return obj.remetente.get_username()
-        return "Utilizador"
+        return "Membro NKATA"
+
+    def get_minha(self, obj):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user.is_authenticated
+            and obj.remetente_id == request.user.id
+        )
 
 
 class MatchSerializer(serializers.ModelSerializer):
     perfil_1 = PerfilResumoSerializer(read_only=True)
     perfil_2 = PerfilResumoSerializer(read_only=True)
+    outro_perfil = serializers.SerializerMethodField()
     tipo_origem_display = serializers.CharField(source="get_tipo_origem_display", read_only=True)
     ultima_mensagem = serializers.SerializerMethodField()
     mensagens_nao_lidas = serializers.SerializerMethodField()
@@ -90,6 +101,7 @@ class MatchSerializer(serializers.ModelSerializer):
             "id",
             "perfil_1",
             "perfil_2",
+            "outro_perfil",
             "tipo_origem",
             "tipo_origem_display",
             "status",
@@ -98,6 +110,22 @@ class MatchSerializer(serializers.ModelSerializer):
             "criado_em",
             "atualizado_em",
         ]
+
+    def get_outro_perfil(self, obj):
+        request = self.context.get("request")
+        perfil_atual = None
+
+        if request and request.user.is_authenticated:
+            perfil_atual = getattr(request.user, "perfil_nkata", None)
+
+        if perfil_atual and obj.perfil_1_id == perfil_atual.id:
+            outro = obj.perfil_2
+        elif perfil_atual and obj.perfil_2_id == perfil_atual.id:
+            outro = obj.perfil_1
+        else:
+            outro = obj.perfil_2
+
+        return PerfilResumoSerializer(outro, context=self.context).data
 
     def get_ultima_mensagem(self, obj):
         mensagem = obj.mensagens.order_by("-criado_em").first()
