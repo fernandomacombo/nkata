@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
+import { API_BASE_URL } from "../../services/api.js";
 
 export default function AppHeader({
   activePage,
@@ -15,12 +16,13 @@ export default function AppHeader({
   session,
   sessionLoading = false,
   onSignOut,
+  heroMode = false,
 }) {
   const authenticated = Boolean(session?.authenticated);
   const memberName = session?.profile?.name || session?.user?.name || "Conta";
 
   return (
-    <header className="nk-header">
+    <header className={`nk-header ${heroMode ? "nk-header--hero" : ""}`}>
       <div className="nk-shell nk-header__inner">
         <button
           type="button"
@@ -107,7 +109,7 @@ export default function AppHeader({
             <button
               type="button"
               className="nk-button nk-button--dark nk-header__request"
-              onClick={() => window.location.assign("/solicitar-entrada/")}
+              onClick={() => window.location.assign(`${API_BASE_URL}/solicitar-entrada/`)}
             >
               <ShieldCheck size={17} />
               Pedir acesso
