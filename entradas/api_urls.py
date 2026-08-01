@@ -22,4 +22,9 @@ urlpatterns = [
         name="meus_interesses",
     ),
     path("minha-conta/matches/", api_views.api_meus_matches, name="meus_matches"),
+    path(
+        "minha-conta/matches/<int:match_id>/conversa/",
+        api_views.api_conversa_match,
+        name="conversa_match",
+    ),
 ]
