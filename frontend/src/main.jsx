@@ -11,6 +11,7 @@ import "./account.css";
 import "./account-enhancements.css";
 import "./home-refresh.css";
 import "./safety.css";
+import "./safety-layout.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
