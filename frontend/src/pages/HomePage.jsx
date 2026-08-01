@@ -12,25 +12,31 @@ import SecurityPanel from "../components/security/SecurityPanel.jsx";
 const processSteps = [
   {
     number: "01",
-    title: "Solicite a entrada",
-    text: "Partilhe apenas os dados necessários para iniciar a análise.",
+    title: "Envie o pedido",
+    text: "Preencha os dados e envie as fotografias pedidas.",
     icon: UserCheck,
   },
   {
     number: "02",
-    title: "Passe pela verificação",
-    text: "A equipa avalia o pedido e protege os dados enviados.",
+    title: "Aguarde a análise",
+    text: "A equipa confirma os dados antes de ativar o perfil.",
     icon: ShieldCheck,
   },
   {
     number: "03",
-    title: "Conheça com intenção",
-    text: "Depois da aprovação, descubra pessoas com objetivos claros.",
+    title: "Comece a conhecer pessoas",
+    text: "Depois da aprovação, pode ver perfis e demonstrar interesse.",
     icon: Sparkles,
   },
 ];
 
-export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
+export default function HomePage({
+  profiles,
+  onNavigate,
+  onOpenProfile,
+  isSaved,
+  onToggleSaved,
+}) {
   const featured = profiles.slice(0, 3);
   const heroProfile = featured[0];
 
@@ -42,15 +48,15 @@ export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
             <div className="nk-hero__copy">
               <span className="nk-eyebrow">
                 <LockKeyhole size={15} />
-                Comunidade privada
+                Entrada mediante aprovação
               </span>
 
               <h1>
-                Conheça alguém com <em>intenção real.</em>
+                Conheça alguém que também quer <em>algo sério.</em>
               </h1>
 
               <p>
-                Uma experiência reservada para adultos que valorizam respeito, clareza e relações construídas com calma.
+                O NKATA junta pessoas que procuram uma relação com respeito, clareza e compromisso.
               </p>
 
               <div className="nk-hero__actions">
@@ -59,7 +65,7 @@ export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
                   className="nk-button nk-button--wine"
                   onClick={() => onNavigate("discover")}
                 >
-                  Descobrir perfis
+                  Ver perfis
                   <ArrowRight size={18} />
                 </button>
                 <button
@@ -67,21 +73,21 @@ export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
                   className="nk-button nk-button--quiet"
                   onClick={() => window.location.assign("/solicitar-entrada/")}
                 >
-                  Solicitar entrada
+                  Pedir acesso
                 </button>
               </div>
 
               <div className="nk-hero__trust">
-                <span><CheckCircle2 size={16} /> Perfis analisados</span>
-                <span><CheckCircle2 size={16} /> Dados protegidos</span>
-                <span><CheckCircle2 size={16} /> Acesso controlado</span>
+                <span><CheckCircle2 size={16} /> Perfis confirmados</span>
+                <span><CheckCircle2 size={16} /> Contactos ocultos</span>
+                <span><CheckCircle2 size={16} /> Entrada analisada pela equipa</span>
               </div>
             </div>
 
             <button
               type="button"
               className="nk-hero__visual"
-              aria-label={heroProfile ? `Abrir perfil de ${heroProfile.nome_publico}` : "Perfis em preparação"}
+              aria-label={heroProfile ? `Abrir perfil de ${heroProfile.nome_publico}` : "Sem perfis disponíveis"}
               onClick={() => heroProfile && onOpenProfile(heroProfile)}
               disabled={!heroProfile}
             >
@@ -91,27 +97,27 @@ export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
                   <div className="nk-hero__visual-shade" />
                   <div className="nk-hero__visual-badge">
                     <ShieldCheck size={16} />
-                    Perfil aprovado
+                    Perfil verificado
                   </div>
                   <div className="nk-hero__visual-caption">
-                    <span>Conhecer com propósito</span>
+                    <span>{heroProfile.objetivo_display}</span>
                     <strong>{heroProfile.nome_publico}, {heroProfile.idade}</strong>
                     <small>{heroProfile.cidade}</small>
                   </div>
                 </>
               ) : (
-                <div className="nk-hero__empty">Perfis em preparação</div>
+                <div className="nk-hero__empty">Ainda não há perfis disponíveis</div>
               )}
             </button>
           </div>
         </section>
 
-        <section className="nk-trust-strip" aria-label="Compromissos NKATA">
+        <section className="nk-trust-strip" aria-label="Como o NKATA funciona">
           <div className="nk-shell nk-trust-strip__inner">
-            <span>Privacidade por defeito</span>
-            <span>Moderação humana</span>
-            <span>Interações com intenção</span>
-            <span>Comunidade moçambicana</span>
+            <span>Contactos ocultos</span>
+            <span>Perfis analisados</span>
+            <span>Denúncias acompanhadas</span>
+            <span>Feito para Moçambique</span>
           </div>
         </section>
 
@@ -119,11 +125,9 @@ export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
           <div className="nk-shell">
             <div className="nk-section-heading">
               <div>
-                <span className="nk-eyebrow nk-eyebrow--dark">Perfis selecionados</span>
-                <h2>Pessoas, não catálogos.</h2>
-                <p>
-                  Informação essencial, fotografias controladas e intenção apresentada com clareza.
-                </p>
+                <span className="nk-eyebrow nk-eyebrow--dark">Alguns perfis</span>
+                <h2>Veja quem está disponível.</h2>
+                <p>Abra um perfil para conhecer melhor a pessoa antes de demonstrar interesse.</p>
               </div>
               <button type="button" className="nk-text-action" onClick={() => onNavigate("discover")}>Ver todos <ArrowRight size={17} /></button>
             </div>
@@ -133,7 +137,9 @@ export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
                 <ProfileCard
                   key={profile.id}
                   profile={profile}
-                  onOpen={() => onOpenProfile(profile)}
+                  onOpen={onOpenProfile}
+                  saved={isSaved(profile)}
+                  onToggleSaved={onToggleSaved}
                 />
               ))}
             </div>
@@ -144,8 +150,8 @@ export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
           <div className="nk-shell">
             <div className="nk-section-heading nk-section-heading--center">
               <div>
-                <span className="nk-eyebrow nk-eyebrow--dark">Como funciona</span>
-                <h2>Um processo simples. Um padrão elevado.</h2>
+                <span className="nk-eyebrow nk-eyebrow--dark">Como entrar</span>
+                <h2>Três passos para começar.</h2>
               </div>
             </div>
 
@@ -172,7 +178,7 @@ export default function HomePage({ profiles, onNavigate, onOpenProfile }) {
         <div className="nk-shell nk-footer__inner">
           <div>
             <strong>NKATA</strong>
-            <p>Relações sérias, com privacidade e intenção.</p>
+            <p>Para quem procura uma relação séria.</p>
           </div>
           <span>© 2026 NKATA · Moçambique</span>
         </div>
