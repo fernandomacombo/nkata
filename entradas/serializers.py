@@ -1,7 +1,56 @@
+import re
+
 from django.db.models import Q
 from rest_framework import serializers
 
 from .models import MatchPerfil, MensagemMatch, PerfilNKATA
+
+
+TEXT_RULES = {
+    "sobre_si": {
+        "min_chars": 30,
+        "min_words": 5,
+        "label": "Sobre si",
+    },
+    "o_que_valoriza": {
+        "min_chars": 18,
+        "min_words": 3,
+        "label": "O que valoriza",
+    },
+    "o_que_nao_aceita": {
+        "min_chars": 12,
+        "min_words": 2,
+        "label": "O que não aceita",
+    },
+}
+
+
+def _validar_texto_natural(value, *, min_chars, min_words, label):
+    texto = " ".join(str(value or "").split())
+
+    if len(texto) < min_chars:
+        raise serializers.ValidationError(
+            f"{label}: escreva pelo menos {min_chars} caracteres."
+        )
+
+    palavras = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]{2,}", texto)
+    if len(palavras) < min_words:
+        raise serializers.ValidationError(
+            f"{label}: escreva pelo menos {min_words} palavras completas."
+        )
+
+    palavras_com_vogal = sum(
+        bool(re.search(r"[aeiouáéíóúâêôãõà]", palavra, flags=re.IGNORECASE))
+        for palavra in palavras
+    )
+    minimo_com_vogal = max(1, (len(palavras) + 1) // 2)
+
+    if palavras_com_vogal < minimo_com_vogal:
+        raise serializers.ValidationError(
+            f"{label}: reveja o texto e use palavras mais claras e naturais."
+        )
+
+    return texto
 
 
 class PerfilResumoSerializer(serializers.ModelSerializer):
@@ -138,13 +187,24 @@ class MinhaContaSerializer(serializers.ModelSerializer):
 
         for field in text_fields:
             if field in attrs and isinstance(attrs[field], str):
-                attrs[field] = attrs[field].strip()
+                attrs[field] = " ".join(attrs[field].split())
+
+        errors = {}
 
         for required_field in ["nome_publico", "cidade"]:
             if required_field in attrs and not attrs[required_field]:
-                raise serializers.ValidationError({
-                    required_field: "Este campo não pode ficar vazio."
-                })
+                errors[required_field] = "Este campo não pode ficar vazio."
+
+        for field, rules in TEXT_RULES.items():
+            if field not in attrs:
+                continue
+            try:
+                attrs[field] = _validar_texto_natural(attrs[field], **rules)
+            except serializers.ValidationError as error:
+                errors[field] = error.detail
+
+        if errors:
+            raise serializers.ValidationError(errors)
 
         return attrs
 
