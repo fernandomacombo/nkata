@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { ArrowUpRight, Heart, MapPin, ShieldCheck, UserRound } from "lucide-react";
 
-export default function ProfileCard({ profile, compact = false, onOpen }) {
+export default function ProfileCard({
+  profile,
+  compact = false,
+  onOpen,
+  saved = false,
+  onToggleSaved,
+}) {
   const [imageFailed, setImageFailed] = useState(false);
-  const [saved, setSaved] = useState(false);
   const hasImage = Boolean(profile.foto_url) && !imageFailed;
 
   return (
@@ -17,9 +22,9 @@ export default function ProfileCard({ profile, compact = false, onOpen }) {
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <div className="nk-profile-card__fallback" aria-label="Foto protegida">
+          <div className="nk-profile-card__fallback" aria-label="Foto não disponível">
             <UserRound size={46} strokeWidth={1.25} />
-            <span>Foto protegida</span>
+            <span>Sem fotografia</span>
           </div>
         )}
 
@@ -27,15 +32,15 @@ export default function ProfileCard({ profile, compact = false, onOpen }) {
 
         <div className="nk-profile-card__verified">
           <ShieldCheck size={14} />
-          {profile.verificado ? "Aprovado" : "Em análise"}
+          {profile.verificado ? "Verificado" : "Em análise"}
         </div>
 
         <button
           type="button"
           className={`nk-profile-card__save ${saved ? "is-saved" : ""}`}
-          aria-label={saved ? "Remover perfil dos guardados" : "Guardar perfil"}
+          aria-label={saved ? "Remover dos guardados" : "Guardar perfil"}
           aria-pressed={saved}
-          onClick={() => setSaved((current) => !current)}
+          onClick={() => onToggleSaved?.(profile)}
         >
           <Heart size={19} fill={saved ? "currentColor" : "none"} />
         </button>
@@ -57,7 +62,7 @@ export default function ProfileCard({ profile, compact = false, onOpen }) {
         <p className="nk-profile-card__about">{profile.sobre_si}</p>
 
         <div className="nk-profile-card__footer">
-          <span>Dados pessoais protegidos</span>
+          <span>Contacto não visível</span>
           <button type="button" onClick={() => onOpen?.(profile)}>
             Ver perfil
             <ArrowUpRight size={16} />
