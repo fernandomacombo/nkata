@@ -30,6 +30,31 @@ const processSteps = [
   },
 ];
 
+const trustPoints = [
+  "Perfis confirmados",
+  "Contactos protegidos",
+  "Entrada analisada pela equipa",
+];
+
+const platformCommitments = [
+  {
+    title: "Contactos protegidos",
+    text: "Só são partilhados com consentimento.",
+  },
+  {
+    title: "Perfis analisados",
+    text: "Cada entrada passa por uma revisão.",
+  },
+  {
+    title: "Denúncias acompanhadas",
+    text: "A equipa pode intervir quando necessário.",
+  },
+  {
+    title: "Feito para Moçambique",
+    text: "Uma comunidade próxima da nossa realidade.",
+  },
+];
+
 export default function HomePage({
   profiles,
   onNavigate,
@@ -43,7 +68,7 @@ export default function HomePage({
   return (
     <>
       <main>
-        <section className="nk-hero">
+        <section className="nk-hero nk-hero--refined">
           <div className="nk-shell nk-hero__grid">
             <div className="nk-hero__copy">
               <span className="nk-eyebrow">
@@ -52,11 +77,12 @@ export default function HomePage({
               </span>
 
               <h1>
-                Conheça alguém que também quer <em>algo sério.</em>
+                Conheça alguém que procura <em>o mesmo que você.</em>
               </h1>
 
               <p>
-                O NKATA junta pessoas que procuram uma relação com respeito, clareza e compromisso.
+                Um espaço para pessoas que querem conhecer alguém com respeito,
+                clareza e intenção de construir algo sério.
               </p>
 
               <div className="nk-hero__actions">
@@ -77,10 +103,13 @@ export default function HomePage({
                 </button>
               </div>
 
-              <div className="nk-hero__trust">
-                <span><CheckCircle2 size={16} /> Perfis confirmados</span>
-                <span><CheckCircle2 size={16} /> Contactos ocultos</span>
-                <span><CheckCircle2 size={16} /> Entrada analisada pela equipa</span>
+              <div className="nk-hero__trust" aria-label="Compromissos do NKATA">
+                {trustPoints.map((point) => (
+                  <span key={point}>
+                    <CheckCircle2 size={16} />
+                    {point}
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -96,13 +125,17 @@ export default function HomePage({
                   <img src={heroProfile.foto_url} alt={`Perfil de ${heroProfile.nome_publico}`} />
                   <div className="nk-hero__visual-shade" />
                   <div className="nk-hero__visual-badge">
-                    <ShieldCheck size={16} />
+                    <ShieldCheck size={15} />
                     Perfil verificado
                   </div>
                   <div className="nk-hero__visual-caption">
                     <span>{heroProfile.objetivo_display}</span>
-                    <strong>{heroProfile.nome_publico}, {heroProfile.idade}</strong>
+                    <strong>
+                      {heroProfile.nome_publico}
+                      {heroProfile.idade ? `, ${heroProfile.idade}` : ""}
+                    </strong>
                     <small>{heroProfile.cidade}</small>
+                    <em>Ver perfil <ArrowRight size={14} /></em>
                   </div>
                 </>
               ) : (
@@ -112,12 +145,14 @@ export default function HomePage({
           </div>
         </section>
 
-        <section className="nk-trust-strip" aria-label="Como o NKATA funciona">
+        <section className="nk-trust-strip nk-trust-strip--detailed" aria-label="Como o NKATA funciona">
           <div className="nk-shell nk-trust-strip__inner">
-            <span>Contactos ocultos</span>
-            <span>Perfis analisados</span>
-            <span>Denúncias acompanhadas</span>
-            <span>Feito para Moçambique</span>
+            {platformCommitments.map((item) => (
+              <span key={item.title}>
+                <strong>{item.title}</strong>
+                <small>{item.text}</small>
+              </span>
+            ))}
           </div>
         </section>
 
