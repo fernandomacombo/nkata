@@ -1,6 +1,24 @@
 const browserApiBase = `${window.location.protocol}//${window.location.hostname}:8000`;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || browserApiBase).replace(/\/$/, "");
 
+export class ApiError extends Error {
+  constructor(message, status, payload = null) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
+function getCookie(name) {
+  const cookie = document.cookie
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${name}=`));
+
+  return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
+}
+
 function normalizeProfile(profile) {
   return {
     id: profile.id,
@@ -17,7 +35,7 @@ function normalizeProfile(profile) {
       "Conhecer com intenção",
     sobre_si:
       profile.sobre_si ||
-      "Perfil aprovado pela comunidade NKATA, com intenção clara e dados pessoais protegidos.",
+      "Este perfil ainda não acrescentou uma apresentação.",
     o_que_valoriza: profile.o_que_valoriza || "",
     o_que_nao_aceita: profile.o_que_nao_aceita || "",
     foto_url:
@@ -27,6 +45,7 @@ function normalizeProfile(profile) {
       profile.foto ||
       null,
     verificado: profile.verificado ?? false,
+    interesse_ativo: profile.interesse_ativo ?? false,
     criado_em: profile.criado_em || null,
   };
 }
@@ -37,23 +56,65 @@ async function readJson(response) {
   return response.json();
 }
 
-async function request(path, { signal } = {}) {
+async function request(
+  path,
+  {
+    method = "GET",
+    body,
+    signal,
+    headers = {},
+  } = {},
+) {
+  const requestHeaders = {
+    Accept: "application/json",
+    ...headers,
+  };
+
+  const normalizedMethod = method.toUpperCase();
+
+  if (body !== undefined) {
+    requestHeaders["Content-Type"] = "application/json";
+  }
+
+  if (!["GET", "HEAD", "OPTIONS"].includes(normalizedMethod)) {
+    const csrfToken = getCookie("csrftoken");
+    if (csrfToken) requestHeaders["X-CSRFToken"] = csrfToken;
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: normalizedMethod,
     credentials: "include",
-    headers: {
-      Accept: "application/json",
-    },
+    headers: requestHeaders,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
     signal,
   });
 
   const payload = await readJson(response);
 
   if (!response.ok) {
-    const message = payload?.detail || `Não foi possível concluir o pedido (${response.status}).`;
-    throw new Error(message);
+    const message =
+      payload?.detail ||
+      payload?.message ||
+      `Não foi possível concluir o pedido (${response.status}).`;
+    throw new ApiError(message, response.status, payload);
   }
 
   return payload;
+}
+
+export async function fetchSession({ signal } = {}) {
+  return request("/api/session/", { signal });
+}
+
+export async function loginUser({ email, password }) {
+  return request("/api/auth/login/", {
+    method: "POST",
+    body: { email, password },
+  });
+}
+
+export async function logoutUser() {
+  return request("/api/auth/logout/", { method: "POST" });
 }
 
 export async function fetchProfiles({ signal } = {}) {
@@ -64,11 +125,31 @@ export async function fetchProfiles({ signal } = {}) {
 
 export async function fetchProfileDetail(profileId, { signal } = {}) {
   if (!profileId || String(profileId).startsWith("demo-")) {
-    throw new Error("Este é um perfil demonstrativo.");
+    throw new ApiError("Este é um perfil demonstrativo.", 400);
   }
 
   const payload = await request(`/api/perfis/${profileId}/`, { signal });
   return normalizeProfile(payload);
+}
+
+export async function toggleProfileInterest(profileId) {
+  if (!profileId || String(profileId).startsWith("demo-")) {
+    throw new ApiError("Entre numa conta aprovada para usar esta função.", 403);
+  }
+
+  return request(`/api/perfis/${profileId}/interesse/`, {
+    method: "POST",
+  });
+}
+
+export async function fetchMyInterests({ signal } = {}) {
+  const payload = await request("/api/minha-conta/interesses/", { signal });
+  const results = Array.isArray(payload) ? payload : payload?.results || [];
+  return results.map(normalizeProfile);
+}
+
+export async function fetchMyMatches({ signal } = {}) {
+  return request("/api/minha-conta/matches/", { signal });
 }
 
 export { API_BASE_URL, normalizeProfile };
