@@ -1,0 +1,370 @@
+.nk-account__intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.nk-account__preview-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(125, 38, 56, 0.16);
+  border-radius: 999px;
+  background: var(--nk-wine-soft);
+  padding: 0 17px;
+  color: var(--nk-wine);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.nk-account-card__camera {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 2;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 50%;
+  background: var(--nk-wine);
+  color: white;
+  box-shadow: 0 9px 22px rgba(125, 38, 56, 0.26);
+}
+
+.nk-account-card__photo > span {
+  top: 2px;
+  right: 2px;
+  bottom: auto;
+}
+
+.nk-account-card__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.nk-account-card__photo-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: -8px auto 17px;
+  background: transparent;
+  color: var(--nk-wine);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.nk-account-card__photo-confirm {
+  margin: 0 0 18px;
+  border: 1px solid rgba(125, 38, 56, 0.14);
+  border-radius: 16px;
+  background: var(--nk-wine-soft);
+  padding: 12px;
+  text-align: left;
+}
+
+.nk-account-card__photo-confirm > span {
+  display: block;
+  color: var(--nk-wine-dark);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.nk-account-card__photo-confirm > div {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.nk-account-card__photo-confirm button {
+  min-height: 36px;
+  border: 1px solid rgba(125, 38, 56, 0.14);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--nk-ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.nk-account-card__photo-confirm button:last-child {
+  border-color: var(--nk-wine);
+  background: var(--nk-wine);
+  color: white;
+}
+
+.nk-account-card__photo-message {
+  margin: 0 0 16px;
+  border-radius: 13px;
+  padding: 10px 11px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.nk-account-card__photo-message.is-error {
+  background: #f8e7e9;
+  color: #8b2b3d;
+}
+
+.nk-account-card__photo-message.is-success {
+  background: rgba(63, 105, 89, 0.1);
+  color: var(--nk-success);
+}
+
+.nk-account-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.nk-account-card__facts span {
+  border: 1px solid var(--nk-line);
+  border-radius: 999px;
+  background: #f8f4ef;
+  padding: 6px 9px;
+  color: #625a55;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.nk-account-card__private-email {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 12px !important;
+}
+
+.nk-profile-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  overflow-y: auto;
+  place-items: center;
+  background: rgba(24, 19, 18, 0.68);
+  padding: 28px;
+  backdrop-filter: blur(12px);
+}
+
+.nk-profile-preview__dialog {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 32px;
+  background: var(--nk-paper);
+  box-shadow: 0 40px 130px rgba(0, 0, 0, 0.34);
+}
+
+.nk-profile-preview__dialog > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--nk-line);
+  background: rgba(255, 253, 249, 0.94);
+  padding: 20px 24px;
+  backdrop-filter: blur(15px);
+}
+
+.nk-profile-preview__dialog > header span {
+  color: var(--nk-wine);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nk-profile-preview__dialog > header h2 {
+  margin: 4px 0 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 600;
+}
+
+.nk-profile-preview__dialog > header button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--nk-line);
+  border-radius: 50%;
+  background: white;
+  color: var(--nk-ink);
+}
+
+.nk-profile-preview__layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1fr);
+  gap: 34px;
+  padding: 28px;
+}
+
+.nk-profile-preview__photo {
+  position: relative;
+  min-height: 590px;
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--nk-sand);
+  color: var(--nk-muted);
+}
+
+.nk-profile-preview__photo > img {
+  width: 100%;
+  height: 100%;
+  min-height: 590px;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.nk-profile-preview__photo > svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.nk-profile-preview__photo > div {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(31, 24, 22, 0.82), transparent 58%);
+}
+
+.nk-profile-preview__photo > span {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(28, 23, 21, 0.42);
+  padding: 9px 12px;
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 700;
+  backdrop-filter: blur(12px);
+}
+
+.nk-profile-preview__photo > section {
+  position: absolute;
+  right: 24px;
+  bottom: 25px;
+  left: 24px;
+  color: white;
+}
+
+.nk-profile-preview__photo small,
+.nk-profile-preview__photo strong,
+.nk-profile-preview__photo em {
+  display: block;
+}
+
+.nk-profile-preview__photo small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.nk-profile-preview__photo strong {
+  margin-top: 7px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 2.25rem;
+  font-weight: 600;
+}
+
+.nk-profile-preview__photo em {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
+.nk-profile-preview__content {
+  align-self: center;
+}
+
+.nk-profile-preview__content > h3 {
+  margin: 18px 0 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2.7rem, 5vw, 4.4rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.nk-profile-preview__content > p {
+  margin: 10px 0 28px;
+  color: var(--nk-wine);
+  font-weight: 700;
+}
+
+.nk-profile-preview__content article {
+  border-top: 1px solid var(--nk-line);
+  padding: 20px 0;
+}
+
+.nk-profile-preview__content article strong {
+  color: #514b47;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nk-profile-preview__content article p {
+  margin: 9px 0 0;
+  color: var(--nk-muted);
+  line-height: 1.72;
+}
+
+@media (max-width: 760px) {
+  .nk-account__intro-actions {
+    justify-content: flex-start;
+  }
+
+  .nk-profile-preview {
+    align-items: start;
+    padding: 12px;
+  }
+
+  .nk-profile-preview__dialog {
+    max-height: none;
+    border-radius: 24px;
+  }
+
+  .nk-profile-preview__layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 16px;
+  }
+
+  .nk-profile-preview__photo,
+  .nk-profile-preview__photo > img {
+    min-height: 510px;
+  }
+
+  .nk-profile-preview__content {
+    padding: 0 6px 12px;
+  }
+}
