@@ -1,17 +1,26 @@
 # NKATA Frontend
 
-Interface premium mobile-first para a futura aplicação React + Tailwind do NKATA.
+Interface React + Tailwind do NKATA, desenvolvida de forma progressiva sobre o backend Django existente.
 
-## Objetivo
+## Direção do produto
 
-Esta pasta não substitui ainda o Django atual. Ela prepara a próxima fase da Opção A:
+- experiência premium e discreta;
+- prioridade para confiança, privacidade e organização;
+- mobile-first sem comprometer o desktop;
+- integração gradual com a API Django;
+- linguagem madura e adequada a uma comunidade seletiva.
 
-1. manter o backend Django funcionando;
-2. expor dados através da API;
-3. construir a interface premium em React + Tailwind;
-4. migrar página por página com segurança.
+## Executar o backend
 
-## Como executar
+Na raiz do projeto:
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
+```
+
+## Executar o frontend
 
 ```bash
 cd frontend
@@ -19,29 +28,45 @@ npm install
 npm run dev
 ```
 
-Depois abra:
+Abrir no computador:
 
-```txt
+```text
 http://localhost:5173
 ```
 
-## Direção de produto
+Abrir no telemóvel ligado à mesma rede:
 
-A interface deve comunicar que o NKATA é uma comunidade seletiva:
+```text
+http://IP_DO_COMPUTADOR:5173
+```
 
-- visual premium;
-- poucos textos;
-- ações diretas;
-- mobile-first;
-- privacidade visível;
-- organização clara;
-- experiência próxima de app.
+Exemplo:
 
-## Próximas telas
+```text
+http://192.168.0.100:5173
+```
 
-1. Descobrir / Perfis
-2. Perfil detalhado
-3. Matches como inbox
-4. Chat
-5. Minha conta
-6. Privacidade e segurança
+## API
+
+O frontend utiliza por defeito o mesmo endereço do navegador, na porta `8000`.
+Também pode ser configurado através de:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+## Páginas disponíveis
+
+- Home premium;
+- Descobrir perfis;
+- detalhe do perfil;
+- estados de carregamento, erro e ausência de resultados;
+- áreas reservadas preparadas para autenticação, matches e mensagens.
+
+## Verificação antes do commit
+
+```bash
+npm run build
+```
+
+Não enviar `node_modules/` para o GitHub.
