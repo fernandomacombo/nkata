@@ -1,0 +1,19 @@
+.nk-conversation__options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 620px) {
+  .nk-conversation__options .nk-conversation__secure {
+    display: none;
+  }
+
+  .nk-conversation__safety-menu {
+    position: fixed;
+    right: 12px;
+    bottom: 92px;
+    top: auto;
+    width: min(300px, calc(100vw - 24px));
+  }
+}
