@@ -3,18 +3,18 @@ import { BadgeCheck, EyeOff, Fingerprint, ShieldCheck } from "lucide-react";
 const items = [
   {
     icon: Fingerprint,
-    title: "Entrada analisada",
-    text: "O acesso começa com um pedido e uma avaliação antes da publicação do perfil.",
+    title: "Pedido revisto pela equipa",
+    text: "O perfil só aparece depois da análise dos dados enviados.",
   },
   {
     icon: EyeOff,
-    title: "Dados fora da área pública",
-    text: "Telefone, email e documentos não aparecem nos perfis apresentados à comunidade.",
+    title: "Contactos ocultos",
+    text: "Telefone, email e documentos não aparecem no perfil.",
   },
   {
     icon: BadgeCheck,
-    title: "Intenção clara",
-    text: "Cada perfil apresenta objetivo, contexto e informação essencial sem exposição excessiva.",
+    title: "Informação essencial",
+    text: "A pessoa mostra o que procura, a cidade e uma apresentação curta.",
   },
 ];
 
@@ -25,11 +25,11 @@ export default function SecurityPanel() {
         <div className="nk-security__intro">
           <span className="nk-eyebrow nk-eyebrow--light">
             <ShieldCheck size={15} />
-            Proteção por princípio
+            Segurança
           </span>
-          <h2>Confiança não é um detalhe. É a base.</h2>
+          <h2>Conheça pessoas sem expor os seus dados.</h2>
           <p>
-            O NKATA foi pensado para relações sérias, com menos exposição, mais contexto e controlo em cada etapa.
+            A equipa acompanha os pedidos, os perfis e as denúncias feitas dentro da plataforma.
           </p>
         </div>
 
