@@ -20,6 +20,8 @@ function getCookie(name) {
 }
 
 function normalizeProfile(profile) {
+  if (!profile) return null;
+
   return {
     id: profile.id,
     nome_publico: profile.nome_publico || profile.nome || "Perfil NKATA",
@@ -47,6 +49,37 @@ function normalizeProfile(profile) {
     verificado: profile.verificado ?? false,
     interesse_ativo: profile.interesse_ativo ?? false,
     criado_em: profile.criado_em || null,
+  };
+}
+
+function normalizeMessage(message) {
+  if (!message) return null;
+
+  return {
+    id: message.id,
+    matchId: message.match,
+    senderId: message.remetente_id,
+    senderName: message.remetente_nome || "Membro NKATA",
+    text: message.texto || "",
+    read: Boolean(message.lida),
+    mine: Boolean(message.minha),
+    createdAt: message.criado_em,
+  };
+}
+
+function normalizeMatch(match) {
+  if (!match) return null;
+
+  return {
+    id: match.id,
+    otherProfile: normalizeProfile(match.outro_perfil || match.perfil_2 || match.perfil_1),
+    type: match.tipo_origem,
+    typeLabel: match.tipo_origem_display || "Interesse mútuo",
+    status: match.status,
+    lastMessage: normalizeMessage(match.ultima_mensagem),
+    unreadCount: Number(match.mensagens_nao_lidas || 0),
+    createdAt: match.criado_em,
+    updatedAt: match.atualizado_em,
   };
 }
 
@@ -149,7 +182,38 @@ export async function fetchMyInterests({ signal } = {}) {
 }
 
 export async function fetchMyMatches({ signal } = {}) {
-  return request("/api/minha-conta/matches/", { signal });
+  const payload = await request("/api/minha-conta/matches/", { signal });
+  const results = Array.isArray(payload) ? payload : payload?.results || [];
+  return results.map(normalizeMatch).filter(Boolean);
 }
 
-export { API_BASE_URL, normalizeProfile };
+export async function fetchMatchConversation(matchId, { signal } = {}) {
+  const payload = await request(
+    `/api/minha-conta/matches/${matchId}/conversa/`,
+    { signal },
+  );
+
+  return {
+    match: normalizeMatch(payload?.match),
+    messages: (payload?.results || []).map(normalizeMessage).filter(Boolean),
+  };
+}
+
+export async function sendMatchMessage(matchId, text) {
+  const payload = await request(
+    `/api/minha-conta/matches/${matchId}/conversa/`,
+    {
+      method: "POST",
+      body: { texto: text },
+    },
+  );
+
+  return normalizeMessage(payload);
+}
+
+export {
+  API_BASE_URL,
+  normalizeMatch,
+  normalizeMessage,
+  normalizeProfile,
+};
