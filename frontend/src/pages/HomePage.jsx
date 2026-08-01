@@ -1,4 +1,5 @@
 import {
+  ArrowDown,
   ArrowRight,
   CheckCircle2,
   LockKeyhole,
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import SecurityPanel from "../components/security/SecurityPanel.jsx";
+import { API_BASE_URL } from "../services/api.js";
 
 const processSteps = [
   {
@@ -30,30 +32,15 @@ const processSteps = [
   },
 ];
 
-const trustPoints = [
-  "Perfis confirmados",
-  "Contactos protegidos",
-  "Entrada analisada pela equipa",
+const trustItems = [
+  { title: "Perfis analisados", text: "A entrada passa por uma verificação antes da publicação." },
+  { title: "Contactos protegidos", text: "Telefone, email e documentos não aparecem publicamente." },
+  { title: "Interesse dos dois lados", text: "A conversa só começa depois de existir um match." },
+  { title: "Feito para Moçambique", text: "Uma experiência pensada para o nosso contexto." },
 ];
 
-const platformCommitments = [
-  {
-    title: "Contactos protegidos",
-    text: "Só são partilhados com consentimento.",
-  },
-  {
-    title: "Perfis analisados",
-    text: "Cada entrada passa por uma revisão.",
-  },
-  {
-    title: "Denúncias acompanhadas",
-    text: "A equipa pode intervir quando necessário.",
-  },
-  {
-    title: "Feito para Moçambique",
-    text: "Uma comunidade próxima da nossa realidade.",
-  },
-];
+const defaultHeroImage =
+  "https://images.pexels.com/photos/32842406/pexels-photo-32842406.jpeg?auto=compress&cs=tinysrgb&w=2400";
 
 export default function HomePage({
   profiles,
@@ -63,108 +50,90 @@ export default function HomePage({
   onToggleSaved,
 }) {
   const featured = profiles.slice(0, 3);
-  const heroProfile = featured[0];
+  const heroImage = import.meta.env.VITE_HERO_IMAGE_URL || defaultHeroImage;
 
   return (
     <>
       <main>
-        <section className="nk-hero nk-hero--refined">
-          <div className="nk-shell nk-hero__grid">
+        <section
+          className="nk-hero nk-hero--cover"
+          style={{ "--nk-hero-image": `url("${heroImage}")` }}
+        >
+          <div className="nk-hero__overlay" />
+          <div className="nk-shell nk-hero__cover-content">
             <div className="nk-hero__copy">
-              <span className="nk-eyebrow">
+              <span className="nk-eyebrow nk-eyebrow--hero">
                 <LockKeyhole size={15} />
                 Entrada mediante aprovação
               </span>
 
               <h1>
-                Conheça alguém que procura <em>o mesmo que você.</em>
+                Relações sérias começam com <em>intenções claras.</em>
               </h1>
 
               <p>
-                Um espaço para pessoas que querem conhecer alguém com respeito,
-                clareza e intenção de construir algo sério.
+                Conheça pessoas adultas que procuram respeito, compromisso e uma relação com futuro.
               </p>
 
               <div className="nk-hero__actions">
                 <button
                   type="button"
-                  className="nk-button nk-button--wine"
+                  className="nk-button nk-button--wine nk-button--hero-primary"
                   onClick={() => onNavigate("discover")}
                 >
-                  Ver perfis
+                  Conhecer perfis
                   <ArrowRight size={18} />
                 </button>
                 <button
                   type="button"
-                  className="nk-button nk-button--quiet"
-                  onClick={() => window.location.assign("/solicitar-entrada/")}
+                  className="nk-button nk-button--hero-secondary"
+                  onClick={() => window.location.assign(`${API_BASE_URL}/solicitar-entrada/`)}
                 >
                   Pedir acesso
                 </button>
               </div>
 
-              <div className="nk-hero__trust" aria-label="Compromissos do NKATA">
-                {trustPoints.map((point) => (
-                  <span key={point}>
-                    <CheckCircle2 size={16} />
-                    {point}
-                  </span>
-                ))}
+              <div className="nk-hero__trust">
+                <span><CheckCircle2 size={16} /> Perfis confirmados</span>
+                <span><CheckCircle2 size={16} /> Contactos ocultos</span>
+                <span><CheckCircle2 size={16} /> Conversas por match</span>
               </div>
             </div>
 
             <button
               type="button"
-              className="nk-hero__visual"
-              aria-label={heroProfile ? `Abrir perfil de ${heroProfile.nome_publico}` : "Sem perfis disponíveis"}
-              onClick={() => heroProfile && onOpenProfile(heroProfile)}
-              disabled={!heroProfile}
+              className="nk-hero__scroll"
+              onClick={() => document.getElementById("destaques")?.scrollIntoView({ behavior: "smooth" })}
+              aria-label="Ver mais conteúdo"
             >
-              {heroProfile ? (
-                <>
-                  <img src={heroProfile.foto_url} alt={`Perfil de ${heroProfile.nome_publico}`} />
-                  <div className="nk-hero__visual-shade" />
-                  <div className="nk-hero__visual-badge">
-                    <ShieldCheck size={15} />
-                    Perfil verificado
-                  </div>
-                  <div className="nk-hero__visual-caption">
-                    <span>{heroProfile.objetivo_display}</span>
-                    <strong>
-                      {heroProfile.nome_publico}
-                      {heroProfile.idade ? `, ${heroProfile.idade}` : ""}
-                    </strong>
-                    <small>{heroProfile.cidade}</small>
-                    <em>Ver perfil <ArrowRight size={14} /></em>
-                  </div>
-                </>
-              ) : (
-                <div className="nk-hero__empty">Ainda não há perfis disponíveis</div>
-              )}
+              <span>Descobrir</span>
+              <ArrowDown size={18} />
             </button>
           </div>
         </section>
 
-        <section className="nk-trust-strip nk-trust-strip--detailed" aria-label="Como o NKATA funciona">
+        <section className="nk-trust-strip" aria-label="Como o NKATA protege a comunidade">
           <div className="nk-shell nk-trust-strip__inner">
-            {platformCommitments.map((item) => (
-              <span key={item.title}>
+            {trustItems.map((item) => (
+              <article key={item.title}>
                 <strong>{item.title}</strong>
-                <small>{item.text}</small>
-              </span>
+                <span>{item.text}</span>
+              </article>
             ))}
           </div>
         </section>
 
-        <section className="nk-section nk-featured">
+        <section className="nk-section nk-featured" id="destaques">
           <div className="nk-shell">
             <div className="nk-section-heading">
               <div>
                 <span className="nk-eyebrow nk-eyebrow--dark">Alguns perfis</span>
-                <h2>Veja quem está disponível.</h2>
-                <p>Abra um perfil para conhecer melhor a pessoa antes de demonstrar interesse.</p>
+                <h2>Conheça pessoas com intenção.</h2>
+                <p>Leia a apresentação com calma antes de demonstrar interesse.</p>
               </div>
-              <button type="button" className="nk-text-action" onClick={() => onNavigate("discover")}>Ver todos <ArrowRight size={17} /></button>
+              <button type="button" className="nk-text-action" onClick={() => onNavigate("discover")}>
+                Ver todos <ArrowRight size={17} />
+              </button>
             </div>
 
             <div className="nk-profile-grid">
