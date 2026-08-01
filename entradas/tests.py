@@ -81,6 +81,55 @@ class NkataApiTests(TestCase):
         self.assertEqual(response.json()["user"]["id"], user.id)
         self.assertEqual(response.json()["profile"]["id"], perfil.id)
 
+    def test_conta_exige_login(self):
+        response = self.client.get("/api/minha-conta/")
+        self.assertIn(response.status_code, [401, 403])
+
+    def test_conta_apresenta_dados_e_totais(self):
+        user, perfil = self.create_profile("conta@example.com", "Conta")
+        _, perfil_alvo = self.create_profile("conta-alvo@example.com", "Alvo")
+        AcaoPerfil.objects.create(
+            perfil=perfil_alvo,
+            usuario=user,
+            tipo="INTERESSE",
+            session_key="sessao-conta",
+        )
+        MatchPerfil.objects.create(perfil_1=perfil, perfil_2=perfil_alvo)
+
+        self.client.force_login(user)
+        response = self.client.get("/api/minha-conta/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["nome_publico"], "Conta")
+        self.assertEqual(response.json()["email"], "conta@example.com")
+        self.assertEqual(response.json()["total_matches"], 1)
+        self.assertEqual(response.json()["total_interesses_enviados"], 1)
+
+    def test_conta_pode_ser_editada_e_ocultada(self):
+        user, perfil = self.create_profile("editar@example.com", "Nome Antigo")
+        self.client.force_login(user)
+
+        response = self.client.patch(
+            "/api/minha-conta/",
+            data=json.dumps({
+                "nome_publico": "Nome Novo",
+                "cidade": "Vilankulo",
+                "objetivo": "CASAMENTO_FUTURO",
+                "sobre_si": "Uma apresentação atualizada.",
+                "visivel": False,
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        perfil.refresh_from_db()
+        user.refresh_from_db()
+        self.assertEqual(perfil.nome_publico, "Nome Novo")
+        self.assertEqual(perfil.cidade, "Vilankulo")
+        self.assertEqual(perfil.objetivo, "CASAMENTO_FUTURO")
+        self.assertFalse(perfil.visivel)
+        self.assertEqual(user.first_name, "Nome Novo")
+
     def test_interesse_exige_login(self):
         _, perfil = self.create_profile("alvo@example.com", "Alvo")
 
