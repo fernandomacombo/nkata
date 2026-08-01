@@ -6,8 +6,13 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .models import AcaoPerfil, MatchPerfil, PerfilNKATA
-from .serializers import MatchSerializer, PerfilDetalheSerializer, PerfilResumoSerializer
+from .models import AcaoPerfil, MatchPerfil, MensagemMatch, PerfilNKATA
+from .serializers import (
+    MatchSerializer,
+    MensagemMatchSerializer,
+    PerfilDetalheSerializer,
+    PerfilResumoSerializer,
+)
 
 
 def _perfil_do_utilizador(user):
@@ -86,6 +91,31 @@ def _criar_match_se_mutuo(perfil_alvo, usuario_atual):
         match.save(update_fields=["status", "tipo_origem", "atualizado_em"])
 
     return match
+
+
+def _match_do_utilizador(request, match_id):
+    perfil = _perfil_do_utilizador(request.user)
+
+    if not perfil:
+        return None
+
+    return (
+        MatchPerfil.objects
+        .filter(
+            Q(perfil_1=perfil) | Q(perfil_2=perfil),
+            id=match_id,
+            status="ATIVO",
+        )
+        .select_related(
+            "perfil_1",
+            "perfil_1__pedido",
+            "perfil_1__usuario",
+            "perfil_2",
+            "perfil_2__pedido",
+            "perfil_2__usuario",
+        )
+        .first()
+    )
 
 
 @api_view(["GET"])
@@ -302,7 +332,7 @@ def api_meus_matches(request):
     perfil = _perfil_do_utilizador(request.user)
 
     if not perfil:
-        return Response({"detail": "Conta sem perfil NKATA associado."}, status=404)
+        return Response({"detail": "A sua conta ainda não tem um perfil NKATA."}, status=404)
 
     matches = MatchPerfil.objects.filter(
         Q(perfil_1=perfil) | Q(perfil_2=perfil),
@@ -310,9 +340,11 @@ def api_meus_matches(request):
     ).select_related(
         "perfil_1",
         "perfil_1__pedido",
+        "perfil_1__usuario",
         "perfil_2",
         "perfil_2__pedido",
-    ).prefetch_related("mensagens")
+        "perfil_2__usuario",
+    ).prefetch_related("mensagens").order_by("-atualizado_em")
 
     serializer = MatchSerializer(
         matches,
@@ -323,4 +355,54 @@ def api_meus_matches(request):
     return Response({
         "count": matches.count(),
         "results": serializer.data,
+    })
+
+
+@api_view(["GET", "POST"])
+@permission_classes([permissions.IsAuthenticated])
+def api_conversa_match(request, match_id):
+    match = _match_do_utilizador(request, match_id)
+
+    if not match:
+        return Response({"detail": "Conversa não encontrada."}, status=404)
+
+    if request.method == "POST":
+        texto = str(request.data.get("texto", "")).strip()
+
+        if not texto:
+            return Response({"detail": "Escreva uma mensagem."}, status=400)
+
+        if len(texto) > 1200:
+            return Response(
+                {"detail": "A mensagem deve ter no máximo 1200 caracteres."},
+                status=400,
+            )
+
+        mensagem = MensagemMatch.objects.create(
+            match=match,
+            remetente=request.user,
+            texto=texto,
+        )
+        match.save(update_fields=["atualizado_em"])
+
+        serializer = MensagemMatchSerializer(
+            mensagem,
+            context={"request": request},
+        )
+        return Response(serializer.data, status=201)
+
+    match.mensagens.filter(lida=False).exclude(remetente=request.user).update(lida=True)
+
+    mensagens = match.mensagens.select_related(
+        "remetente",
+        "remetente__perfil_nkata",
+    ).all()
+
+    return Response({
+        "match": MatchSerializer(match, context={"request": request}).data,
+        "results": MensagemMatchSerializer(
+            mensagens,
+            many=True,
+            context={"request": request},
+        ).data,
     })
