@@ -16,6 +16,7 @@ urlpatterns = [
         api_views.api_alternar_interesse,
         name="alternar_interesse",
     ),
+    path("minha-conta/", api_views.api_minha_conta, name="minha_conta"),
     path(
         "minha-conta/interesses/",
         api_views.api_meus_interesses,
