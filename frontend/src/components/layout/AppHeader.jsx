@@ -1,6 +1,6 @@
-import { LockKeyhole, Menu, ShieldCheck } from "lucide-react";
+import { Bookmark, LockKeyhole, Menu, ShieldCheck } from "lucide-react";
 
-export default function AppHeader({ activePage, onNavigate }) {
+export default function AppHeader({ activePage, onNavigate, savedCount = 0 }) {
   return (
     <header className="nk-header">
       <div className="nk-shell nk-header__inner">
@@ -27,7 +27,14 @@ export default function AppHeader({ activePage, onNavigate }) {
             className={activePage === "discover" ? "is-active" : ""}
             onClick={() => onNavigate("discover")}
           >
-            Descobrir
+            Perfis
+          </button>
+          <button
+            type="button"
+            className={activePage === "saved" ? "is-active" : ""}
+            onClick={() => onNavigate("saved")}
+          >
+            Guardados {savedCount > 0 ? `(${savedCount})` : ""}
           </button>
           <button type="button" onClick={() => onNavigate("security")}>Segurança</button>
         </nav>
@@ -35,15 +42,20 @@ export default function AppHeader({ activePage, onNavigate }) {
         <div className="nk-header__actions">
           <span className="nk-private-status">
             <LockKeyhole size={14} />
-            Ambiente privado
+            Conta protegida
           </span>
-          <button type="button" className="nk-header__login">Entrar</button>
-          <button type="button" className="nk-button nk-button--dark nk-header__request">
+          <button type="button" className="nk-header__login" onClick={() => window.location.assign("/entrar/")}>Entrar</button>
+          <button type="button" className="nk-button nk-button--dark nk-header__request" onClick={() => window.location.assign("/solicitar-entrada/") }>
             <ShieldCheck size={17} />
-            Solicitar entrada
+            Pedir acesso
           </button>
-          <button type="button" className="nk-icon-button nk-header__menu" aria-label="Abrir menu">
-            <Menu size={20} />
+          <button
+            type="button"
+            className="nk-icon-button nk-header__menu"
+            aria-label="Abrir perfis guardados"
+            onClick={() => onNavigate("saved")}
+          >
+            {savedCount > 0 ? <Bookmark size={20} fill="currentColor" /> : <Menu size={20} />}
           </button>
         </div>
       </div>
