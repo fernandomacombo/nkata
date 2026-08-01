@@ -1,3 +1,4 @@
+from PIL import Image, UnidentifiedImageError
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import Q
@@ -14,6 +15,11 @@ from .serializers import (
     PerfilDetalheSerializer,
     PerfilResumoSerializer,
 )
+
+
+MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024
+MIN_PROFILE_PHOTO_SIDE = 500
+ALLOWED_PROFILE_PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
 
 
 def _perfil_do_utilizador(user):
@@ -119,6 +125,34 @@ def _match_do_utilizador(request, match_id):
     )
 
 
+def _validar_foto_perfil(foto):
+    if not foto:
+        return "Escolha uma fotografia."
+
+    if foto.size > MAX_PROFILE_PHOTO_SIZE:
+        return "A fotografia deve ter no máximo 5 MB."
+
+    try:
+        image = Image.open(foto)
+        image.verify()
+        foto.seek(0)
+
+        image = Image.open(foto)
+        width, height = image.size
+        image_format = (image.format or "").upper()
+        foto.seek(0)
+    except (UnidentifiedImageError, OSError, ValueError):
+        return "O ficheiro enviado não é uma fotografia válida."
+
+    if image_format not in ALLOWED_PROFILE_PHOTO_FORMATS:
+        return "Use uma fotografia em JPG, PNG ou WEBP."
+
+    if width < MIN_PROFILE_PHOTO_SIDE or height < MIN_PROFILE_PHOTO_SIDE:
+        return "A fotografia deve ter pelo menos 500 × 500 píxeis."
+
+    return None
+
+
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def api_status(request):
@@ -217,6 +251,44 @@ def api_minha_conta(request):
         context={"request": request},
     )
     return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def api_atualizar_foto_perfil(request):
+    perfil = _perfil_do_utilizador(request.user)
+
+    if not perfil:
+        return Response(
+            {"detail": "A sua conta ainda não tem um perfil NKATA."},
+            status=404,
+        )
+
+    foto = request.FILES.get("foto")
+    erro = _validar_foto_perfil(foto)
+    if erro:
+        return Response({"foto": [erro]}, status=400)
+
+    pedido = perfil.pedido
+    foto_anterior = pedido.foto_perfil
+    nome_anterior = foto_anterior.name if foto_anterior else ""
+    storage = foto_anterior.storage if foto_anterior else pedido._meta.get_field("foto_perfil").storage
+
+    pedido.foto_perfil = foto
+    pedido.save(update_fields=["foto_perfil", "atualizado_em"])
+
+    novo_nome = pedido.foto_perfil.name
+    if nome_anterior and nome_anterior != novo_nome and storage.exists(nome_anterior):
+        storage.delete(nome_anterior)
+
+    serializer = MinhaContaSerializer(
+        perfil,
+        context={"request": request},
+    )
+    return Response({
+        "message": "Fotografia atualizada.",
+        "account": serializer.data,
+    })
 
 
 @api_view(["GET"])
