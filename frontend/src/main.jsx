@@ -10,6 +10,7 @@ import "./messaging.css";
 import "./account.css";
 import "./account-enhancements.css";
 import "./home-refresh.css";
+import "./safety.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
