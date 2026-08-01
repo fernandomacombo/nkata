@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import MatchPerfil, PerfilNKATA
-from .serializers import MatchSerializer, PerfilResumoSerializer
+from .serializers import MatchSerializer, PerfilDetalheSerializer, PerfilResumoSerializer
 
 
 @api_view(["GET"])
@@ -50,7 +50,7 @@ def api_perfil_detalhe(request, perfil_id):
     except PerfilNKATA.DoesNotExist:
         return Response({"detail": "Perfil não encontrado."}, status=404)
 
-    serializer = PerfilResumoSerializer(perfil, context={"request": request})
+    serializer = PerfilDetalheSerializer(perfil, context={"request": request})
     return Response(serializer.data)
 
 
