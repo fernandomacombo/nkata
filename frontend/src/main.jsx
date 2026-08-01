@@ -7,6 +7,7 @@ import "./integration.css";
 import "./features.css";
 import "./auth.css";
 import "./messaging.css";
+import "./account.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
