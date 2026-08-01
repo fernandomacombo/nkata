@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
+  Camera,
   CheckCircle2,
   Eye,
   EyeOff,
   Heart,
+  ImageUp,
   LockKeyhole,
   LogOut,
   MapPin,
@@ -12,8 +14,9 @@ import {
   Save,
   ShieldCheck,
   UserRound,
+  X,
 } from "lucide-react";
-import { API_BASE_URL } from "../services/api.js";
+import { API_BASE_URL, uploadMyProfilePhoto } from "../services/api.js";
 
 const objectiveOptions = [
   { value: "RELACIONAMENTO_SERIO", label: "Relacionamento sério" },
@@ -40,6 +43,10 @@ function formatMemberDate(value) {
   }).format(new Date(value));
 }
 
+function objectiveLabel(value) {
+  return objectiveOptions.find((option) => option.value === value)?.label || "Relação séria";
+}
+
 function InterestItem({ profile, onOpen }) {
   return (
     <button type="button" className="nk-account-interest" onClick={() => onOpen(profile)}>
@@ -62,6 +69,76 @@ function InterestItem({ profile, onOpen }) {
   );
 }
 
+function ProfilePreview({ account, form, imageUrl, onClose }) {
+  return (
+    <div
+      className="nk-profile-preview"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className="nk-profile-preview__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-preview-title"
+      >
+        <header>
+          <div>
+            <span>Pré-visualização</span>
+            <h2 id="profile-preview-title">Como o seu perfil aparece</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar pré-visualização">
+            <X size={20} />
+          </button>
+        </header>
+
+        <div className="nk-profile-preview__layout">
+          <div className="nk-profile-preview__photo">
+            {imageUrl ? (
+              <img src={imageUrl} alt={`Pré-visualização de ${form.nome_publico}`} />
+            ) : (
+              <UserRound size={70} strokeWidth={1.1} />
+            )}
+            <div />
+            <span><ShieldCheck size={15} /> Perfil verificado</span>
+            <section>
+              <small>{objectiveLabel(form.objetivo)}</small>
+              <strong>
+                {form.nome_publico || account.nome_publico}
+                {account.idade ? `, ${account.idade}` : ""}
+              </strong>
+              <em><MapPin size={13} /> {form.cidade || account.cidade}</em>
+            </section>
+          </div>
+
+          <div className="nk-profile-preview__content">
+            <span className="nk-eyebrow nk-eyebrow--dark">
+              <ShieldCheck size={15} /> Perfil confirmado
+            </span>
+            <h3>{form.nome_publico || account.nome_publico}</h3>
+            <p>{objectiveLabel(form.objetivo)}</p>
+
+            <article>
+              <strong>Sobre mim</strong>
+              <p>{form.sobre_si || "A sua apresentação aparecerá aqui."}</p>
+            </article>
+            <article>
+              <strong>O que valorizo</strong>
+              <p>{form.o_que_valoriza || "Esta informação ainda não foi preenchida."}</p>
+            </article>
+            <article>
+              <strong>O que não aceito</strong>
+              <p>{form.o_que_nao_aceita || "Esta informação ainda não foi preenchida."}</p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function AccountPage({
   account,
   interests,
@@ -76,6 +153,13 @@ export default function AccountPage({
   onSignOut,
 }) {
   const [form, setForm] = useState(emptyForm);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [pendingPhoto, setPendingPhoto] = useState(null);
+  const [pendingPhotoUrl, setPendingPhotoUrl] = useState("");
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoSuccess, setPhotoSuccess] = useState("");
+  const photoInputRef = useRef(null);
 
   useEffect(() => {
     if (!account) return;
@@ -90,6 +174,10 @@ export default function AccountPage({
     });
   }, [account]);
 
+  useEffect(() => () => {
+    if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
+  }, [pendingPhotoUrl]);
+
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
@@ -97,6 +185,57 @@ export default function AccountPage({
   const handleSubmit = async (event) => {
     event.preventDefault();
     await onSave(form);
+  };
+
+  const clearPendingPhoto = () => {
+    if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
+    setPendingPhoto(null);
+    setPendingPhotoUrl("");
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  };
+
+  const handlePhotoSelected = (event) => {
+    const file = event.target.files?.[0];
+    setPhotoError("");
+    setPhotoSuccess("");
+
+    if (!file) return;
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setPhotoError("Escolha uma fotografia em JPG, PNG ou WEBP.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("A fotografia deve ter no máximo 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
+    setPendingPhoto(file);
+    setPendingPhotoUrl(URL.createObjectURL(file));
+  };
+
+  const handlePhotoUpload = async () => {
+    if (!pendingPhoto || photoUploading) return;
+
+    setPhotoUploading(true);
+    setPhotoError("");
+    setPhotoSuccess("");
+
+    try {
+      const result = await uploadMyProfilePhoto(pendingPhoto);
+      setPhotoSuccess(result.message);
+      clearPendingPhoto();
+      await onReload();
+      window.setTimeout(() => setPhotoSuccess(""), 2600);
+    } catch (uploadError) {
+      setPhotoError(uploadError.message || "Não foi possível atualizar a fotografia.");
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   if (loading && !account) {
@@ -125,6 +264,8 @@ export default function AccountPage({
     );
   }
 
+  const displayedPhoto = pendingPhotoUrl || account.foto_url;
+
   return (
     <main className="nk-account">
       <section className="nk-account__intro">
@@ -138,10 +279,15 @@ export default function AccountPage({
             <p>Atualize a apresentação, escolha quando o perfil fica visível e acompanhe as suas ligações.</p>
           </div>
 
-          <button type="button" className="nk-account__reload" onClick={onReload} disabled={loading}>
-            <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
-            Atualizar
-          </button>
+          <div className="nk-account__intro-actions">
+            <button type="button" className="nk-account__preview-button" onClick={() => setPreviewOpen(true)}>
+              <Eye size={17} /> Ver como aparece
+            </button>
+            <button type="button" className="nk-account__reload" onClick={onReload} disabled={loading}>
+              <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
+              Atualizar
+            </button>
+          </div>
         </div>
       </section>
 
@@ -149,17 +295,65 @@ export default function AccountPage({
         <aside className="nk-account__sidebar">
           <article className="nk-account-card">
             <div className="nk-account-card__photo">
-              {account.foto_url ? (
-                <img src={account.foto_url} alt={`Foto de ${account.nome_publico}`} />
+              {displayedPhoto ? (
+                <img src={displayedPhoto} alt={`Foto de ${account.nome_publico}`} />
               ) : (
                 <UserRound size={52} strokeWidth={1.25} />
               )}
               <span><ShieldCheck size={15} /></span>
+              <button
+                type="button"
+                className="nk-account-card__camera"
+                onClick={() => photoInputRef.current?.click()}
+                aria-label="Alterar fotografia"
+              >
+                <Camera size={16} />
+              </button>
             </div>
+
+            <input
+              ref={photoInputRef}
+              className="nk-account-card__file-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handlePhotoSelected}
+            />
+
+            <button
+              type="button"
+              className="nk-account-card__photo-button"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoUploading}
+            >
+              <ImageUp size={16} /> Alterar fotografia
+            </button>
+
+            {pendingPhoto && (
+              <div className="nk-account-card__photo-confirm">
+                <span>Nova fotografia selecionada</span>
+                <div>
+                  <button type="button" onClick={clearPendingPhoto} disabled={photoUploading}>
+                    Cancelar
+                  </button>
+                  <button type="button" onClick={handlePhotoUpload} disabled={photoUploading}>
+                    {photoUploading ? "A enviar…" : "Usar esta foto"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {photoError && <div className="nk-account-card__photo-message is-error">{photoError}</div>}
+            {photoSuccess && <div className="nk-account-card__photo-message is-success">{photoSuccess}</div>}
 
             <h2>{account.nome_publico}</h2>
             <p><MapPin size={14} /> {account.cidade}</p>
-            <small>{account.email}</small>
+            <div className="nk-account-card__facts">
+              <span>{account.idade} anos</span>
+              <span>{account.objetivo_display}</span>
+            </div>
+            <small className="nk-account-card__private-email">
+              <LockKeyhole size={12} /> {account.email} · privado
+            </small>
 
             <div className={`nk-account-card__visibility ${account.visivel ? "is-visible" : ""}`}>
               {account.visivel ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -208,7 +402,7 @@ export default function AccountPage({
             <div className="nk-account-form__heading">
               <div>
                 <h2>Editar perfil</h2>
-                <p>Estas informações são apresentadas aos outros membros.</p>
+                <p>Escreva de forma simples e verdadeira. Estas informações serão vistas por outros membros.</p>
               </div>
               <button type="submit" className="nk-button nk-button--wine" disabled={saving}>
                 <Save size={17} />
@@ -265,9 +459,11 @@ export default function AccountPage({
                   value={form.sobre_si}
                   onChange={(event) => updateField("sobre_si", event.target.value)}
                   maxLength={1800}
+                  minLength={30}
                   rows={5}
+                  required
                 />
-                <small>{form.sobre_si.length}/1800</small>
+                <small>Mínimo 30 caracteres · {form.sobre_si.length}/1800</small>
               </label>
 
               <label className="nk-account-form__wide">
@@ -276,9 +472,11 @@ export default function AccountPage({
                   value={form.o_que_valoriza}
                   onChange={(event) => updateField("o_que_valoriza", event.target.value)}
                   maxLength={1800}
+                  minLength={18}
                   rows={4}
+                  required
                 />
-                <small>{form.o_que_valoriza.length}/1800</small>
+                <small>Mínimo 18 caracteres · {form.o_que_valoriza.length}/1800</small>
               </label>
 
               <label className="nk-account-form__wide">
@@ -287,9 +485,11 @@ export default function AccountPage({
                   value={form.o_que_nao_aceita}
                   onChange={(event) => updateField("o_que_nao_aceita", event.target.value)}
                   maxLength={1800}
+                  minLength={12}
                   rows={4}
+                  required
                 />
-                <small>{form.o_que_nao_aceita.length}/1800</small>
+                <small>Mínimo 12 caracteres · {form.o_que_nao_aceita.length}/1800</small>
               </label>
             </div>
           </form>
@@ -342,6 +542,15 @@ export default function AccountPage({
           </section>
         </div>
       </section>
+
+      {previewOpen && (
+        <ProfilePreview
+          account={account}
+          form={form}
+          imageUrl={displayedPhoto}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </main>
   );
 }
