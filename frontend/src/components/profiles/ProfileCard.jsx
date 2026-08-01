@@ -3,6 +3,7 @@ import { ArrowUpRight, Heart, MapPin, ShieldCheck, UserRound } from "lucide-reac
 
 export default function ProfileCard({ profile, compact = false, onOpen }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [saved, setSaved] = useState(false);
   const hasImage = Boolean(profile.foto_url) && !imageFailed;
 
   return (
@@ -26,11 +27,17 @@ export default function ProfileCard({ profile, compact = false, onOpen }) {
 
         <div className="nk-profile-card__verified">
           <ShieldCheck size={14} />
-          {profile.verificado ? "Verificado" : "Em análise"}
+          {profile.verificado ? "Aprovado" : "Em análise"}
         </div>
 
-        <button type="button" className="nk-profile-card__save" aria-label="Guardar perfil">
-          <Heart size={19} />
+        <button
+          type="button"
+          className={`nk-profile-card__save ${saved ? "is-saved" : ""}`}
+          aria-label={saved ? "Remover perfil dos guardados" : "Guardar perfil"}
+          aria-pressed={saved}
+          onClick={() => setSaved((current) => !current)}
+        >
+          <Heart size={19} fill={saved ? "currentColor" : "none"} />
         </button>
 
         <div className="nk-profile-card__identity">
