@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertCircle, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
+import { LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import ProfileFilters from "../components/profiles/ProfileFilters.jsx";
 
@@ -10,15 +10,34 @@ export default function DiscoverPage({
   loadError,
   onReload,
   onOpenProfile,
+  isSaved,
+  onToggleSaved,
 }) {
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
+  const [objective, setObjective] = useState("");
+  const [minAge, setMinAge] = useState("");
+  const [maxAge, setMaxAge] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const clearFilters = () => {
+    setQuery("");
+    setCity("");
+    setObjective("");
+    setMinAge("");
+    setMaxAge("");
+  };
 
   const filteredProfiles = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const minimum = minAge ? Number(minAge) : null;
+    const maximum = maxAge ? Number(maxAge) : null;
 
     return profiles.filter((profile) => {
       const matchesCity = !city || profile.cidade === city;
+      const matchesObjective = !objective || profile.objetivo_display === objective;
+      const matchesMinimum = !minimum || Number(profile.idade) >= minimum;
+      const matchesMaximum = !maximum || Number(profile.idade) <= maximum;
       const searchableText = [
         profile.nome_publico,
         profile.cidade,
@@ -29,9 +48,15 @@ export default function DiscoverPage({
         .join(" ")
         .toLowerCase();
 
-      return matchesCity && (!normalizedQuery || searchableText.includes(normalizedQuery));
+      return (
+        matchesCity &&
+        matchesObjective &&
+        matchesMinimum &&
+        matchesMaximum &&
+        (!normalizedQuery || searchableText.includes(normalizedQuery))
+      );
     });
-  }, [profiles, query, city]);
+  }, [profiles, query, city, objective, minAge, maxAge]);
 
   return (
     <main className="nk-discover">
@@ -40,19 +65,19 @@ export default function DiscoverPage({
           <div>
             <span className="nk-eyebrow nk-eyebrow--dark">
               <ShieldCheck size={15} />
-              Descoberta protegida
+              Perfis verificados
             </span>
-            <h1>Conheça com calma. Escolha com clareza.</h1>
+            <h1>Encontre alguém que procura o mesmo que você.</h1>
             <p>
-              Perfis organizados para ajudar-te a perceber intenção, contexto e compatibilidade sem exposição desnecessária.
+              Veja a cidade, a idade e o que cada pessoa procura antes de abrir o perfil.
             </p>
           </div>
 
           <aside className="nk-discover__privacy">
             <LockKeyhole size={21} />
             <div>
-              <strong>A tua navegação é privada</strong>
-              <span>Os teus dados de contacto não são mostrados nesta área.</span>
+              <strong>Os seus contactos não aparecem aqui</strong>
+              <span>Telefone, email e documentos ficam fora da área pública.</span>
             </div>
           </aside>
         </div>
@@ -62,24 +87,32 @@ export default function DiscoverPage({
         <ProfileFilters
           query={query}
           city={city}
+          objective={objective}
+          minAge={minAge}
+          maxAge={maxAge}
+          showAdvanced={showAdvanced}
           onQueryChange={setQuery}
           onCityChange={setCity}
+          onObjectiveChange={setObjective}
+          onMinAgeChange={setMinAge}
+          onMaxAgeChange={setMaxAge}
+          onToggleAdvanced={() => setShowAdvanced((current) => !current)}
+          onClear={clearFilters}
         />
 
         {loadError && (
           <div className="nk-api-notice" role="status">
-            <AlertCircle size={18} />
             <div>
-              <strong>Pré-visualização segura ativa</strong>
-              <span>{loadError} Estamos a mostrar perfis demonstrativos enquanto a ligação é restabelecida.</span>
+              <strong>Não foi possível atualizar os perfis</strong>
+              <span>Estamos a mostrar os perfis disponíveis no aparelho.</span>
             </div>
           </div>
         )}
 
         <div className="nk-results-heading">
           <div>
-            <strong>{filteredProfiles.length} perfis</strong>
-            <span>{usingDemoData ? "Pré-visualização da interface" : "Atualizados a partir do NKATA"}</span>
+            <strong>{filteredProfiles.length} {filteredProfiles.length === 1 ? "perfil" : "perfis"}</strong>
+            <span>{usingDemoData ? "Exemplo de apresentação" : "Perfis disponíveis agora"}</span>
           </div>
           <button type="button" onClick={onReload} disabled={loading}>
             <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
@@ -103,7 +136,9 @@ export default function DiscoverPage({
               <ProfileCard
                 key={profile.id}
                 profile={profile}
-                onOpen={() => onOpenProfile(profile)}
+                onOpen={onOpenProfile}
+                saved={isSaved(profile)}
+                onToggleSaved={onToggleSaved}
               />
             ))}
           </div>
@@ -111,8 +146,8 @@ export default function DiscoverPage({
           <div className="nk-empty-state">
             <ShieldCheck size={28} />
             <h2>Nenhum perfil encontrado</h2>
-            <p>Altera a cidade ou simplifica a pesquisa para ver outras opções.</p>
-            <button type="button" onClick={() => { setQuery(""); setCity(""); }}>
+            <p>Tente outra cidade, faixa etária ou uma pesquisa mais simples.</p>
+            <button type="button" onClick={clearFilters}>
               Limpar filtros
             </button>
           </div>
