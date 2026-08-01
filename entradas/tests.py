@@ -5,7 +5,13 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
-from .models import AcaoPerfil, MatchPerfil, PedidoEntrada, PerfilNKATA
+from .models import (
+    AcaoPerfil,
+    MatchPerfil,
+    MensagemMatch,
+    PedidoEntrada,
+    PerfilNKATA,
+)
 
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="nkata-tests-")
@@ -119,3 +125,73 @@ class NkataApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["match"])
         self.assertEqual(MatchPerfil.objects.count(), 1)
+
+    def test_lista_de_matches_mostra_o_outro_perfil(self):
+        user_a, perfil_a = self.create_profile("lista-a@example.com", "Pessoa A")
+        _, perfil_b = self.create_profile("lista-b@example.com", "Pessoa B", city="Beira")
+        MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+
+        self.client.force_login(user_a)
+        response = self.client.get("/api/minha-conta/matches/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["count"], 1)
+        self.assertEqual(
+            response.json()["results"][0]["outro_perfil"]["id"],
+            perfil_b.id,
+        )
+
+    def test_conversa_nao_pode_ser_aberta_por_terceiros(self):
+        _, perfil_a = self.create_profile("conversa-a@example.com", "Pessoa A")
+        _, perfil_b = self.create_profile("conversa-b@example.com", "Pessoa B")
+        user_c, _ = self.create_profile("conversa-c@example.com", "Pessoa C")
+        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+
+        self.client.force_login(user_c)
+        response = self.client.get(
+            f"/api/minha-conta/matches/{match.id}/conversa/"
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_mensagem_pode_ser_enviada_e_marcada_como_lida(self):
+        user_a, perfil_a = self.create_profile("msg-a@example.com", "Pessoa A")
+        user_b, perfil_b = self.create_profile("msg-b@example.com", "Pessoa B")
+        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+
+        self.client.force_login(user_a)
+        enviar = self.client.post(
+            f"/api/minha-conta/matches/{match.id}/conversa/",
+            data=json.dumps({"texto": "Olá, tudo bem?"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(enviar.status_code, 201)
+        self.assertTrue(enviar.json()["minha"])
+        self.assertFalse(enviar.json()["lida"])
+
+        self.client.force_login(user_b)
+        abrir = self.client.get(
+            f"/api/minha-conta/matches/{match.id}/conversa/"
+        )
+
+        self.assertEqual(abrir.status_code, 200)
+        self.assertEqual(len(abrir.json()["results"]), 1)
+        self.assertFalse(abrir.json()["results"][0]["minha"])
+        self.assertTrue(abrir.json()["results"][0]["lida"])
+        self.assertTrue(MensagemMatch.objects.get().lida)
+
+    def test_mensagem_vazia_e_rejeitada(self):
+        user_a, perfil_a = self.create_profile("vazia-a@example.com", "Pessoa A")
+        _, perfil_b = self.create_profile("vazia-b@example.com", "Pessoa B")
+        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+
+        self.client.force_login(user_a)
+        response = self.client.post(
+            f"/api/minha-conta/matches/{match.id}/conversa/",
+            data=json.dumps({"texto": "   "}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(MensagemMatch.objects.count(), 0)
