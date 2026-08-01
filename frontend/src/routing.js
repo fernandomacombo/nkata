@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const STATIC_PATHS = {
   home: "/",
@@ -54,7 +54,6 @@ export function routeFromPath(pathname) {
     };
   }
 
-  // Endereços pertencentes ao Django não devem prender a SPA numa página errada.
   return {
     page: "home",
     profileId: null,
@@ -64,14 +63,21 @@ export function routeFromPath(pathname) {
 }
 
 export default function useAppRoute() {
-  const [route, setRoute] = useState(() => routeFromPath(window.location.pathname));
+  const initialRoute = routeFromPath(window.location.pathname);
+  const [route, setRoute] = useState(initialRoute);
+  const lastProfileId = useRef(initialRoute.profileId);
+  const lastMatchId = useRef(initialRoute.matchId);
 
   const setActivePage = useCallback((page, options = {}) => {
-    const nextRoute = {
-      page,
-      profileId: options.profileId ?? null,
-      matchId: options.matchId ?? null,
-    };
+    const profileId = options.profileId
+      ?? (page === "profile" ? lastProfileId.current : null);
+    const matchId = options.matchId
+      ?? (page === "conversation" ? lastMatchId.current : null);
+
+    if (profileId) lastProfileId.current = profileId;
+    if (matchId) lastMatchId.current = matchId;
+
+    const nextRoute = { page, profileId, matchId };
     const path = pathForPage(page, nextRoute);
     const method = options.replace ? "replaceState" : "pushState";
 
@@ -81,13 +87,19 @@ export default function useAppRoute() {
 
   useEffect(() => {
     const initial = routeFromPath(window.location.pathname);
+    if (initial.profileId) lastProfileId.current = initial.profileId;
+    if (initial.matchId) lastMatchId.current = initial.matchId;
+
     if (initial.canonicalPath !== cleanPath(window.location.pathname)) {
       window.history.replaceState({}, "", initial.canonicalPath);
       setRoute(initial);
     }
 
     const handlePopState = () => {
-      setRoute(routeFromPath(window.location.pathname));
+      const next = routeFromPath(window.location.pathname);
+      if (next.profileId) lastProfileId.current = next.profileId;
+      if (next.matchId) lastMatchId.current = next.matchId;
+      setRoute(next);
       window.scrollTo({ top: 0, behavior: "auto" });
     };
 
