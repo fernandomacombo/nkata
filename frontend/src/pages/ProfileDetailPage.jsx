@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
+  Ban,
+  Flag,
   Heart,
   LockKeyhole,
   MapPin,
@@ -10,6 +12,8 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
+import SafetyDialog from "../components/safety/SafetyDialog.jsx";
+import { blockProfile, reportProfile } from "../services/api.js";
 
 function DetailBlock({ title, children }) {
   return (
@@ -36,6 +40,10 @@ export default function ProfileDetailPage({
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
+  const [safetyMode, setSafetyMode] = useState("");
+  const [safetyLoading, setSafetyLoading] = useState(false);
+  const [safetyError, setSafetyError] = useState("");
+  const [safetyStatus, setSafetyStatus] = useState("");
 
   const hasImage = Boolean(profile?.foto_url) && !imageFailed;
   const profileUrl = useMemo(() => {
@@ -66,6 +74,44 @@ export default function ProfileDetailPage({
     }
 
     window.setTimeout(() => setShareStatus(""), 2200);
+  };
+
+  const openSafetyAction = (mode) => {
+    if (!authenticated) {
+      onRequireLogin?.();
+      return;
+    }
+
+    if (!profile?.id || String(profile.id).startsWith("demo-")) return;
+    setSafetyError("");
+    setSafetyMode(mode);
+  };
+
+  const handleSafetyConfirm = async ({ reason, details } = {}) => {
+    if (!profile?.id || !safetyMode) return;
+
+    const currentMode = safetyMode;
+    setSafetyLoading(true);
+    setSafetyError("");
+
+    try {
+      const result = currentMode === "report"
+        ? await reportProfile(profile.id, { reason, details })
+        : await blockProfile(profile.id);
+
+      setSafetyMode("");
+      setSafetyStatus(result?.message || "A ação foi concluída.");
+
+      if (currentMode === "block") {
+        window.setTimeout(() => window.location.assign("/perfis/"), 1000);
+      } else {
+        window.setTimeout(() => setSafetyStatus(""), 3200);
+      }
+    } catch (requestError) {
+      setSafetyError(requestError.message || "Não foi possível concluir esta ação.");
+    } finally {
+      setSafetyLoading(false);
+    }
   };
 
   if (!profile && loading) {
@@ -163,6 +209,7 @@ export default function ProfileDetailPage({
             </div>
 
             {error && <div className="nk-profile-detail__notice">Alguns dados deste perfil não foram atualizados.</div>}
+            {safetyStatus && <div className="nk-interest-message is-active" role="status">{safetyStatus}</div>}
 
             <div className="nk-profile-detail__blocks">
               <DetailBlock title="Sobre mim">
@@ -181,6 +228,22 @@ export default function ProfileDetailPage({
               <div>
                 <strong>Telefone, email e documentos não são mostrados</strong>
                 <p>Os contactos só são partilhados quando existir autorização dos dois lados.</p>
+              </div>
+            </div>
+
+            <div className="nk-profile-safety">
+              <span>Algo não parece certo? A equipa pode ajudar.</span>
+              <div className="nk-profile-safety__actions">
+                <button type="button" onClick={() => openSafetyAction("report")}>
+                  <Flag size={15} /> Denunciar
+                </button>
+                <button
+                  type="button"
+                  className="is-danger"
+                  onClick={() => openSafetyAction("block")}
+                >
+                  <Ban size={15} /> Bloquear
+                </button>
               </div>
             </div>
 
@@ -215,6 +278,16 @@ export default function ProfileDetailPage({
           </section>
         </div>
       </div>
+
+      <SafetyDialog
+        open={Boolean(safetyMode)}
+        mode={safetyMode}
+        personName={profile.nome_publico}
+        loading={safetyLoading}
+        error={safetyError}
+        onClose={() => !safetyLoading && setSafetyMode("")}
+        onConfirm={handleSafetyConfirm}
+      />
     </main>
   );
 }
