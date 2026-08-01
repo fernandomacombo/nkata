@@ -10,7 +10,6 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
-import { API_BASE_URL } from "../services/api.js";
 
 function DetailBlock({ title, children }) {
   return (
@@ -41,7 +40,7 @@ export default function ProfileDetailPage({
   const hasImage = Boolean(profile?.foto_url) && !imageFailed;
   const profileUrl = useMemo(() => {
     if (!profile?.id || String(profile.id).startsWith("demo-")) return null;
-    return new URL(`/perfis/${profile.id}/`, API_BASE_URL).toString();
+    return new URL(`/perfis/${profile.id}/`, window.location.origin).toString();
   }, [profile?.id]);
 
   const handleShare = async () => {
