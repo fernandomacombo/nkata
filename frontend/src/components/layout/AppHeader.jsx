@@ -1,6 +1,23 @@
-import { Bookmark, LockKeyhole, Menu, ShieldCheck } from "lucide-react";
+import {
+  Bookmark,
+  LockKeyhole,
+  LogOut,
+  Menu,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 
-export default function AppHeader({ activePage, onNavigate, savedCount = 0 }) {
+export default function AppHeader({
+  activePage,
+  onNavigate,
+  savedCount = 0,
+  session,
+  sessionLoading = false,
+  onSignOut,
+}) {
+  const authenticated = Boolean(session?.authenticated);
+  const memberName = session?.profile?.name || session?.user?.name || "Conta";
+
   return (
     <header className="nk-header">
       <div className="nk-shell nk-header__inner">
@@ -42,13 +59,51 @@ export default function AppHeader({ activePage, onNavigate, savedCount = 0 }) {
         <div className="nk-header__actions">
           <span className="nk-private-status">
             <LockKeyhole size={14} />
-            Conta protegida
+            {authenticated ? "Sessão iniciada" : "Ligação protegida"}
           </span>
-          <button type="button" className="nk-header__login" onClick={() => window.location.assign("/entrar/")}>Entrar</button>
-          <button type="button" className="nk-button nk-button--dark nk-header__request" onClick={() => window.location.assign("/solicitar-entrada/") }>
-            <ShieldCheck size={17} />
-            Pedir acesso
-          </button>
+
+          {authenticated ? (
+            <>
+              <button
+                type="button"
+                className="nk-header__member"
+                onClick={() => onNavigate("account")}
+                title={memberName}
+              >
+                <UserRound size={16} />
+                <span>{memberName}</span>
+              </button>
+              <button
+                type="button"
+                className="nk-header__logout"
+                onClick={onSignOut}
+                aria-label="Terminar sessão"
+              >
+                <LogOut size={17} />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="nk-header__login"
+              onClick={() => onNavigate("login")}
+              disabled={sessionLoading}
+            >
+              Entrar
+            </button>
+          )}
+
+          {!authenticated && (
+            <button
+              type="button"
+              className="nk-button nk-button--dark nk-header__request"
+              onClick={() => window.location.assign("/solicitar-entrada/")}
+            >
+              <ShieldCheck size={17} />
+              Pedir acesso
+            </button>
+          )}
+
           <button
             type="button"
             className="nk-icon-button nk-header__menu"
