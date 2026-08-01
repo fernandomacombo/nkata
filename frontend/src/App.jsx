@@ -12,6 +12,7 @@ import LoginPage from "./pages/LoginPage.jsx";
 import MatchesPage from "./pages/MatchesPage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
 import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
+import useAppRoute from "./routing.js";
 import {
   fetchMatchConversation,
   fetchMyAccount,
@@ -25,7 +26,13 @@ import {
 } from "./services/api.js";
 
 export default function App() {
-  const [activePage, setActivePage] = useState("home");
+  const {
+    activePage,
+    routeProfileId,
+    routeMatchId,
+    setActivePage,
+  } = useAppRoute();
+
   const [previousPage, setPreviousPage] = useState("discover");
   const [returnPageAfterLogin, setReturnPageAfterLogin] = useState("home");
   const [profiles, setProfiles] = useState(demoProfiles);
@@ -147,7 +154,9 @@ export default function App() {
   }, [loadProfiles]);
 
   useEffect(() => {
-    if (activePage !== "matches" || !authenticated) return undefined;
+    if (!["matches", "conversation"].includes(activePage) || !authenticated) {
+      return undefined;
+    }
 
     const controller = new AbortController();
     loadMatches({ signal: controller.signal });
@@ -162,8 +171,111 @@ export default function App() {
     return () => controller.abort();
   }, [activePage, authenticated, loadAccount]);
 
+  useEffect(() => {
+    if (sessionLoading) return;
+
+    if (["matches", "conversation", "account"].includes(activePage) && !authenticated) {
+      const returnPage = activePage === "conversation" ? "matches" : activePage;
+      setReturnPageAfterLogin(returnPage);
+      setLoginError("");
+      setActivePage("login", { replace: true });
+    }
+  }, [activePage, authenticated, sessionLoading, setActivePage]);
+
+  useEffect(() => {
+    if (activePage !== "profile" || !routeProfileId) return undefined;
+    if (String(selectedProfile?.id) === String(routeProfileId)) return undefined;
+
+    const localProfile = profiles.find(
+      (profile) => String(profile.id) === String(routeProfileId),
+    );
+
+    if (localProfile) {
+      setSelectedProfile(localProfile);
+      setInterestState({
+        profileId: localProfile.id,
+        active: Boolean(localProfile.interesse_ativo),
+        loading: false,
+        message: "",
+      });
+      addRecent(localProfile);
+    }
+
+    if (String(routeProfileId).startsWith("demo-")) return undefined;
+
+    const controller = new AbortController();
+    setProfileLoading(true);
+    setProfileError("");
+
+    fetchProfileDetail(routeProfileId, { signal: controller.signal })
+      .then((detail) => {
+        setSelectedProfile(detail);
+        setInterestState({
+          profileId: detail.id,
+          active: Boolean(detail.interesse_ativo),
+          loading: false,
+          message: "",
+        });
+        addRecent(detail);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          setProfileError(error.message || "Não foi possível abrir este perfil.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setProfileLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [
+    activePage,
+    addRecent,
+    profiles,
+    routeProfileId,
+    selectedProfile?.id,
+  ]);
+
+  useEffect(() => {
+    if (
+      activePage !== "conversation"
+      || !authenticated
+      || !routeMatchId
+      || String(selectedMatch?.id) === String(routeMatchId)
+    ) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setConversationMessages([]);
+    setConversationError("");
+    setConversationLoading(true);
+
+    fetchMatchConversation(routeMatchId, { signal: controller.signal })
+      .then((result) => {
+        setSelectedMatch(result.match);
+        setConversationMessages(result.messages);
+        setMatches((current) => current.map((item) => (
+          item.id === Number(routeMatchId)
+            ? { ...(result.match || item), unreadCount: 0 }
+            : item
+        )));
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          setConversationError(error.message || "Não foi possível abrir a conversa.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setConversationLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [activePage, authenticated, routeMatchId, selectedMatch?.id]);
+
   const openLogin = (returnPage = activePage) => {
-    setReturnPageAfterLogin(returnPage === "login" ? "home" : returnPage);
+    const safeReturnPage = returnPage === "conversation" ? "matches" : returnPage;
+    setReturnPageAfterLogin(safeReturnPage === "login" ? "home" : safeReturnPage);
     setLoginError("");
     setActivePage("login");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -174,7 +286,7 @@ export default function App() {
       setActivePage("home");
       window.setTimeout(() => {
         document.getElementById("seguranca")?.scrollIntoView({ behavior: "smooth" });
-      }, 40);
+      }, 50);
       return;
     }
 
@@ -198,7 +310,7 @@ export default function App() {
 
     try {
       await signIn({ email, password });
-      setActivePage(returnPageAfterLogin || "home");
+      setActivePage(returnPageAfterLogin || "home", { replace: true });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       setLoginError(error.message || "Não foi possível entrar.");
@@ -218,7 +330,7 @@ export default function App() {
       setAccount(null);
       setAccountInterests([]);
       if (["matches", "conversation", "account"].includes(activePage)) {
-        setActivePage("home");
+        setActivePage("home", { replace: true });
       }
     }
   };
@@ -234,7 +346,7 @@ export default function App() {
       loading: false,
       message: "",
     });
-    setActivePage("profile");
+    setActivePage("profile", { profileId: profile.id });
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     if (!profile?.id || String(profile.id).startsWith("demo-")) return;
@@ -291,9 +403,7 @@ export default function App() {
         setAccountInterests((current) => current.filter((item) => item.id !== profile.id));
       }
 
-      if (result.match) {
-        loadMatches();
-      }
+      if (result.match) loadMatches();
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         setInterestState((current) => ({ ...current, loading: false }));
@@ -314,7 +424,7 @@ export default function App() {
     setConversationMessages([]);
     setConversationError("");
     setConversationLoading(true);
-    setActivePage("conversation");
+    setActivePage("conversation", { matchId: match.id });
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     try {
@@ -394,7 +504,9 @@ export default function App() {
     try {
       const updated = await updateMyAccount({ visivel: visible });
       setAccount(updated);
-      setAccountSuccess(visible ? "O seu perfil voltou a ficar visível." : "O seu perfil está oculto.");
+      setAccountSuccess(
+        visible ? "O seu perfil voltou a ficar visível." : "O seu perfil está oculto.",
+      );
       await refreshSession();
       loadProfiles();
       window.setTimeout(() => setAccountSuccess(""), 2600);
@@ -406,7 +518,8 @@ export default function App() {
   };
 
   const handleBackFromProfile = () => {
-    setActivePage(previousPage || "discover");
+    const destination = previousPage === "profile" ? "discover" : previousPage;
+    setActivePage(destination || "discover");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -433,6 +546,7 @@ export default function App() {
         session={session}
         sessionLoading={sessionLoading}
         onSignOut={handleSignOut}
+        heroMode={activePage === "home"}
       />
 
       {activePage === "home" && (
