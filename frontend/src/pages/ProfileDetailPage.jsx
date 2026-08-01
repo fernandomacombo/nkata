@@ -26,7 +26,13 @@ export default function ProfileDetailPage({
   loading,
   error,
   saved,
+  authenticated,
+  interestActive,
+  interestLoading,
+  interestMessage,
   onToggleSaved,
+  onToggleInterest,
+  onRequireLogin,
   onBack,
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -68,11 +74,7 @@ export default function ProfileDetailPage({
       <main className="nk-profile-detail nk-profile-detail--loading">
         <div className="nk-shell nk-profile-detail__skeleton">
           <div />
-          <section>
-            <span />
-            <span />
-            <span />
-          </section>
+          <section><span /><span /><span /></section>
         </div>
       </main>
     );
@@ -93,12 +95,19 @@ export default function ProfileDetailPage({
     );
   }
 
+  const handleInterest = () => {
+    if (!authenticated) {
+      onRequireLogin?.();
+      return;
+    }
+    onToggleInterest?.(profile);
+  };
+
   return (
     <main className="nk-profile-detail">
       <div className="nk-shell">
         <button type="button" className="nk-profile-detail__back" onClick={onBack}>
-          <ArrowLeft size={18} />
-          Voltar
+          <ArrowLeft size={18} /> Voltar
         </button>
 
         <div className="nk-profile-detail__layout">
@@ -117,12 +126,10 @@ export default function ProfileDetailPage({
             )}
 
             <div className="nk-profile-detail__media-shade" />
-
             <span className="nk-profile-detail__verified">
               <BadgeCheck size={16} />
               {profile.verificado ? "Perfil verificado" : "Em análise"}
             </span>
-
             <div className="nk-profile-detail__media-copy">
               <span>{profile.objetivo_display}</span>
               <strong>{profile.nome_publico}</strong>
@@ -136,10 +143,7 @@ export default function ProfileDetailPage({
                 <span className="nk-eyebrow nk-eyebrow--dark">
                   <ShieldCheck size={15} /> Perfil verificado
                 </span>
-                <h1>
-                  {profile.nome_publico}
-                  {profile.idade ? `, ${profile.idade}` : ""}
-                </h1>
+                <h1>{profile.nome_publico}{profile.idade ? `, ${profile.idade}` : ""}</h1>
                 <p>{profile.objetivo_display}</p>
               </div>
 
@@ -154,27 +158,20 @@ export default function ProfileDetailPage({
                   {saved ? "Guardado" : "Guardar"}
                 </button>
                 <button type="button" className="nk-profile-detail__share" onClick={handleShare}>
-                  <Share2 size={18} />
-                  {shareStatus || "Partilhar"}
+                  <Share2 size={18} /> {shareStatus || "Partilhar"}
                 </button>
               </div>
             </div>
 
-            {error && (
-              <div className="nk-profile-detail__notice">
-                Alguns dados deste perfil não foram atualizados.
-              </div>
-            )}
+            {error && <div className="nk-profile-detail__notice">Alguns dados deste perfil não foram atualizados.</div>}
 
             <div className="nk-profile-detail__blocks">
               <DetailBlock title="Sobre mim">
                 {profile.sobre_si || "Esta pessoa ainda não acrescentou uma apresentação."}
               </DetailBlock>
-
               <DetailBlock title="O que valorizo">
                 {profile.o_que_valoriza || "Ainda não foi preenchido."}
               </DetailBlock>
-
               <DetailBlock title="O que não aceito">
                 {profile.o_que_nao_aceita || "Ainda não foi preenchido."}
               </DetailBlock>
@@ -184,28 +181,38 @@ export default function ProfileDetailPage({
               <span><LockKeyhole size={18} /></span>
               <div>
                 <strong>Telefone, email e documentos não são mostrados</strong>
-                <p>Os contactos só são partilhados quando existir autorização e interesse dos dois lados.</p>
+                <p>Os contactos só são partilhados quando existir autorização dos dois lados.</p>
               </div>
             </div>
+
+            {interestMessage && (
+              <div className={`nk-interest-message ${interestActive ? "is-active" : ""}`} role="status">
+                {interestMessage}
+              </div>
+            )}
 
             <div className="nk-profile-detail__actions">
               <button
                 type="button"
-                className="nk-button nk-button--wine"
-                onClick={() => profileUrl && window.location.assign(profileUrl)}
-                disabled={!profileUrl}
+                className={`nk-button nk-button--wine ${interestActive ? "is-active" : ""}`}
+                onClick={handleInterest}
+                disabled={interestLoading || String(profile.id).startsWith("demo-")}
               >
                 <Sparkles size={18} />
-                {profileUrl ? "Tenho interesse" : "Disponível depois da aprovação"}
+                {interestLoading
+                  ? "A guardar…"
+                  : !authenticated
+                    ? "Entrar para demonstrar interesse"
+                    : interestActive
+                      ? "Interesse enviado"
+                      : "Tenho interesse"}
               </button>
               <button type="button" className="nk-button nk-button--quiet" onClick={onBack}>
                 Ver outros perfis
               </button>
             </div>
 
-            {loading && (
-              <span className="nk-profile-detail__updating">A atualizar o perfil…</span>
-            )}
+            {loading && <span className="nk-profile-detail__updating">A atualizar o perfil…</span>}
           </section>
         </div>
       </div>
