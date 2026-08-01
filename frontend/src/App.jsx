@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { LockKeyhole, ShieldCheck } from "lucide-react";
+import { Clock3, LockKeyhole, ShieldCheck } from "lucide-react";
 import AppHeader from "./components/layout/AppHeader.jsx";
 import BottomNavigation from "./components/layout/BottomNavigation.jsx";
 import { demoProfiles } from "./data/demoProfiles.js";
@@ -16,7 +16,20 @@ import {
   toggleProfileInterest,
 } from "./services/api.js";
 
-function ReservedArea({ title, onLogin }) {
+function ReservedArea({ title, onLogin, authenticated }) {
+  if (authenticated) {
+    return (
+      <main className="nk-reserved">
+        <section className="nk-shell nk-reserved__card">
+          <span className="nk-reserved__icon"><Clock3 size={25} /></span>
+          <span className="nk-eyebrow nk-eyebrow--dark"><ShieldCheck size={15} /> Próxima etapa</span>
+          <h1>{title}</h1>
+          <p>Esta área está a ser ligada à nova interface. A sua sessão continua ativa.</p>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="nk-reserved">
       <section className="nk-shell nk-reserved__card">
@@ -313,11 +326,11 @@ export default function App() {
       )}
 
       {reservedTitles[activePage] && (
-        authenticated ? (
-          <ReservedArea title={`${reservedTitles[activePage]} — em preparação`} onLogin={() => openLogin(activePage)} />
-        ) : (
-          <ReservedArea title={reservedTitles[activePage]} onLogin={() => openLogin(activePage)} />
-        )
+        <ReservedArea
+          title={reservedTitles[activePage]}
+          authenticated={authenticated}
+          onLogin={() => openLogin(activePage)}
+        />
       )}
 
       <BottomNavigation
