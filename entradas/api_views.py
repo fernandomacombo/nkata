@@ -7,7 +7,13 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .models import AcaoPerfil, MatchPerfil, MensagemMatch, PerfilNKATA
+from .models import (
+    AcaoPerfil,
+    DenunciaPerfil,
+    MatchPerfil,
+    MensagemMatch,
+    PerfilNKATA,
+)
 from .serializers import (
     MatchSerializer,
     MensagemMatchSerializer,
@@ -20,6 +26,7 @@ from .serializers import (
 MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024
 MIN_PROFILE_PHOTO_SIDE = 500
 ALLOWED_PROFILE_PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
+REPORT_REASONS = {value for value, _label in DenunciaPerfil.MOTIVOS}
 
 
 def _perfil_do_utilizador(user):
@@ -59,6 +66,61 @@ def _dados_da_sessao(request):
     }
 
 
+def _bloqueio_entre_perfis(perfil_a, perfil_b):
+    if not perfil_a or not perfil_b:
+        return False
+
+    conditions = Q()
+
+    if perfil_a.usuario_id:
+        conditions |= Q(
+            usuario_id=perfil_a.usuario_id,
+            perfil_id=perfil_b.id,
+            tipo="BLOQUEIO",
+        )
+
+    if perfil_b.usuario_id:
+        conditions |= Q(
+            usuario_id=perfil_b.usuario_id,
+            perfil_id=perfil_a.id,
+            tipo="BLOQUEIO",
+        )
+
+    if not conditions:
+        return False
+
+    return AcaoPerfil.objects.filter(conditions).exists()
+
+
+def _encerrar_matches_entre(perfil_a, perfil_b):
+    return MatchPerfil.objects.filter(
+        Q(perfil_1=perfil_a, perfil_2=perfil_b)
+        | Q(perfil_1=perfil_b, perfil_2=perfil_a),
+        status="ATIVO",
+    ).update(status="ENCERRADO")
+
+
+def _remover_interesses_entre(perfil_a, perfil_b):
+    conditions = Q()
+
+    if perfil_a.usuario_id:
+        conditions |= Q(
+            usuario_id=perfil_a.usuario_id,
+            perfil_id=perfil_b.id,
+            tipo="INTERESSE",
+        )
+
+    if perfil_b.usuario_id:
+        conditions |= Q(
+            usuario_id=perfil_b.usuario_id,
+            perfil_id=perfil_a.id,
+            tipo="INTERESSE",
+        )
+
+    if conditions:
+        AcaoPerfil.objects.filter(conditions).delete()
+
+
 def _criar_match_se_mutuo(perfil_alvo, usuario_atual):
     perfil_atual = _perfil_do_utilizador(usuario_atual)
 
@@ -66,6 +128,7 @@ def _criar_match_se_mutuo(perfil_alvo, usuario_atual):
         not perfil_atual
         or not perfil_alvo.usuario_id
         or perfil_atual.id == perfil_alvo.id
+        or _bloqueio_entre_perfis(perfil_atual, perfil_alvo)
     ):
         return None
 
@@ -299,6 +362,22 @@ def api_perfis(request):
         visivel=True,
     ).select_related("pedido", "usuario")
 
+    if request.user.is_authenticated:
+        perfil_atual = _perfil_do_utilizador(request.user)
+        bloqueados = AcaoPerfil.objects.filter(
+            usuario=request.user,
+            tipo="BLOQUEIO",
+        ).values_list("perfil_id", flat=True)
+
+        perfis = perfis.exclude(id__in=bloqueados)
+
+        if perfil_atual:
+            bloqueadores = AcaoPerfil.objects.filter(
+                perfil=perfil_atual,
+                tipo="BLOQUEIO",
+            ).exclude(usuario=None).values_list("usuario_id", flat=True)
+            perfis = perfis.exclude(usuario_id__in=bloqueadores).exclude(id=perfil_atual.id)
+
     serializer = PerfilResumoSerializer(
         perfis,
         many=True,
@@ -321,6 +400,15 @@ def api_perfil_detalhe(request, perfil_id):
             visivel=True,
         )
     except PerfilNKATA.DoesNotExist:
+        return Response({"detail": "Perfil não encontrado."}, status=404)
+
+    perfil_atual = _perfil_do_utilizador(request.user)
+    if (
+        request.user.is_authenticated
+        and perfil_atual
+        and perfil_atual.id != perfil.id
+        and _bloqueio_entre_perfis(perfil_atual, perfil)
+    ):
         return Response({"detail": "Perfil não encontrado."}, status=404)
 
     serializer = PerfilDetalheSerializer(perfil, context={"request": request})
@@ -361,6 +449,12 @@ def api_alternar_interesse(request, perfil_id):
     if perfil_atual.id == perfil_alvo.id:
         return Response(
             {"detail": "Não pode demonstrar interesse no seu próprio perfil."},
+            status=403,
+        )
+
+    if _bloqueio_entre_perfis(perfil_atual, perfil_alvo):
+        return Response(
+            {"detail": "Esta interação não está disponível."},
             status=403,
         )
 
@@ -408,6 +502,113 @@ def api_alternar_interesse(request, perfil_id):
     })
 
 
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def api_denunciar_perfil(request, perfil_id):
+    perfil_atual = _perfil_do_utilizador(request.user)
+
+    try:
+        perfil_alvo = PerfilNKATA.objects.get(id=perfil_id)
+    except PerfilNKATA.DoesNotExist:
+        return Response({"detail": "Perfil não encontrado."}, status=404)
+
+    if perfil_atual and perfil_atual.id == perfil_alvo.id:
+        return Response(
+            {"detail": "Não pode denunciar o seu próprio perfil."},
+            status=403,
+        )
+
+    motivo = str(request.data.get("motivo", "")).strip().upper()
+    detalhes = " ".join(str(request.data.get("detalhes", "")).split())
+
+    if motivo not in REPORT_REASONS:
+        return Response({"motivo": ["Escolha um motivo válido."]}, status=400)
+
+    if motivo == "OUTRO" and len(detalhes) < 10:
+        return Response(
+            {"detalhes": ["Explique brevemente o que aconteceu."]},
+            status=400,
+        )
+
+    if len(detalhes) > 1000:
+        return Response(
+            {"detalhes": ["Os detalhes devem ter no máximo 1000 caracteres."]},
+            status=400,
+        )
+
+    denuncia_aberta = DenunciaPerfil.objects.filter(
+        denunciante=request.user,
+        perfil=perfil_alvo,
+        analisada=False,
+    ).exists()
+
+    if denuncia_aberta:
+        return Response(
+            {"detail": "A sua denúncia sobre este perfil já foi recebida."},
+            status=409,
+        )
+
+    DenunciaPerfil.objects.create(
+        denunciante=request.user,
+        perfil=perfil_alvo,
+        motivo=motivo,
+        detalhes=detalhes,
+    )
+
+    return Response({
+        "ok": True,
+        "message": "Denúncia enviada. A equipa vai analisar a situação.",
+    }, status=201)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def api_bloquear_perfil(request, perfil_id):
+    perfil_atual = _perfil_do_utilizador(request.user)
+
+    if not perfil_atual:
+        return Response(
+            {"detail": "A sua conta ainda não tem um perfil NKATA."},
+            status=404,
+        )
+
+    try:
+        perfil_alvo = PerfilNKATA.objects.select_related("usuario").get(id=perfil_id)
+    except PerfilNKATA.DoesNotExist:
+        return Response({"detail": "Perfil não encontrado."}, status=404)
+
+    if perfil_atual.id == perfil_alvo.id:
+        return Response(
+            {"detail": "Não pode bloquear o seu próprio perfil."},
+            status=403,
+        )
+
+    if not request.session.session_key:
+        request.session.create()
+
+    bloqueio = AcaoPerfil.objects.filter(
+        perfil=perfil_alvo,
+        usuario=request.user,
+        tipo="BLOQUEIO",
+    ).first()
+
+    if not bloqueio:
+        AcaoPerfil.objects.create(
+            perfil=perfil_alvo,
+            usuario=request.user,
+            tipo="BLOQUEIO",
+            session_key=request.session.session_key,
+        )
+
+    _remover_interesses_entre(perfil_atual, perfil_alvo)
+    _encerrar_matches_entre(perfil_atual, perfil_alvo)
+
+    return Response({
+        "ok": True,
+        "message": "Perfil bloqueado. Esta pessoa deixou de aparecer para si.",
+    })
+
+
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def api_meus_interesses(request):
@@ -417,6 +618,12 @@ def api_meus_interesses(request):
         perfil__status="ATIVO",
         perfil__visivel=True,
     ).select_related("perfil", "perfil__pedido", "perfil__usuario")
+
+    bloqueados = AcaoPerfil.objects.filter(
+        usuario=request.user,
+        tipo="BLOQUEIO",
+    ).values_list("perfil_id", flat=True)
+    interesses = interesses.exclude(perfil_id__in=bloqueados)
 
     perfis = [interesse.perfil for interesse in interesses]
     serializer = PerfilResumoSerializer(
@@ -460,6 +667,31 @@ def api_meus_matches(request):
     return Response({
         "count": matches.count(),
         "results": serializer.data,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def api_encerrar_match(request, match_id):
+    match = _match_do_utilizador(request, match_id)
+
+    if not match:
+        return Response({"detail": "Ligação não encontrada."}, status=404)
+
+    perfil_atual = _perfil_do_utilizador(request.user)
+    outro_perfil = (
+        match.perfil_2
+        if match.perfil_1_id == perfil_atual.id
+        else match.perfil_1
+    )
+
+    match.status = "ENCERRADO"
+    match.save(update_fields=["status", "atualizado_em"])
+    _remover_interesses_entre(perfil_atual, outro_perfil)
+
+    return Response({
+        "ok": True,
+        "message": "A ligação foi encerrada. A conversa deixou de estar disponível.",
     })
 
 
