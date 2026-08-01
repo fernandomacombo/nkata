@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import serializers
 
 from .models import MatchPerfil, MensagemMatch, PerfilNKATA
@@ -51,6 +52,101 @@ class PerfilDetalheSerializer(PerfilResumoSerializer):
             "o_que_nao_aceita",
             "criado_em",
         ]
+
+
+class MinhaContaSerializer(serializers.ModelSerializer):
+    foto_principal = serializers.SerializerMethodField()
+    objetivo_display = serializers.CharField(source="get_objetivo_display", read_only=True)
+    genero_display = serializers.CharField(source="get_genero_display", read_only=True)
+    email = serializers.EmailField(source="usuario.email", read_only=True)
+    membro_desde = serializers.DateTimeField(source="criado_em", read_only=True)
+    total_matches = serializers.SerializerMethodField()
+    total_interesses_enviados = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PerfilNKATA
+        fields = [
+            "id",
+            "nome_publico",
+            "email",
+            "cidade",
+            "idade",
+            "genero",
+            "genero_display",
+            "objetivo",
+            "objetivo_display",
+            "sobre_si",
+            "o_que_valoriza",
+            "o_que_nao_aceita",
+            "foto_principal",
+            "status",
+            "visivel",
+            "membro_desde",
+            "total_matches",
+            "total_interesses_enviados",
+        ]
+        read_only_fields = [
+            "id",
+            "email",
+            "idade",
+            "genero",
+            "status",
+            "foto_principal",
+            "membro_desde",
+            "total_matches",
+            "total_interesses_enviados",
+        ]
+        extra_kwargs = {
+            "nome_publico": {"required": False, "min_length": 2, "max_length": 120},
+            "cidade": {"required": False, "min_length": 2, "max_length": 100},
+            "objetivo": {"required": False},
+            "sobre_si": {"required": False, "max_length": 1800},
+            "o_que_valoriza": {"required": False, "max_length": 1800},
+            "o_que_nao_aceita": {"required": False, "max_length": 1800},
+            "visivel": {"required": False},
+        }
+
+    def get_foto_principal(self, obj):
+        request = self.context.get("request")
+        foto = obj.foto_principal
+
+        if not foto:
+            return None
+
+        url = foto.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_total_matches(self, obj):
+        return MatchPerfil.objects.filter(
+            Q(perfil_1=obj) | Q(perfil_2=obj),
+            status="ATIVO",
+        ).count()
+
+    def get_total_interesses_enviados(self, obj):
+        if not obj.usuario_id:
+            return 0
+        return obj.usuario.acoes_feitas.filter(tipo="INTERESSE").count()
+
+    def validate(self, attrs):
+        text_fields = [
+            "nome_publico",
+            "cidade",
+            "sobre_si",
+            "o_que_valoriza",
+            "o_que_nao_aceita",
+        ]
+
+        for field in text_fields:
+            if field in attrs and isinstance(attrs[field], str):
+                attrs[field] = attrs[field].strip()
+
+        for required_field in ["nome_publico", "cidade"]:
+            if required_field in attrs and not attrs[required_field]:
+                raise serializers.ValidationError({
+                    required_field: "Este campo não pode ficar vazio."
+                })
+
+        return attrs
 
 
 class MensagemMatchSerializer(serializers.ModelSerializer):
