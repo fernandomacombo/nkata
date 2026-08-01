@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { LockKeyhole, ShieldCheck } from "lucide-react";
 import AppHeader from "./components/layout/AppHeader.jsx";
 import BottomNavigation from "./components/layout/BottomNavigation.jsx";
 import { demoProfiles } from "./data/demoProfiles.js";
 import useProfileLibrary from "./hooks/useProfileLibrary.js";
 import useSession from "./hooks/useSession.js";
+import AccountPage from "./pages/AccountPage.jsx";
 import ConversationPage from "./pages/ConversationPage.jsx";
 import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
@@ -14,32 +14,15 @@ import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
 import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
 import {
   fetchMatchConversation,
+  fetchMyAccount,
+  fetchMyInterests,
   fetchMyMatches,
   fetchProfileDetail,
   fetchProfiles,
   sendMatchMessage,
   toggleProfileInterest,
+  updateMyAccount,
 } from "./services/api.js";
-
-function ReservedArea({ title, onLogin, authenticated }) {
-  return (
-    <main className="nk-reserved">
-      <section className="nk-shell nk-reserved__card">
-        <span className="nk-reserved__icon"><LockKeyhole size={25} /></span>
-        <span className="nk-eyebrow nk-eyebrow--dark"><ShieldCheck size={15} /> Conta NKATA</span>
-        <h1>{title}</h1>
-        {authenticated ? (
-          <p>Os dados da conta serão apresentados aqui na próxima etapa.</p>
-        ) : (
-          <>
-            <p>Entre na sua conta para consultar esta área.</p>
-            <button type="button" className="nk-button nk-button--wine" onClick={onLogin}>Entrar</button>
-          </>
-        )}
-      </section>
-    </main>
-  );
-}
 
 export default function App() {
   const [activePage, setActivePage] = useState("home");
@@ -68,6 +51,12 @@ export default function App() {
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationError, setConversationError] = useState("");
   const [messageSending, setMessageSending] = useState(false);
+  const [account, setAccount] = useState(null);
+  const [accountInterests, setAccountInterests] = useState([]);
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountError, setAccountError] = useState("");
+  const [accountSuccess, setAccountSuccess] = useState("");
 
   const {
     savedProfiles,
@@ -84,6 +73,7 @@ export default function App() {
     authenticated,
     signIn,
     signOut,
+    refreshSession,
   } = useSession();
 
   const loadProfiles = useCallback(async ({ signal } = {}) => {
@@ -128,6 +118,28 @@ export default function App() {
     }
   }, [authenticated]);
 
+  const loadAccount = useCallback(async ({ signal } = {}) => {
+    if (!authenticated) return;
+
+    setAccountLoading(true);
+    setAccountError("");
+
+    try {
+      const [accountData, interestsData] = await Promise.all([
+        fetchMyAccount({ signal }),
+        fetchMyInterests({ signal }),
+      ]);
+      setAccount(accountData);
+      setAccountInterests(interestsData);
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        setAccountError(error.message || "Não foi possível atualizar a sua conta.");
+      }
+    } finally {
+      if (!signal?.aborted) setAccountLoading(false);
+    }
+  }, [authenticated]);
+
   useEffect(() => {
     const controller = new AbortController();
     loadProfiles({ signal: controller.signal });
@@ -141,6 +153,14 @@ export default function App() {
     loadMatches({ signal: controller.signal });
     return () => controller.abort();
   }, [activePage, authenticated, loadMatches]);
+
+  useEffect(() => {
+    if (activePage !== "account" || !authenticated) return undefined;
+
+    const controller = new AbortController();
+    loadAccount({ signal: controller.signal });
+    return () => controller.abort();
+  }, [activePage, authenticated, loadAccount]);
 
   const openLogin = (returnPage = activePage) => {
     setReturnPageAfterLogin(returnPage === "login" ? "home" : returnPage);
@@ -195,6 +215,8 @@ export default function App() {
       setMatches([]);
       setSelectedMatch(null);
       setConversationMessages([]);
+      setAccount(null);
+      setAccountInterests([]);
       if (["matches", "conversation", "account"].includes(activePage)) {
         setActivePage("home");
       }
@@ -259,6 +281,15 @@ export default function App() {
         ...current,
         interesse_ativo: Boolean(result.active),
       }));
+
+      if (result.active) {
+        setAccountInterests((current) => {
+          const exists = current.some((item) => item.id === profile.id);
+          return exists ? current : [profile, ...current];
+        });
+      } else {
+        setAccountInterests((current) => current.filter((item) => item.id !== profile.id));
+      }
 
       if (result.match) {
         loadMatches();
@@ -331,6 +362,46 @@ export default function App() {
       return false;
     } finally {
       setMessageSending(false);
+    }
+  };
+
+  const handleSaveAccount = async (values) => {
+    setAccountSaving(true);
+    setAccountError("");
+    setAccountSuccess("");
+
+    try {
+      const updated = await updateMyAccount(values);
+      setAccount(updated);
+      setAccountSuccess("Alterações guardadas.");
+      await refreshSession();
+      loadProfiles();
+      window.setTimeout(() => setAccountSuccess(""), 2600);
+      return true;
+    } catch (error) {
+      setAccountError(error.message || "Não foi possível guardar as alterações.");
+      return false;
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  const handleToggleVisibility = async (visible) => {
+    setAccountSaving(true);
+    setAccountError("");
+    setAccountSuccess("");
+
+    try {
+      const updated = await updateMyAccount({ visivel: visible });
+      setAccount(updated);
+      setAccountSuccess(visible ? "O seu perfil voltou a ficar visível." : "O seu perfil está oculto.");
+      await refreshSession();
+      loadProfiles();
+      window.setTimeout(() => setAccountSuccess(""), 2600);
+    } catch (error) {
+      setAccountError(error.message || "Não foi possível alterar a visibilidade.");
+    } finally {
+      setAccountSaving(false);
     }
   };
 
@@ -452,11 +523,19 @@ export default function App() {
         />
       )}
 
-      {activePage === "account" && (
-        <ReservedArea
-          title="A sua conta"
-          authenticated={authenticated}
-          onLogin={() => openLogin("account")}
+      {activePage === "account" && authenticated && (
+        <AccountPage
+          account={account}
+          interests={accountInterests}
+          loading={accountLoading}
+          saving={accountSaving}
+          error={accountError}
+          success={accountSuccess}
+          onReload={() => loadAccount()}
+          onSave={handleSaveAccount}
+          onToggleVisibility={handleToggleVisibility}
+          onOpenProfile={handleOpenProfile}
+          onSignOut={handleSignOut}
         />
       )}
 
