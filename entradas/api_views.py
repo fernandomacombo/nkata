@@ -50,7 +50,11 @@ def _dados_da_sessao(request):
 def _criar_match_se_mutuo(perfil_alvo, usuario_atual):
     perfil_atual = _perfil_do_utilizador(usuario_atual)
 
-    if not perfil_atual or perfil_atual.id == perfil_alvo.id:
+    if (
+        not perfil_atual
+        or not perfil_alvo.usuario_id
+        or perfil_atual.id == perfil_alvo.id
+    ):
         return None
 
     interesse_mutuo = AcaoPerfil.objects.filter(
@@ -185,7 +189,7 @@ def api_perfil_detalhe(request, perfil_id):
         return Response({"detail": "Perfil não encontrado."}, status=404)
 
     serializer = PerfilDetalheSerializer(perfil, context={"request": request})
-    data = serializer.data
+    data = dict(serializer.data)
 
     if request.user.is_authenticated:
         data["interesse_ativo"] = AcaoPerfil.objects.filter(
@@ -213,7 +217,7 @@ def api_alternar_interesse(request, perfil_id):
 
     perfil_atual = _perfil_do_utilizador(request.user)
 
-    if not perfil_atual:
+    if not perfil_atual or perfil_atual.status != "ATIVO":
         return Response(
             {"detail": "A sua conta ainda não tem um perfil ativo no NKATA."},
             status=403,
