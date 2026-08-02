@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import api_views
+from . import api_views, notification_views
 
 app_name = "entradas_api"
 
@@ -36,6 +36,26 @@ urlpatterns = [
         "minha-conta/interesses/",
         api_views.api_meus_interesses,
         name="meus_interesses",
+    ),
+    path(
+        "minha-conta/notificacoes/",
+        notification_views.api_notificacoes,
+        name="notificacoes",
+    ),
+    path(
+        "minha-conta/notificacoes/marcar-todas-lidas/",
+        notification_views.api_marcar_todas_notificacoes_lidas,
+        name="marcar_todas_notificacoes_lidas",
+    ),
+    path(
+        "minha-conta/notificacoes/<int:notificacao_id>/ler/",
+        notification_views.api_marcar_notificacao_lida,
+        name="marcar_notificacao_lida",
+    ),
+    path(
+        "minha-conta/matches/<int:match_id>/notificacoes/lidas/",
+        notification_views.api_marcar_notificacoes_match_lidas,
+        name="marcar_notificacoes_match_lidas",
     ),
     path("minha-conta/matches/", api_views.api_meus_matches, name="meus_matches"),
     path(
