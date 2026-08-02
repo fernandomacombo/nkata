@@ -10,6 +10,7 @@ import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import MatchesPage from "./pages/MatchesPage.jsx";
+import NotificationsPage from "./pages/NotificationsPage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
 import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
 import useAppRoute from "./routing.js";
@@ -18,8 +19,12 @@ import {
   fetchMyAccount,
   fetchMyInterests,
   fetchMyMatches,
+  fetchNotifications,
   fetchProfileDetail,
   fetchProfiles,
+  markAllNotificationsRead,
+  markMatchNotificationsRead,
+  markNotificationRead,
   sendMatchMessage,
   toggleProfileInterest,
   updateMyAccount,
@@ -64,6 +69,9 @@ export default function App() {
   const [accountSaving, setAccountSaving] = useState(false);
   const [accountError, setAccountError] = useState("");
   const [accountSuccess, setAccountSuccess] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
 
   const {
     savedProfiles,
@@ -147,6 +155,24 @@ export default function App() {
     }
   }, [authenticated]);
 
+  const loadNotifications = useCallback(async ({ signal, silent = false } = {}) => {
+    if (!authenticated) return;
+
+    if (!silent) setNotificationsLoading(true);
+    setNotificationsError("");
+
+    try {
+      const result = await fetchNotifications({ signal });
+      setNotifications(result.results);
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        setNotificationsError(error.message || "Não foi possível atualizar as notificações.");
+      }
+    } finally {
+      if (!signal?.aborted && !silent) setNotificationsLoading(false);
+    }
+  }, [authenticated]);
+
   useEffect(() => {
     const controller = new AbortController();
     loadProfiles({ signal: controller.signal });
@@ -172,9 +198,31 @@ export default function App() {
   }, [activePage, authenticated, loadAccount]);
 
   useEffect(() => {
+    if (!authenticated) {
+      setNotifications([]);
+      setNotificationsError("");
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    loadNotifications({ signal: controller.signal });
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadNotifications({ silent: true });
+      }
+    }, 60000);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(intervalId);
+    };
+  }, [authenticated, loadNotifications]);
+
+  useEffect(() => {
     if (sessionLoading) return;
 
-    if (["matches", "conversation", "account"].includes(activePage) && !authenticated) {
+    if (["matches", "conversation", "notifications", "account"].includes(activePage) && !authenticated) {
       const returnPage = activePage === "conversation" ? "matches" : activePage;
       setReturnPageAfterLogin(returnPage);
       setLoginError("");
@@ -260,6 +308,10 @@ export default function App() {
             ? { ...(result.match || item), unreadCount: 0 }
             : item
         )));
+        setNotifications((current) => current.map((item) => (
+          item.matchId === Number(routeMatchId) ? { ...item, read: true } : item
+        )));
+        markMatchNotificationsRead(routeMatchId).catch(() => {});
       })
       .catch((error) => {
         if (error.name !== "AbortError") {
@@ -295,7 +347,7 @@ export default function App() {
       return;
     }
 
-    if (["matches", "account"].includes(page) && !authenticated) {
+    if (["matches", "notifications", "account"].includes(page) && !authenticated) {
       openLogin(page);
       return;
     }
@@ -329,7 +381,8 @@ export default function App() {
       setConversationMessages([]);
       setAccount(null);
       setAccountInterests([]);
-      if (["matches", "conversation", "account"].includes(activePage)) {
+      setNotifications([]);
+      if (["matches", "conversation", "notifications", "account"].includes(activePage)) {
         setActivePage("home", { replace: true });
       }
     }
@@ -404,6 +457,7 @@ export default function App() {
       }
 
       if (result.match) loadMatches();
+      loadNotifications({ silent: true });
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         setInterestState((current) => ({ ...current, loading: false }));
@@ -425,6 +479,10 @@ export default function App() {
     setConversationError("");
     setConversationLoading(true);
     setActivePage("conversation", { matchId: match.id });
+    setNotifications((current) => current.map((item) => (
+      item.matchId === match.id ? { ...item, read: true } : item
+    )));
+    markMatchNotificationsRead(match.id).catch(() => {});
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     try {
@@ -472,6 +530,43 @@ export default function App() {
       return false;
     } finally {
       setMessageSending(false);
+    }
+  };
+
+  const handleNotificationOpen = async (notification) => {
+    if (!notification) return;
+
+    if (!notification.read) {
+      setNotifications((current) => current.map((item) => (
+        item.id === notification.id ? { ...item, read: true } : item
+      )));
+      markNotificationRead(notification.id).catch(() => {
+        loadNotifications({ silent: true });
+      });
+    }
+
+    if (notification.matchId) {
+      const match = matches.find((item) => item.id === notification.matchId) || null;
+      setSelectedMatch(match);
+      setActivePage("conversation", { matchId: notification.matchId });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (notification.profile) {
+      await handleOpenProfile(notification.profile);
+    }
+  };
+
+  const handleMarkAllNotifications = async () => {
+    const previous = notifications;
+    setNotifications((current) => current.map((item) => ({ ...item, read: true })));
+
+    try {
+      await markAllNotificationsRead();
+    } catch (error) {
+      setNotifications(previous);
+      setNotificationsError(error.message || "Não foi possível atualizar as notificações.");
     }
   };
 
@@ -535,6 +630,7 @@ export default function App() {
       : activePage;
 
   const totalUnread = matches.reduce((total, match) => total + match.unreadCount, 0);
+  const unreadNotifications = notifications.filter((item) => !item.read).length;
 
   return (
     <div className="nk-app">
@@ -543,6 +639,7 @@ export default function App() {
         onNavigate={handleNavigate}
         savedCount={savedProfiles.length}
         unreadMatches={totalUnread}
+        unreadNotifications={unreadNotifications}
         session={session}
         sessionLoading={sessionLoading}
         onSignOut={handleSignOut}
@@ -637,6 +734,18 @@ export default function App() {
         />
       )}
 
+      {activePage === "notifications" && authenticated && (
+        <NotificationsPage
+          notifications={notifications}
+          unread={unreadNotifications}
+          loading={notificationsLoading}
+          error={notificationsError}
+          onReload={() => loadNotifications()}
+          onMarkAll={handleMarkAllNotifications}
+          onOpen={handleNotificationOpen}
+        />
+      )}
+
       {activePage === "account" && authenticated && (
         <AccountPage
           account={account}
@@ -656,8 +765,8 @@ export default function App() {
       <BottomNavigation
         activePage={visiblePage}
         onNavigate={handleNavigate}
-        savedCount={savedProfiles.length}
         unreadMatches={totalUnread}
+        unreadNotifications={unreadNotifications}
       />
     </div>
   );
