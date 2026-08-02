@@ -22,7 +22,7 @@ function formatActivityDate(value) {
 
   const date = new Date(value);
   const now = new Date();
-  const minutes = Math.floor((now - date) / 60000);
+  const minutes = Math.max(0, Math.floor((now - date) / 60000));
 
   if (minutes < 1) return "Agora";
   if (minutes < 60) return `Há ${minutes} min`;
@@ -38,14 +38,16 @@ function formatActivityDate(value) {
   }).format(date);
 }
 
-function NotificationItem({ notification, onOpen }) {
+function NotificationItem({ notification, index, onOpen }) {
   const Icon = iconByType[notification.type] || Bell;
 
   return (
     <button
       type="button"
       className={`nk-notification ${notification.read ? "" : "is-unread"}`}
+      style={{ "--nk-notification-order": index }}
       onClick={() => onOpen(notification)}
+      aria-label={`${notification.title}. ${notification.text}`}
     >
       <span className={`nk-notification__icon is-${notification.type.toLowerCase()}`}>
         <Icon size={19} />
@@ -99,16 +101,16 @@ export default function NotificationsPage({
         <div className="nk-shell nk-notifications-page__intro-inner">
           <div>
             <span className="nk-eyebrow nk-eyebrow--dark">
-              <Bell size={15} /> Atividade
+              <Bell size={15} /> Aconteceu por aqui
             </span>
-            <h1>Notificações</h1>
-            <p>Interesses, matches e mensagens num só lugar.</p>
+            <h1>As suas notificações</h1>
+            <p>Veja com calma os novos interesses, matches e mensagens.</p>
           </div>
 
           <div className="nk-notifications-page__intro-actions">
             {unread > 0 && (
               <button type="button" onClick={onMarkAll}>
-                <CheckCheck size={17} /> Marcar todas como lidas
+                <CheckCheck size={17} /> Já vi tudo
               </button>
             )}
             <button type="button" onClick={onReload} disabled={loading}>
@@ -134,7 +136,7 @@ export default function NotificationsPage({
               className={filter === "unread" ? "is-active" : ""}
               onClick={() => setFilter("unread")}
             >
-              Não lidas <span>{unread}</span>
+              Por ver <span>{unread}</span>
             </button>
           </div>
         </div>
@@ -148,17 +150,18 @@ export default function NotificationsPage({
         )}
 
         {loading && !notifications.length ? (
-          <div className="nk-notifications-page__loading">
+          <div className="nk-notifications-page__loading" aria-label="A carregar notificações">
             <span />
             <span />
             <span />
           </div>
         ) : visibleNotifications.length ? (
-          <div className="nk-notifications-list">
-            {visibleNotifications.map((notification) => (
+          <div className="nk-notifications-list" aria-live="polite">
+            {visibleNotifications.map((notification, index) => (
               <NotificationItem
                 key={notification.id}
                 notification={notification}
+                index={index}
                 onOpen={onOpen}
               />
             ))}
@@ -166,11 +169,11 @@ export default function NotificationsPage({
         ) : (
           <div className="nk-notifications-page__empty">
             <span><Bell size={28} /></span>
-            <h2>{filter === "unread" ? "Está tudo visto" : "Ainda não há notificações"}</h2>
+            <h2>{filter === "unread" ? "Está tudo visto" : "Está tranquilo por aqui"}</h2>
             <p>
               {filter === "unread"
-                ? "Não tem notificações por ler."
-                : "Os novos interesses, matches e mensagens aparecerão aqui."}
+                ? "Não ficou nenhuma novidade por abrir."
+                : "Quando alguém demonstrar interesse, surgir um match ou chegar uma mensagem, verá aqui."}
             </p>
           </div>
         )}
