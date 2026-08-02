@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import SecurityPanel from "../components/security/SecurityPanel.jsx";
-import { API_BASE_URL } from "../services/api.js";
 
 const processSteps = [
   {
@@ -96,7 +95,7 @@ export default function HomePage({
                 <button
                   type="button"
                   className="nk-button nk-button--hero-secondary"
-                  onClick={() => window.location.assign(`${API_BASE_URL}/solicitar-entrada/`)}
+                  onClick={() => window.location.assign("/pedir-acesso/")}
                 >
                   Pedir acesso
                 </button>
