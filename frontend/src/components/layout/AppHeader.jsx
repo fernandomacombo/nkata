@@ -50,13 +50,15 @@ export default function AppHeader({
           >
             Perfis
           </button>
-          <button
-            type="button"
-            className={activePage === "saved" ? "is-active" : ""}
-            onClick={() => onNavigate("saved")}
-          >
-            Guardados {savedCount > 0 ? `(${savedCount})` : ""}
-          </button>
+          {authenticated && (
+            <button
+              type="button"
+              className={activePage === "saved" ? "is-active" : ""}
+              onClick={() => onNavigate("saved")}
+            >
+              Guardados {savedCount > 0 ? `(${savedCount})` : ""}
+            </button>
+          )}
           {authenticated && (
             <button
               type="button"
@@ -137,10 +139,12 @@ export default function AppHeader({
           <button
             type="button"
             className="nk-icon-button nk-header__menu"
-            aria-label="Abrir perfis guardados"
-            onClick={() => onNavigate("saved")}
+            aria-label={authenticated ? "Abrir perfis guardados" : "Entrar na conta"}
+            onClick={() => onNavigate(authenticated ? "saved" : "login")}
           >
-            {savedCount > 0 ? <Bookmark size={20} fill="currentColor" /> : <Menu size={20} />}
+            {authenticated && savedCount > 0
+              ? <Bookmark size={20} fill="currentColor" />
+              : <Menu size={20} />}
           </button>
         </div>
       </div>
