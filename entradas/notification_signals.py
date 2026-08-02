@@ -50,9 +50,13 @@ def remover_notificacao_de_interesse(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=MatchPerfil)
-def notificar_match(sender, instance, **kwargs):
+def notificar_match(sender, instance, created, update_fields=None, **kwargs):
     if instance.status != "ATIVO":
         NotificacaoNKATA.objects.filter(match=instance).update(lida=True)
+        return
+
+    # Uma simples atualização da data do match não deve criar outro aviso.
+    if not created and (not update_fields or "status" not in update_fields):
         return
 
     pares = [
