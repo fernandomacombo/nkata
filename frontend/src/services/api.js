@@ -97,6 +97,23 @@ function normalizeMatch(match) {
   };
 }
 
+function normalizeNotification(notification) {
+  if (!notification) return null;
+
+  return {
+    id: notification.id,
+    type: notification.tipo,
+    typeLabel: notification.tipo_display || "Notificação",
+    title: notification.titulo || "Atualização no NKATA",
+    text: notification.texto || "",
+    read: Boolean(notification.lida),
+    profile: normalizeProfile(notification.perfil),
+    matchId: notification.match_id || null,
+    createdAt: notification.criado_em,
+    updatedAt: notification.atualizado_em || notification.criado_em,
+  };
+}
+
 async function readJson(response) {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) return null;
@@ -310,10 +327,37 @@ export async function sendMatchMessage(matchId, text) {
   return normalizeMessage(payload);
 }
 
+export async function fetchNotifications({ signal } = {}) {
+  const payload = await request("/api/minha-conta/notificacoes/", { signal });
+  return {
+    unread: Number(payload?.unread || 0),
+    results: (payload?.results || []).map(normalizeNotification).filter(Boolean),
+  };
+}
+
+export async function markNotificationRead(notificationId) {
+  return request(`/api/minha-conta/notificacoes/${notificationId}/ler/`, {
+    method: "POST",
+  });
+}
+
+export async function markAllNotificationsRead() {
+  return request("/api/minha-conta/notificacoes/marcar-todas-lidas/", {
+    method: "POST",
+  });
+}
+
+export async function markMatchNotificationsRead(matchId) {
+  return request(`/api/minha-conta/matches/${matchId}/notificacoes/lidas/`, {
+    method: "POST",
+  });
+}
+
 export {
   API_BASE_URL,
   normalizeAccount,
   normalizeMatch,
   normalizeMessage,
+  normalizeNotification,
   normalizeProfile,
 };
