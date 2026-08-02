@@ -1,4 +1,5 @@
 import {
+  Bell,
   Bookmark,
   LockKeyhole,
   LogOut,
@@ -13,6 +14,7 @@ export default function AppHeader({
   onNavigate,
   savedCount = 0,
   unreadMatches = 0,
+  unreadNotifications = 0,
   session,
   sessionLoading = false,
   onSignOut,
@@ -76,6 +78,23 @@ export default function AppHeader({
 
           {authenticated ? (
             <>
+              <button
+                type="button"
+                className={`nk-header__notifications ${activePage === "notifications" ? "is-active" : ""}`}
+                onClick={() => onNavigate("notifications")}
+                aria-label={
+                  unreadNotifications
+                    ? `${unreadNotifications} notificações por ler`
+                    : "Abrir notificações"
+                }
+              >
+                <Bell size={18} />
+                {unreadNotifications > 0 && (
+                  <span className="nk-header__notifications-count">
+                    {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                  </span>
+                )}
+              </button>
               <button
                 type="button"
                 className="nk-header__member"
