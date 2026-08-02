@@ -1,3 +1,7 @@
+/*
+ * NKATA — produto idealizado e criado por Fernando Macombo.
+ * Moçambique, 2026. Consulte /AUTHORSHIP.md para registo de autoria.
+ */
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
@@ -16,6 +20,7 @@ import "./safety-layout.css";
 import "./notifications.css";
 import "./notifications-motion.css";
 import "./access.css";
+import "./global-motion.css";
 
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
