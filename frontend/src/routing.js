@@ -5,6 +5,7 @@ const STATIC_PATHS = {
   discover: "/perfis/",
   saved: "/guardados/",
   matches: "/matches/",
+  notifications: "/notificacoes/",
   account: "/conta/",
   login: "/entrar/",
 };
