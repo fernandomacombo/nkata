@@ -13,6 +13,7 @@ import "./home-refresh.css";
 import "./safety.css";
 import "./safety-layout.css";
 import "./notifications.css";
+import "./notifications-motion.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
