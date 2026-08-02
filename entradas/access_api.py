@@ -1,7 +1,6 @@
 from PIL import Image, UnidentifiedImageError
-from django.views.decorators.csrf import csrf_protect
 from rest_framework import permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 
 from .forms import PedidoEntradaForm
@@ -59,8 +58,8 @@ def _validar_imagem(upload):
     return None
 
 
-@csrf_protect
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def api_pedir_acesso(request):
     image_errors = {}
