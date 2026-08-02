@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import access_api, api_views, interest_views, notification_views
+from . import access_api, api_views, interest_views, notification_views, saved_views
 
 app_name = "entradas_api"
 
@@ -16,6 +16,11 @@ urlpatterns = [
         "perfis/<int:perfil_id>/interesse/",
         interest_views.api_alternar_interesse,
         name="alternar_interesse",
+    ),
+    path(
+        "perfis/<int:perfil_id>/guardar/",
+        saved_views.api_alternar_perfil_guardado,
+        name="alternar_perfil_guardado",
     ),
     path(
         "perfis/<int:perfil_id>/denunciar/",
@@ -37,6 +42,11 @@ urlpatterns = [
         "minha-conta/interesses/",
         api_views.api_meus_interesses,
         name="meus_interesses",
+    ),
+    path(
+        "minha-conta/guardados/",
+        saved_views.api_perfis_guardados,
+        name="perfis_guardados",
     ),
     path(
         "minha-conta/notificacoes/",
