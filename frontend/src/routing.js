@@ -8,6 +8,7 @@ const STATIC_PATHS = {
   notifications: "/notificacoes/",
   account: "/conta/",
   login: "/entrar/",
+  access: "/pedir-acesso/",
 };
 
 function cleanPath(pathname = "/") {
