@@ -108,7 +108,7 @@ export default function LoginPage({ onBack, onSubmit, loading, error }) {
 
           <div className="nk-login-card__footer">
             <span>Ainda não faz parte?</span>
-            <a href={`${API_BASE_URL}/solicitar-entrada/`}>Solicitar entrada</a>
+            <a href="/pedir-acesso/">Pedir acesso</a>
           </div>
         </section>
       </div>
