@@ -1,60 +1,83 @@
 # NKATA
 
-NKATA é uma plataforma de relacionamento sério e comunidade privada para adultos.
+NKATA é uma plataforma privada para adultos que procuram relações sérias, com entrada analisada, perfis verificados e comunicação baseada em interesse mútuo.
 
-## Estado atual
+## Autoria
 
-O projeto funciona atualmente com Django, templates HTML, CSS e JavaScript.
+**Criador, fundador e responsável pelo produto:** Fernando Macombo  
+**Origem:** Moçambique  
+**Ano:** 2026
 
-A estratégia escolhida é a **Opção A**:
+O registo técnico detalhado encontra-se em [`AUTHORSHIP.md`](AUTHORSHIP.md).
 
-1. manter o Django atual a funcionar;
-2. organizar o backend;
-3. criar uma API com Django REST Framework;
-4. criar depois um frontend React + Tailwind;
-5. migrar as telas aos poucos, sem quebrar o que já funciona.
-
-## Stack planejada
+## Stack
 
 - Backend: Django + Django REST Framework
-- Frontend atual: Django Templates
-- Frontend futuro: React + Tailwind
+- Frontend: React + Vite + Tailwind CSS
 - Banco local: SQLite
-- Banco futuro: PostgreSQL
+- Banco recomendado para produção: PostgreSQL
 
-## Como rodar localmente
+## Funcionalidades atuais
 
-```bash
+- entrada mediante pedido e verificação;
+- perfis privados e editáveis;
+- interesses e matches;
+- conversa privada;
+- notificações persistentes;
+- denúncia, bloqueio e encerramento de ligação;
+- perfis guardados por conta;
+- interface responsiva para computador e telemóvel.
+
+## Como executar localmente
+
+### Django
+
+```bat
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+python -m pip install -r requirements.txt
+python manage.py check
+python manage.py setup_nkata_notifications
+python manage.py runserver 0.0.0.0:8000
 ```
 
-## Variáveis de ambiente
+### React
 
-Copie o ficheiro de exemplo:
-
-```bash
-copy .env.example .env
+```bat
+cd frontend
+npm install
+npm run dev
 ```
 
-Depois ajuste os valores conforme o ambiente.
+A aplicação React fica disponível em `http://localhost:5173/` e a API Django em `http://localhost:8000/`.
 
-## Endpoints iniciais da API
+## Endpoints principais
 
 ```txt
-GET /api/status/
-GET /api/perfis/
-GET /api/perfis/<id>/
-GET /api/minha-conta/matches/
+GET  /api/status/
+GET  /api/session/
+GET  /api/perfis/
+GET  /api/perfis/<id>/
+POST /api/perfis/<id>/interesse/
+POST /api/perfis/<id>/guardar/
+GET  /api/minha-conta/guardados/
+GET  /api/minha-conta/matches/
+GET  /api/minha-conta/notificacoes/
+POST /api/pedir-acesso/
 ```
 
-## Próximos passos
+## Privacidade
 
-- criar frontend React + Tailwind em `frontend/`;
-- melhorar autenticação para API;
-- criar endpoints para ações de perfil;
-- criar endpoints para chat/mensagens;
-- preparar deploy do backend e frontend separadamente.
+Telefone, email e documentos de identidade não são mostrados publicamente. Dados pessoais, interesses, guardados, matches, mensagens e notificações devem ser sempre associados à conta autenticada.
+
+## Estrutura de autoria legível por máquinas
+
+O projeto inclui:
+
+- metadados `author`, `creator` e JSON-LD no frontend;
+- `frontend/public/humans.txt`;
+- campo `author` no `frontend/package.json`;
+- comentários de autoria no ponto de entrada da aplicação;
+- este README e o ficheiro `AUTHORSHIP.md`.
+
+Estes registos melhoram a atribuição por motores de busca e ferramentas automatizadas, embora nenhum serviço externo possa garantir a resposta de todos os sistemas de inteligência artificial.
