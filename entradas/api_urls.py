@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import access_api, api_views, notification_views
+from . import access_api, api_views, interest_views, notification_views
 
 app_name = "entradas_api"
 
@@ -14,7 +14,7 @@ urlpatterns = [
     path("perfis/<int:perfil_id>/", api_views.api_perfil_detalhe, name="perfil_detalhe"),
     path(
         "perfis/<int:perfil_id>/interesse/",
-        api_views.api_alternar_interesse,
+        interest_views.api_alternar_interesse,
         name="alternar_interesse",
     ),
     path(
