@@ -35,9 +35,7 @@ function normalizeProfile(profile) {
       profile.objetivo_label ||
       profile.objetivo ||
       "Conhecer com intenção",
-    sobre_si:
-      profile.sobre_si ||
-      "Este perfil ainda não acrescentou uma apresentação.",
+    sobre_si: profile.sobre_si || "Este perfil ainda não acrescentou uma apresentação.",
     o_que_valoriza: profile.o_que_valoriza || "",
     o_que_nao_aceita: profile.o_que_nao_aceita || "",
     foto_url:
@@ -56,7 +54,6 @@ function normalizeProfile(profile) {
 
 function normalizeAccount(account) {
   if (!account) return null;
-
   return {
     ...normalizeProfile(account),
     email: account.email || "",
@@ -68,7 +65,6 @@ function normalizeAccount(account) {
 
 function normalizeMessage(message) {
   if (!message) return null;
-
   return {
     id: message.id,
     matchId: message.match,
@@ -83,7 +79,6 @@ function normalizeMessage(message) {
 
 function normalizeMatch(match) {
   if (!match) return null;
-
   return {
     id: match.id,
     otherProfile: normalizeProfile(match.outro_perfil || match.perfil_2 || match.perfil_1),
@@ -99,7 +94,6 @@ function normalizeMatch(match) {
 
 function normalizeNotification(notification) {
   if (!notification) return null;
-
   return {
     id: notification.id,
     type: notification.tipo,
@@ -136,30 +130,15 @@ function firstPayloadMessage(payload) {
     const message = firstPayloadMessage(value);
     if (message) return message;
   }
-
   return "";
 }
 
-async function request(
-  path,
-  {
-    method = "GET",
-    body,
-    signal,
-    headers = {},
-  } = {},
-) {
-  const requestHeaders = {
-    Accept: "application/json",
-    ...headers,
-  };
-
+async function request(path, { method = "GET", body, signal, headers = {} } = {}) {
+  const requestHeaders = { Accept: "application/json", ...headers };
   const normalizedMethod = method.toUpperCase();
   const isFormData = body instanceof FormData;
 
-  if (body !== undefined && !isFormData) {
-    requestHeaders["Content-Type"] = "application/json";
-  }
+  if (body !== undefined && !isFormData) requestHeaders["Content-Type"] = "application/json";
 
   if (!["GET", "HEAD", "OPTIONS"].includes(normalizedMethod)) {
     const csrfToken = getCookie("csrftoken");
@@ -170,17 +149,11 @@ async function request(
     method: normalizedMethod,
     credentials: "include",
     headers: requestHeaders,
-    body:
-      body === undefined
-        ? undefined
-        : isFormData
-          ? body
-          : JSON.stringify(body),
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     signal,
   });
 
   const payload = await readJson(response);
-
   if (!response.ok) {
     const message =
       payload?.detail ||
@@ -189,7 +162,6 @@ async function request(
       `Não foi possível concluir o pedido (${response.status}).`;
     throw new ApiError(message, response.status, payload);
   }
-
   return payload;
 }
 
@@ -198,10 +170,7 @@ export async function fetchSession({ signal } = {}) {
 }
 
 export async function loginUser({ email, password }) {
-  return request("/api/auth/login/", {
-    method: "POST",
-    body: { email, password },
-  });
+  return request("/api/auth/login/", { method: "POST", body: { email, password } });
 }
 
 export async function logoutUser() {
@@ -210,7 +179,6 @@ export async function logoutUser() {
 
 export async function submitAccessRequest(values, files) {
   const form = new FormData();
-
   Object.entries(values).forEach(([key, value]) => {
     if (typeof value === "boolean") {
       if (value) form.append(key, "on");
@@ -218,15 +186,10 @@ export async function submitAccessRequest(values, files) {
     }
     form.append(key, value ?? "");
   });
-
   Object.entries(files).forEach(([key, file]) => {
     if (file) form.append(key, file);
   });
-
-  return request("/api/pedir-acesso/", {
-    method: "POST",
-    body: form,
-  });
+  return request("/api/pedir-acesso/", { method: "POST", body: form });
 }
 
 export async function fetchProfiles({ signal } = {}) {
@@ -239,7 +202,6 @@ export async function fetchProfileDetail(profileId, { signal } = {}) {
   if (!profileId || String(profileId).startsWith("demo-")) {
     throw new ApiError("Este é um perfil demonstrativo.", 400);
   }
-
   const payload = await request(`/api/perfis/${profileId}/`, { signal });
   return normalizeProfile(payload);
 }
@@ -248,34 +210,33 @@ export async function toggleProfileInterest(profileId) {
   if (!profileId || String(profileId).startsWith("demo-")) {
     throw new ApiError("Entre numa conta aprovada para usar esta função.", 403);
   }
+  return request(`/api/perfis/${profileId}/interesse/`, { method: "POST" });
+}
 
-  return request(`/api/perfis/${profileId}/interesse/`, {
-    method: "POST",
-  });
+export async function fetchSavedProfiles({ signal } = {}) {
+  const payload = await request("/api/minha-conta/guardados/", { signal });
+  const results = Array.isArray(payload) ? payload : payload?.results || [];
+  return results.map(normalizeProfile).filter(Boolean);
+}
+
+export async function toggleSavedProfile(profileId) {
+  if (!profileId || String(profileId).startsWith("demo-")) {
+    throw new ApiError("Entre para guardar este perfil na sua conta.", 403);
+  }
+  return request(`/api/perfis/${profileId}/guardar/`, { method: "POST" });
 }
 
 export async function reportProfile(profileId, { reason, details = "" }) {
-  if (!profileId || String(profileId).startsWith("demo-")) {
-    throw new ApiError("Este perfil não pode ser denunciado.", 400);
-  }
-
+  if (!profileId || String(profileId).startsWith("demo-")) throw new ApiError("Este perfil não pode ser denunciado.", 400);
   return request(`/api/perfis/${profileId}/denunciar/`, {
     method: "POST",
-    body: {
-      motivo: reason,
-      detalhes: details,
-    },
+    body: { motivo: reason, detalhes: details },
   });
 }
 
 export async function blockProfile(profileId) {
-  if (!profileId || String(profileId).startsWith("demo-")) {
-    throw new ApiError("Este perfil não pode ser bloqueado.", 400);
-  }
-
-  return request(`/api/perfis/${profileId}/bloquear/`, {
-    method: "POST",
-  });
+  if (!profileId || String(profileId).startsWith("demo-")) throw new ApiError("Este perfil não pode ser bloqueado.", 400);
+  return request(`/api/perfis/${profileId}/bloquear/`, { method: "POST" });
 }
 
 export async function fetchMyAccount({ signal } = {}) {
@@ -284,22 +245,14 @@ export async function fetchMyAccount({ signal } = {}) {
 }
 
 export async function updateMyAccount(values) {
-  const payload = await request("/api/minha-conta/", {
-    method: "PATCH",
-    body: values,
-  });
+  const payload = await request("/api/minha-conta/", { method: "PATCH", body: values });
   return normalizeAccount(payload);
 }
 
 export async function uploadMyProfilePhoto(file) {
   const form = new FormData();
   form.append("foto", file);
-
-  const payload = await request("/api/minha-conta/foto/", {
-    method: "POST",
-    body: form,
-  });
-
+  const payload = await request("/api/minha-conta/foto/", { method: "POST", body: form });
   return {
     message: payload?.message || "Fotografia atualizada.",
     account: normalizeAccount(payload?.account),
@@ -319,17 +272,11 @@ export async function fetchMyMatches({ signal } = {}) {
 }
 
 export async function closeMatch(matchId) {
-  return request(`/api/minha-conta/matches/${matchId}/encerrar/`, {
-    method: "POST",
-  });
+  return request(`/api/minha-conta/matches/${matchId}/encerrar/`, { method: "POST" });
 }
 
 export async function fetchMatchConversation(matchId, { signal } = {}) {
-  const payload = await request(
-    `/api/minha-conta/matches/${matchId}/conversa/`,
-    { signal },
-  );
-
+  const payload = await request(`/api/minha-conta/matches/${matchId}/conversa/`, { signal });
   return {
     match: normalizeMatch(payload?.match),
     messages: (payload?.results || []).map(normalizeMessage).filter(Boolean),
@@ -337,14 +284,10 @@ export async function fetchMatchConversation(matchId, { signal } = {}) {
 }
 
 export async function sendMatchMessage(matchId, text) {
-  const payload = await request(
-    `/api/minha-conta/matches/${matchId}/conversa/`,
-    {
-      method: "POST",
-      body: { texto: text },
-    },
-  );
-
+  const payload = await request(`/api/minha-conta/matches/${matchId}/conversa/`, {
+    method: "POST",
+    body: { texto: text },
+  });
   return normalizeMessage(payload);
 }
 
@@ -358,21 +301,15 @@ export async function fetchNotifications({ signal } = {}) {
 }
 
 export async function markNotificationRead(notificationId) {
-  return request(`/api/minha-conta/notificacoes/${notificationId}/ler/`, {
-    method: "POST",
-  });
+  return request(`/api/minha-conta/notificacoes/${notificationId}/ler/`, { method: "POST" });
 }
 
 export async function markAllNotificationsRead() {
-  return request("/api/minha-conta/notificacoes/marcar-todas-lidas/", {
-    method: "POST",
-  });
+  return request("/api/minha-conta/notificacoes/marcar-todas-lidas/", { method: "POST" });
 }
 
 export async function markMatchNotificationsRead(matchId) {
-  return request(`/api/minha-conta/matches/${matchId}/notificacoes/lidas/`, {
-    method: "POST",
-  });
+  return request(`/api/minha-conta/matches/${matchId}/notificacoes/lidas/`, { method: "POST" });
 }
 
 export {
