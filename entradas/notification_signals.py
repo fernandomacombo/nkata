@@ -1,9 +1,14 @@
-from django.db import DatabaseError
+import logging
+
+from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .models import AcaoPerfil, MatchPerfil, MensagemMatch
 from .notification_models import NotificacaoNKATA
+
+
+logger = logging.getLogger(__name__)
 
 
 def _perfil_do_utilizador(user):
@@ -20,12 +25,22 @@ def _nome_publico(user):
 
 
 def _executar_sem_bloquear_acao(callback):
+    """Executa uma notificação como tarefa secundária.
+
+    Uma falha no centro de notificações nunca pode anular um interesse,
+    um match ou uma mensagem que já foi guardada com sucesso.
+    """
     try:
         callback()
-    except DatabaseError:
-        # A ação principal não deve falhar apenas porque a tabela de
-        # notificações ainda não foi preparada neste ambiente.
-        return
+    except Exception:  # noqa: BLE001 - fronteira deliberada de segurança
+        logger.exception("Falha ao atualizar uma notificação do NKATA.")
+
+
+def _depois_do_commit(callback):
+    transaction.on_commit(
+        lambda: _executar_sem_bloquear_acao(callback),
+        robust=True,
+    )
 
 
 @receiver(post_save, sender=AcaoPerfil)
@@ -38,23 +53,28 @@ def notificar_novo_interesse(sender, instance, created, **kwargs):
         return
 
     perfil_ator = _perfil_do_utilizador(instance.usuario)
+    destinatario_id = destinatario.id
+    ator_id = instance.usuario_id
+    perfil_ator_id = perfil_ator.id if perfil_ator else None
+    chave = f"interesse:{instance.pk}"
+    nome = _nome_publico(instance.usuario)
 
     def criar():
         NotificacaoNKATA.objects.update_or_create(
-            destinatario=destinatario,
-            chave=f"interesse:{instance.pk}",
+            destinatario_id=destinatario_id,
+            chave=chave,
             defaults={
-                "ator": instance.usuario,
-                "perfil": perfil_ator,
+                "ator_id": ator_id,
+                "perfil_id": perfil_ator_id,
                 "match": None,
                 "tipo": "INTERESSE",
                 "titulo": "Novo interesse",
-                "texto": f"{_nome_publico(instance.usuario)} demonstrou interesse no seu perfil.",
+                "texto": f"{nome} demonstrou interesse no seu perfil.",
                 "lida": False,
             },
         )
 
-    _executar_sem_bloquear_acao(criar)
+    _depois_do_commit(criar)
 
 
 @receiver(post_delete, sender=AcaoPerfil)
@@ -62,18 +82,19 @@ def remover_notificacao_de_interesse(sender, instance, **kwargs):
     if instance.tipo != "INTERESSE":
         return
 
-    _executar_sem_bloquear_acao(
-        lambda: NotificacaoNKATA.objects.filter(
-            chave=f"interesse:{instance.pk}"
-        ).delete()
+    chave = f"interesse:{instance.pk}"
+    _depois_do_commit(
+        lambda: NotificacaoNKATA.objects.filter(chave=chave).delete()
     )
 
 
 @receiver(post_save, sender=MatchPerfil)
 def notificar_match(sender, instance, created, update_fields=None, **kwargs):
+    match_id = instance.id
+
     if instance.status != "ATIVO":
-        _executar_sem_bloquear_acao(
-            lambda: NotificacaoNKATA.objects.filter(match=instance).update(lida=True)
+        _depois_do_commit(
+            lambda: NotificacaoNKATA.objects.filter(match_id=match_id).update(lida=True)
         )
         return
 
@@ -84,27 +105,41 @@ def notificar_match(sender, instance, created, update_fields=None, **kwargs):
         (instance.perfil_1, instance.perfil_2),
         (instance.perfil_2, instance.perfil_1),
     ]
+    dados = [
+        {
+            "destinatario_id": perfil_destino.usuario_id,
+            "ator_id": outro_perfil.usuario_id,
+            "perfil_id": outro_perfil.id,
+            "nome": outro_perfil.nome_publico,
+        }
+        for perfil_destino, outro_perfil in pares
+        if perfil_destino.usuario_id
+    ]
 
     def criar():
-        for perfil_destino, outro_perfil in pares:
-            if not perfil_destino.usuario_id:
-                continue
+        for item in dados:
+            # O aviso de match substitui o aviso simples de interesse dessa pessoa.
+            NotificacaoNKATA.objects.filter(
+                destinatario_id=item["destinatario_id"],
+                perfil_id=item["perfil_id"],
+                tipo="INTERESSE",
+            ).delete()
 
             NotificacaoNKATA.objects.update_or_create(
-                destinatario=perfil_destino.usuario,
-                chave=f"match:{instance.pk}",
+                destinatario_id=item["destinatario_id"],
+                chave=f"match:{match_id}",
                 defaults={
-                    "ator": outro_perfil.usuario,
-                    "perfil": outro_perfil,
-                    "match": instance,
+                    "ator_id": item["ator_id"],
+                    "perfil_id": item["perfil_id"],
+                    "match_id": match_id,
                     "tipo": "MATCH",
                     "titulo": "É um match",
-                    "texto": f"O interesse entre si e {outro_perfil.nome_publico} é mútuo.",
+                    "texto": f"O interesse entre si e {item['nome']} é mútuo.",
                     "lida": False,
                 },
             )
 
-    _executar_sem_bloquear_acao(criar)
+    _depois_do_commit(criar)
 
 
 @receiver(post_save, sender=MensagemMatch)
@@ -130,19 +165,25 @@ def notificar_nova_mensagem(sender, instance, created, **kwargs):
     if len(resumo) > 95:
         resumo = f"{resumo[:92].rstrip()}…"
 
+    destinatario_id = perfil_destino.usuario_id
+    remetente_id = instance.remetente_id
+    perfil_remetente_id = perfil_remetente.id
+    perfil_remetente_nome = perfil_remetente.nome_publico
+    match_id = instance.match_id
+
     def criar():
         NotificacaoNKATA.objects.update_or_create(
-            destinatario=perfil_destino.usuario,
-            chave=f"mensagem:{instance.match_id}",
+            destinatario_id=destinatario_id,
+            chave=f"mensagem:{match_id}",
             defaults={
-                "ator": instance.remetente,
-                "perfil": perfil_remetente,
-                "match": instance.match,
+                "ator_id": remetente_id,
+                "perfil_id": perfil_remetente_id,
+                "match_id": match_id,
                 "tipo": "MENSAGEM",
-                "titulo": f"Mensagem de {perfil_remetente.nome_publico}",
+                "titulo": f"Mensagem de {perfil_remetente_nome}",
                 "texto": resumo,
                 "lida": False,
             },
         )
 
-    _executar_sem_bloquear_acao(criar)
+    _depois_do_commit(criar)
