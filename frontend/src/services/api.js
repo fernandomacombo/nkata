@@ -208,6 +208,27 @@ export async function logoutUser() {
   return request("/api/auth/logout/", { method: "POST" });
 }
 
+export async function submitAccessRequest(values, files) {
+  const form = new FormData();
+
+  Object.entries(values).forEach(([key, value]) => {
+    if (typeof value === "boolean") {
+      if (value) form.append(key, "on");
+      return;
+    }
+    form.append(key, value ?? "");
+  });
+
+  Object.entries(files).forEach(([key, file]) => {
+    if (file) form.append(key, file);
+  });
+
+  return request("/api/pedir-acesso/", {
+    method: "POST",
+    body: form,
+  });
+}
+
 export async function fetchProfiles({ signal } = {}) {
   const payload = await request("/api/perfis/", { signal });
   const results = Array.isArray(payload) ? payload : payload?.results || [];
@@ -331,6 +352,7 @@ export async function fetchNotifications({ signal } = {}) {
   const payload = await request("/api/minha-conta/notificacoes/", { signal });
   return {
     unread: Number(payload?.unread || 0),
+    setupRequired: Boolean(payload?.setup_required),
     results: (payload?.results || []).map(normalizeNotification).filter(Boolean),
   };
 }
