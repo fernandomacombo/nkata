@@ -1,3 +1,4 @@
+from django.db import DatabaseError
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
@@ -18,6 +19,15 @@ def _nome_publico(user):
     return user.first_name or user.get_username()
 
 
+def _executar_sem_bloquear_acao(callback):
+    try:
+        callback()
+    except DatabaseError:
+        # A ação principal não deve falhar apenas porque a tabela de
+        # notificações ainda não foi preparada neste ambiente.
+        return
+
+
 @receiver(post_save, sender=AcaoPerfil)
 def notificar_novo_interesse(sender, instance, created, **kwargs):
     if not created or instance.tipo != "INTERESSE" or not instance.usuario_id:
@@ -28,34 +38,45 @@ def notificar_novo_interesse(sender, instance, created, **kwargs):
         return
 
     perfil_ator = _perfil_do_utilizador(instance.usuario)
-    NotificacaoNKATA.objects.update_or_create(
-        destinatario=destinatario,
-        chave=f"interesse:{instance.pk}",
-        defaults={
-            "ator": instance.usuario,
-            "perfil": perfil_ator,
-            "match": None,
-            "tipo": "INTERESSE",
-            "titulo": "Novo interesse",
-            "texto": f"{_nome_publico(instance.usuario)} demonstrou interesse no seu perfil.",
-            "lida": False,
-        },
-    )
+
+    def criar():
+        NotificacaoNKATA.objects.update_or_create(
+            destinatario=destinatario,
+            chave=f"interesse:{instance.pk}",
+            defaults={
+                "ator": instance.usuario,
+                "perfil": perfil_ator,
+                "match": None,
+                "tipo": "INTERESSE",
+                "titulo": "Novo interesse",
+                "texto": f"{_nome_publico(instance.usuario)} demonstrou interesse no seu perfil.",
+                "lida": False,
+            },
+        )
+
+    _executar_sem_bloquear_acao(criar)
 
 
 @receiver(post_delete, sender=AcaoPerfil)
 def remover_notificacao_de_interesse(sender, instance, **kwargs):
-    if instance.tipo == "INTERESSE":
-        NotificacaoNKATA.objects.filter(chave=f"interesse:{instance.pk}").delete()
+    if instance.tipo != "INTERESSE":
+        return
+
+    _executar_sem_bloquear_acao(
+        lambda: NotificacaoNKATA.objects.filter(
+            chave=f"interesse:{instance.pk}"
+        ).delete()
+    )
 
 
 @receiver(post_save, sender=MatchPerfil)
 def notificar_match(sender, instance, created, update_fields=None, **kwargs):
     if instance.status != "ATIVO":
-        NotificacaoNKATA.objects.filter(match=instance).update(lida=True)
+        _executar_sem_bloquear_acao(
+            lambda: NotificacaoNKATA.objects.filter(match=instance).update(lida=True)
+        )
         return
 
-    # Uma simples atualização da data do match não deve criar outro aviso.
     if not created and (not update_fields or "status" not in update_fields):
         return
 
@@ -64,23 +85,26 @@ def notificar_match(sender, instance, created, update_fields=None, **kwargs):
         (instance.perfil_2, instance.perfil_1),
     ]
 
-    for perfil_destino, outro_perfil in pares:
-        if not perfil_destino.usuario_id:
-            continue
+    def criar():
+        for perfil_destino, outro_perfil in pares:
+            if not perfil_destino.usuario_id:
+                continue
 
-        NotificacaoNKATA.objects.update_or_create(
-            destinatario=perfil_destino.usuario,
-            chave=f"match:{instance.pk}",
-            defaults={
-                "ator": outro_perfil.usuario,
-                "perfil": outro_perfil,
-                "match": instance,
-                "tipo": "MATCH",
-                "titulo": "É um match",
-                "texto": f"O interesse entre si e {outro_perfil.nome_publico} é mútuo.",
-                "lida": False,
-            },
-        )
+            NotificacaoNKATA.objects.update_or_create(
+                destinatario=perfil_destino.usuario,
+                chave=f"match:{instance.pk}",
+                defaults={
+                    "ator": outro_perfil.usuario,
+                    "perfil": outro_perfil,
+                    "match": instance,
+                    "tipo": "MATCH",
+                    "titulo": "É um match",
+                    "texto": f"O interesse entre si e {outro_perfil.nome_publico} é mútuo.",
+                    "lida": False,
+                },
+            )
+
+    _executar_sem_bloquear_acao(criar)
 
 
 @receiver(post_save, sender=MensagemMatch)
@@ -106,16 +130,19 @@ def notificar_nova_mensagem(sender, instance, created, **kwargs):
     if len(resumo) > 95:
         resumo = f"{resumo[:92].rstrip()}…"
 
-    NotificacaoNKATA.objects.update_or_create(
-        destinatario=perfil_destino.usuario,
-        chave=f"mensagem:{instance.match_id}",
-        defaults={
-            "ator": instance.remetente,
-            "perfil": perfil_remetente,
-            "match": instance.match,
-            "tipo": "MENSAGEM",
-            "titulo": f"Mensagem de {perfil_remetente.nome_publico}",
-            "texto": resumo,
-            "lida": False,
-        },
-    )
+    def criar():
+        NotificacaoNKATA.objects.update_or_create(
+            destinatario=perfil_destino.usuario,
+            chave=f"mensagem:{instance.match_id}",
+            defaults={
+                "ator": instance.remetente,
+                "perfil": perfil_remetente,
+                "match": instance.match,
+                "tipo": "MENSAGEM",
+                "titulo": f"Mensagem de {perfil_remetente.nome_publico}",
+                "texto": resumo,
+                "lida": False,
+            },
+        )
+
+    _executar_sem_bloquear_acao(criar)
