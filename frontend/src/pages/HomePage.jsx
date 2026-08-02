@@ -39,8 +39,8 @@ const trustItems = [
   { title: "Feito para Moçambique", text: "Uma experiência pensada para o nosso contexto." },
 ];
 
-const defaultHeroImage =
-  "https://images.pexels.com/photos/32842406/pexels-photo-32842406.jpeg?auto=compress&cs=tinysrgb&w=2400";
+const defaultDesktopHero = "/images/nkata-hero-desktop.webp";
+const defaultMobileHero = "/images/nkata-hero-mobile.webp";
 
 export default function HomePage({
   profiles,
@@ -50,16 +50,25 @@ export default function HomePage({
   onToggleSaved,
 }) {
   const featured = profiles.slice(0, 3);
-  const heroImage = import.meta.env.VITE_HERO_IMAGE_URL || defaultHeroImage;
+  const desktopHero = import.meta.env.VITE_HERO_DESKTOP_IMAGE_URL || defaultDesktopHero;
+  const mobileHero = import.meta.env.VITE_HERO_MOBILE_IMAGE_URL || defaultMobileHero;
 
   return (
     <>
       <main>
-        <section
-          className="nk-hero nk-hero--cover"
-          style={{ "--nk-hero-image": `url("${heroImage}")` }}
-        >
+        <section className="nk-hero nk-hero--cover">
+          <picture className="nk-hero__background" aria-hidden="true">
+            <source media="(max-width: 760px)" srcSet={mobileHero} />
+            <img
+              src={desktopHero}
+              alt=""
+              fetchPriority="high"
+              decoding="async"
+            />
+          </picture>
+
           <div className="nk-hero__overlay" />
+
           <div className="nk-shell nk-hero__cover-content">
             <div className="nk-hero__copy">
               <span className="nk-eyebrow nk-eyebrow--hero">
