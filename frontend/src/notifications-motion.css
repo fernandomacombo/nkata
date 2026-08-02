@@ -1,0 +1,142 @@
+@keyframes nk-soft-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nk-soft-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nk-gentle-bell {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(7deg); }
+  45% { transform: rotate(-5deg); }
+  70% { transform: rotate(3deg); }
+}
+
+.nk-notifications-page__intro-inner,
+.nk-notifications-page__content {
+  animation: nk-soft-page-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.nk-notifications-page__content {
+  animation-delay: 70ms;
+}
+
+.nk-notification {
+  animation: nk-soft-item-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(min(var(--nk-notification-order, 0), 8) * 45ms);
+  transition:
+    background 220ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease,
+    opacity 220ms ease;
+}
+
+.nk-notification:hover {
+  z-index: 1;
+  transform: translateX(4px);
+  box-shadow: 0 12px 34px rgba(45, 34, 30, 0.06);
+}
+
+.nk-notification:active {
+  transform: translateX(2px) scale(0.995);
+}
+
+.nk-notification__dot {
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.nk-notification:not(.is-unread) .nk-notification__dot {
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+.nk-notification__icon,
+.nk-notification__person {
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nk-notification:hover .nk-notification__icon,
+.nk-notification:hover .nk-notification__person {
+  transform: scale(1.045);
+}
+
+.nk-header__notifications {
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.nk-header__notifications:hover {
+  transform: translateY(-2px);
+}
+
+.nk-header__notifications:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.nk-header__notifications-count {
+  animation: nk-soft-item-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.nk-header__notifications:hover > svg {
+  animation: nk-gentle-bell 520ms ease;
+}
+
+.nk-notifications-page__toolbar button,
+.nk-notifications-page__intro-actions button {
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.nk-notifications-page__toolbar button:hover,
+.nk-notifications-page__intro-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(45, 34, 30, 0.07);
+}
+
+.nk-notifications-page__toolbar button:active,
+.nk-notifications-page__intro-actions button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.nk-notifications-page__empty {
+  animation: nk-soft-page-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-notifications-page__intro-inner,
+  .nk-notifications-page__content,
+  .nk-notification,
+  .nk-notifications-page__empty,
+  .nk-header__notifications-count {
+    animation: none;
+  }
+
+  .nk-notification,
+  .nk-header__notifications,
+  .nk-notifications-page__toolbar button,
+  .nk-notifications-page__intro-actions button {
+    transition: none;
+  }
+}
