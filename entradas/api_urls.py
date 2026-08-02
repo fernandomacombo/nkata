@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import api_views, notification_views
+from . import access_api, api_views, notification_views
 
 app_name = "entradas_api"
 
@@ -9,6 +9,7 @@ urlpatterns = [
     path("session/", api_views.api_session, name="session"),
     path("auth/login/", api_views.api_login, name="login"),
     path("auth/logout/", api_views.api_logout, name="logout"),
+    path("pedir-acesso/", access_api.api_pedir_acesso, name="pedir_acesso"),
     path("perfis/", api_views.api_perfis, name="perfis"),
     path("perfis/<int:perfil_id>/", api_views.api_perfil_detalhe, name="perfil_detalhe"),
     path(
