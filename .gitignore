@@ -21,6 +21,22 @@ media/
 # Static collected files
 staticfiles/
 
+# Frontend dependencies and builds
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Keep lockfiles for reproducible installs
+!package-lock.json
+!frontend/package-lock.json
+
 # Secrets
 .env
 *.env
