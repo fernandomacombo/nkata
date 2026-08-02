@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
-import { API_BASE_URL } from "../../services/api.js";
 
 export default function AppHeader({
   activePage,
@@ -128,7 +127,7 @@ export default function AppHeader({
             <button
               type="button"
               className="nk-button nk-button--dark nk-header__request"
-              onClick={() => window.location.assign(`${API_BASE_URL}/solicitar-entrada/`)}
+              onClick={() => window.location.assign("/pedir-acesso/")}
             >
               <ShieldCheck size={17} />
               Pedir acesso
