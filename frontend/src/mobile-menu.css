@@ -24,8 +24,16 @@
     padding-bottom: 0;
   }
 
-  .nk-app.is-authenticated {
+  .nk-bottom-nav {
+    display: none;
+  }
+
+  body:has(.nk-header__member) {
     padding-bottom: 84px;
+  }
+
+  body:has(.nk-header__member) .nk-bottom-nav {
+    display: grid;
   }
 
   .nk-header__menu {
