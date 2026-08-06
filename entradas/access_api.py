@@ -1,3 +1,5 @@
+import uuid
+
 from PIL import Image, UnidentifiedImageError
 from rest_framework import permissions
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -18,6 +20,60 @@ IMAGE_FIELDS = [
     "bi_verso",
     "selfie_com_bi",
 ]
+
+STATUS_CONTENT = {
+    "PENDENTE": {
+        "title": "O seu pedido foi recebido.",
+        "message": (
+            "Os dados chegaram em segurança. A equipa ainda vai iniciar a análise."
+        ),
+        "tone": "waiting",
+        "stage": 1,
+    },
+    "EM_ANALISE": {
+        "title": "A análise está em andamento.",
+        "message": (
+            "A equipa está a confirmar os dados, fotografias e documentos enviados."
+        ),
+        "tone": "review",
+        "stage": 2,
+    },
+    "PRECISA_CORRIGIR": {
+        "title": "Precisamos de uma correção.",
+        "message": (
+            "Há informação que precisa ser atualizada. A equipa entrará em contacto "
+            "pelo email usado no pedido com as orientações necessárias."
+        ),
+        "tone": "attention",
+        "stage": 3,
+    },
+    "APROVADO": {
+        "title": "O seu pedido foi aprovado.",
+        "message": (
+            "A entrada foi aprovada. Consulte o seu email para os dados de acesso "
+            "ou entre com a conta que recebeu da equipa."
+        ),
+        "tone": "success",
+        "stage": 4,
+    },
+    "RECUSADO": {
+        "title": "O pedido não foi aprovado.",
+        "message": (
+            "A análise foi concluída e o pedido não pôde ser aprovado neste momento."
+        ),
+        "tone": "closed",
+        "stage": 3,
+    },
+    "BLOQUEADO": {
+        "title": "O pedido está indisponível.",
+        "message": (
+            "Este pedido não pode continuar. Para esclarecer a situação, contacte "
+            "a equipa NKATA pelo canal oficial."
+        ),
+        "tone": "closed",
+        "stage": 3,
+    },
+}
 
 
 def _normalizar_erros(form):
@@ -58,6 +114,31 @@ def _validar_imagem(upload):
     return None
 
 
+def _status_payload(pedido):
+    content = STATUS_CONTENT.get(
+        pedido.status,
+        {
+            "title": "O pedido está a ser acompanhado.",
+            "message": "Consulte novamente mais tarde para ver novas atualizações.",
+            "tone": "waiting",
+            "stage": 1,
+        },
+    )
+
+    return {
+        "codigo": str(pedido.token),
+        "status": pedido.status,
+        "status_label": pedido.get_status_display(),
+        "title": content["title"],
+        "message": content["message"],
+        "tone": content["tone"],
+        "stage": content["stage"],
+        "created_at": pedido.criado_em,
+        "updated_at": pedido.atualizado_em,
+        "can_login": pedido.status == "APROVADO",
+    }
+
+
 @api_view(["POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
@@ -81,7 +162,7 @@ def api_pedir_acesso(request):
             "detail": "Já recebemos um pedido com este email.",
             "errors": {
                 "email": [
-                    "Use o mesmo email para acompanhar o pedido ou fale com a equipa NKATA."
+                    "Use o mesmo email e o código privado para acompanhar o pedido."
                 ]
             },
         }, status=409)
@@ -102,8 +183,45 @@ def api_pedir_acesso(request):
     return Response({
         "ok": True,
         "pedido_id": pedido.id,
+        "codigo": str(pedido.token),
+        "email": pedido.email,
         "message": (
-            "Recebemos o seu pedido. A equipa NKATA vai analisar os dados "
-            "e entrar em contacto pelo email informado."
+            "Recebemos o seu pedido. Guarde o código privado para acompanhar "
+            "a análise sem precisar contactar a equipa."
         ),
     }, status=201)
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
+def api_acompanhar_pedido(request):
+    email = str(request.data.get("email", "")).strip().lower()
+    raw_code = str(request.data.get("codigo", "")).strip()
+
+    if not email or not raw_code:
+        return Response(
+            {"detail": "Informe o email e o código privado do pedido."},
+            status=400,
+        )
+
+    try:
+        code = uuid.UUID(raw_code)
+    except (ValueError, AttributeError, TypeError):
+        return Response(
+            {"detail": "O email ou o código do pedido não está correto."},
+            status=404,
+        )
+
+    pedido = PedidoEntrada.objects.filter(
+        email__iexact=email,
+        token=code,
+    ).first()
+
+    if not pedido:
+        return Response(
+            {"detail": "O email ou o código do pedido não está correto."},
+            status=404,
+        )
+
+    return Response(_status_payload(pedido))
