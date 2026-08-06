@@ -28,6 +28,9 @@ export default function DiscoverPage({
     setMaxAge("");
   };
 
+  const hasActiveFilters = Boolean(query || city || objective || minAge || maxAge);
+  const hasProfiles = profiles.length > 0;
+
   const filteredProfiles = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const minimum = minAge ? Number(minAge) : null;
@@ -104,7 +107,7 @@ export default function DiscoverPage({
           <div className="nk-api-notice" role="status">
             <div>
               <strong>Não foi possível atualizar os perfis</strong>
-              <span>Estamos a mostrar os perfis disponíveis no aparelho.</span>
+              <span>Nenhum perfil fictício será mostrado. Tente atualizar novamente.</span>
             </div>
           </div>
         )}
@@ -112,7 +115,13 @@ export default function DiscoverPage({
         <div className="nk-results-heading">
           <div>
             <strong>{filteredProfiles.length} {filteredProfiles.length === 1 ? "perfil" : "perfis"}</strong>
-            <span>{usingDemoData ? "Exemplo de apresentação" : "Perfis disponíveis agora"}</span>
+            <span>
+              {usingDemoData && hasProfiles
+                ? "Ambiente de demonstração"
+                : hasProfiles
+                  ? "Perfis aprovados e disponíveis"
+                  : "Aguardando perfis aprovados"}
+            </span>
           </div>
           <button type="button" onClick={onReload} disabled={loading}>
             <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
@@ -142,13 +151,29 @@ export default function DiscoverPage({
               />
             ))}
           </div>
+        ) : !hasProfiles ? (
+          <div className="nk-empty-state nk-empty-state--community">
+            <ShieldCheck size={28} />
+            <h2>A comunidade está a ser preparada</h2>
+            <p>
+              Ainda não existem perfis aprovados e visíveis. O NKATA não apresenta pessoas
+              fictícias como se fossem membros reais.
+            </p>
+            <button type="button" onClick={() => window.location.assign("/pedir-acesso/")}>
+              Pedir acesso
+            </button>
+          </div>
         ) : (
           <div className="nk-empty-state">
             <ShieldCheck size={28} />
-            <h2>Nenhum perfil encontrado</h2>
-            <p>Tente outra cidade, faixa etária ou uma pesquisa mais simples.</p>
-            <button type="button" onClick={clearFilters}>
-              Limpar filtros
+            <h2>Nenhum perfil corresponde aos filtros</h2>
+            <p>
+              {hasActiveFilters
+                ? "Tente outra cidade, faixa etária ou uma pesquisa mais simples."
+                : "Atualize a página para consultar novamente os perfis disponíveis."}
+            </p>
+            <button type="button" onClick={hasActiveFilters ? clearFilters : onReload}>
+              {hasActiveFilters ? "Limpar filtros" : "Atualizar perfis"}
             </button>
           </div>
         )}
