@@ -26,6 +26,7 @@ import "./global-motion.css";
 import "./login-polish.css";
 import "./mobile-menu.css";
 import "./mobile-menu-close-fix.css";
+import "./community-empty.css";
 
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
