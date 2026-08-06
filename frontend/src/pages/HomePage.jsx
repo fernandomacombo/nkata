@@ -133,28 +133,51 @@ export default function HomePage({
 
         <section className="nk-section nk-featured" id="destaques">
           <div className="nk-shell">
-            <div className="nk-section-heading">
-              <div>
-                <span className="nk-eyebrow nk-eyebrow--dark">Alguns perfis</span>
-                <h2>Conheça pessoas com intenção.</h2>
-                <p>Leia a apresentação com calma antes de demonstrar interesse.</p>
-              </div>
-              <button type="button" className="nk-text-action" onClick={() => onNavigate("discover")}>
-                Ver todos <ArrowRight size={17} />
-              </button>
-            </div>
+            {featured.length ? (
+              <>
+                <div className="nk-section-heading">
+                  <div>
+                    <span className="nk-eyebrow nk-eyebrow--dark">Alguns perfis</span>
+                    <h2>Conheça pessoas com intenção.</h2>
+                    <p>Leia a apresentação com calma antes de demonstrar interesse.</p>
+                  </div>
+                  <button type="button" className="nk-text-action" onClick={() => onNavigate("discover")}>
+                    Ver todos <ArrowRight size={17} />
+                  </button>
+                </div>
 
-            <div className="nk-profile-grid">
-              {featured.map((profile) => (
-                <ProfileCard
-                  key={profile.id}
-                  profile={profile}
-                  onOpen={onOpenProfile}
-                  saved={isSaved(profile)}
-                  onToggleSaved={onToggleSaved}
-                />
-              ))}
-            </div>
+                <div className="nk-profile-grid">
+                  {featured.map((profile) => (
+                    <ProfileCard
+                      key={profile.id}
+                      profile={profile}
+                      onOpen={onOpenProfile}
+                      saved={isSaved(profile)}
+                      onToggleSaved={onToggleSaved}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="nk-community-empty">
+                <span className="nk-community-empty__icon"><ShieldCheck size={26} /></span>
+                <div>
+                  <span className="nk-eyebrow nk-eyebrow--dark">Comunidade em preparação</span>
+                  <h2>Os perfis aparecem depois da aprovação.</h2>
+                  <p>
+                    Não mostramos pessoas fictícias para preencher espaço. Assim que existirem
+                    perfis aprovados e visíveis, serão apresentados aqui.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="nk-button nk-button--wine"
+                  onClick={() => window.location.assign("/pedir-acesso/")}
+                >
+                  Pedir acesso <ArrowRight size={17} />
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
