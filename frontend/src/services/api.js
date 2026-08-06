@@ -192,6 +192,16 @@ export async function submitAccessRequest(values, files) {
   return request("/api/pedir-acesso/", { method: "POST", body: form });
 }
 
+export async function fetchAccessRequestStatus({ email, code }) {
+  return request("/api/acompanhar-pedido/", {
+    method: "POST",
+    body: {
+      email: String(email || "").trim().toLowerCase(),
+      codigo: String(code || "").trim(),
+    },
+  });
+}
+
 export async function fetchProfiles({ signal } = {}) {
   const payload = await request("/api/perfis/", { signal });
   const results = Array.isArray(payload) ? payload : payload?.results || [];
