@@ -24,6 +24,7 @@ import "./access.css";
 import "./access-status.css";
 import "./global-motion.css";
 import "./login-polish.css";
+import "./mobile-menu.css";
 
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
