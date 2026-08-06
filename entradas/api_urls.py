@@ -10,6 +10,11 @@ urlpatterns = [
     path("auth/login/", api_views.api_login, name="login"),
     path("auth/logout/", api_views.api_logout, name="logout"),
     path("pedir-acesso/", access_api.api_pedir_acesso, name="pedir_acesso"),
+    path(
+        "acompanhar-pedido/",
+        access_api.api_acompanhar_pedido,
+        name="acompanhar_pedido",
+    ),
     path("perfis/", api_views.api_perfis, name="perfis"),
     path("perfis/<int:perfil_id>/", api_views.api_perfil_detalhe, name="perfil_detalhe"),
     path(
