@@ -1,0 +1,8 @@
+@media (max-width: 820px) {
+  /* O painel já tem o seu próprio botão de fechar. */
+  .nk-header__menu.is-open {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
