@@ -1,4 +1,7 @@
-export const demoProfiles = [
+const DEMO_PROFILES_ENABLED =
+  String(import.meta.env.VITE_ENABLE_DEMO_PROFILES || "").toLowerCase() === "true";
+
+const DEMO_PROFILES = [
   {
     id: "demo-1",
     nome_publico: "Amélia",
@@ -52,3 +55,7 @@ export const demoProfiles = [
     foto_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1000&q=88",
   },
 ];
+
+// Perfis fictícios nunca aparecem por acidente. Para os usar numa demonstração
+// local, defina VITE_ENABLE_DEMO_PROFILES=true antes de iniciar o Vite.
+export const demoProfiles = DEMO_PROFILES_ENABLED ? DEMO_PROFILES : [];
