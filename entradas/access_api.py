@@ -24,17 +24,13 @@ IMAGE_FIELDS = [
 STATUS_CONTENT = {
     "PENDENTE": {
         "title": "O seu pedido foi recebido.",
-        "message": (
-            "Os dados chegaram em segurança. A equipa ainda vai iniciar a análise."
-        ),
+        "message": "Os dados chegaram em segurança. A equipa ainda vai iniciar a análise.",
         "tone": "waiting",
         "stage": 1,
     },
     "EM_ANALISE": {
         "title": "A análise está em andamento.",
-        "message": (
-            "A equipa está a confirmar os dados, fotografias e documentos enviados."
-        ),
+        "message": "A equipa está a confirmar os dados, fotografias e documentos enviados.",
         "tone": "review",
         "stage": 2,
     },
@@ -58,9 +54,7 @@ STATUS_CONTENT = {
     },
     "RECUSADO": {
         "title": "O pedido não foi aprovado.",
-        "message": (
-            "A análise foi concluída e o pedido não pôde ser aprovado neste momento."
-        ),
+        "message": "A análise foi concluída e o pedido não pôde ser aprovado neste momento.",
         "tone": "closed",
         "stage": 3,
     },
@@ -78,7 +72,6 @@ STATUS_CONTENT = {
 
 def _normalizar_erros(form):
     errors = {}
-
     for field, messages in form.errors.get_json_data().items():
         readable = []
         for item in messages:
@@ -87,17 +80,14 @@ def _normalizar_erros(form):
                 message = "Já existe um pedido associado a este email."
             readable.append(message)
         errors[field] = readable
-
     return errors
 
 
 def _validar_imagem(upload):
     if not upload:
         return "Escolha uma imagem."
-
     if upload.size > MAX_ACCESS_IMAGE_SIZE:
         return "A imagem deve ter no máximo 6 MB."
-
     try:
         image = Image.open(upload)
         image.verify()
@@ -107,10 +97,8 @@ def _validar_imagem(upload):
         upload.seek(0)
     except (UnidentifiedImageError, OSError, ValueError):
         return "O ficheiro escolhido não é uma imagem válida."
-
     if image_format not in ALLOWED_ACCESS_IMAGE_FORMATS:
         return "Use uma imagem em JPG, PNG ou WEBP."
-
     return None
 
 
@@ -124,7 +112,6 @@ def _status_payload(pedido):
             "stage": 1,
         },
     )
-
     return {
         "codigo": str(pedido.token),
         "status": pedido.status,
@@ -144,12 +131,10 @@ def _status_payload(pedido):
 @permission_classes([permissions.AllowAny])
 def api_pedir_acesso(request):
     image_errors = {}
-
     for field in IMAGE_FIELDS:
         error = _validar_imagem(request.FILES.get(field))
         if error:
             image_errors[field] = [error]
-
     if image_errors:
         return Response({
             "detail": "Revise as imagens antes de continuar.",
@@ -161,9 +146,7 @@ def api_pedir_acesso(request):
         return Response({
             "detail": "Já recebemos um pedido com este email.",
             "errors": {
-                "email": [
-                    "Use o mesmo email e o código privado para acompanhar o pedido."
-                ]
+                "email": ["Use o mesmo email e o código privado para acompanhar o pedido."]
             },
         }, status=409)
 
@@ -179,15 +162,16 @@ def api_pedir_acesso(request):
         }, status=400)
 
     pedido = form.save()
+    codigo = str(pedido.token)
 
     return Response({
         "ok": True,
         "pedido_id": pedido.id,
-        "codigo": str(pedido.token),
+        "codigo": codigo,
         "email": pedido.email,
         "message": (
-            "Recebemos o seu pedido. Guarde o código privado para acompanhar "
-            "a análise sem precisar contactar a equipa."
+            "Recebemos o seu pedido. Guarde este código privado para acompanhar "
+            f"a análise: {codigo}"
         ),
     }, status=201)
 
@@ -213,11 +197,7 @@ def api_acompanhar_pedido(request):
             status=404,
         )
 
-    pedido = PedidoEntrada.objects.filter(
-        email__iexact=email,
-        token=code,
-    ).first()
-
+    pedido = PedidoEntrada.objects.filter(email__iexact=email, token=code).first()
     if not pedido:
         return Response(
             {"detail": "O email ou o código do pedido não está correto."},
