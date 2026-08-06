@@ -5,7 +5,9 @@ class EntradasConfig(AppConfig):
     name = "entradas"
 
     def ready(self):
+        from . import account_lifecycle  # noqa: F401
         from . import notification_signals  # noqa: F401
+        from .admin_workflow import aplicar_fluxo_de_aprovacao_admin
 
         # Compatibilidade do Django Admin:
         # MensagemPerfil usa o campo `texto`, não `tipo`.
@@ -34,3 +36,5 @@ class EntradasConfig(AppConfig):
             "usuario__email",
             "session_key",
         )
+
+        aplicar_fluxo_de_aprovacao_admin()
