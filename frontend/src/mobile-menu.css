@@ -36,6 +36,16 @@
     display: grid;
   }
 
+  /*
+   * backdrop-filter transforma o cabeçalho num limite para descendentes fixed
+   * em navegadores Chromium. Enquanto o menu está aberto, removemos o filtro
+   * para o painel ocupar corretamente toda a janela.
+   */
+  .nk-header:has(.nk-header__menu.is-open) {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
   .nk-header__menu {
     position: relative;
     z-index: 104;
