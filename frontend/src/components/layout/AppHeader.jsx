@@ -1,6 +1,7 @@
 import {
   Bell,
   Bookmark,
+  FileSearch,
   LockKeyhole,
   LogOut,
   Menu,
@@ -69,6 +70,11 @@ export default function AppHeader({
             </button>
           )}
           <button type="button" onClick={() => onNavigate("security")}>Segurança</button>
+          {!authenticated && (
+            <button type="button" onClick={() => window.location.assign("/acompanhar-pedido/")}>
+              Acompanhar pedido
+            </button>
+          )}
         </nav>
 
         <div className="nk-header__actions">
@@ -115,14 +121,25 @@ export default function AppHeader({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              className="nk-header__login"
-              onClick={() => onNavigate("login")}
-              disabled={sessionLoading}
-            >
-              Entrar
-            </button>
+            <>
+              <button
+                type="button"
+                className="nk-header__notifications"
+                onClick={() => window.location.assign("/acompanhar-pedido/")}
+                aria-label="Acompanhar pedido de acesso"
+                title="Acompanhar pedido"
+              >
+                <FileSearch size={18} />
+              </button>
+              <button
+                type="button"
+                className="nk-header__login"
+                onClick={() => onNavigate("login")}
+                disabled={sessionLoading}
+              >
+                Entrar
+              </button>
+            </>
           )}
 
           {!authenticated && (
