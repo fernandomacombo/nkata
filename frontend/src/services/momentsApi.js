@@ -40,9 +40,9 @@ export async function fetchMoments({ signal } = {}) {
   return payload;
 }
 
-export async function createMoment({ text, visibility, media }) {
+export async function createMoment({ caption, visibility, media }) {
   const form = new FormData();
-  form.append("texto", text || "");
+  form.append("legenda", caption || "SEM_LEGENDA");
   form.append("visibilidade", visibility || "TODOS");
   if (media) form.append("media", media);
 
@@ -59,7 +59,10 @@ export async function createMoment({ text, visibility, media }) {
   const payload = await readPayload(response);
   if (!response.ok) {
     throw new MomentsApiError(
-      payload?.detail || payload?.media?.[0] || payload?.texto?.[0] || "Não foi possível publicar o Momento.",
+      payload?.detail
+        || payload?.media?.[0]
+        || payload?.legenda?.[0]
+        || "Não foi possível publicar o Momento.",
       response.status,
       payload,
     );
