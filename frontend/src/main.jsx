@@ -46,6 +46,21 @@ import "./moments-autoplay.css";
 import "./moments-reactions.css";
 import "./mobile-app-contract.css";
 
+const appModeMedia = window.matchMedia("(max-width: 820px)");
+
+function syncAppMode(event = appModeMedia) {
+  const enabled = Boolean(event.matches);
+  document.body.classList.toggle("nk-app-mode", enabled);
+  document.documentElement.dataset.nkataMode = enabled ? "app" : "web";
+}
+
+syncAppMode();
+if (typeof appModeMedia.addEventListener === "function") {
+  appModeMedia.addEventListener("change", syncAppMode);
+} else {
+  appModeMedia.addListener(syncAppMode);
+}
+
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
   : `${window.location.pathname}/`;
