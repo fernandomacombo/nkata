@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import AccessRequestPage from "./pages/AccessRequestPage.jsx";
 import AccessStatusPage from "./pages/AccessStatusPage.jsx";
+import PasswordChangePage from "./pages/PasswordChangePage.jsx";
 import PasswordResetConfirmPage from "./pages/PasswordResetConfirmPage.jsx";
 import PasswordResetPage from "./pages/PasswordResetPage.jsx";
 import QuestionnairePage from "./pages/QuestionnairePage.jsx";
@@ -32,12 +33,14 @@ import "./mobile-menu-close-fix.css";
 import "./community-empty.css";
 import "./questionnaire.css";
 import "./password-recovery.css";
+import "./password-change.css";
 
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
   : `${window.location.pathname}/`;
 const accessMode = normalizedPath === "/pedir-acesso/";
 const accessStatusMode = normalizedPath === "/acompanhar-pedido/";
+const passwordChangeMode = normalizedPath === "/alterar-senha/";
 const passwordResetMode = normalizedPath === "/recuperar-senha/";
 const questionnaireMatch = normalizedPath.match(/^\/questionario\/([0-9a-f-]{36})\/$/i);
 const questionnaireToken = questionnaireMatch?.[1] || "";
@@ -68,6 +71,11 @@ createRoot(document.getElementById("root")).render(
       <QuestionnairePage
         token={questionnaireToken}
         onBack={() => go("/")}
+        onLogin={() => go("/entrar/")}
+      />
+    ) : passwordChangeMode ? (
+      <PasswordChangePage
+        onBack={() => go("/conta/")}
         onLogin={() => go("/entrar/")}
       />
     ) : passwordResetMode ? (
