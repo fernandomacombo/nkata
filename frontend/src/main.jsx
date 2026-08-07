@@ -35,6 +35,7 @@ import "./community-empty.css";
 import "./questionnaire.css";
 import "./password-recovery.css";
 import "./password-change.css";
+import "./mobile-native.css";
 
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
