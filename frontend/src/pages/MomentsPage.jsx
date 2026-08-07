@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -17,7 +18,20 @@ import {
 } from "lucide-react";
 import { createMoment, deleteMoment, fetchMoments } from "../services/momentsApi.js";
 
+const FALLBACK_CAPTIONS = [
+  { value: "SEM_LEGENDA", label: "Sem legenda" },
+  { value: "DIA_TRANQUILO", label: "Um dia tranquilo por aqui." },
+  { value: "BOAS_ENERGIAS", label: "Boas energias para o dia." },
+  { value: "APROVEITAR_MOMENTO", label: "A aproveitar um bom momento." },
+  { value: "CONHECER_COM_CALMA", label: "Aberto(a) a conhecer alguém com calma." },
+  { value: "FIM_DE_DIA", label: "A terminar o dia com tranquilidade." },
+];
+
 function remainingLabel(moment) {
+  if (moment.moderation_status === "PENDENTE") return "Em análise";
+  if (moment.moderation_status === "REJEITADO") return "Não aprovado";
+  if (!moment.expires_at) return "";
+
   const expires = new Date(moment.expires_at);
   const milliseconds = Math.max(0, expires.getTime() - Date.now());
   const minutes = Math.ceil(milliseconds / 60000);
@@ -30,6 +44,7 @@ function remainingLabel(moment) {
 function groupByProfile(moments) {
   const groups = [];
   const map = new Map();
+
   moments.forEach((moment) => {
     const key = String(moment.profile.id);
     if (!map.has(key)) {
@@ -40,6 +55,7 @@ function groupByProfile(moments) {
     map.get(key).moments.push(moment);
     if (moment.mine) map.get(key).mine = true;
   });
+
   groups.sort((a, b) => Number(b.mine) - Number(a.mine));
   return groups;
 }
@@ -73,11 +89,17 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
     const onKey = (event) => {
       if (event.key === "Escape") onClose();
-      if (event.key === "ArrowRight") setIndex((current) => Math.min(moments.length - 1, current + 1));
-      if (event.key === "ArrowLeft") setIndex((current) => Math.max(0, current - 1));
+      if (event.key === "ArrowRight") {
+        setIndex((current) => Math.min(moments.length - 1, current + 1));
+      }
+      if (event.key === "ArrowLeft") {
+        setIndex((current) => Math.max(0, current - 1));
+      }
     };
+
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
@@ -87,7 +109,7 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
 
   if (!moment) return null;
 
-  return (
+  return createPortal(
     <div className="nk-moment-viewer" role="dialog" aria-modal="true" aria-label={`Momento de ${moment.profile.nome_publico}`}>
       <div className="nk-moment-viewer__frame">
         <div className="nk-moment-viewer__progress" aria-hidden="true">
@@ -158,7 +180,36 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
+  );
+}
+
+function ReviewItem({ moment, onDelete }) {
+  const pending = moment.moderation_status === "PENDENTE";
+  return (
+    <article className={`nk-moment-review-item ${pending ? "is-pending" : "is-rejected"}`}>
+      <div className="nk-moment-review-item__media">
+        {moment.media_type === "IMAGEM" && moment.media_url ? (
+          <img src={moment.media_url} alt="Conteúdo enviado para revisão" />
+        ) : moment.media_type === "VIDEO" && moment.media_url ? (
+          <video src={moment.media_url} muted playsInline preload="metadata" />
+        ) : (
+          <ShieldCheck size={25} />
+        )}
+      </div>
+      <div>
+        <strong>{pending ? "Em análise" : "Não aprovado"}</strong>
+        <p>
+          {pending
+            ? "Só você e a equipa NKATA conseguem ver este ficheiro. As 24 horas ainda não começaram."
+            : (moment.moderation_note || "Este conteúdo não foi aprovado para publicação.")}
+        </p>
+      </div>
+      <button type="button" onClick={() => onDelete(moment)} aria-label="Remover envio">
+        <Trash2 size={17} />
+      </button>
+    </article>
   );
 }
 
@@ -166,7 +217,7 @@ export default function MomentsPage({ onOpenProfile }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [text, setText] = useState("");
+  const [caption, setCaption] = useState("SEM_LEGENDA");
   const [visibility, setVisibility] = useState("TODOS");
   const [media, setMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState("");
@@ -201,9 +252,12 @@ export default function MomentsPage({ onOpenProfile }) {
   }, [mediaPreview]);
 
   const moments = data?.results || [];
+  const reviewItems = data?.review_items || [];
   const groups = useMemo(() => groupByProfile(moments), [moments]);
   const capabilities = data?.capabilities || null;
   const mediaEnabled = Boolean(capabilities?.media_enabled);
+  const captionOptions = capabilities?.caption_options || FALLBACK_CAPTIONS;
+  const canPublish = Boolean(media || caption !== "SEM_LEGENDA");
 
   const clearMedia = () => {
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
@@ -216,11 +270,13 @@ export default function MomentsPage({ onOpenProfile }) {
     const file = event.target.files?.[0] || null;
     setError("");
     if (!file) return;
+
     if (!mediaEnabled) {
       setError("Fotografias e vídeos nos Momentos exigem NKATA Essencial ou Premium.");
       event.target.value = "";
       return;
     }
+
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
     setMedia(file);
     setMediaPreview(URL.createObjectURL(file));
@@ -228,25 +284,36 @@ export default function MomentsPage({ onOpenProfile }) {
 
   const handlePublish = async (event) => {
     event.preventDefault();
-    if (publishing || (!text.trim() && !media)) return;
+    if (publishing || !canPublish) return;
 
     setPublishing(true);
     setError("");
     setStatus("");
+
     try {
-      const result = await createMoment({ text: text.trim(), visibility, media });
-      setData((current) => ({
-        ...(current || {}),
-        results: [result.moment, ...(current?.results || [])],
-        mine: [result.moment, ...(current?.mine || [])],
-        capabilities: result.capabilities || current?.capabilities,
-      }));
-      setText("");
+      const result = await createMoment({ caption, visibility, media });
+      setData((current) => {
+        const base = current || {};
+        if (result.pending_review) {
+          return {
+            ...base,
+            review_items: [result.moment, ...(base.review_items || [])],
+            capabilities: result.capabilities || base.capabilities,
+          };
+        }
+        return {
+          ...base,
+          results: [result.moment, ...(base.results || [])],
+          mine: [result.moment, ...(base.mine || [])],
+          capabilities: result.capabilities || base.capabilities,
+        };
+      });
+      setCaption("SEM_LEGENDA");
       clearMedia();
-      setStatus(result.message || "Momento publicado.");
-      window.setTimeout(() => setStatus(""), 3200);
+      setStatus(result.message || "Momento enviado.");
+      window.setTimeout(() => setStatus(""), 4200);
     } catch (requestError) {
-      setError(requestError.message || "Não foi possível publicar o Momento.");
+      setError(requestError.message || "Não foi possível enviar o Momento.");
     } finally {
       setPublishing(false);
     }
@@ -259,6 +326,7 @@ export default function MomentsPage({ onOpenProfile }) {
         ...(current || {}),
         results: (current?.results || []).filter((item) => item.id !== moment.id),
         mine: (current?.mine || []).filter((item) => item.id !== moment.id),
+        review_items: (current?.review_items || []).filter((item) => item.id !== moment.id),
       }));
       setViewerGroup(null);
       setStatus("Momento removido.");
@@ -275,7 +343,7 @@ export default function MomentsPage({ onOpenProfile }) {
           <div>
             <span className="nk-eyebrow nk-eyebrow--dark"><Play size={15} /> Momentos</span>
             <h1>Partilhe um pouco do seu dia.</h1>
-            <p>Os Momentos desaparecem automaticamente após 24 horas e nunca ficam públicos na internet.</p>
+            <p>Sem contactos ou anúncios. Fotografias e vídeos são revistos antes de aparecerem na comunidade.</p>
           </div>
           <span className="nk-moments-page__private"><ShieldCheck size={17} /> Apenas membros NKATA</span>
         </div>
@@ -291,13 +359,22 @@ export default function MomentsPage({ onOpenProfile }) {
             </div>
           </div>
 
-          <textarea
-            value={text}
-            onChange={(event) => setText(event.target.value.slice(0, 500))}
-            placeholder="O que gostaria de partilhar hoje?"
-            maxLength={500}
-            rows={3}
-          />
+          <div className="nk-moment-composer__safety-note">
+            <ShieldCheck size={18} />
+            <div>
+              <strong>Sem texto livre</strong>
+              <span>Escolha apenas uma frase NKATA. Telefone, WhatsApp, links, anúncios e ofertas de serviços não entram nos Momentos.</span>
+            </div>
+          </div>
+
+          <label className="nk-moment-composer__caption">
+            <span>Frase do Momento</span>
+            <select value={caption} onChange={(event) => setCaption(event.target.value)}>
+              {captionOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
 
           {mediaPreview && (
             <div className="nk-moment-composer__preview">
@@ -305,6 +382,7 @@ export default function MomentsPage({ onOpenProfile }) {
                 ? <video src={mediaPreview} controls playsInline />
                 : <img src={mediaPreview} alt="Pré-visualização" />}
               <button type="button" onClick={clearMedia} aria-label="Remover ficheiro"><X size={17} /></button>
+              <span><ShieldCheck size={14} /> Será revisto antes de publicar</span>
             </div>
           )}
 
@@ -320,7 +398,9 @@ export default function MomentsPage({ onOpenProfile }) {
               <button
                 type="button"
                 className="nk-moment-composer__media"
-                onClick={() => mediaEnabled ? fileRef.current?.click() : setError("Fotografias e vídeos exigem NKATA Essencial ou Premium.")}
+                onClick={() => mediaEnabled
+                  ? fileRef.current?.click()
+                  : setError("Fotografias e vídeos exigem NKATA Essencial ou Premium.")}
               >
                 {mediaEnabled ? <ImagePlus size={18} /> : <LockKeyhole size={17} />}
                 {mediaEnabled ? "Foto ou vídeo" : "Media no plano pago"}
@@ -339,20 +419,42 @@ export default function MomentsPage({ onOpenProfile }) {
               </label>
             </div>
 
-            <button type="submit" className="nk-button nk-button--wine" disabled={publishing || (!text.trim() && !media)}>
-              <Send size={17} /> {publishing ? "A publicar…" : "Publicar"}
+            <button type="submit" className="nk-button nk-button--wine" disabled={publishing || !canPublish}>
+              <Send size={17} /> {publishing ? "A enviar…" : media ? "Enviar para análise" : "Publicar"}
             </button>
           </div>
-          <small className="nk-moment-composer__counter">{text.length}/500 · desaparece em 24h</small>
+
+          <small className="nk-moment-composer__counter">
+            {media
+              ? "Foto/vídeo: as 24h começam somente após aprovação."
+              : "Frases NKATA aprovadas: publicação imediata por 24h."}
+          </small>
         </form>
 
         {error && <div className="nk-moments-page__message is-error">{error}</div>}
         {status && <div className="nk-moments-page__message is-success">{status}</div>}
 
+        {reviewItems.length > 0 && (
+          <section className="nk-moment-review">
+            <div className="nk-moment-review__heading">
+              <div>
+                <h2>Os seus envios em revisão</h2>
+                <p>Conteúdo pendente não aparece para outras pessoas.</p>
+              </div>
+              <span>{reviewItems.length}</span>
+            </div>
+            <div className="nk-moment-review__list">
+              {reviewItems.map((moment) => (
+                <ReviewItem key={moment.id} moment={moment} onDelete={handleDelete} />
+              ))}
+            </div>
+          </section>
+        )}
+
         <div className="nk-moments-page__heading">
           <div>
             <h2>Momentos recentes</h2>
-            <p>Sem comentários públicos. Veja apenas o que cada pessoa decidiu partilhar.</p>
+            <p>Sem comentários públicos. Apenas conteúdo aprovado e ainda dentro das 24 horas.</p>
           </div>
           <button type="button" onClick={() => load()} disabled={loading}>
             <RefreshCw size={16} className={loading ? "is-spinning" : ""} /> Atualizar
@@ -370,7 +472,9 @@ export default function MomentsPage({ onOpenProfile }) {
                     {group.profile.foto_url
                       ? <img src={group.profile.foto_url} alt="" />
                       : <UserRound size={28} />}
-                    {group.moments.some((item) => item.media_type === "VIDEO") && <em><Play size={10} fill="currentColor" /></em>}
+                    {group.moments.some((item) => item.media_type === "VIDEO") && (
+                      <em><Play size={10} fill="currentColor" /></em>
+                    )}
                   </span>
                 </span>
                 <strong>{group.mine ? "O seu" : group.profile.nome_publico}</strong>
@@ -382,7 +486,7 @@ export default function MomentsPage({ onOpenProfile }) {
           <div className="nk-moments-page__empty">
             <Clock3 size={27} />
             <h2>Ainda não há Momentos ativos</h2>
-            <p>Seja a primeira pessoa a partilhar algo simples do seu dia.</p>
+            <p>Os conteúdos aparecem aqui depois de aprovados e desaparecem após 24 horas.</p>
           </div>
         )}
       </section>
