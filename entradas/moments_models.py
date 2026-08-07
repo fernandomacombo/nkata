@@ -21,13 +21,18 @@ def moment_expires_at():
 
 class MomentoNKATA(models.Model):
     MEDIA_CHOICES = [
-        ("TEXTO", "Texto"),
+        ("TEXTO", "Frase NKATA"),
         ("IMAGEM", "Imagem"),
         ("VIDEO", "Vídeo"),
     ]
     VISIBILITY_CHOICES = [
         ("TODOS", "Todos os membros"),
         ("MATCHES", "Apenas matches"),
+    ]
+    MODERATION_CHOICES = [
+        ("PENDENTE", "Pendente"),
+        ("APROVADO", "Aprovado"),
+        ("REJEITADO", "Rejeitado"),
     ]
 
     perfil = models.ForeignKey(
@@ -40,6 +45,8 @@ class MomentoNKATA(models.Model):
         on_delete=models.CASCADE,
         related_name="momentos_nkata",
     )
+    # O texto é preenchido apenas a partir de frases predefinidas no backend.
+    # Texto livre não é aceite pela API dos Momentos.
     texto = models.CharField(max_length=500, blank=True)
     media = models.FileField(
         storage=PRIVATE_MOMENT_STORAGE,
@@ -52,6 +59,14 @@ class MomentoNKATA(models.Model):
         choices=VISIBILITY_CHOICES,
         default="TODOS",
     )
+    moderacao_status = models.CharField(
+        max_length=12,
+        choices=MODERATION_CHOICES,
+        default="PENDENTE",
+        db_index=True,
+    )
+    moderacao_motivo = models.CharField(max_length=240, blank=True)
+    moderado_em = models.DateTimeField(null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
     expira_em = models.DateTimeField(default=moment_expires_at, db_index=True)
 
@@ -68,4 +83,7 @@ class MomentoNKATA(models.Model):
 
     @property
     def ativo(self):
-        return self.expira_em > timezone.now()
+        return (
+            self.moderacao_status == "APROVADO"
+            and self.expira_em > timezone.now()
+        )
