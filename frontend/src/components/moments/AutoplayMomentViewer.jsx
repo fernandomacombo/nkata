@@ -4,7 +4,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Flower2,
+  Heart,
   LockKeyhole,
+  Sparkles,
   Trash2,
   UserRound,
   UsersRound,
@@ -16,6 +19,11 @@ import {
 } from "../../services/momentsApi.js";
 
 const STILL_DURATION_MS = 6000;
+const REACTION_ICONS = {
+  CORACAO: Heart,
+  FLOR: Flower2,
+  APLAUSO: Sparkles,
+};
 
 function remainingLabel(moment) {
   if (!moment?.expires_at) return "";
@@ -55,6 +63,11 @@ function MomentMedia({ moment, onVideoProgress, onVideoEnded }) {
   return <div className="nk-moment-viewer__text-only" aria-hidden="true" />;
 }
 
+function ReactionIcon({ type, size = 20 }) {
+  const Icon = REACTION_ICONS[type] || Sparkles;
+  return <Icon size={size} strokeWidth={1.7} aria-hidden="true" />;
+}
+
 function ReactionTray({ moment, reactions, loading, busy, error, onReact }) {
   if (loading && !reactions) {
     return <div className="nk-moment-reactions is-loading" aria-label="A carregar reações" />;
@@ -74,7 +87,7 @@ function ReactionTray({ moment, reactions, loading, busy, error, onReact }) {
       <div className="nk-moment-reactions is-own" aria-label="Reações recebidas">
         {activeCounts.length ? activeCounts.map((item) => (
           <span key={item.value} title={item.label}>
-            <b>{item.emoji}</b>
+            <b><ReactionIcon type={item.value} size={18} /></b>
             <em>{item.count}</em>
           </span>
         )) : <small>Ainda sem reações</small>}
@@ -97,10 +110,11 @@ function ReactionTray({ moment, reactions, loading, busy, error, onReact }) {
               className={active ? "is-active" : ""}
               disabled={Boolean(busy)}
               aria-pressed={active}
+              aria-label={active ? `Remover ${option.label}` : option.label}
               title={active ? `Remover ${option.label}` : option.label}
               onClick={() => onReact(option.value)}
             >
-              <span>{option.emoji}</span>
+              <span><ReactionIcon type={option.value} /></span>
               {count > 0 && <em>{count}</em>}
             </button>
           );
