@@ -10,6 +10,21 @@ from .notification_models import NotificacaoNKATA
 
 logger = logging.getLogger(__name__)
 
+SIGNAL_NOTIFICATION_CONTENT = {
+    "SINAL_FLOR": {
+        "title": "Recebeu uma flor 🌹",
+        "text": "{name} enviou-lhe uma flor.",
+    },
+    "SINAL_BEIJINHO": {
+        "title": "Recebeu um beijinho 😘",
+        "text": "{name} enviou-lhe um beijinho.",
+    },
+    "SINAL_OLA": {
+        "title": "Um olá para si 👋",
+        "text": "{name} disse olá e gostaria de conhecer melhor.",
+    },
+}
+
 
 def _perfil_do_utilizador(user):
     if not user:
@@ -28,7 +43,7 @@ def _executar_sem_bloquear_acao(callback):
     """Executa uma notificação como tarefa secundária.
 
     Uma falha no centro de notificações nunca pode anular um interesse,
-    um match ou uma mensagem que já foi guardada com sucesso.
+    um sinal, um match ou uma mensagem que já foi guardada com sucesso.
     """
     try:
         callback()
@@ -70,6 +85,41 @@ def notificar_novo_interesse(sender, instance, created, **kwargs):
                 "tipo": "INTERESSE",
                 "titulo": "Novo interesse",
                 "texto": f"{nome} demonstrou interesse no seu perfil.",
+                "lida": False,
+            },
+        )
+
+    _depois_do_commit(criar)
+
+
+@receiver(post_save, sender=AcaoPerfil)
+def notificar_novo_sinal(sender, instance, created, **kwargs):
+    content = SIGNAL_NOTIFICATION_CONTENT.get(instance.tipo)
+    if not created or not content or not instance.usuario_id:
+        return
+
+    destinatario = instance.perfil.usuario
+    if not destinatario or destinatario.id == instance.usuario_id:
+        return
+
+    perfil_ator = _perfil_do_utilizador(instance.usuario)
+    destinatario_id = destinatario.id
+    ator_id = instance.usuario_id
+    perfil_ator_id = perfil_ator.id if perfil_ator else None
+    nome = _nome_publico(instance.usuario)
+    action_id = instance.pk
+
+    def criar():
+        NotificacaoNKATA.objects.update_or_create(
+            destinatario_id=destinatario_id,
+            chave=f"sinal:{action_id}",
+            defaults={
+                "ator_id": ator_id,
+                "perfil_id": perfil_ator_id,
+                "match": None,
+                "tipo": "SINAL",
+                "titulo": content["title"],
+                "texto": content["text"].format(name=nome),
                 "lida": False,
             },
         )
