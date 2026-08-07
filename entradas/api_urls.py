@@ -5,6 +5,7 @@ from . import (
     account_security_api,
     api_views,
     interest_views,
+    moments_api,
     notification_views,
     password_reset_api,
     plan_views,
@@ -88,6 +89,12 @@ urlpatterns = [
         "perfis/<int:perfil_id>/bloquear/",
         api_views.api_bloquear_perfil,
         name="bloquear_perfil",
+    ),
+    path("momentos/", moments_api.api_momentos, name="momentos"),
+    path(
+        "momentos/<int:momento_id>/",
+        moments_api.api_apagar_momento,
+        name="apagar_momento",
     ),
     path("minha-conta/", api_views.api_minha_conta, name="minha_conta"),
     path(
