@@ -5,6 +5,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import FollowingPanel from "./components/account/FollowingPanel.jsx";
 import ProfileFollowAction from "./components/profile/ProfileFollowAction.jsx";
 import AccessRequestPage from "./pages/AccessRequestPage.jsx";
 import AccessStatusPage from "./pages/AccessStatusPage.jsx";
@@ -16,6 +17,7 @@ import "./styles.css";
 import "./profile-detail.css";
 import "./profile-signals.css";
 import "./profile-follow.css";
+import "./following-panel.css";
 import "./integration.css";
 import "./features.css";
 import "./auth.css";
@@ -121,6 +123,7 @@ createRoot(document.getElementById("root")).render(
       <>
         <App />
         <ProfileFollowAction />
+        <FollowingPanel />
       </>
     )}
   </React.StrictMode>
