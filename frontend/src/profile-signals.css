@@ -72,7 +72,7 @@
   display: grid;
   justify-items: center;
   align-content: center;
-  gap: 5px;
+  gap: 6px;
   padding: 14px 10px;
   cursor: pointer;
   transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease, background 170ms ease;
@@ -85,9 +85,20 @@
   background: #fffdfa;
 }
 
-.nk-profile-signals__grid > button > span {
-  font-size: 29px;
-  line-height: 1;
+.nk-profile-signals__icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(138, 41, 63, 0.12);
+  border-radius: 999px;
+  background: rgba(138, 41, 63, 0.055);
+  color: #812b40;
+}
+
+.nk-profile-signals__icon svg {
+  width: 25px;
+  height: 25px;
 }
 
 .nk-profile-signals__grid > button > strong {
@@ -102,6 +113,12 @@
 .nk-profile-signals__grid > button.is-sent {
   border-color: rgba(72, 114, 91, 0.23);
   background: #edf5f0;
+}
+
+.nk-profile-signals__grid > button.is-sent .nk-profile-signals__icon {
+  border-color: rgba(72, 114, 91, 0.18);
+  background: rgba(72, 114, 91, 0.08);
+  color: #47715e;
 }
 
 .nk-profile-signals__grid > button.is-sent > small {
@@ -184,12 +201,20 @@
 
 @media (max-width: 640px) {
   .nk-profile-signals {
-    padding: 20px 16px;
-    border-radius: 20px;
+    margin-inline: calc(var(--nk-app-gutter, 16px) * -1);
+    padding: 18px var(--nk-app-gutter, 16px) 20px;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .nk-profile-signals__heading {
     display: grid;
+  }
+
+  .nk-profile-signals__heading h2 {
+    font-size: 24px;
   }
 
   .nk-profile-signals__quota {
@@ -198,16 +223,18 @@
 
   .nk-profile-signals__grid {
     grid-template-columns: repeat(3, 1fr);
-    gap: 7px;
+    gap: 8px;
   }
 
   .nk-profile-signals__grid > button {
-    min-height: 108px;
+    min-height: 112px;
+    border-radius: 16px;
     padding-inline: 6px;
   }
 
-  .nk-profile-signals__grid > button > span {
-    font-size: 26px;
+  .nk-profile-signals__icon {
+    width: 46px;
+    height: 46px;
   }
 
   .nk-profile-signals__grid > button > strong {
