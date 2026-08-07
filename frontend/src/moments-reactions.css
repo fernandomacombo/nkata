@@ -1,0 +1,159 @@
+/* Reações discretas e predefinidas nos Momentos NKATA. */
+
+.nk-moment-reactions {
+  position: absolute;
+  z-index: 5;
+  right: 18px;
+  bottom: 54px;
+  left: 18px;
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.nk-moment-reactions__buttons,
+.nk-moment-reactions.is-own {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(17, 13, 12, 0.48);
+  padding: 6px;
+  color: white;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+
+.nk-moment-reactions__buttons button {
+  position: relative;
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.nk-moment-reactions__buttons button:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.04);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.nk-moment-reactions__buttons button.is-active {
+  border-color: rgba(255, 255, 255, 0.76);
+  background: rgba(125, 38, 56, 0.74);
+}
+
+.nk-moment-reactions__buttons button:disabled {
+  opacity: 0.64;
+  cursor: wait;
+}
+
+.nk-moment-reactions__buttons button > span {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.nk-moment-reactions__buttons button > em {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  min-width: 19px;
+  height: 19px;
+  place-items: center;
+  border: 2px solid rgba(17, 13, 12, 0.9);
+  border-radius: 999px;
+  background: white;
+  padding-inline: 4px;
+  color: #2c2220;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.nk-moment-reactions.is-own {
+  min-height: 42px;
+  gap: 10px;
+  padding: 7px 11px;
+}
+
+.nk-moment-reactions.is-own span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nk-moment-reactions.is-own span b {
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.nk-moment-reactions.is-own span em {
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.nk-moment-reactions.is-own small {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.nk-moment-reactions.is-loading::after {
+  width: 36px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  content: "";
+}
+
+.nk-moment-reactions__error {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  max-width: 280px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(17, 13, 12, 0.78);
+  padding: 5px 9px;
+  color: white;
+  font-size: 0.58rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.nk-moment-viewer--autoplay .nk-moment-viewer__content > p {
+  bottom: 116px;
+}
+
+@media (max-width: 820px) {
+  .nk-moment-reactions {
+    right: 14px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 54px);
+    left: 14px;
+  }
+
+  .nk-moment-reactions__buttons button {
+    width: 46px;
+    height: 46px;
+  }
+
+  .nk-moment-viewer--autoplay .nk-moment-viewer__content > p {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 122px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-moment-reactions__buttons button {
+    transition: none;
+  }
+}
