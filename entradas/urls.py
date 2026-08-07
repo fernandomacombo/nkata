@@ -48,34 +48,22 @@ urlpatterns = [
     ),
     path(
         "recuperar-senha/",
-        auth_views.PasswordResetView.as_view(
-            template_name="entradas/password_reset_form.html",
-            email_template_name="entradas/password_reset_email.txt",
-            subject_template_name="entradas/password_reset_subject.txt",
-            success_url=reverse_lazy("entradas:password_reset_done"),
-        ),
+        legacy_redirects.recuperar_senha_moderno,
         name="password_reset",
     ),
     path(
         "recuperar-senha/enviado/",
-        auth_views.PasswordResetDoneView.as_view(
-            template_name="entradas/password_reset_done.html",
-        ),
+        legacy_redirects.recuperar_senha_enviado_moderno,
         name="password_reset_done",
     ),
     path(
         "nova-senha/<uidb64>/<token>/",
-        auth_views.PasswordResetConfirmView.as_view(
-            template_name="entradas/password_reset_confirm.html",
-            success_url=reverse_lazy("entradas:password_reset_complete"),
-        ),
+        legacy_redirects.nova_senha_moderno,
         name="password_reset_confirm",
     ),
     path(
         "nova-senha/concluido/",
-        auth_views.PasswordResetCompleteView.as_view(
-            template_name="entradas/password_reset_complete.html",
-        ),
+        legacy_redirects.nova_senha_concluida_moderno,
         name="password_reset_complete",
     ),
     path(
