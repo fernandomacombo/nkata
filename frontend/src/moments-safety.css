@@ -1,0 +1,261 @@
+/* Ajustes de segurança e apresentação dos Momentos NKATA. */
+
+.nk-moment-viewer {
+  z-index: 10000;
+  padding: clamp(14px, 2vw, 28px);
+}
+
+.nk-moment-viewer__frame {
+  width: min(440px, calc(100vw - 32px));
+  height: min(780px, calc(100dvh - 32px));
+  aspect-ratio: 9 / 16;
+  border-radius: 26px;
+}
+
+.nk-moment-viewer__content > p {
+  font-size: clamp(1.1rem, 2.1vw, 1.5rem);
+}
+
+.nk-moment-composer__safety-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(63, 105, 89, 0.14);
+  border-radius: 17px;
+  background: rgba(232, 241, 236, 0.68);
+  padding: 12px 13px;
+  color: #315c4c;
+}
+
+.nk-moment-composer__safety-note > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.nk-moment-composer__safety-note strong,
+.nk-moment-composer__safety-note span {
+  display: block;
+}
+
+.nk-moment-composer__safety-note strong {
+  font-size: 0.78rem;
+}
+
+.nk-moment-composer__safety-note span {
+  margin-top: 3px;
+  color: #59756a;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.nk-moment-composer__caption {
+  display: grid;
+  gap: 7px;
+}
+
+.nk-moment-composer__caption > span {
+  color: var(--nk-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.nk-moment-composer__caption select {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid rgba(61, 47, 42, 0.12);
+  border-radius: 16px;
+  background: #fbf8f4;
+  padding: 0 42px 0 14px;
+  color: var(--nk-ink);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.nk-moment-composer__preview > span {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  left: 9px;
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: rgba(15, 12, 11, 0.76);
+  padding: 7px 10px;
+  color: white;
+  font-size: 0.63rem;
+  font-weight: 800;
+  backdrop-filter: blur(10px);
+}
+
+.nk-moment-review {
+  width: min(820px, 100%);
+  margin: 20px auto 0;
+  border: 1px solid rgba(61, 47, 42, 0.1);
+  border-radius: 24px;
+  background: rgba(255, 253, 249, 0.85);
+  padding: 17px;
+}
+
+.nk-moment-review__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nk-moment-review__heading h2 {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.nk-moment-review__heading p {
+  margin: 4px 0 0;
+  color: var(--nk-muted);
+  font-size: 0.72rem;
+}
+
+.nk-moment-review__heading > span {
+  display: grid;
+  min-width: 29px;
+  height: 29px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--nk-wine-soft);
+  color: var(--nk-wine);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.nk-moment-review__list {
+  display: grid;
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.nk-moment-review-item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(61, 47, 42, 0.09);
+  border-radius: 18px;
+  background: #fbf8f4;
+  padding: 9px;
+}
+
+.nk-moment-review-item.is-pending {
+  border-color: rgba(166, 116, 49, 0.18);
+  background: #fcf7ed;
+}
+
+.nk-moment-review-item.is-rejected {
+  border-color: rgba(125, 38, 56, 0.16);
+  background: #fbf0f2;
+}
+
+.nk-moment-review-item__media {
+  display: grid;
+  width: 72px;
+  height: 82px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #e9e0d8;
+  color: var(--nk-wine);
+}
+
+.nk-moment-review-item__media img,
+.nk-moment-review-item__media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nk-moment-review-item > div:nth-child(2) {
+  min-width: 0;
+}
+
+.nk-moment-review-item strong {
+  font-size: 0.78rem;
+}
+
+.nk-moment-review-item p {
+  margin: 4px 0 0;
+  color: var(--nk-muted);
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+
+.nk-moment-review-item > button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(125, 38, 56, 0.08);
+  color: var(--nk-wine);
+}
+
+@media (min-width: 821px) {
+  .nk-moment-viewer {
+    background: rgba(11, 9, 9, 0.96);
+  }
+
+  .nk-moment-viewer__frame {
+    max-height: 90dvh;
+  }
+}
+
+@media (max-width: 820px) {
+  .nk-moment-viewer {
+    padding: 0;
+    background: #0f0c0b;
+  }
+
+  .nk-moment-viewer__frame {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+  }
+
+  .nk-moment-composer__controls {
+    align-items: stretch;
+  }
+
+  .nk-moment-composer__controls,
+  .nk-moment-composer__controls > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .nk-moment-composer__media,
+  .nk-moment-composer__visibility select,
+  .nk-moment-composer__controls > .nk-button {
+    width: 100%;
+    min-height: 50px;
+  }
+
+  .nk-moment-review {
+    border-radius: 20px;
+    padding: 13px;
+  }
+
+  .nk-moment-review-item {
+    grid-template-columns: 60px minmax(0, 1fr) 38px;
+  }
+
+  .nk-moment-review-item__media {
+    width: 60px;
+    height: 70px;
+  }
+}
