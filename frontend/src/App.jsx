@@ -10,6 +10,7 @@ import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import MatchesPage from "./pages/MatchesPage.jsx";
+import MemberHomePage from "./pages/MemberHomePage.jsx";
 import MomentsPage from "./pages/MomentsPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
@@ -664,17 +665,24 @@ export default function App() {
         session={session}
         sessionLoading={sessionLoading}
         onSignOut={handleSignOut}
-        heroMode={activePage === "home"}
+        heroMode={activePage === "home" && !authenticated}
       />
 
       {activePage === "home" && (
-        <HomePage
-          profiles={profiles}
-          onNavigate={handleNavigate}
-          onOpenProfile={handleOpenProfile}
-          isSaved={isSaved}
-          onToggleSaved={toggleSaved}
-        />
+        authenticated ? (
+          <MemberHomePage
+            onNavigate={handleNavigate}
+            onOpenProfile={handleOpenProfile}
+          />
+        ) : (
+          <HomePage
+            profiles={profiles}
+            onNavigate={handleNavigate}
+            onOpenProfile={handleOpenProfile}
+            isSaved={isSaved}
+            onToggleSaved={toggleSaved}
+          />
+        )
       )}
 
       {activePage === "discover" && (
