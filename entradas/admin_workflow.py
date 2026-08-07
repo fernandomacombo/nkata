@@ -64,7 +64,8 @@ def aplicar_fluxo_de_aprovacao_admin():
                 '<div style="line-height:1.6;">'
                 '<span style="color:#666;">O questionário só fica disponível depois da aprovação.</span><br>'
                 '<a href="{}" target="_blank" rel="noopener" style="font-weight:700;color:#8a293a;">'
-                'Pré-visualizar endereço do questionário'</n                '</a></div>',
+                'Pré-visualizar endereço do questionário'
+                '</a></div>',
                 url,
             )
 
