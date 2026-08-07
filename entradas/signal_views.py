@@ -23,19 +23,19 @@ SIGNAL_DEFINITIONS = {
     "FLOR": {
         "db_type": "SINAL_FLOR",
         "label": "Flor",
-        "emoji": "🌹",
+        "icon": "flower",
         "message": "Uma flor para mostrar que este perfil chamou a sua atenção.",
     },
     "BEIJINHO": {
         "db_type": "SINAL_BEIJINHO",
         "label": "Beijinho",
-        "emoji": "😘",
-        "message": "Um beijinho carinhoso, sem abrir uma conversa privada.",
+        "icon": "heart",
+        "message": "Um gesto carinhoso, sem abrir uma conversa privada.",
     },
     "OLA": {
         "db_type": "SINAL_OLA",
         "label": "Olá",
-        "emoji": "👋",
+        "icon": "hand",
         "message": "Olá, gostei do seu perfil e gostaria de conhecer melhor.",
     },
 }
@@ -91,7 +91,7 @@ def _signal_payload(item):
     return {
         "type": item["db_type"].removeprefix("SINAL_"),
         "label": item["label"],
-        "emoji": item["emoji"],
+        "icon": item["icon"],
         "message": item["message"],
     }
 
@@ -164,7 +164,7 @@ def api_sinais_perfil(request, perfil_id):
         if already_sent:
             return Response(
                 {
-                    "detail": f"Já enviou {definition['emoji']} {definition['label']} para este perfil hoje.",
+                    "detail": f"Já enviou {definition['label']} para este perfil hoje.",
                     "code": "signal_already_sent_today",
                     **_availability_payload(request.user, perfil_alvo),
                 },
@@ -203,10 +203,7 @@ def api_sinais_perfil(request, perfil_id):
             "ok": True,
             "signal": _signal_payload(definition),
             "source": source,
-            "message": (
-                f"{definition['emoji']} {definition['label']} enviado para "
-                f"{perfil_alvo.nome_publico}."
-            ),
+            "message": f"{definition['label']} enviado para {perfil_alvo.nome_publico}.",
             **payload,
         },
         status=201,
