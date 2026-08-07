@@ -6,18 +6,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 
-@api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated])
-def api_alterar_palavra_passe(request):
-    current_password = str(request.data.get("current_password", ""))
-    new_password = str(request.data.get("new_password", ""))
-    confirmation = str(request.data.get("confirmation", ""))
-
+def password_change_errors(user, current_password, new_password, confirmation):
     errors = {}
 
     if not current_password:
         errors["current_password"] = ["Escreva a sua palavra-passe atual."]
-    elif not request.user.check_password(current_password):
+    elif not user.check_password(current_password):
         errors["current_password"] = ["A palavra-passe atual não está correta."]
 
     if not new_password:
@@ -27,6 +21,23 @@ def api_alterar_palavra_passe(request):
 
     if new_password != confirmation:
         errors["confirmation"] = ["As palavras-passe não coincidem."]
+
+    return errors
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def api_alterar_palavra_passe(request):
+    current_password = str(request.data.get("current_password", ""))
+    new_password = str(request.data.get("new_password", ""))
+    confirmation = str(request.data.get("confirmation", ""))
+
+    errors = password_change_errors(
+        request.user,
+        current_password,
+        new_password,
+        confirmation,
+    )
 
     if errors:
         return Response(
