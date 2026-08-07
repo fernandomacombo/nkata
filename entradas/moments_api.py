@@ -1,8 +1,10 @@
+import mimetypes
 import os
 
 from PIL import Image, UnidentifiedImageError
 from django.db import DatabaseError
 from django.db.models import Q
+from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -50,11 +52,16 @@ def _moment_payload(request, momento):
         0,
         int((momento.expira_em - timezone.now()).total_seconds()),
     )
+    media_url = (
+        request.build_absolute_uri(f"/api/momentos/{momento.id}/media/")
+        if momento.media
+        else None
+    )
     return {
         "id": momento.id,
         "profile": _profile_payload(request, momento.perfil),
         "text": momento.texto,
-        "media_url": _absolute_file_url(request, momento.media),
+        "media_url": media_url,
         "media_type": momento.tipo_media,
         "visibility": momento.visibilidade,
         "visibility_label": momento.get_visibilidade_display(),
@@ -251,6 +258,34 @@ def api_momentos(request):
         },
         status=201,
     )
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def api_media_momento(request, momento_id):
+    perfil = _perfil_do_utilizador(request.user)
+    if not perfil or perfil.status != "ATIVO":
+        return Response({"detail": "Conteúdo não disponível."}, status=404)
+
+    try:
+        momento = _feed_queryset(request.user, perfil).filter(id=momento_id).first()
+    except DatabaseError:
+        return Response({"detail": "Conteúdo não disponível."}, status=404)
+
+    if not momento or not momento.media:
+        return Response({"detail": "Conteúdo não disponível."}, status=404)
+
+    try:
+        file_handle = momento.media.open("rb")
+    except (FileNotFoundError, OSError, ValueError):
+        return Response({"detail": "Conteúdo não disponível."}, status=404)
+
+    content_type = mimetypes.guess_type(momento.media.name)[0] or "application/octet-stream"
+    response = FileResponse(file_handle, content_type=content_type)
+    response["Content-Disposition"] = f'inline; filename="{os.path.basename(momento.media.name)}"'
+    response["Cache-Control"] = "private, max-age=300"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @api_view(["DELETE"])
