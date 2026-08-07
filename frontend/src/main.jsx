@@ -7,6 +7,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import AccessRequestPage from "./pages/AccessRequestPage.jsx";
 import AccessStatusPage from "./pages/AccessStatusPage.jsx";
+import PasswordResetConfirmPage from "./pages/PasswordResetConfirmPage.jsx";
+import PasswordResetPage from "./pages/PasswordResetPage.jsx";
 import QuestionnairePage from "./pages/QuestionnairePage.jsx";
 import "./styles.css";
 import "./profile-detail.css";
@@ -29,14 +31,19 @@ import "./mobile-menu.css";
 import "./mobile-menu-close-fix.css";
 import "./community-empty.css";
 import "./questionnaire.css";
+import "./password-recovery.css";
 
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
   : `${window.location.pathname}/`;
 const accessMode = normalizedPath === "/pedir-acesso/";
 const accessStatusMode = normalizedPath === "/acompanhar-pedido/";
+const passwordResetMode = normalizedPath === "/recuperar-senha/";
 const questionnaireMatch = normalizedPath.match(/^\/questionario\/([0-9a-f-]{36})\/$/i);
 const questionnaireToken = questionnaireMatch?.[1] || "";
+const passwordResetConfirmMatch = normalizedPath.match(/^\/nova-senha\/([^/]+)\/([^/]+)\/$/);
+const passwordResetUid = passwordResetConfirmMatch?.[1] || "";
+const passwordResetToken = passwordResetConfirmMatch?.[2] || "";
 
 function go(path) {
   window.location.assign(path);
@@ -62,6 +69,19 @@ createRoot(document.getElementById("root")).render(
         token={questionnaireToken}
         onBack={() => go("/")}
         onLogin={() => go("/entrar/")}
+      />
+    ) : passwordResetMode ? (
+      <PasswordResetPage
+        onBack={() => go("/")}
+        onLogin={() => go("/entrar/")}
+      />
+    ) : passwordResetUid && passwordResetToken ? (
+      <PasswordResetConfirmPage
+        uid={passwordResetUid}
+        token={passwordResetToken}
+        onBack={() => go("/")}
+        onLogin={() => go("/entrar/")}
+        onRestart={() => go("/recuperar-senha/")}
       />
     ) : (
       <App />
