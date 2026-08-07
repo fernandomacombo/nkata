@@ -7,6 +7,7 @@ from . import (
     interest_views,
     notification_views,
     password_reset_api,
+    profile_api,
     questionnaire_api,
     saved_views,
     signal_views,
@@ -60,8 +61,8 @@ urlpatterns = [
         questionnaire_api.api_criar_senha_questionario,
         name="questionario_criar_senha",
     ),
-    path("perfis/", api_views.api_perfis, name="perfis"),
-    path("perfis/<int:perfil_id>/", api_views.api_perfil_detalhe, name="perfil_detalhe"),
+    path("perfis/", profile_api.api_perfis, name="perfis"),
+    path("perfis/<int:perfil_id>/", profile_api.api_perfil_detalhe, name="perfil_detalhe"),
     path(
         "perfis/<int:perfil_id>/interesse/",
         interest_views.api_alternar_interesse,
