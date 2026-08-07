@@ -10,6 +10,7 @@ import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import MatchesPage from "./pages/MatchesPage.jsx";
+import MomentsPage from "./pages/MomentsPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
 import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
@@ -29,6 +30,8 @@ import {
   toggleProfileInterest,
   updateMyAccount,
 } from "./services/api.js";
+
+const AUTH_ONLY_PAGES = ["moments", "matches", "conversation", "notifications", "account"];
 
 export default function App() {
   const {
@@ -180,9 +183,6 @@ export default function App() {
   useEffect(() => {
     if (sessionLoading) return undefined;
 
-    // A descoberta depende da conta atual. Ao entrar, sair ou trocar de
-    // utilizador, elimina imediatamente o próprio perfil conhecido e volta a
-    // consultar a API para não conservar a lista da sessão anterior.
     if (authenticated && session?.profile?.id) {
       setProfiles((current) => current.filter(
         (profile) => String(profile.id) !== String(session.profile.id),
@@ -243,7 +243,7 @@ export default function App() {
   useEffect(() => {
     if (sessionLoading) return;
 
-    if (["matches", "conversation", "notifications", "account"].includes(activePage) && !authenticated) {
+    if (AUTH_ONLY_PAGES.includes(activePage) && !authenticated) {
       const returnPage = activePage === "conversation" ? "matches" : activePage;
       setReturnPageAfterLogin(returnPage);
       setLoginError("");
@@ -368,7 +368,7 @@ export default function App() {
       return;
     }
 
-    if (["matches", "notifications", "account"].includes(page) && !authenticated) {
+    if (["moments", "matches", "notifications", "account"].includes(page) && !authenticated) {
       openLogin(page);
       return;
     }
@@ -403,7 +403,7 @@ export default function App() {
       setAccount(null);
       setAccountInterests([]);
       setNotifications([]);
-      if (["matches", "conversation", "notifications", "account"].includes(activePage)) {
+      if (AUTH_ONLY_PAGES.includes(activePage)) {
         setActivePage("home", { replace: true });
       }
     }
@@ -690,6 +690,10 @@ export default function App() {
         />
       )}
 
+      {activePage === "moments" && authenticated && (
+        <MomentsPage onOpenProfile={handleOpenProfile} />
+      )}
+
       {activePage === "saved" && (
         <SavedProfilesPage
           savedProfiles={savedProfiles}
@@ -787,7 +791,6 @@ export default function App() {
         activePage={visiblePage}
         onNavigate={handleNavigate}
         unreadMatches={totalUnread}
-        unreadNotifications={unreadNotifications}
       />
     </div>
   );
