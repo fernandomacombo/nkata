@@ -1,0 +1,24 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block submit_buttons_bottom %}
+  {% if original %}
+    <div class="submit-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      {% if original.moderacao_status != "APROVADO" %}
+        <button type="submit" name="_aprovar_publicacao" class="default" style="background:#245c43;">
+          Aprovar Publicação
+        </button>
+      {% endif %}
+
+      {% if original.moderacao_status != "REJEITADO" %}
+        <button type="submit" name="_rejeitar_publicacao" style="background:#7d2638;color:white;">
+          Rejeitar
+        </button>
+      {% endif %}
+
+      <button type="submit" name="_rejeitar_pausar_publicacao" style="background:#4a2029;color:white;">
+        Rejeitar e pausar perfil
+      </button>
+    </div>
+  {% endif %}
+{% endblock %}
