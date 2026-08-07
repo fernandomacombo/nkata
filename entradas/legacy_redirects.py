@@ -24,3 +24,11 @@ def nova_senha_moderno(request, uidb64, token):
 
 def nova_senha_concluida_moderno(request):
     return redirect(f"{settings.NKATA_FRONTEND_URL}/entrar/")
+
+
+def alterar_senha_moderno(request):
+    return redirect(f"{settings.NKATA_FRONTEND_URL}/alterar-senha/")
+
+
+def alterar_senha_concluida_moderno(request):
+    return redirect(f"{settings.NKATA_FRONTEND_URL}/conta/")
