@@ -92,6 +92,11 @@ urlpatterns = [
     ),
     path("momentos/", moments_api.api_momentos, name="momentos"),
     path(
+        "momentos/<int:momento_id>/media/",
+        moments_api.api_media_momento,
+        name="media_momento",
+    ),
+    path(
         "momentos/<int:momento_id>/",
         moments_api.api_apagar_momento,
         name="apagar_momento",
