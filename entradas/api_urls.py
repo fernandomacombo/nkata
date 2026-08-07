@@ -1,6 +1,13 @@
 from django.urls import path
 
-from . import access_api, api_views, interest_views, notification_views, saved_views
+from . import (
+    access_api,
+    api_views,
+    interest_views,
+    notification_views,
+    questionnaire_api,
+    saved_views,
+)
 
 app_name = "entradas_api"
 
@@ -14,6 +21,16 @@ urlpatterns = [
         "acompanhar-pedido/",
         access_api.api_acompanhar_pedido,
         name="acompanhar_pedido",
+    ),
+    path(
+        "questionario/<uuid:token>/",
+        questionnaire_api.api_questionario,
+        name="questionario",
+    ),
+    path(
+        "questionario/<uuid:token>/criar-senha/",
+        questionnaire_api.api_criar_senha_questionario,
+        name="questionario_criar_senha",
     ),
     path("perfis/", api_views.api_perfis, name="perfis"),
     path("perfis/<int:perfil_id>/", api_views.api_perfil_detalhe, name="perfil_detalhe"),
