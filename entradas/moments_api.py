@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from PIL import Image, UnidentifiedImageError
 from django.db import DatabaseError
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import permissions
@@ -22,8 +22,6 @@ ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".m4v"}
 VALID_VISIBILITIES = {"TODOS", "MATCHES"}
 
-# Não existe texto livre em Momentos. A API transforma apenas códigos desta
-# lista em frases aprovadas previamente pelo NKATA.
 MOMENT_CAPTIONS = [
     {"value": "SEM_LEGENDA", "label": "Sem legenda", "text": ""},
     {"value": "DIA_TRANQUILO", "label": "Um dia tranquilo por aqui.", "text": "Um dia tranquilo por aqui."},
@@ -110,8 +108,18 @@ def _matched_profile_ids(perfil):
     return ids
 
 
+def _followed_profile_ids(user):
+    return set(
+        AcaoPerfil.objects.filter(
+            usuario=user,
+            tipo="SEGUIR",
+        ).values_list("perfil_id", flat=True)
+    )
+
+
 def _feed_queryset(user, perfil):
     matched_ids = _matched_profile_ids(perfil)
+    followed_ids = _followed_profile_ids(user)
     blocked_profile_ids = set(
         AcaoPerfil.objects.filter(
             usuario=user,
@@ -140,6 +148,10 @@ def _feed_queryset(user, perfil):
             perfil__visivel=True,
         )
 
+    priority_cases = [When(usuario=user, then=Value(0))]
+    if followed_ids:
+        priority_cases.append(When(perfil_id__in=followed_ids, then=Value(1)))
+
     qs = (
         MomentoNKATA.objects
         .filter(
@@ -148,7 +160,14 @@ def _feed_queryset(user, perfil):
         )
         .filter(visibility)
         .select_related("perfil", "perfil__pedido", "usuario")
-        .order_by("-criado_em")
+        .annotate(
+            relationship_priority=Case(
+                *priority_cases,
+                default=Value(2),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("relationship_priority", "-criado_em")
     )
     if blocked_profile_ids:
         qs = qs.exclude(perfil_id__in=blocked_profile_ids)
@@ -251,8 +270,6 @@ def api_momentos(request):
             "capabilities": _capabilities(request.user),
         })
 
-    # Rejeita explicitamente tentativas de contornar a interface e enviar texto
-    # livre diretamente para a API.
     free_text = str(request.data.get("texto", "") or "").strip()
     if free_text:
         return Response(
@@ -304,9 +321,6 @@ def api_momentos(request):
             status=403,
         )
 
-    # Frases predefinidas sem media podem ser publicadas imediatamente porque
-    # o utilizador não controla o conteúdo textual. Foto/vídeo entra sempre na
-    # fila de moderação e as 24 horas só começam após aprovação.
     moderation_status = "PENDENTE" if media else "APROVADO"
     expires_at = timezone.now() + timedelta(hours=MOMENT_LIFETIME_HOURS)
 
@@ -360,7 +374,6 @@ def api_media_momento(request, momento_id):
         if request.user.is_staff:
             momento = MomentoNKATA.objects.filter(id=momento_id).first()
         else:
-            # O autor pode rever o próprio ficheiro pendente/rejeitado.
             momento = MomentoNKATA.objects.filter(
                 id=momento_id,
                 usuario=request.user,
