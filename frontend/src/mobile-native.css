@@ -1,0 +1,661 @@
+/*
+ * NKATA App Mode
+ * Experiência mobile-first com comportamento próximo de uma aplicação nativa.
+ * Ativa apenas em ecrãs pequenos; o layout desktop permanece independente.
+ */
+
+@media (max-width: 820px) {
+  :root {
+    --nk-mobile-gutter: 16px;
+    --nk-mobile-topbar: 62px;
+    --nk-mobile-tabbar: 70px;
+    --nk-mobile-radius: 22px;
+    --nk-mobile-radius-sm: 16px;
+  }
+
+  html {
+    min-height: 100%;
+    background: #f6f1eb;
+    overscroll-behavior-y: none;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    margin: 0;
+    background: #f6f1eb;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    touch-action: manipulation;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #root,
+  .nk-app {
+    min-height: 100dvh;
+  }
+
+  .nk-app {
+    overflow-x: clip;
+    background: #f6f1eb;
+  }
+
+  .nk-shell {
+    width: 100%;
+    max-width: none;
+    padding-inline: var(--nk-mobile-gutter);
+  }
+
+  /* Top app bar */
+  .nk-header {
+    position: sticky;
+    z-index: 80;
+    top: 0;
+    width: 100%;
+    border-bottom: 1px solid rgba(55, 43, 38, 0.08);
+    background: rgba(249, 245, 240, 0.92);
+    padding-top: env(safe-area-inset-top, 0px);
+    box-shadow: 0 5px 22px rgba(42, 31, 27, 0.045);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+  }
+
+  .nk-header--hero {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    border-bottom: 0;
+    background: linear-gradient(180deg, rgba(14, 11, 10, 0.62), rgba(14, 11, 10, 0));
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .nk-header__inner {
+    min-height: var(--nk-mobile-topbar);
+    padding-inline: var(--nk-mobile-gutter);
+  }
+
+  .nk-brand {
+    min-height: 44px;
+    gap: 9px;
+  }
+
+  .nk-brand__mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    font-size: 0.92rem;
+  }
+
+  .nk-brand__word {
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+  }
+
+  .nk-header__actions {
+    gap: 6px;
+  }
+
+  .nk-private-status,
+  .nk-header__logout,
+  .nk-header__request,
+  .nk-header__login,
+  .nk-header__member span {
+    display: none !important;
+  }
+
+  .nk-header__notifications,
+  .nk-header__member,
+  .nk-header__menu,
+  .nk-icon-button.nk-header__menu {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+    padding: 0;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+  }
+
+  .nk-header__member {
+    border: 1px solid rgba(55, 43, 38, 0.1);
+    background: rgba(255, 253, 249, 0.75);
+  }
+
+  .nk-header--hero .nk-brand,
+  .nk-header--hero .nk-header__notifications,
+  .nk-header--hero .nk-header__member,
+  .nk-header--hero .nk-header__menu {
+    color: #fff;
+  }
+
+  .nk-header--hero .nk-header__member,
+  .nk-header--hero .nk-header__notifications,
+  .nk-header--hero .nk-header__menu {
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(15, 12, 11, 0.28);
+  }
+
+  /* Native-style tab bar for authenticated members */
+  body:has(.nk-header__member) {
+    padding-bottom: calc(var(--nk-mobile-tabbar) + env(safe-area-inset-bottom, 0px) + 18px);
+  }
+
+  body:has(.nk-header__member) .nk-bottom-nav {
+    position: fixed;
+    z-index: 90;
+    right: 10px;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    left: 10px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-height: var(--nk-mobile-tabbar);
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid rgba(57, 45, 40, 0.1);
+    border-radius: 24px;
+    background: rgba(255, 253, 249, 0.94);
+    padding: 6px 4px;
+    box-shadow: 0 18px 46px rgba(39, 28, 24, 0.17);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    backdrop-filter: blur(24px) saturate(160%);
+  }
+
+  .nk-bottom-nav > button {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    min-height: 56px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 0;
+    border-radius: 18px;
+    background: transparent;
+    padding: 4px 2px;
+    color: #867b75;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .nk-bottom-nav > button.is-active {
+    background: rgba(125, 38, 56, 0.075);
+    color: var(--nk-wine);
+  }
+
+  .nk-bottom-nav__icon {
+    position: relative;
+    display: grid;
+    width: 30px;
+    height: 28px;
+    place-items: center;
+  }
+
+  .nk-bottom-nav__icon em {
+    position: absolute;
+    top: -3px;
+    right: -8px;
+    display: grid;
+    min-width: 18px;
+    height: 18px;
+    place-items: center;
+    border: 2px solid #fffdfa;
+    border-radius: 999px;
+    background: var(--nk-wine);
+    padding: 0 4px;
+    color: white;
+    font-size: 0.53rem;
+    font-style: normal;
+    line-height: 1;
+  }
+
+  /* Main screens: remove desktop breathing room and use app rhythm */
+  .nk-discover,
+  .nk-matches,
+  .nk-notifications,
+  .nk-account,
+  .nk-saved,
+  .nk-profile-detail {
+    min-height: calc(100dvh - var(--nk-mobile-topbar));
+    background: #f6f1eb;
+  }
+
+  .nk-discover__intro,
+  .nk-matches__intro,
+  .nk-notifications__intro,
+  .nk-account__intro {
+    border-bottom: 1px solid rgba(59, 47, 42, 0.08);
+    background: rgba(255, 253, 249, 0.56);
+    padding: 24px 0 20px;
+  }
+
+  .nk-discover__intro-grid,
+  .nk-matches__intro-inner,
+  .nk-notifications__intro-inner,
+  .nk-account__intro-inner {
+    display: grid;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .nk-discover__intro h1,
+  .nk-matches__intro h1,
+  .nk-notifications__intro h1,
+  .nk-account__intro h1 {
+    margin-top: 10px;
+    font-size: clamp(2rem, 9vw, 2.75rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+  }
+
+  .nk-discover__intro p,
+  .nk-matches__intro p,
+  .nk-notifications__intro p,
+  .nk-account__intro p {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .nk-discover__privacy {
+    border-radius: var(--nk-mobile-radius-sm);
+    padding: 12px 13px;
+  }
+
+  .nk-discover__content,
+  .nk-matches__content,
+  .nk-notifications__content,
+  .nk-account__layout {
+    padding-top: 16px;
+    padding-bottom: 24px;
+  }
+
+  .nk-results-heading {
+    align-items: center;
+    gap: 10px;
+    margin-block: 16px 12px;
+  }
+
+  .nk-results-heading > button,
+  .nk-matches__refresh,
+  .nk-account__reload,
+  .nk-account__preview-button {
+    min-height: 42px;
+    border-radius: 14px;
+  }
+
+  /* Profiles become a touch-first card stream */
+  .nk-profile-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .nk-profile-card,
+  .nk-profile-skeleton {
+    border-radius: var(--nk-mobile-radius);
+    box-shadow: 0 8px 28px rgba(48, 36, 31, 0.075);
+  }
+
+  .nk-profile-card__media {
+    min-height: 0;
+    aspect-ratio: 4 / 4.7;
+  }
+
+  .nk-profile-card__content {
+    padding: 15px 15px 14px;
+  }
+
+  .nk-profile-card__footer button,
+  .nk-profile-card__save {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Profile detail behaves like a native detail screen */
+  .nk-profile-detail > .nk-shell {
+    padding-inline: 0;
+  }
+
+  .nk-profile-detail__back {
+    min-height: 44px;
+    margin: 10px var(--nk-mobile-gutter) 8px;
+  }
+
+  .nk-profile-detail__layout {
+    display: block;
+  }
+
+  .nk-profile-detail__media {
+    width: 100%;
+    min-height: 0;
+    aspect-ratio: 4 / 4.6;
+    border-radius: 0 0 28px 28px;
+  }
+
+  .nk-profile-detail__content {
+    padding: 22px var(--nk-mobile-gutter) 28px;
+  }
+
+  .nk-profile-detail__heading {
+    display: grid;
+    gap: 16px;
+  }
+
+  .nk-profile-detail__quick-actions {
+    justify-content: flex-start;
+  }
+
+  .nk-profile-detail__quick-actions button,
+  .nk-profile-detail__actions button,
+  .nk-profile-signals button {
+    min-height: 48px;
+  }
+
+  .nk-profile-detail__block,
+  .nk-profile-detail__assurance,
+  .nk-profile-signals,
+  .nk-profile-safety {
+    border-radius: var(--nk-mobile-radius-sm);
+  }
+
+  /* Matches: native inbox rows instead of desktop cards */
+  .nk-match-list {
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid rgba(57, 45, 40, 0.08);
+    border-radius: var(--nk-mobile-radius);
+    background: rgba(255, 253, 249, 0.9);
+  }
+
+  .nk-match-card {
+    grid-template-columns: 62px minmax(0, 1fr) auto;
+    gap: 12px;
+    border: 0;
+    border-bottom: 1px solid rgba(57, 45, 40, 0.07);
+    border-radius: 0;
+    background: transparent;
+    padding: 11px 12px;
+    box-shadow: none;
+  }
+
+  .nk-match-card:last-child {
+    border-bottom: 0;
+  }
+
+  .nk-match-card__photo {
+    width: 62px;
+    height: 62px;
+    border-radius: 19px;
+  }
+
+  .nk-match-card__topline strong {
+    font-size: 1.04rem;
+  }
+
+  /* Conversation: full-height app screen */
+  .nk-conversation {
+    height: calc(100dvh - var(--nk-mobile-topbar) - env(safe-area-inset-top, 0px));
+    min-height: 0;
+    overflow: hidden;
+    background: #f8f4ef;
+    padding: 0;
+  }
+
+  .nk-conversation__shell {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: #fffdfa;
+    box-shadow: none;
+  }
+
+  .nk-conversation__header {
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    min-height: 64px;
+    padding: 8px 10px;
+    background: rgba(255, 253, 249, 0.96);
+  }
+
+  .nk-conversation__back {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 14px;
+  }
+
+  .nk-conversation__back span,
+  .nk-conversation__secure {
+    display: none;
+  }
+
+  .nk-conversation__person {
+    min-width: 0;
+    justify-self: center;
+  }
+
+  .nk-conversation__avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .nk-conversation__person > div {
+    min-width: 0;
+  }
+
+  .nk-conversation__person strong,
+  .nk-conversation__person small {
+    overflow: hidden;
+    max-width: 45vw;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .nk-conversation__options {
+    justify-self: end;
+  }
+
+  .nk-conversation__options-trigger {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .nk-conversation__body {
+    min-height: 0;
+    overscroll-behavior: contain;
+    padding: 14px 12px 18px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nk-conversation__opening {
+    margin-bottom: 16px;
+    border-radius: 15px;
+    padding: 10px 11px;
+  }
+
+  .nk-message-list {
+    gap: 7px;
+  }
+
+  .nk-message-bubble {
+    max-width: 84%;
+    border-radius: 19px 19px 19px 6px;
+    padding: 9px 12px 7px;
+    box-shadow: none;
+  }
+
+  .nk-message-row.is-mine .nk-message-bubble {
+    border-radius: 19px 19px 6px 19px;
+  }
+
+  .nk-composer {
+    position: relative;
+    z-index: 2;
+    gap: 8px;
+    min-height: 66px;
+    border-top: 1px solid rgba(57, 45, 40, 0.08);
+    background: rgba(255, 253, 249, 0.98);
+    padding: 9px 10px calc(9px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-composer label {
+    min-width: 0;
+  }
+
+  .nk-composer textarea {
+    min-height: 44px;
+    max-height: 112px;
+    border-radius: 18px;
+    font-size: 16px;
+  }
+
+  .nk-composer__count {
+    display: none;
+  }
+
+  .nk-composer__send {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: 16px;
+  }
+
+  .nk-composer__send span {
+    display: none;
+  }
+
+  /* Account: stacked native settings/profile screen */
+  .nk-account__layout {
+    display: block;
+  }
+
+  .nk-account__sidebar,
+  .nk-account__main {
+    width: 100%;
+  }
+
+  .nk-account-card,
+  .nk-account-form,
+  .nk-account-interests,
+  .nk-account-security,
+  .nk-account__stats,
+  .nk-account__member-since {
+    border-radius: var(--nk-mobile-radius);
+    box-shadow: 0 8px 28px rgba(48, 36, 31, 0.055);
+  }
+
+  .nk-account-form__heading {
+    display: grid;
+    gap: 14px;
+  }
+
+  .nk-account-form__heading .nk-button {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .nk-account-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nk-account-form input,
+  .nk-account-form select,
+  .nk-account-form textarea {
+    font-size: 16px;
+  }
+
+  /* General mobile touch ergonomics */
+  .nk-button {
+    min-height: 46px;
+  }
+
+  .nk-empty-state,
+  .nk-matches__empty,
+  .nk-conversation__empty-card,
+  .nk-account__empty {
+    border-radius: var(--nk-mobile-radius);
+    padding: 34px 20px;
+  }
+
+  /* Standalone auth/access flows also behave like app screens */
+  .nk-access,
+  .nk-access-status,
+  .nk-questionnaire,
+  .nk-password-reset,
+  .nk-password-reset-confirm,
+  .nk-password-change {
+    min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .nk-access-topbar,
+  .nk-access-status-topbar,
+  .nk-questionnaire-topbar,
+  .nk-password-recovery-topbar,
+  .nk-password-change-topbar {
+    width: 100%;
+    min-height: calc(62px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-inline: var(--nk-mobile-gutter);
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 390px) {
+  :root {
+    --nk-mobile-gutter: 13px;
+  }
+
+  .nk-brand__word {
+    display: none;
+  }
+
+  .nk-bottom-nav > button {
+    font-size: 0.58rem;
+  }
+
+  .nk-profile-detail__content {
+    padding-inline: 13px;
+  }
+
+  .nk-conversation__person strong,
+  .nk-conversation__person small {
+    max-width: 42vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-bottom-nav,
+  .nk-header {
+    scroll-behavior: auto;
+  }
+}
