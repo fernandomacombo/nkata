@@ -38,6 +38,7 @@ import "./password-change.css";
 import "./plan.css";
 import "./mobile-native.css";
 import "./mobile-native-screens.css";
+import "./moments.css";
 
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
