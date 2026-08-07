@@ -57,8 +57,6 @@ const questionnaireToken = questionnaireMatch?.[1] || "";
 const passwordResetConfirmMatch = normalizedPath.match(/^\/nova-senha\/([^/]+)\/([^/]+)\/$/);
 const passwordResetUid = passwordResetConfirmMatch?.[1] || "";
 const passwordResetToken = passwordResetConfirmMatch?.[2] || "";
-const profileDetailMatch = normalizedPath.match(/^\/perfis\/(\d+)\/$/);
-const profileDetailId = profileDetailMatch?.[1] || "";
 
 function go(path) {
   window.location.assign(path);
@@ -106,7 +104,7 @@ createRoot(document.getElementById("root")).render(
     ) : (
       <>
         <App />
-        {profileDetailId && <ProfileFollowAction profileId={profileDetailId} />}
+        <ProfileFollowAction />
       </>
     )}
   </React.StrictMode>
