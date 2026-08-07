@@ -33,7 +33,7 @@ def _bloqueio_entre_perfis(perfil_a, perfil_b):
     return bool(conditions) and AcaoPerfil.objects.filter(conditions).exists()
 
 
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
 @transaction.atomic
 def api_alternar_seguir(request, perfil_id):
@@ -70,6 +70,12 @@ def api_alternar_seguir(request, perfil_id):
         usuario=request.user,
         tipo="SEGUIR",
     )
+
+    if request.method == "GET":
+        return Response({
+            "active": existing.exists(),
+            "profile_id": perfil_alvo.id,
+        })
 
     if existing.exists():
         # Remove todas as ocorrências antigas da mesma conta, caso existam
