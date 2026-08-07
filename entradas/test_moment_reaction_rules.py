@@ -12,9 +12,10 @@ class MomentReactionRulesTests(SimpleTestCase):
             ["CORACAO", "FLOR", "APLAUSO"],
         )
 
-    def test_reacoes_tem_emojis_distintos(self):
-        emojis = [item["emoji"] for item in REACTION_OPTIONS]
-        self.assertEqual(len(emojis), len(set(emojis)))
+    def test_reacoes_usam_icones_semanticos_distintos(self):
+        icons = [item["icon"] for item in REACTION_OPTIONS]
+        self.assertEqual(len(icons), len(set(icons)))
+        self.assertEqual(icons, ["heart", "flower", "sparkles"])
 
     def test_existe_apenas_uma_reacao_por_utilizador_e_momento(self):
         constraints = ReacaoMomentoNKATA._meta.constraints
