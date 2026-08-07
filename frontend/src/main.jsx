@@ -35,6 +35,7 @@ import "./community-empty.css";
 import "./questionnaire.css";
 import "./password-recovery.css";
 import "./password-change.css";
+import "./plan.css";
 import "./mobile-native.css";
 import "./mobile-native-screens.css";
 
