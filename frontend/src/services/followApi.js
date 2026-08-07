@@ -22,14 +22,14 @@ async function readPayload(response) {
   return contentType.includes("application/json") ? response.json() : null;
 }
 
-async function requestFollow(profileId, method = "GET", { signal } = {}) {
+async function request(path, method = "GET", { signal } = {}) {
   const headers = { Accept: "application/json" };
   if (method !== "GET") {
     const csrfToken = getCookie("csrftoken");
     if (csrfToken) headers["X-CSRFToken"] = csrfToken;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/perfis/${profileId}/seguir/`, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     credentials: "include",
     headers,
@@ -48,10 +48,30 @@ async function requestFollow(profileId, method = "GET", { signal } = {}) {
   return payload;
 }
 
+function normalizeFollowProfile(profile) {
+  return {
+    id: profile.id,
+    nome_publico: profile.nome_publico || "Perfil NKATA",
+    idade: profile.idade || null,
+    cidade: profile.cidade || "Moçambique",
+    objetivo_display: profile.objetivo_display || profile.objetivo || "Conhecer com intenção",
+    foto_url: profile.foto_principal || null,
+    verificado: Boolean(profile.verificado),
+  };
+}
+
 export function fetchFollowState(profileId, options = {}) {
-  return requestFollow(profileId, "GET", options);
+  return request(`/api/perfis/${profileId}/seguir/`, "GET", options);
 }
 
 export function toggleFollowProfile(profileId) {
-  return requestFollow(profileId, "POST");
+  return request(`/api/perfis/${profileId}/seguir/`, "POST");
+}
+
+export async function fetchFollowingProfiles(options = {}) {
+  const payload = await request("/api/minha-conta/a-seguir/", "GET", options);
+  return {
+    count: Number(payload?.count || 0),
+    results: (payload?.results || []).map(normalizeFollowProfile),
+  };
 }
