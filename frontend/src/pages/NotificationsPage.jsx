@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Bell,
   CheckCheck,
+  CirclePlay,
   Heart,
   MessageCircle,
   RefreshCw,
@@ -12,6 +13,8 @@ import {
 
 const iconByType = {
   INTERESSE: Heart,
+  SINAL: Sparkles,
+  MOMENTO: CirclePlay,
   MATCH: Sparkles,
   MENSAGEM: MessageCircle,
   EQUIPA: ShieldCheck,
@@ -104,7 +107,7 @@ export default function NotificationsPage({
               <Bell size={15} /> Aconteceu por aqui
             </span>
             <h1>As suas notificações</h1>
-            <p>Veja com calma os novos interesses, matches e mensagens.</p>
+            <p>Veja com calma os novos sinais, reações, interesses, matches e mensagens.</p>
           </div>
 
           <div className="nk-notifications-page__intro-actions">
@@ -173,7 +176,7 @@ export default function NotificationsPage({
             <p>
               {filter === "unread"
                 ? "Não ficou nenhuma novidade por abrir."
-                : "Quando alguém demonstrar interesse, surgir um match ou chegar uma mensagem, verá aqui."}
+                : "Quando alguém enviar um sinal, reagir, demonstrar interesse, surgir um match ou chegar uma mensagem, verá aqui."}
             </p>
           </div>
         )}
