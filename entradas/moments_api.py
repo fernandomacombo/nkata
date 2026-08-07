@@ -1,5 +1,6 @@
 import mimetypes
 import os
+from datetime import timedelta
 
 from PIL import Image, UnidentifiedImageError
 from django.db import DatabaseError
@@ -11,7 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import AcaoPerfil, MatchPerfil
-from .moments_models import MomentoNKATA
+from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .plan_service import plan_for_user
 
 
@@ -20,6 +21,18 @@ MAX_VIDEO_SIZE = 35 * 1024 * 1024
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".m4v"}
 VALID_VISIBILITIES = {"TODOS", "MATCHES"}
+
+# Não existe texto livre em Momentos. A API transforma apenas códigos desta
+# lista em frases aprovadas previamente pelo NKATA.
+MOMENT_CAPTIONS = [
+    {"value": "SEM_LEGENDA", "label": "Sem legenda", "text": ""},
+    {"value": "DIA_TRANQUILO", "label": "Um dia tranquilo por aqui.", "text": "Um dia tranquilo por aqui."},
+    {"value": "BOAS_ENERGIAS", "label": "Boas energias para o dia.", "text": "Boas energias para o dia."},
+    {"value": "APROVEITAR_MOMENTO", "label": "A aproveitar um bom momento.", "text": "A aproveitar um bom momento."},
+    {"value": "CONHECER_COM_CALMA", "label": "Aberto(a) a conhecer alguém com calma.", "text": "Aberto(a) a conhecer alguém com calma."},
+    {"value": "FIM_DE_DIA", "label": "A terminar o dia com tranquilidade.", "text": "A terminar o dia com tranquilidade."},
+]
+CAPTION_BY_CODE = {item["value"]: item for item in MOMENT_CAPTIONS}
 
 
 def _perfil_do_utilizador(user):
@@ -48,16 +61,22 @@ def _profile_payload(request, perfil):
 
 
 def _moment_payload(request, momento):
-    remaining_seconds = max(
-        0,
-        int((momento.expira_em - timezone.now()).total_seconds()),
-    )
+    approved = momento.moderacao_status == "APROVADO"
+    remaining_seconds = None
+    expires_at = None
+    if approved:
+        remaining_seconds = max(
+            0,
+            int((momento.expira_em - timezone.now()).total_seconds()),
+        )
+        expires_at = momento.expira_em
+
     media_url = (
         request.build_absolute_uri(f"/api/momentos/{momento.id}/media/")
         if momento.media
         else None
     )
-    return {
+    payload = {
         "id": momento.id,
         "profile": _profile_payload(request, momento.perfil),
         "text": momento.texto,
@@ -66,10 +85,18 @@ def _moment_payload(request, momento):
         "visibility": momento.visibilidade,
         "visibility_label": momento.get_visibilidade_display(),
         "mine": momento.usuario_id == request.user.id,
+        "moderation_status": momento.moderacao_status,
+        "moderation_label": momento.get_moderacao_status_display(),
         "created_at": momento.criado_em,
-        "expires_at": momento.expira_em,
+        "expires_at": expires_at,
         "remaining_seconds": remaining_seconds,
     }
+    if payload["mine"] and momento.moderacao_status == "REJEITADO":
+        payload["moderation_note"] = (
+            momento.moderacao_motivo
+            or "Este conteúdo não está de acordo com as regras dos Momentos NKATA."
+        )
+    return payload
 
 
 def _matched_profile_ids(perfil):
@@ -115,7 +142,10 @@ def _feed_queryset(user, perfil):
 
     qs = (
         MomentoNKATA.objects
-        .filter(expira_em__gt=timezone.now())
+        .filter(
+            moderacao_status="APROVADO",
+            expira_em__gt=timezone.now(),
+        )
         .filter(visibility)
         .select_related("perfil", "perfil__pedido", "usuario")
         .order_by("-criado_em")
@@ -125,6 +155,18 @@ def _feed_queryset(user, perfil):
     if blocker_user_ids:
         qs = qs.exclude(usuario_id__in=blocker_user_ids)
     return qs
+
+
+def _review_queryset(user):
+    return (
+        MomentoNKATA.objects
+        .filter(
+            usuario=user,
+            moderacao_status__in=["PENDENTE", "REJEITADO"],
+        )
+        .select_related("perfil", "perfil__pedido", "usuario")
+        .order_by("-criado_em")[:20]
+    )
 
 
 def _validate_media(file_obj):
@@ -163,9 +205,14 @@ def _capabilities(user):
         "plan": plan["code"],
         "plan_label": plan["label"],
         "text_enabled": bool(plan["features"].get("status_text", True)),
+        "free_text_enabled": False,
         "media_enabled": bool(plan["features"].get("status_media", False)),
-        "max_text_length": 500,
-        "expires_hours": 24,
+        "media_requires_moderation": True,
+        "expires_hours": MOMENT_LIFETIME_HOURS,
+        "caption_options": [
+            {"value": item["value"], "label": item["label"]}
+            for item in MOMENT_CAPTIONS
+        ],
         "visibility_options": [
             {"value": "TODOS", "label": "Todos os membros"},
             {"value": "MATCHES", "label": "Apenas matches"},
@@ -186,6 +233,7 @@ def api_momentos(request):
     if request.method == "GET":
         try:
             momentos = list(_feed_queryset(request.user, perfil))
+            em_revisao = list(_review_queryset(request.user))
         except DatabaseError:
             return Response(
                 {
@@ -199,20 +247,45 @@ def api_momentos(request):
         return Response({
             "results": payloads,
             "mine": [item for item in payloads if item["mine"]],
+            "review_items": [_moment_payload(request, momento) for momento in em_revisao],
             "capabilities": _capabilities(request.user),
         })
 
-    texto = " ".join(str(request.data.get("texto", "") or "").split()).strip()
-    visibilidade = str(request.data.get("visibilidade", "TODOS") or "TODOS").strip().upper()
+    # Rejeita explicitamente tentativas de contornar a interface e enviar texto
+    # livre diretamente para a API.
+    free_text = str(request.data.get("texto", "") or "").strip()
+    if free_text:
+        return Response(
+            {
+                "detail": "Momentos não aceitam texto livre. Escolha uma frase NKATA.",
+                "code": "free_text_not_allowed",
+            },
+            status=400,
+        )
+
+    caption_code = str(
+        request.data.get("legenda", "SEM_LEGENDA") or "SEM_LEGENDA"
+    ).strip().upper()
+    caption = CAPTION_BY_CODE.get(caption_code)
+    if not caption:
+        return Response(
+            {"legenda": ["Escolha uma frase disponível no NKATA."]},
+            status=400,
+        )
+
+    visibilidade = str(
+        request.data.get("visibilidade", "TODOS") or "TODOS"
+    ).strip().upper()
     media = request.FILES.get("media")
 
-    if len(texto) > 500:
-        return Response({"texto": ["O texto deve ter no máximo 500 caracteres."]}, status=400)
     if visibilidade not in VALID_VISIBILITIES:
-        return Response({"visibilidade": ["Escolha uma opção de privacidade válida."]}, status=400)
-    if not texto and not media:
         return Response(
-            {"detail": "Escreva algo ou escolha uma fotografia/vídeo."},
+            {"visibilidade": ["Escolha uma opção de privacidade válida."]},
+            status=400,
+        )
+    if not caption["text"] and not media:
+        return Response(
+            {"detail": "Escolha uma frase NKATA ou uma fotografia/vídeo."},
             status=400,
         )
 
@@ -231,14 +304,24 @@ def api_momentos(request):
             status=403,
         )
 
+    # Frases predefinidas sem media podem ser publicadas imediatamente porque
+    # o utilizador não controla o conteúdo textual. Foto/vídeo entra sempre na
+    # fila de moderação e as 24 horas só começam após aprovação.
+    moderation_status = "PENDENTE" if media else "APROVADO"
+    expires_at = timezone.now() + timedelta(hours=MOMENT_LIFETIME_HOURS)
+
     try:
         momento = MomentoNKATA.objects.create(
             perfil=perfil,
             usuario=request.user,
-            texto=texto,
+            texto=caption["text"],
             media=media or "",
             tipo_media=tipo_media or "TEXTO",
             visibilidade=visibilidade,
+            moderacao_status=moderation_status,
+            moderacao_motivo="",
+            moderado_em=None if media else timezone.now(),
+            expira_em=expires_at,
         )
     except DatabaseError:
         return Response(
@@ -249,14 +332,20 @@ def api_momentos(request):
             status=503,
         )
 
+    pending = moderation_status == "PENDENTE"
     return Response(
         {
             "ok": True,
-            "message": "Momento publicado. Fica disponível durante 24 horas.",
+            "pending_review": pending,
+            "message": (
+                "Foto/vídeo enviado para análise. As 24 horas começam apenas depois da aprovação."
+                if pending
+                else "Momento publicado. Fica disponível durante 24 horas."
+            ),
             "moment": _moment_payload(request, momento),
             "capabilities": capabilities,
         },
-        status=201,
+        status=202 if pending else 201,
     )
 
 
@@ -264,11 +353,20 @@ def api_momentos(request):
 @permission_classes([permissions.IsAuthenticated])
 def api_media_momento(request, momento_id):
     perfil = _perfil_do_utilizador(request.user)
-    if not perfil or perfil.status != "ATIVO":
+    if not perfil and not request.user.is_staff:
         return Response({"detail": "Conteúdo não disponível."}, status=404)
 
     try:
-        momento = _feed_queryset(request.user, perfil).filter(id=momento_id).first()
+        if request.user.is_staff:
+            momento = MomentoNKATA.objects.filter(id=momento_id).first()
+        else:
+            # O autor pode rever o próprio ficheiro pendente/rejeitado.
+            momento = MomentoNKATA.objects.filter(
+                id=momento_id,
+                usuario=request.user,
+            ).first()
+            if not momento:
+                momento = _feed_queryset(request.user, perfil).filter(id=momento_id).first()
     except DatabaseError:
         return Response({"detail": "Conteúdo não disponível."}, status=404)
 
@@ -283,7 +381,7 @@ def api_media_momento(request, momento_id):
     content_type = mimetypes.guess_type(momento.media.name)[0] or "application/octet-stream"
     response = FileResponse(file_handle, content_type=content_type)
     response["Content-Disposition"] = f'inline; filename="{os.path.basename(momento.media.name)}"'
-    response["Cache-Control"] = "private, max-age=300"
+    response["Cache-Control"] = "private, max-age=120"
     response["X-Content-Type-Options"] = "nosniff"
     return response
 
