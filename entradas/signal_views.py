@@ -9,10 +9,16 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import AcaoPerfil, PerfilNKATA
+from .plan_service import (
+    PLAN_DEFINITIONS,
+    PLAN_SIGNAL_PREFIX,
+    RECHARGE_SIGNAL_PREFIX,
+    signal_quota_for_user,
+)
 
 
 User = get_user_model()
-FREE_DAILY_SIGNAL_LIMIT = 3
+FREE_DAILY_SIGNAL_LIMIT = PLAN_DEFINITIONS["LIVRE"]["daily_signal_limit"]
 SIGNAL_DEFINITIONS = {
     "FLOR": {
         "db_type": "SINAL_FLOR",
@@ -60,6 +66,7 @@ def _bloqueio_entre_perfis(perfil_a, perfil_b):
 
 
 def build_signal_quota(used, limit=FREE_DAILY_SIGNAL_LIMIT):
+    """Compatibilidade com os testes antigos da regra do plano Livre."""
     used = max(0, int(used or 0))
     limit = max(0, int(limit or 0))
     return {
@@ -91,7 +98,6 @@ def _signal_payload(item):
 
 def _availability_payload(user, perfil_alvo):
     today_qs = _signals_today(user)
-    used = today_qs.count()
     sent_types = set(
         today_qs.filter(perfil=perfil_alvo).values_list("tipo", flat=True)
     )
@@ -101,7 +107,7 @@ def _availability_payload(user, perfil_alvo):
         payload["sent_to_profile_today"] = item["db_type"] in sent_types
         signals.append(payload)
     return {
-        "quota": build_signal_quota(used),
+        "quota": signal_quota_for_user(user, sent_today=today_qs.count()),
         "signals": signals,
     }
 
@@ -146,26 +152,11 @@ def api_sinais_perfil(request, perfil_id):
         )
 
     with transaction.atomic():
-        # Em PostgreSQL/MySQL isto serializa dois envios simultâneos da mesma
-        # conta. Em SQLite a escrita continua protegida pela transação.
+        # Serializa envios concorrentes da mesma conta em bases que suportam
+        # row locking. Em SQLite a escrita continua protegida pela transação.
         User.objects.select_for_update().get(pk=request.user.pk)
 
         today_qs = _signals_today(request.user)
-        used = today_qs.count()
-        quota = build_signal_quota(used)
-        if quota["limit_reached"]:
-            return Response(
-                {
-                    "detail": (
-                        "Usou os seus 3 sinais gratuitos de hoje. "
-                        "Para continuar, será necessário um plano ou uma recarga."
-                    ),
-                    "code": "daily_signal_limit_reached",
-                    "quota": quota,
-                },
-                status=429,
-            )
-
         already_sent = today_qs.filter(
             perfil=perfil_alvo,
             tipo=definition["db_type"],
@@ -180,14 +171,28 @@ def api_sinais_perfil(request, perfil_id):
                 status=409,
             )
 
-        # AcaoPerfil já existe no projeto e evita introduzir uma nova tabela
-        # enquanto o histórico de migrações antigo ainda está a ser consolidado.
+        quota = signal_quota_for_user(request.user, sent_today=today_qs.count())
+        source = quota.get("next_source")
+        if not source:
+            return Response(
+                {
+                    "detail": (
+                        f"Usou os {quota['daily_limit']} sinais disponíveis hoje no "
+                        f"{quota['plan_label']} e não tem saldo de recarga."
+                    ),
+                    "code": "signal_allowance_exhausted",
+                    "quota": quota,
+                },
+                status=429,
+            )
+
+        prefix = PLAN_SIGNAL_PREFIX if source == "PLAN" else RECHARGE_SIGNAL_PREFIX
         AcaoPerfil.objects.create(
             perfil=perfil_alvo,
             usuario=request.user,
             tipo=definition["db_type"],
             session_key=(
-                f"sinal:{request.user.pk}:{timezone.localdate():%Y%m%d}:"
+                f"{prefix}{request.user.pk}:{timezone.localdate():%Y%m%d}:"
                 f"{uuid.uuid4().hex[:16]}"
             ),
         )
@@ -197,7 +202,11 @@ def api_sinais_perfil(request, perfil_id):
         {
             "ok": True,
             "signal": _signal_payload(definition),
-            "message": f"{definition['emoji']} {definition['label']} enviado para {perfil_alvo.nome_publico}.",
+            "source": source,
+            "message": (
+                f"{definition['emoji']} {definition['label']} enviado para "
+                f"{perfil_alvo.nome_publico}."
+            ),
             **payload,
         },
         status=201,
