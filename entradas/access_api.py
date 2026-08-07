@@ -6,7 +6,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 
 from .forms import PedidoEntradaForm
-from .models import PedidoEntrada
+from .models import PedidoEntrada, PerfilNKATA
 
 
 MAX_ACCESS_IMAGE_SIZE = 6 * 1024 * 1024
@@ -46,8 +46,8 @@ STATUS_CONTENT = {
     "APROVADO": {
         "title": "O seu pedido foi aprovado.",
         "message": (
-            "A entrada foi aprovada. Consulte o seu email para os dados de acesso "
-            "ou entre com a conta que recebeu da equipa."
+            "A entrada foi aprovada. Falta concluir o questionário e criar a sua "
+            "palavra-passe através do link privado fornecido pela equipa NKATA."
         ),
         "tone": "success",
         "stage": 4,
@@ -112,17 +112,36 @@ def _status_payload(pedido):
             "stage": 1,
         },
     )
+
+    perfil = (
+        PerfilNKATA.objects
+        .select_related("usuario")
+        .filter(pedido=pedido)
+        .first()
+    )
+    can_login = bool(
+        pedido.status == "APROVADO"
+        and perfil
+        and perfil.usuario_id
+        and perfil.usuario.has_usable_password()
+    )
+
+    message = content["message"]
+    if pedido.status == "APROVADO" and can_login:
+        message = "A sua conta está pronta. Já pode entrar no NKATA com o email e a palavra-passe que criou."
+
     return {
         "codigo": str(pedido.token),
         "status": pedido.status,
         "status_label": pedido.get_status_display(),
         "title": content["title"],
-        "message": content["message"],
+        "message": message,
         "tone": content["tone"],
         "stage": content["stage"],
         "created_at": pedido.criado_em,
         "updated_at": pedido.atualizado_em,
-        "can_login": pedido.status == "APROVADO",
+        "can_login": can_login,
+        "next_action": "LOGIN" if can_login else "QUESTIONNAIRE" if pedido.status == "APROVADO" else None,
     }
 
 
