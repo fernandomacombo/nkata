@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import connection
+from django.utils import timezone
 
 from entradas.moments_models import MomentoNKATA
 
@@ -44,13 +45,26 @@ class Command(BaseCommand):
                 schema_editor.add_field(MomentoNKATA, field)
                 added.append(field_name)
 
-        # Conteúdo criado antes da introdução da moderação volta para análise.
-        # Isto evita que textos/media antigos permaneçam públicos sem revisão.
+        # Conteúdo anterior à política de moderação não pode permanecer público.
+        # Texto livre legado é rejeitado automaticamente; foto/vídeo antigo volta
+        # para a fila de revisão manual.
         if "moderacao_status" in added:
-            MomentoNKATA.objects.all().update(
+            now = timezone.now()
+            legacy_text = MomentoNKATA.objects.filter(media="").update(
+                moderacao_status="REJEITADO",
+                moderacao_motivo=(
+                    "Momento antigo removido porque texto livre deixou de ser permitido."
+                ),
+                moderado_em=now,
+            )
+            legacy_media = MomentoNKATA.objects.exclude(media="").update(
                 moderacao_status="PENDENTE",
                 moderacao_motivo="",
                 moderado_em=None,
+            )
+            self.stdout.write(
+                f"Conteúdo legado protegido: {legacy_text} texto(s) rejeitado(s), "
+                f"{legacy_media} media(s) enviado(s) para revisão."
             )
 
         if added:
