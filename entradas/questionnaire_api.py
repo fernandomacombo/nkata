@@ -71,9 +71,9 @@ def _get_or_create_user(pedido):
 def _questionnaire_payload(pedido):
     questionario = _questionario_existente(pedido)
     perfil = _perfil_existente(pedido)
+    password_step_ready = bool(questionario and perfil and perfil.usuario_id)
     account_ready = bool(
-        perfil
-        and perfil.usuario_id
+        password_step_ready
         and perfil.usuario.has_usable_password()
         and perfil.status == "ATIVO"
         and perfil.visivel
@@ -111,6 +111,7 @@ def _questionnaire_payload(pedido):
             "aceita_pessoa_com_filhos": _choice_payload(QuestionarioEntrada.ACEITA_FILHOS_CHOICES),
         },
         "questionnaire_complete": bool(questionario),
+        "password_step_ready": password_step_ready,
         "account_ready": account_ready,
     }
 
@@ -231,6 +232,8 @@ def api_criar_senha_questionario(request, token):
 
     user = perfil.usuario
     if user.has_usable_password():
+        if perfil.status != "BLOQUEADO":
+            PerfilNKATA.objects.filter(pk=perfil.pk).update(status="ATIVO", visivel=True)
         return Response(
             {
                 "ok": True,
