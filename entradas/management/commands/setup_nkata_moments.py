@@ -2,14 +2,13 @@ from django.core.management.base import BaseCommand
 from django.db import connection
 from django.utils import timezone
 
-from entradas.moments_models import MomentoNKATA
+from entradas.moments_models import MomentoNKATA, ReacaoMomentoNKATA
 
 
 class Command(BaseCommand):
     help = (
-        "Cria a tabela dos Momentos NKATA quando necessário e acrescenta "
-        "campos de moderação em instalações anteriores. Pode ser executado "
-        "novamente com segurança após uma atualização parcial."
+        "Prepara as tabelas dos Momentos NKATA, moderação e reações. Pode ser "
+        "executado novamente com segurança após uma atualização parcial."
     )
 
     moderation_fields = (
@@ -17,6 +16,9 @@ class Command(BaseCommand):
         "moderacao_motivo",
         "moderado_em",
     )
+
+    def _table_names(self):
+        return set(connection.introspection.table_names())
 
     def _column_names(self, table_name):
         with connection.cursor() as cursor:
@@ -32,8 +34,7 @@ class Command(BaseCommand):
 
         No SQLite, schema_editor.add_field() pode reconstruir a tabela. Durante
         essa reconstrução outros campos do modelo podem passar a existir também.
-        Por isso a lista de colunas é consultada novamente antes de CADA campo,
-        em vez de reutilizar um snapshot antigo da estrutura da tabela.
+        Por isso a lista de colunas é consultada novamente antes de CADA campo.
         """
         added = []
 
@@ -52,16 +53,9 @@ class Command(BaseCommand):
         return added
 
     def _protect_legacy_content(self):
-        """
-        Protege instalações que ficaram parcialmente atualizadas.
-
-        Um Momento apenas de texto nunca fica PENDENTE no fluxo novo: frases
-        predefinidas são aprovadas imediatamente. Portanto texto PENDENTE é
-        conteúdo legado criado antes da proibição de texto livre e pode ser
-        rejeitado com segurança. Media PENDENTE permanece na fila de revisão.
-        """
+        """Rejeita texto livre legado que ainda esteja pendente."""
         now = timezone.now()
-        legacy_text = MomentoNKATA.objects.filter(
+        return MomentoNKATA.objects.filter(
             media="",
             moderacao_status="PENDENTE",
         ).update(
@@ -71,26 +65,37 @@ class Command(BaseCommand):
             ),
             moderado_em=now,
         )
-        return legacy_text
+
+    def _ensure_reaction_table(self):
+        table_name = ReacaoMomentoNKATA._meta.db_table
+        if table_name in self._table_names():
+            self.stdout.write(self.style.SUCCESS(
+                "A tabela de reações dos Momentos NKATA já estava pronta."
+            ))
+            return False
+
+        with connection.schema_editor() as schema_editor:
+            schema_editor.create_model(ReacaoMomentoNKATA)
+
+        self.stdout.write(self.style.SUCCESS(
+            "A tabela de reações dos Momentos NKATA foi criada com sucesso."
+        ))
+        return True
 
     def handle(self, *args, **options):
         table_name = MomentoNKATA._meta.db_table
-        existing_tables = set(connection.introspection.table_names())
+        created_moments = False
 
-        if table_name not in existing_tables:
+        if table_name not in self._table_names():
             with connection.schema_editor() as schema_editor:
                 schema_editor.create_model(MomentoNKATA)
-
+            created_moments = True
             self.stdout.write(self.style.SUCCESS(
                 "A tabela de Momentos NKATA foi criada com moderação ativa."
             ))
-            return
 
-        added = self._ensure_moderation_fields(table_name)
+        added = [] if created_moments else self._ensure_moderation_fields(table_name)
 
-        # Confirma explicitamente que a estrutura terminou completa antes de
-        # tocar no conteúdo. Isto também cobre uma execução anterior que tenha
-        # falhado a meio.
         final_columns = self._column_names(table_name)
         missing = [
             field_name
@@ -104,7 +109,6 @@ class Command(BaseCommand):
             )
 
         legacy_text = self._protect_legacy_content()
-
         if legacy_text:
             self.stdout.write(
                 self.style.WARNING(
@@ -117,7 +121,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 "Momentos atualizados. Campos adicionados: " + ", ".join(added)
             ))
-        else:
+        elif not created_moments:
             self.stdout.write(self.style.SUCCESS(
                 "A tabela de Momentos NKATA já estava pronta com moderação."
             ))
+
+        self._ensure_reaction_table()
