@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.utils import timezone
 
@@ -8,6 +9,10 @@ from .models import PerfilNKATA
 
 
 MOMENT_LIFETIME_HOURS = 24
+PRIVATE_MOMENT_STORAGE = FileSystemStorage(
+    location=settings.BASE_DIR / "private_media" / "moments",
+    base_url=None,
+)
 
 
 def moment_expires_at():
@@ -36,7 +41,11 @@ class MomentoNKATA(models.Model):
         related_name="momentos_nkata",
     )
     texto = models.CharField(max_length=500, blank=True)
-    media = models.FileField(upload_to="momentos/%Y/%m/%d/", blank=True)
+    media = models.FileField(
+        storage=PRIVATE_MOMENT_STORAGE,
+        upload_to="%Y/%m/%d/",
+        blank=True,
+    )
     tipo_media = models.CharField(max_length=12, choices=MEDIA_CHOICES, default="TEXTO")
     visibilidade = models.CharField(
         max_length=12,
