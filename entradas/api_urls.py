@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import (
     access_api,
+    account_security_api,
     api_views,
     interest_views,
     notification_views,
@@ -17,6 +18,11 @@ urlpatterns = [
     path("session/", api_views.api_session, name="session"),
     path("auth/login/", api_views.api_login, name="login"),
     path("auth/logout/", api_views.api_logout, name="logout"),
+    path(
+        "auth/password-change/",
+        account_security_api.api_alterar_palavra_passe,
+        name="password_change",
+    ),
     path(
         "auth/password-reset/",
         password_reset_api.api_pedir_recuperacao_senha,
