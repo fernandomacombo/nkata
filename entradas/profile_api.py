@@ -130,7 +130,13 @@ def api_perfil_detalhe(request, perfil_id):
             usuario=request.user,
             tipo="INTERESSE",
         ).exists()
+        data["seguindo"] = AcaoPerfil.objects.filter(
+            perfil=perfil,
+            usuario=request.user,
+            tipo="SEGUIR",
+        ).exists()
     else:
         data["interesse_ativo"] = False
+        data["seguindo"] = False
 
     return Response(data)
