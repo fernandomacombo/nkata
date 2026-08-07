@@ -14,6 +14,10 @@ class FollowRulesTests(SimpleTestCase):
         match = resolve("/api/perfis/7/seguir/")
         self.assertEqual(match.url_name, "alternar_seguir")
 
+    def test_rota_da_lista_privada_resolve_para_api_correta(self):
+        match = resolve("/api/minha-conta/a-seguir/")
+        self.assertEqual(match.url_name, "perfis_seguidos")
+
     def test_seguir_nao_e_match_nem_interesse(self):
         self.assertNotEqual("SEGUIR", "INTERESSE")
         self.assertNotEqual("SEGUIR", "MATCH")
