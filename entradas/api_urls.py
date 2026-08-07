@@ -11,6 +11,7 @@ from . import (
     notification_views,
     password_reset_api,
     plan_views,
+    posts_api,
     profile_api,
     questionnaire_api,
     saved_views,
@@ -112,6 +113,22 @@ urlpatterns = [
         "momentos/<int:momento_id>/",
         moments_api.api_apagar_momento,
         name="apagar_momento",
+    ),
+    path("publicacoes/", posts_api.api_publicacoes, name="publicacoes"),
+    path(
+        "publicacoes/<int:publicacao_id>/media/",
+        posts_api.api_media_publicacao,
+        name="media_publicacao",
+    ),
+    path(
+        "publicacoes/<int:publicacao_id>/reacoes/",
+        posts_api.api_reacoes_publicacao,
+        name="reacoes_publicacao",
+    ),
+    path(
+        "publicacoes/<int:publicacao_id>/",
+        posts_api.api_apagar_publicacao,
+        name="apagar_publicacao",
     ),
     path("minha-conta/", api_views.api_minha_conta, name="minha_conta"),
     path(
