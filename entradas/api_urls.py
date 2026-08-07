@@ -135,6 +135,11 @@ urlpatterns = [
         name="perfis_guardados",
     ),
     path(
+        "minha-conta/a-seguir/",
+        follow_views.api_perfis_seguidos,
+        name="perfis_seguidos",
+    ),
+    path(
         "minha-conta/notificacoes/",
         notification_views.api_notificacoes,
         name="notificacoes",
