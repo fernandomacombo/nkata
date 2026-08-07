@@ -1,5 +1,5 @@
 import {
-  Bell,
+  CirclePlay,
   HeartHandshake,
   Home,
   Search,
@@ -9,8 +9,8 @@ import {
 const items = [
   { id: "home", label: "Início", icon: Home },
   { id: "discover", label: "Perfis", icon: Search },
+  { id: "moments", label: "Momentos", icon: CirclePlay },
   { id: "matches", label: "Matches", icon: HeartHandshake },
-  { id: "notifications", label: "Avisos", icon: Bell },
   { id: "account", label: "Conta", icon: UserRound },
 ];
 
@@ -18,18 +18,13 @@ export default function BottomNavigation({
   activePage,
   onNavigate,
   unreadMatches = 0,
-  unreadNotifications = 0,
 }) {
   return (
     <nav className="nk-bottom-nav" aria-label="Navegação da aplicação">
       {items.map((item) => {
         const Icon = item.icon;
         const active = activePage === item.id;
-        const badgeCount = item.id === "matches"
-          ? unreadMatches
-          : item.id === "notifications"
-            ? unreadNotifications
-            : 0;
+        const badgeCount = item.id === "matches" ? unreadMatches : 0;
 
         return (
           <button
