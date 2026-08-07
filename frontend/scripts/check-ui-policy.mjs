@@ -87,6 +87,10 @@ function checkMobileContract(errors) {
     errors.push("mobile-app-contract.css deve ser o último CSS importado em main.jsx.");
   }
 
+  if (!main.includes("document.body.classList.toggle(\"nk-app-mode\"")) {
+    errors.push("main.jsx deve marcar explicitamente o body com nk-app-mode em telas pequenas.");
+  }
+
   const contract = fs.readFileSync(contractPath, "utf8");
   const requiredTokens = [
     "@media (max-width: 820px)",
@@ -94,7 +98,7 @@ function checkMobileContract(errors) {
     "safe-area-inset-top",
     "safe-area-inset-bottom",
     "--nk-app-touch: 44px",
-    ".nk-mobile-nav",
+    ".nk-bottom-nav",
     "overflow-x: hidden",
     "prefers-reduced-motion",
   ];
