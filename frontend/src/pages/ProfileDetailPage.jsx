@@ -307,11 +307,16 @@ export default function ProfileDetailPage({
                 <div>
                   <span>Sinais NKATA</span>
                   <h2>Um gesto simples, antes da conversa.</h2>
-                  <p>Envie um sinal sem abrir o chat. Cada conta Livre tem 3 sinais por dia.</p>
+                  <p>
+                    {authenticated && quota
+                      ? `${quota.plan_label}: ${quota.daily_limit} sinais por dia. A recarga só é usada depois desse limite.`
+                      : "Envie uma flor, um beijinho ou um olá sem abrir o chat."}
+                  </p>
                 </div>
                 {authenticated && quota && (
                   <strong className="nk-profile-signals__quota">
-                    {quota.used_today} de {quota.daily_limit} usados hoje
+                    {quota.used_today} de {quota.daily_limit} no plano
+                    {quota.recharge_balance > 0 ? ` · +${quota.recharge_balance} recarga` : ""}
                   </strong>
                 )}
               </div>
@@ -348,7 +353,9 @@ export default function ProfileDetailPage({
                               ? "Enviado hoje"
                               : limitReached
                                 ? "Limite atingido"
-                                : "Enviar sinal"}
+                                : quota?.next_source === "RECHARGE"
+                                  ? "Usar recarga"
+                                  : "Enviar sinal"}
                       </small>
                     </button>
                   );
@@ -357,22 +364,22 @@ export default function ProfileDetailPage({
 
               {!authenticated && (
                 <button type="button" className="nk-profile-signals__login" onClick={onRequireLogin}>
-                  Entrar para usar os 3 sinais gratuitos
+                  Entrar para usar os sinais do seu plano
                 </button>
               )}
 
               {signalLoading && authenticated && (
-                <small className="nk-profile-signals__loading">A confirmar os seus sinais de hoje…</small>
+                <small className="nk-profile-signals__loading">A confirmar o seu plano e os sinais de hoje…</small>
               )}
               {signalStatus && <div className="nk-profile-signals__message is-success">{signalStatus}</div>}
               {signalError && <div className="nk-profile-signals__message is-error">{signalError}</div>}
 
-              {limitReached && (
+              {limitReached && quota && (
                 <div className="nk-profile-signals__limit">
                   <LockKeyhole size={18} />
                   <div>
-                    <strong>Os 3 sinais gratuitos de hoje foram usados.</strong>
-                    <span>Para continuar no mesmo dia, será necessário um plano ou uma recarga.</span>
+                    <strong>O limite do {quota.plan_label} foi usado hoje.</strong>
+                    <span>Não existe saldo de recarga. Novos sinais ficam disponíveis no próximo dia ou com uma futura recarga.</span>
                   </div>
                 </div>
               )}
