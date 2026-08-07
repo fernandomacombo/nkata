@@ -7,6 +7,7 @@ class NotificacaoNKATA(models.Model):
         ("INTERESSE", "Novo interesse"),
         ("SINAL", "Novo sinal"),
         ("MOMENTO", "Reação em Momento"),
+        ("PUBLICACAO", "Reação em Publicação"),
         ("MATCH", "Novo match"),
         ("MENSAGEM", "Nova mensagem"),
         ("EQUIPA", "Aviso da equipa"),
