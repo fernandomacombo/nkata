@@ -19,10 +19,10 @@ const ignoredDirectories = new Set([
   ".git",
 ]);
 
-// Extended_Pictographic cobre os símbolos de apresentação emoji usados na UI.
-// Regional indicators cobrem bandeiras. O objetivo é manter ações funcionais
-// com Lucide, em vez de depender da fonte de emoji do sistema operativo.
-const emojiPattern = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}]/gu;
+// Bloqueia pictogramas usados como emoji na interface sem confundir símbolos
+// tipográficos legítimos, como copyright. Inclui o bloco principal de emoji,
+// bandeiras e símbolos BMP quando são explicitamente apresentados com VS16.
+const emojiPattern = /[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}]|[\u2600-\u27BF]\uFE0F/gu;
 
 function collectFiles(root, files = []) {
   if (!fs.existsSync(root)) return files;
