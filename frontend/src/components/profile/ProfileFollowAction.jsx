@@ -3,28 +3,49 @@ import { createPortal } from "react-dom";
 import { LoaderCircle, UserCheck, UserMinus, UserPlus } from "lucide-react";
 import { fetchFollowState, toggleFollowProfile } from "../../services/followApi.js";
 
-function usePortalTarget(selector) {
-  const [target, setTarget] = useState(() => document.querySelector(selector));
-
-  useEffect(() => {
-    const findTarget = () => {
-      const next = document.querySelector(selector);
-      setTarget((current) => current === next ? current : next);
-    };
-
-    findTarget();
-    const observer = new MutationObserver(findTarget);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [selector]);
-
-  return target;
+function currentProfileId() {
+  const match = window.location.pathname.match(/^\/perfis\/(\d+)\/?$/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isInteger(value) && value > 0 ? value : null;
 }
 
-export default function ProfileFollowAction({ profileId }) {
-  const target = usePortalTarget(".nk-profile-detail__quick-actions");
+function useProfilePortalContext(selector) {
+  const initialTarget = document.querySelector(selector);
+  const [context, setContext] = useState({
+    target: initialTarget,
+    profileId: initialTarget ? currentProfileId() : null,
+  });
+
+  useEffect(() => {
+    const refresh = () => {
+      const target = document.querySelector(selector);
+      const profileId = target ? currentProfileId() : null;
+      setContext((current) => (
+        current.target === target && current.profileId === profileId
+          ? current
+          : { target, profileId }
+      ));
+    };
+
+    refresh();
+    const observer = new MutationObserver(refresh);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("popstate", refresh);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("popstate", refresh);
+    };
+  }, [selector]);
+
+  return context;
+}
+
+export default function ProfileFollowAction() {
+  const { target, profileId } = useProfilePortalContext(".nk-profile-detail__quick-actions");
   const [active, setActive] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [requiresLogin, setRequiresLogin] = useState(false);
   const [message, setMessage] = useState("");
@@ -35,7 +56,14 @@ export default function ProfileFollowAction({ profileId }) {
   }, [profileId]);
 
   useEffect(() => {
-    if (!validProfileId) return undefined;
+    if (!validProfileId || !target) {
+      setActive(false);
+      setLoading(false);
+      setBusy(false);
+      setRequiresLogin(false);
+      setMessage("");
+      return undefined;
+    }
 
     const controller = new AbortController();
     setLoading(true);
@@ -57,7 +85,7 @@ export default function ProfileFollowAction({ profileId }) {
       });
 
     return () => controller.abort();
-  }, [validProfileId]);
+  }, [target, validProfileId]);
 
   const handleToggle = async () => {
     if (requiresLogin) {
