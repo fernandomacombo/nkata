@@ -5,6 +5,7 @@ from . import (
     account_security_api,
     api_views,
     interest_views,
+    moment_reactions_api,
     moments_api,
     notification_views,
     password_reset_api,
@@ -95,6 +96,11 @@ urlpatterns = [
         "momentos/<int:momento_id>/media/",
         moments_api.api_media_momento,
         name="media_momento",
+    ),
+    path(
+        "momentos/<int:momento_id>/reacoes/",
+        moment_reactions_api.api_reacoes_momento,
+        name="reacoes_momento",
     ),
     path(
         "momentos/<int:momento_id>/",
