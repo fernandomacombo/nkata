@@ -6,6 +6,7 @@ class NotificacaoNKATA(models.Model):
     TIPO_CHOICES = [
         ("INTERESSE", "Novo interesse"),
         ("SINAL", "Novo sinal"),
+        ("MOMENTO", "Reação em Momento"),
         ("MATCH", "Novo match"),
         ("MENSAGEM", "Nova mensagem"),
         ("EQUIPA", "Aviso da equipa"),
