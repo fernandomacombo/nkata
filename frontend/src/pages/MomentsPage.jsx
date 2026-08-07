@@ -16,6 +16,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import AutoplayMomentViewer from "../components/moments/AutoplayMomentViewer.jsx";
 import { createMoment, deleteMoment, fetchMoments } from "../services/momentsApi.js";
 
 const FALLBACK_CAPTIONS = [
@@ -258,6 +259,9 @@ export default function MomentsPage({ onOpenProfile }) {
   const mediaEnabled = Boolean(capabilities?.media_enabled);
   const captionOptions = capabilities?.caption_options || FALLBACK_CAPTIONS;
   const canPublish = Boolean(media || caption !== "SEM_LEGENDA");
+  const viewerGroupIndex = viewerGroup
+    ? groups.findIndex((group) => String(group.profile.id) === String(viewerGroup.profile.id))
+    : -1;
 
   const clearMedia = () => {
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
@@ -491,10 +495,10 @@ export default function MomentsPage({ onOpenProfile }) {
         )}
       </section>
 
-      {viewerGroup && (
-        <MomentViewer
-          moments={viewerGroup.moments}
-          initialIndex={0}
+      {viewerGroup && viewerGroupIndex >= 0 && (
+        <AutoplayMomentViewer
+          groups={groups}
+          initialGroupIndex={viewerGroupIndex}
           onClose={() => setViewerGroup(null)}
           onDelete={handleDelete}
           onOpenProfile={(profile) => {
