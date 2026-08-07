@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 
 from .forms import QuestionarioEntradaForm
-from .models import PedidoEntrada, PerfilNKATA
+from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 
 
 User = get_user_model()
@@ -106,11 +106,9 @@ def _questionnaire_payload(pedido):
         },
         "values": values,
         "choices": {
-            "disponibilidade": _choice_payload(pedido.questionario.DISPONIBILIDADE_CHOICES)
-            if questionario
-            else _choice_payload(__import__("entradas.models", fromlist=["QuestionarioEntrada"]).QuestionarioEntrada.DISPONIBILIDADE_CHOICES),
-            "tem_filhos": _choice_payload(__import__("entradas.models", fromlist=["QuestionarioEntrada"]).QuestionarioEntrada.FILHOS_CHOICES),
-            "aceita_pessoa_com_filhos": _choice_payload(__import__("entradas.models", fromlist=["QuestionarioEntrada"]).QuestionarioEntrada.ACEITA_FILHOS_CHOICES),
+            "disponibilidade": _choice_payload(QuestionarioEntrada.DISPONIBILIDADE_CHOICES),
+            "tem_filhos": _choice_payload(QuestionarioEntrada.FILHOS_CHOICES),
+            "aceita_pessoa_com_filhos": _choice_payload(QuestionarioEntrada.ACEITA_FILHOS_CHOICES),
         },
         "questionnaire_complete": bool(questionario),
         "account_ready": account_ready,
