@@ -46,6 +46,7 @@ import "./moments.css";
 import "./moments-safety.css";
 import "./moments-autoplay.css";
 import "./moments-reactions.css";
+import "./feed.css";
 import "./mobile-app-contract.css";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
