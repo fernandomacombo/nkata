@@ -16,6 +16,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import PlanPanel from "../components/account/PlanPanel.jsx";
 import { API_BASE_URL, uploadMyProfilePhoto } from "../services/api.js";
 
 const objectiveOptions = [
@@ -493,6 +494,8 @@ export default function AccountPage({
               </label>
             </div>
           </form>
+
+          <PlanPanel />
 
           <section className="nk-account-interests">
             <div className="nk-account-interests__heading">
