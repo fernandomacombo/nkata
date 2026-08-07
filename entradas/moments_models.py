@@ -87,3 +87,48 @@ class MomentoNKATA(models.Model):
             self.moderacao_status == "APROVADO"
             and self.expira_em > timezone.now()
         )
+
+
+class ReacaoMomentoNKATA(models.Model):
+    REACTION_CHOICES = [
+        ("CORACAO", "Gostei"),
+        ("FLOR", "Flor"),
+        ("APLAUSO", "Bonito"),
+    ]
+
+    momento = models.ForeignKey(
+        MomentoNKATA,
+        on_delete=models.CASCADE,
+        related_name="reacoes_nkata",
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="reacoes_momentos_nkata",
+    )
+    tipo = models.CharField(max_length=16, choices=REACTION_CHOICES)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "entradas"
+        db_table = "entradas_reacaomomentonakata"
+        managed = False
+        ordering = ["-atualizado_em"]
+        verbose_name = "Reação a Momento NKATA"
+        verbose_name_plural = "Reações a Momentos NKATA"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["momento", "usuario"],
+                name="nkata_reacao_unica_por_momento_usuario",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["momento", "tipo"],
+                name="nkata_moment_react_idx",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} em {self.momento_id} por {self.usuario_id}"
