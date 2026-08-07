@@ -97,7 +97,13 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
         </div>
 
         <header className="nk-moment-viewer__header">
-          <button type="button" className="nk-moment-viewer__person" onClick={() => onOpenProfile?.(moment.profile)}>
+          <button
+            type="button"
+            className="nk-moment-viewer__person"
+            onClick={() => !moment.mine && onOpenProfile?.(moment.profile)}
+            disabled={moment.mine}
+            title={moment.mine ? "O seu perfil é gerido em Minha conta" : "Abrir perfil"}
+          >
             <span>
               {moment.profile.foto_url
                 ? <img src={moment.profile.foto_url} alt="" />
