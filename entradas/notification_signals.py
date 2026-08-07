@@ -12,15 +12,15 @@ logger = logging.getLogger(__name__)
 
 SIGNAL_NOTIFICATION_CONTENT = {
     "SINAL_FLOR": {
-        "title": "Recebeu uma flor 🌹",
+        "title": "Recebeu uma flor",
         "text": "{name} enviou-lhe uma flor.",
     },
     "SINAL_BEIJINHO": {
-        "title": "Recebeu um beijinho 😘",
+        "title": "Recebeu um beijinho",
         "text": "{name} enviou-lhe um beijinho.",
     },
     "SINAL_OLA": {
-        "title": "Um olá para si 👋",
+        "title": "Um olá para si",
         "text": "{name} disse olá e gostaria de conhecer melhor.",
     },
 }
