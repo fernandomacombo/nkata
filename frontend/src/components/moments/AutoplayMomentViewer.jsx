@@ -10,6 +10,10 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import {
+  fetchMomentReactions,
+  toggleMomentReaction,
+} from "../../services/momentsApi.js";
 
 const STILL_DURATION_MS = 6000;
 
@@ -51,6 +55,62 @@ function MomentMedia({ moment, onVideoProgress, onVideoEnded }) {
   return <div className="nk-moment-viewer__text-only" aria-hidden="true" />;
 }
 
+function ReactionTray({ moment, reactions, loading, busy, error, onReact }) {
+  if (loading && !reactions) {
+    return <div className="nk-moment-reactions is-loading" aria-label="A carregar reações" />;
+  }
+
+  if (!reactions || reactions.setup_required) return null;
+
+  if (moment.mine) {
+    const activeCounts = (reactions.options || [])
+      .map((option) => ({
+        ...option,
+        count: Number(reactions.counts?.[option.value] || 0),
+      }))
+      .filter((item) => item.count > 0);
+
+    return (
+      <div className="nk-moment-reactions is-own" aria-label="Reações recebidas">
+        {activeCounts.length ? activeCounts.map((item) => (
+          <span key={item.value} title={item.label}>
+            <b>{item.emoji}</b>
+            <em>{item.count}</em>
+          </span>
+        )) : <small>Ainda sem reações</small>}
+      </div>
+    );
+  }
+
+  if (!reactions.enabled) return null;
+
+  return (
+    <div className="nk-moment-reactions" aria-label="Reagir ao Momento">
+      <div className="nk-moment-reactions__buttons">
+        {(reactions.options || []).map((option) => {
+          const active = reactions.mine === option.value;
+          const count = Number(reactions.counts?.[option.value] || 0);
+          return (
+            <button
+              key={option.value}
+              type="button"
+              className={active ? "is-active" : ""}
+              disabled={Boolean(busy)}
+              aria-pressed={active}
+              title={active ? `Remover ${option.label}` : option.label}
+              onClick={() => onReact(option.value)}
+            >
+              <span>{option.emoji}</span>
+              {count > 0 && <em>{count}</em>}
+            </button>
+          );
+        })}
+      </div>
+      {error && <small className="nk-moment-reactions__error">{error}</small>}
+    </div>
+  );
+}
+
 export default function AutoplayMomentViewer({
   groups,
   initialGroupIndex = 0,
@@ -62,6 +122,10 @@ export default function AutoplayMomentViewer({
   const [groupIndex, setGroupIndex] = useState(safeInitialGroup);
   const [momentIndex, setMomentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [reactions, setReactions] = useState(null);
+  const [reactionsLoading, setReactionsLoading] = useState(false);
+  const [reactionBusy, setReactionBusy] = useState("");
+  const [reactionError, setReactionError] = useState("");
   const timerRef = useRef(null);
   const intervalRef = useRef(null);
 
@@ -133,6 +197,29 @@ export default function AutoplayMomentViewer({
   }, [clearStillTimer, goNext, moment?.id, moment?.media_type]);
 
   useEffect(() => {
+    if (!moment?.id) return undefined;
+
+    const controller = new AbortController();
+    setReactions(null);
+    setReactionError("");
+    setReactionBusy("");
+    setReactionsLoading(true);
+
+    fetchMomentReactions(moment.id, { signal: controller.signal })
+      .then((result) => setReactions(result))
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") {
+          setReactionError(requestError.message || "Reações indisponíveis.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setReactionsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [moment?.id]);
+
+  useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -149,6 +236,21 @@ export default function AutoplayMomentViewer({
       window.removeEventListener("keydown", handleKey);
     };
   }, [clearStillTimer, goNext, goPrevious, onClose]);
+
+  const handleReaction = async (reactionType) => {
+    if (!moment?.id || moment.mine || reactionBusy) return;
+
+    setReactionBusy(reactionType);
+    setReactionError("");
+    try {
+      const result = await toggleMomentReaction(moment.id, reactionType);
+      setReactions(result.reactions || null);
+    } catch (requestError) {
+      setReactionError(requestError.message || "Não foi possível reagir.");
+    } finally {
+      setReactionBusy("");
+    }
+  };
 
   if (!moment || !group) return null;
 
@@ -214,6 +316,16 @@ export default function AutoplayMomentViewer({
           />
           <div className="nk-moment-viewer__shade" />
           {moment.text && <p>{moment.text}</p>}
+
+          <ReactionTray
+            moment={moment}
+            reactions={reactions}
+            loading={reactionsLoading}
+            busy={reactionBusy}
+            error={reactionError}
+            onReact={handleReaction}
+          />
+
           <span className="nk-moment-viewer__privacy">
             {moment.visibility === "MATCHES" ? <LockKeyhole size={14} /> : <UsersRound size={14} />}
             {moment.visibility_label}
