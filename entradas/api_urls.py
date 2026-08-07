@@ -9,6 +9,7 @@ from . import (
     password_reset_api,
     questionnaire_api,
     saved_views,
+    signal_views,
 )
 
 app_name = "entradas_api"
@@ -65,6 +66,11 @@ urlpatterns = [
         "perfis/<int:perfil_id>/interesse/",
         interest_views.api_alternar_interesse,
         name="alternar_interesse",
+    ),
+    path(
+        "perfis/<int:perfil_id>/sinais/",
+        signal_views.api_sinais_perfil,
+        name="sinais_perfil",
     ),
     path(
         "perfis/<int:perfil_id>/guardar/",
