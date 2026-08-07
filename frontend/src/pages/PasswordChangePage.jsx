@@ -7,14 +7,33 @@ import {
   KeyRound,
   LoaderCircle,
   LockKeyhole,
+  LogOut,
+  MonitorSmartphone,
+  RefreshCw,
   ShieldCheck,
 } from "lucide-react";
 import { fetchSession } from "../services/api.js";
-import { changeAccountPassword } from "../services/accountSecurityApi.js";
+import {
+  changeAccountPassword,
+  fetchAccountSessions,
+  terminateOtherSessions,
+} from "../services/accountSecurityApi.js";
 
 function firstError(errors, name) {
   const value = errors?.[name];
   return Array.isArray(value) ? value[0] : value || "";
+}
+
+function formatExpiry(value) {
+  if (!value) return "Sessão ativa";
+  try {
+    return new Intl.DateTimeFormat("pt-MZ", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
+  } catch {
+    return "Sessão ativa";
+  }
 }
 
 function PasswordField({
@@ -67,11 +86,34 @@ export default function PasswordChangePage({ onBack, onLogin }) {
   const [requestError, setRequestError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [sessions, setSessions] = useState(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState("");
+  const [sessionsSuccess, setSessionsSuccess] = useState("");
+  const [terminatingSessions, setTerminatingSessions] = useState(false);
+
+  async function loadSessions() {
+    setSessionsLoading(true);
+    setSessionsError("");
+    try {
+      const payload = await fetchAccountSessions();
+      setSessions(payload);
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) setAuthenticated(false);
+      setSessionsError(error.message || "Não foi possível verificar as sessões abertas.");
+    } finally {
+      setSessionsLoading(false);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
     fetchSession({ signal: controller.signal })
-      .then((session) => setAuthenticated(Boolean(session?.authenticated)))
+      .then((session) => {
+        const isAuthenticated = Boolean(session?.authenticated);
+        setAuthenticated(isAuthenticated);
+        if (isAuthenticated) loadSessions();
+      })
       .catch((error) => {
         if (error.name !== "AbortError") setRequestError("Não foi possível confirmar a sua sessão.");
       })
@@ -122,6 +164,24 @@ export default function PasswordChangePage({ onBack, onLogin }) {
       setErrors(error.payload?.errors || {});
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleTerminateOtherSessions = async () => {
+    if (terminatingSessions) return;
+    setTerminatingSessions(true);
+    setSessionsError("");
+    setSessionsSuccess("");
+    try {
+      const result = await terminateOtherSessions();
+      setSessionsSuccess(result.message || "As outras sessões foram encerradas.");
+      await loadSessions();
+      window.setTimeout(() => setSessionsSuccess(""), 3500);
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) setAuthenticated(false);
+      setSessionsError(error.message || "Não foi possível terminar as outras sessões.");
+    } finally {
+      setTerminatingSessions(false);
     }
   };
 
@@ -196,67 +256,134 @@ export default function PasswordChangePage({ onBack, onLogin }) {
           </div>
         </aside>
 
-        <section className="nk-password-change-card">
-          <div className="nk-password-change-card__heading">
-            <span>Alterar palavra-passe</span>
-            <h2>Proteja o seu acesso</h2>
-            <p>Use uma palavra-passe diferente das que utiliza noutros serviços.</p>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            <PasswordField
-              label="Palavra-passe atual"
-              name="current_password"
-              value={currentPassword}
-              show={showCurrent}
-              placeholder="A palavra-passe que usa agora"
-              error={firstError(errors, "current_password")}
-              onChange={updateField}
-              onToggle={() => setShowCurrent((current) => !current)}
-              autoComplete="current-password"
-            />
-
-            <PasswordField
-              label="Nova palavra-passe"
-              name="new_password"
-              value={newPassword}
-              show={showNew}
-              placeholder="Pelo menos 8 caracteres"
-              error={firstError(errors, "new_password")}
-              onChange={updateField}
-              onToggle={() => setShowNew((current) => !current)}
-              autoComplete="new-password"
-            />
-
-            <PasswordField
-              label="Confirmar nova palavra-passe"
-              name="confirmation"
-              value={confirmation}
-              show={showConfirmation}
-              placeholder="Repita a nova palavra-passe"
-              error={firstError(errors, "confirmation")}
-              onChange={updateField}
-              onToggle={() => setShowConfirmation((current) => !current)}
-              autoComplete="new-password"
-            />
-
-            <div className="nk-password-change-guidance">
-              <ShieldCheck size={18} />
-              <span>Evite nomes, datas fáceis, sequências numéricas e palavras-passe muito comuns.</span>
+        <div className="nk-password-change-stack">
+          <section className="nk-password-change-card">
+            <div className="nk-password-change-card__heading">
+              <span>Alterar palavra-passe</span>
+              <h2>Proteja o seu acesso</h2>
+              <p>Use uma palavra-passe diferente das que utiliza noutros serviços.</p>
             </div>
 
-            {requestError && <div className="nk-password-change-alert">{requestError}</div>}
+            <form onSubmit={handleSubmit}>
+              <PasswordField
+                label="Palavra-passe atual"
+                name="current_password"
+                value={currentPassword}
+                show={showCurrent}
+                placeholder="A palavra-passe que usa agora"
+                error={firstError(errors, "current_password")}
+                onChange={updateField}
+                onToggle={() => setShowCurrent((current) => !current)}
+                autoComplete="current-password"
+              />
 
-            <button
-              type="submit"
-              className="nk-button nk-button--wine nk-password-change-submit"
-              disabled={submitting || !currentPassword || !newPassword || !confirmation}
-            >
-              {submitting ? <LoaderCircle size={18} className="is-spinning" /> : <LockKeyhole size={18} />}
-              {submitting ? "A atualizar…" : "Atualizar palavra-passe"}
-            </button>
-          </form>
-        </section>
+              <PasswordField
+                label="Nova palavra-passe"
+                name="new_password"
+                value={newPassword}
+                show={showNew}
+                placeholder="Pelo menos 8 caracteres"
+                error={firstError(errors, "new_password")}
+                onChange={updateField}
+                onToggle={() => setShowNew((current) => !current)}
+                autoComplete="new-password"
+              />
+
+              <PasswordField
+                label="Confirmar nova palavra-passe"
+                name="confirmation"
+                value={confirmation}
+                show={showConfirmation}
+                placeholder="Repita a nova palavra-passe"
+                error={firstError(errors, "confirmation")}
+                onChange={updateField}
+                onToggle={() => setShowConfirmation((current) => !current)}
+                autoComplete="new-password"
+              />
+
+              <div className="nk-password-change-guidance">
+                <ShieldCheck size={18} />
+                <span>Evite nomes, datas fáceis, sequências numéricas e palavras-passe muito comuns.</span>
+              </div>
+
+              {requestError && <div className="nk-password-change-alert">{requestError}</div>}
+
+              <button
+                type="submit"
+                className="nk-button nk-button--wine nk-password-change-submit"
+                disabled={submitting || !currentPassword || !newPassword || !confirmation}
+              >
+                {submitting ? <LoaderCircle size={18} className="is-spinning" /> : <LockKeyhole size={18} />}
+                {submitting ? "A atualizar…" : "Atualizar palavra-passe"}
+              </button>
+            </form>
+          </section>
+
+          <section className="nk-account-sessions">
+            <div className="nk-account-sessions__heading">
+              <div>
+                <span><MonitorSmartphone size={18} /></span>
+                <div>
+                  <h2>Sessões abertas</h2>
+                  <p>Controle outros acessos à sua conta sem sair deste dispositivo.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="nk-account-sessions__refresh"
+                onClick={loadSessions}
+                disabled={sessionsLoading}
+                aria-label="Atualizar sessões"
+              >
+                <RefreshCw size={16} className={sessionsLoading ? "is-spinning" : ""} />
+              </button>
+            </div>
+
+            <div className="nk-account-sessions__current">
+              <span className="nk-account-sessions__device"><MonitorSmartphone size={19} /></span>
+              <div>
+                <strong>Este dispositivo</strong>
+                <small>
+                  {sessions?.current?.expires_at
+                    ? `Sessão válida até ${formatExpiry(sessions.current.expires_at)}`
+                    : "Sessão atual protegida"}
+                </small>
+              </div>
+              <em>Atual</em>
+            </div>
+
+            {sessionsError && <div className="nk-account-sessions__message is-error">{sessionsError}</div>}
+            {sessionsSuccess && <div className="nk-account-sessions__message is-success">{sessionsSuccess}</div>}
+
+            {!sessionsError && (
+              <div className="nk-account-sessions__others">
+                <div>
+                  <strong>
+                    {sessionsLoading
+                      ? "A verificar…"
+                      : sessions?.other_sessions
+                        ? `${sessions.other_sessions} outra(s) sessão(ões) aberta(s)`
+                        : "Nenhuma outra sessão aberta"}
+                  </strong>
+                  <span>
+                    {sessions?.other_sessions
+                      ? "Use o botão abaixo se não reconhecer ou já não utilizar esses acessos."
+                      : "Apenas esta sessão aparece associada à sua conta neste momento."}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTerminateOtherSessions}
+                  disabled={terminatingSessions || sessionsLoading || !sessions?.other_sessions}
+                >
+                  {terminatingSessions ? <LoaderCircle size={16} className="is-spinning" /> : <LogOut size={16} />}
+                  {terminatingSessions ? "A terminar…" : "Terminar outras sessões"}
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
       </section>
     </main>
   );
