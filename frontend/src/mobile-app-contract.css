@@ -18,7 +18,8 @@
     background: #f6f1eb;
   }
 
-  body {
+  body,
+  body.nk-app-mode {
     min-width: 320px;
     min-height: 100dvh;
     margin: 0;
@@ -57,8 +58,7 @@
   [role="button"],
   a.nk-button,
   .nk-header__icon-button,
-  .nk-mobile-nav a,
-  .nk-mobile-nav button {
+  .nk-bottom-nav button {
     min-height: var(--nk-app-touch);
   }
 
@@ -74,7 +74,7 @@
   }
 
   /* A navegação inferior é a navegação primária do membro no telemóvel. */
-  body:has(.nk-header__member) .nk-mobile-nav {
+  body:has(.nk-header__member) .nk-bottom-nav {
     position: fixed;
     z-index: 190;
     right: 0;
@@ -88,6 +88,11 @@
     box-shadow: 0 -12px 34px rgba(41, 27, 24, 0.08);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
+  }
+
+  body:has(.nk-header__member) .nk-bottom-nav button {
+    min-height: var(--nk-app-bottom-nav);
+    border-radius: 0;
   }
 
   body:has(.nk-header__member) .nk-footer,
