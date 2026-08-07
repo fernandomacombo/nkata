@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Bell,
   Bookmark,
+  CirclePlay,
   FileSearch,
   HeartHandshake,
   Home,
@@ -95,6 +96,15 @@ export default function AppHeader({
           >
             Perfis
           </button>
+          {authenticated && (
+            <button
+              type="button"
+              className={activePage === "moments" ? "is-active" : ""}
+              onClick={() => navigate("moments")}
+            >
+              Momentos
+            </button>
+          )}
           {authenticated && (
             <button
               type="button"
@@ -259,6 +269,17 @@ export default function AppHeader({
                 <span><Search size={19} /></span>
                 <div><strong>Perfis</strong><small>Conhecer pessoas da comunidade</small></div>
               </button>
+
+              {authenticated && (
+                <button
+                  type="button"
+                  className={activePage === "moments" ? "is-active" : ""}
+                  onClick={() => navigate("moments")}
+                >
+                  <span><CirclePlay size={19} /></span>
+                  <div><strong>Momentos</strong><small>Histórias que desaparecem em 24 horas</small></div>
+                </button>
+              )}
 
               {authenticated && (
                 <button
