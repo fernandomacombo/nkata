@@ -41,6 +41,7 @@ import "./mobile-native-screens.css";
 import "./moments.css";
 import "./moments-safety.css";
 import "./moments-autoplay.css";
+import "./moments-reactions.css";
 
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
