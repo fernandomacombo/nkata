@@ -5,6 +5,7 @@ from django.db import models
 class NotificacaoNKATA(models.Model):
     TIPO_CHOICES = [
         ("INTERESSE", "Novo interesse"),
+        ("SINAL", "Novo sinal"),
         ("MATCH", "Novo match"),
         ("MENSAGEM", "Nova mensagem"),
         ("EQUIPA", "Aviso da equipa"),
