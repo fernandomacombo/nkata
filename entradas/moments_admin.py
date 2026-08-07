@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import admin
+from django.http import HttpResponseRedirect
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -11,6 +12,8 @@ from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 
 @admin.register(MomentoNKATA)
 class MomentoNKATAAdmin(admin.ModelAdmin):
+    change_form_template = "admin/entradas/momentonkata/change_form.html"
+
     list_display = (
         "perfil",
         "tipo_media",
@@ -81,6 +84,9 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     def media_privada(self, obj):
         if not obj.pk or not obj.media:
             return "Sem fotografia/vídeo."
@@ -111,6 +117,68 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
         )
 
     regras_moderacao.short_description = "Regras rápidas"
+
+    def _aprovar(self, momento):
+        now = timezone.now()
+        momento.moderacao_status = "APROVADO"
+        momento.moderacao_motivo = ""
+        momento.moderado_em = now
+        momento.expira_em = now + timedelta(hours=MOMENT_LIFETIME_HOURS)
+        momento.save(update_fields=[
+            "moderacao_status",
+            "moderacao_motivo",
+            "moderado_em",
+            "expira_em",
+        ])
+
+    def _rejeitar(self, momento, grave=False):
+        momento.moderacao_status = "REJEITADO"
+        momento.moderacao_motivo = (
+            "Conteúdo rejeitado por violação grave das regras da comunidade."
+            if grave
+            else "Conteúdo não aprovado por não estar de acordo com as regras dos Momentos NKATA."
+        )
+        momento.moderado_em = timezone.now()
+        momento.save(update_fields=[
+            "moderacao_status",
+            "moderacao_motivo",
+            "moderado_em",
+        ])
+
+        if grave:
+            PerfilNKATA.objects.filter(pk=momento.perfil_id).exclude(
+                status="BLOQUEADO"
+            ).update(status="PAUSADO", visivel=False)
+
+    def response_change(self, request, obj):
+        if "_aprovar_momento" in request.POST:
+            self._aprovar(obj)
+            self.message_user(
+                request,
+                "Momento aprovado. As 24 horas começam a contar agora.",
+                level="success",
+            )
+            return HttpResponseRedirect(request.path)
+
+        if "_rejeitar_momento" in request.POST:
+            self._rejeitar(obj)
+            self.message_user(
+                request,
+                "Momento rejeitado e mantido fora da comunidade.",
+                level="warning",
+            )
+            return HttpResponseRedirect(request.path)
+
+        if "_rejeitar_pausar_momento" in request.POST:
+            self._rejeitar(obj, grave=True)
+            self.message_user(
+                request,
+                "Momento rejeitado e perfil pausado para revisão da equipa.",
+                level="warning",
+            )
+            return HttpResponseRedirect(request.path)
+
+        return super().response_change(request, obj)
 
     @admin.action(description="Aprovar Momentos selecionados")
     def aprovar_momentos(self, request, queryset):
