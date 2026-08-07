@@ -9,9 +9,9 @@ from .moments_models import ReacaoMomentoNKATA
 logger = logging.getLogger(__name__)
 
 REACTION_OPTIONS = [
-    {"value": "CORACAO", "label": "Gostei", "emoji": "❤️"},
-    {"value": "FLOR", "label": "Flor", "emoji": "🌹"},
-    {"value": "APLAUSO", "label": "Bonito", "emoji": "👏"},
+    {"value": "CORACAO", "label": "Gostei", "icon": "heart"},
+    {"value": "FLOR", "label": "Flor", "icon": "flower"},
+    {"value": "APLAUSO", "label": "Bonito", "icon": "sparkles"},
 ]
 REACTION_BY_CODE = {item["value"]: item for item in REACTION_OPTIONS}
 
@@ -76,7 +76,7 @@ def _update_notification(momento, user, actor_profile, reaction_type):
                 "perfil_id": actor_profile.id,
                 "match": None,
                 "tipo": "MOMENTO",
-                "titulo": f"{option['emoji']} Reação no seu Momento",
+                "titulo": "Reação no seu Momento",
                 "texto": f"{actor_name} reagiu com {option['label'].lower()} ao seu Momento.",
                 "lida": False,
             },
