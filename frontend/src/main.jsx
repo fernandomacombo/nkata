@@ -5,6 +5,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import ProfileFollowAction from "./components/profile/ProfileFollowAction.jsx";
 import AccessRequestPage from "./pages/AccessRequestPage.jsx";
 import AccessStatusPage from "./pages/AccessStatusPage.jsx";
 import PasswordChangePage from "./pages/PasswordChangePage.jsx";
@@ -14,6 +15,7 @@ import QuestionnairePage from "./pages/QuestionnairePage.jsx";
 import "./styles.css";
 import "./profile-detail.css";
 import "./profile-signals.css";
+import "./profile-follow.css";
 import "./integration.css";
 import "./features.css";
 import "./auth.css";
@@ -55,6 +57,8 @@ const questionnaireToken = questionnaireMatch?.[1] || "";
 const passwordResetConfirmMatch = normalizedPath.match(/^\/nova-senha\/([^/]+)\/([^/]+)\/$/);
 const passwordResetUid = passwordResetConfirmMatch?.[1] || "";
 const passwordResetToken = passwordResetConfirmMatch?.[2] || "";
+const profileDetailMatch = normalizedPath.match(/^\/perfis\/(\d+)\/$/);
+const profileDetailId = profileDetailMatch?.[1] || "";
 
 function go(path) {
   window.location.assign(path);
@@ -100,7 +104,10 @@ createRoot(document.getElementById("root")).render(
         onRestart={() => go("/recuperar-senha/")}
       />
     ) : (
-      <App />
+      <>
+        <App />
+        {profileDetailId && <ProfileFollowAction profileId={profileDetailId} />}
+      </>
     )}
   </React.StrictMode>
 );
