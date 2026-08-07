@@ -5,6 +5,7 @@ from . import (
     api_views,
     interest_views,
     notification_views,
+    password_reset_api,
     questionnaire_api,
     saved_views,
 )
@@ -16,6 +17,16 @@ urlpatterns = [
     path("session/", api_views.api_session, name="session"),
     path("auth/login/", api_views.api_login, name="login"),
     path("auth/logout/", api_views.api_logout, name="logout"),
+    path(
+        "auth/password-reset/",
+        password_reset_api.api_pedir_recuperacao_senha,
+        name="password_reset",
+    ),
+    path(
+        "auth/password-reset/<str:uidb64>/<str:token>/",
+        password_reset_api.api_confirmar_recuperacao_senha,
+        name="password_reset_confirm",
+    ),
     path("pedir-acesso/", access_api.api_pedir_acesso, name="pedir_acesso"),
     path(
         "acompanhar-pedido/",
