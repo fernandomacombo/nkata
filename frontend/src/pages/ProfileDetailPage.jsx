@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -14,6 +14,13 @@ import {
 } from "lucide-react";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import { blockProfile, reportProfile } from "../services/api.js";
+import { fetchProfileSignals, sendProfileSignal } from "../services/signalApi.js";
+
+const DEFAULT_SIGNALS = [
+  { type: "FLOR", label: "Flor", emoji: "🌹", message: "Uma flor para mostrar que este perfil chamou a sua atenção." },
+  { type: "BEIJINHO", label: "Beijinho", emoji: "😘", message: "Um gesto carinhoso, sem abrir uma conversa privada." },
+  { type: "OLA", label: "Olá", emoji: "👋", message: "Olá, gostei do seu perfil e gostaria de conhecer melhor." },
+];
 
 function DetailBlock({ title, children }) {
   return (
@@ -44,12 +51,42 @@ export default function ProfileDetailPage({
   const [safetyLoading, setSafetyLoading] = useState(false);
   const [safetyError, setSafetyError] = useState("");
   const [safetyStatus, setSafetyStatus] = useState("");
+  const [signalData, setSignalData] = useState(null);
+  const [signalLoading, setSignalLoading] = useState(false);
+  const [signalSending, setSignalSending] = useState("");
+  const [signalError, setSignalError] = useState("");
+  const [signalStatus, setSignalStatus] = useState("");
 
   const hasImage = Boolean(profile?.foto_url) && !imageFailed;
   const profileUrl = useMemo(() => {
     if (!profile?.id || String(profile.id).startsWith("demo-")) return null;
     return new URL(`/perfis/${profile.id}/`, window.location.origin).toString();
   }, [profile?.id]);
+
+  useEffect(() => {
+    if (!authenticated || !profile?.id || String(profile.id).startsWith("demo-")) {
+      setSignalData(null);
+      setSignalLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setSignalLoading(true);
+    setSignalError("");
+
+    fetchProfileSignals(profile.id, { signal: controller.signal })
+      .then((payload) => setSignalData(payload))
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") {
+          setSignalError(requestError.message || "Não foi possível consultar os sinais disponíveis.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSignalLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [authenticated, profile?.id]);
 
   const handleShare = async () => {
     if (!profile) return;
@@ -114,6 +151,36 @@ export default function ProfileDetailPage({
     }
   };
 
+  const handleSignal = async (type) => {
+    if (!authenticated) {
+      onRequireLogin?.();
+      return;
+    }
+    if (!profile?.id || String(profile.id).startsWith("demo-")) return;
+
+    setSignalSending(type);
+    setSignalError("");
+    setSignalStatus("");
+
+    try {
+      const result = await sendProfileSignal(profile.id, type);
+      setSignalData({ quota: result.quota, signals: result.signals });
+      setSignalStatus(result.message || "Sinal enviado.");
+      window.setTimeout(() => setSignalStatus(""), 3200);
+    } catch (requestError) {
+      if (requestError.payload?.quota) {
+        setSignalData((current) => ({
+          ...(current || {}),
+          quota: requestError.payload.quota,
+          signals: requestError.payload.signals || current?.signals || DEFAULT_SIGNALS,
+        }));
+      }
+      setSignalError(requestError.message || "Não foi possível enviar este sinal.");
+    } finally {
+      setSignalSending("");
+    }
+  };
+
   if (!profile && loading) {
     return (
       <main className="nk-profile-detail nk-profile-detail--loading">
@@ -147,6 +214,10 @@ export default function ProfileDetailPage({
     }
     onToggleInterest?.(profile);
   };
+
+  const quota = signalData?.quota || null;
+  const signals = signalData?.signals?.length ? signalData.signals : DEFAULT_SIGNALS;
+  const limitReached = Boolean(quota?.limit_reached);
 
   return (
     <main className="nk-profile-detail">
@@ -230,6 +301,82 @@ export default function ProfileDetailPage({
                 <p>Os contactos só são partilhados quando existir autorização dos dois lados.</p>
               </div>
             </div>
+
+            <section className={`nk-profile-signals ${limitReached ? "is-locked" : ""}`}>
+              <div className="nk-profile-signals__heading">
+                <div>
+                  <span>Sinais NKATA</span>
+                  <h2>Um gesto simples, antes da conversa.</h2>
+                  <p>Envie um sinal sem abrir o chat. Cada conta Livre tem 3 sinais por dia.</p>
+                </div>
+                {authenticated && quota && (
+                  <strong className="nk-profile-signals__quota">
+                    {quota.used_today} de {quota.daily_limit} usados hoje
+                  </strong>
+                )}
+              </div>
+
+              <div className="nk-profile-signals__grid">
+                {signals.map((signal) => {
+                  const sent = Boolean(signal.sent_to_profile_today);
+                  const busy = signalSending === signal.type;
+                  const disabled = (
+                    signalLoading
+                    || Boolean(signalSending)
+                    || sent
+                    || limitReached
+                    || String(profile.id).startsWith("demo-")
+                  );
+
+                  return (
+                    <button
+                      type="button"
+                      key={signal.type}
+                      className={sent ? "is-sent" : ""}
+                      onClick={() => handleSignal(signal.type)}
+                      disabled={authenticated ? disabled : false}
+                      title={signal.message}
+                    >
+                      <span>{signal.emoji}</span>
+                      <strong>{signal.label}</strong>
+                      <small>
+                        {!authenticated
+                          ? "Entrar para enviar"
+                          : busy
+                            ? "A enviar…"
+                            : sent
+                              ? "Enviado hoje"
+                              : limitReached
+                                ? "Limite atingido"
+                                : "Enviar sinal"}
+                      </small>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {!authenticated && (
+                <button type="button" className="nk-profile-signals__login" onClick={onRequireLogin}>
+                  Entrar para usar os 3 sinais gratuitos
+                </button>
+              )}
+
+              {signalLoading && authenticated && (
+                <small className="nk-profile-signals__loading">A confirmar os seus sinais de hoje…</small>
+              )}
+              {signalStatus && <div className="nk-profile-signals__message is-success">{signalStatus}</div>}
+              {signalError && <div className="nk-profile-signals__message is-error">{signalError}</div>}
+
+              {limitReached && (
+                <div className="nk-profile-signals__limit">
+                  <LockKeyhole size={18} />
+                  <div>
+                    <strong>Os 3 sinais gratuitos de hoje foram usados.</strong>
+                    <span>Para continuar no mesmo dia, será necessário um plano ou uma recarga.</span>
+                  </div>
+                </div>
+              )}
+            </section>
 
             <div className="nk-profile-safety">
               <span>Algo não parece certo? A equipa pode ajudar.</span>
