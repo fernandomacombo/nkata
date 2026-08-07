@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.utils.html import format_html
 
@@ -51,6 +52,31 @@ def aplicar_fluxo_de_aprovacao_admin():
 
     progresso_acesso.short_description = "Progresso do acesso"
     progresso_acesso.admin_order_field = "status"
+
+    def link_questionario(self, obj):
+        if not obj.pk:
+            return "Guarde o pedido primeiro."
+
+        url = f"{settings.NKATA_FRONTEND_URL}/questionario/{obj.token}/"
+
+        if obj.status != "APROVADO":
+            return format_html(
+                '<div style="line-height:1.6;">'
+                '<span style="color:#666;">O questionário só fica disponível depois da aprovação.</span><br>'
+                '<a href="{}" target="_blank" rel="noopener" style="font-weight:700;color:#8a293a;">'
+                'Pré-visualizar endereço do questionário'</n                '</a></div>',
+                url,
+            )
+
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener" style="'
+            'display:inline-flex;align-items:center;padding:9px 13px;border-radius:10px;'
+            'background:#7d2638;color:#fff;font-weight:700;text-decoration:none;">'
+            'Abrir questionário no NKATA</a>',
+            url,
+        )
+
+    link_questionario.short_description = "Questionário do candidato"
 
     def _alterar_status(self, request, queryset, status, mensagem):
         atualizados = 0
@@ -115,6 +141,7 @@ def aplicar_fluxo_de_aprovacao_admin():
 
     PedidoEntradaAdmin.get_queryset = get_queryset
     PedidoEntradaAdmin.progresso_acesso = progresso_acesso
+    PedidoEntradaAdmin.link_questionario = link_questionario
     PedidoEntradaAdmin.marcar_como_em_analise = marcar_como_em_analise
     PedidoEntradaAdmin.marcar_como_aprovado = marcar_como_aprovado
     PedidoEntradaAdmin.marcar_como_precisa_corrigir = marcar_como_precisa_corrigir
