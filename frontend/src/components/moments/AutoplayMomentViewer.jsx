@@ -128,10 +128,12 @@ export default function AutoplayMomentViewer({
   const [reactionError, setReactionError] = useState("");
   const timerRef = useRef(null);
   const intervalRef = useRef(null);
+  const currentMomentIdRef = useRef(null);
 
   const group = groups[groupIndex] || null;
   const moments = group?.moments || [];
   const moment = moments[momentIndex] || null;
+  currentMomentIdRef.current = moment?.id || null;
 
   const clearStillTimer = useCallback(() => {
     if (timerRef.current) window.clearTimeout(timerRef.current);
@@ -240,15 +242,23 @@ export default function AutoplayMomentViewer({
   const handleReaction = async (reactionType) => {
     if (!moment?.id || moment.mine || reactionBusy) return;
 
+    const reactionMomentId = moment.id;
     setReactionBusy(reactionType);
     setReactionError("");
+
     try {
-      const result = await toggleMomentReaction(moment.id, reactionType);
-      setReactions(result.reactions || null);
+      const result = await toggleMomentReaction(reactionMomentId, reactionType);
+      if (currentMomentIdRef.current === reactionMomentId) {
+        setReactions(result.reactions || null);
+      }
     } catch (requestError) {
-      setReactionError(requestError.message || "Não foi possível reagir.");
+      if (currentMomentIdRef.current === reactionMomentId) {
+        setReactionError(requestError.message || "Não foi possível reagir.");
+      }
     } finally {
-      setReactionBusy("");
+      if (currentMomentIdRef.current === reactionMomentId) {
+        setReactionBusy("");
+      }
     }
   };
 
