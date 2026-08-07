@@ -13,6 +13,7 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-placeholder-change-in-production")
 DEBUG = env_bool("DJANGO_DEBUG", True)
+NKATA_FRONTEND_URL = os.getenv("NKATA_FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", "").strip()
 if allowed_hosts_env:
