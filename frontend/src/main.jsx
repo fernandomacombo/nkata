@@ -13,6 +13,7 @@ import PasswordResetPage from "./pages/PasswordResetPage.jsx";
 import QuestionnairePage from "./pages/QuestionnairePage.jsx";
 import "./styles.css";
 import "./profile-detail.css";
+import "./profile-signals.css";
 import "./integration.css";
 import "./features.css";
 import "./auth.css";
