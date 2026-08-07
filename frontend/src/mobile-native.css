@@ -409,9 +409,23 @@
     font-size: 1.04rem;
   }
 
-  /* Conversation: full-height app screen */
+  /* Conversation: dedicated full-screen native surface */
+  body:has(.nk-conversation) {
+    padding-bottom: 0 !important;
+    overflow: hidden;
+  }
+
+  body:has(.nk-conversation) .nk-header,
+  body:has(.nk-conversation) .nk-bottom-nav {
+    display: none !important;
+  }
+
+  .nk-app:has(.nk-conversation) {
+    min-height: 100dvh;
+  }
+
   .nk-conversation {
-    height: calc(100dvh - var(--nk-mobile-topbar) - env(safe-area-inset-top, 0px));
+    height: 100dvh;
     min-height: 0;
     overflow: hidden;
     background: #f8f4ef;
@@ -432,8 +446,8 @@
 
   .nk-conversation__header {
     grid-template-columns: 42px minmax(0, 1fr) 42px;
-    min-height: 64px;
-    padding: 8px 10px;
+    min-height: calc(64px + env(safe-area-inset-top, 0px));
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 8px;
     background: rgba(255, 253, 249, 0.96);
   }
 
