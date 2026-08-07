@@ -4,6 +4,7 @@ from . import (
     access_api,
     account_security_api,
     api_views,
+    follow_views,
     interest_views,
     moment_reactions_api,
     moments_api,
@@ -70,6 +71,11 @@ urlpatterns = [
         "perfis/<int:perfil_id>/interesse/",
         interest_views.api_alternar_interesse,
         name="alternar_interesse",
+    ),
+    path(
+        "perfis/<int:perfil_id>/seguir/",
+        follow_views.api_alternar_seguir,
+        name="alternar_seguir",
     ),
     path(
         "perfis/<int:perfil_id>/sinais/",
