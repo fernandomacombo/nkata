@@ -5,6 +5,7 @@ class EntradasConfig(AppConfig):
     name = "entradas"
 
     def ready(self):
+        from . import access_email_notifications  # noqa: F401
         from . import account_lifecycle  # noqa: F401
         from . import notification_signals  # noqa: F401
         from .admin_workflow import aplicar_fluxo_de_aprovacao_admin
