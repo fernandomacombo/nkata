@@ -38,4 +38,8 @@ class EntradasConfig(AppConfig):
             "session_key",
         )
 
+        # O modelo de Momentos é isolado das migrações antigas, mas precisa ser
+        # registado no Admin para a fila de revisão de fotografia/vídeo.
+        from . import moments_admin  # noqa: F401
+
         aplicar_fluxo_de_aprovacao_admin()
