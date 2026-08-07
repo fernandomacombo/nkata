@@ -34,6 +34,12 @@
     isolation: isolate;
   }
 
+  /* Em mobile o NKATA não usa rodapé tradicional de website. */
+  footer,
+  .nk-footer {
+    display: none !important;
+  }
+
   /* Um shell mobile deve comportar-se como viewport de app, não página web estreita. */
   .nk-shell {
     width: 100%;
@@ -43,6 +49,7 @@
 
   main {
     min-width: 0;
+    min-height: 100dvh;
   }
 
   button,
@@ -93,11 +100,6 @@
   body:has(.nk-header__member) .nk-bottom-nav button {
     min-height: var(--nk-app-bottom-nav);
     border-radius: 0;
-  }
-
-  body:has(.nk-header__member) .nk-footer,
-  body:has(.nk-header__member) footer.nk-footer {
-    display: none !important;
   }
 
   /* Cartões principais perdem a aparência de caixas de website em mobile. */
