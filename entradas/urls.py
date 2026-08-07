@@ -1,5 +1,4 @@
-from django.contrib.auth import views as auth_views
-from django.urls import path, reverse_lazy
+from django.urls import path
 
 from . import legacy_redirects, views
 
@@ -73,17 +72,12 @@ urlpatterns = [
     ),
     path(
         "minha-conta/alterar-senha/",
-        auth_views.PasswordChangeView.as_view(
-            template_name="entradas/password_change_form.html",
-            success_url=reverse_lazy("entradas:password_change_done"),
-        ),
+        legacy_redirects.alterar_senha_moderno,
         name="password_change",
     ),
     path(
         "minha-conta/alterar-senha/concluido/",
-        auth_views.PasswordChangeDoneView.as_view(
-            template_name="entradas/password_change_done.html",
-        ),
+        legacy_redirects.alterar_senha_concluida_moderno,
         name="password_change_done",
     ),
     path(
