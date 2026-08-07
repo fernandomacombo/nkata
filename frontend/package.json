@@ -9,9 +9,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
-    "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 4173",
-    "check:ui": "node scripts/check-ui-policy.mjs"
+    "check:ui": "node scripts/check-ui-policy.mjs",
+    "build": "npm run check:ui && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
