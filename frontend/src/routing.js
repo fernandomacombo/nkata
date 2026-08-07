@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const STATIC_PATHS = {
   home: "/",
   discover: "/perfis/",
+  moments: "/momentos/",
   saved: "/guardados/",
   matches: "/matches/",
   notifications: "/notificacoes/",
