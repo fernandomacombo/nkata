@@ -24,6 +24,16 @@ urlpatterns = [
         name="password_change",
     ),
     path(
+        "auth/sessions/",
+        account_security_api.api_sessoes_da_conta,
+        name="account_sessions",
+    ),
+    path(
+        "auth/sessions/terminate-others/",
+        account_security_api.api_terminar_outras_sessoes,
+        name="terminate_other_sessions",
+    ),
+    path(
         "auth/password-reset/",
         password_reset_api.api_pedir_recuperacao_senha,
         name="password_reset",
