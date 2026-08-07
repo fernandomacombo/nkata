@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import AcaoPerfil, PerfilNKATA
+from .serializers import PerfilResumoSerializer
 
 
 def _perfil_do_utilizador(user):
@@ -31,6 +32,72 @@ def _bloqueio_entre_perfis(perfil_a, perfil_b):
         )
 
     return bool(conditions) and AcaoPerfil.objects.filter(conditions).exists()
+
+
+def _ids_bloqueados_para(user, perfil_atual):
+    bloqueados = set(
+        AcaoPerfil.objects.filter(
+            usuario=user,
+            tipo="BLOQUEIO",
+        ).values_list("perfil_id", flat=True)
+    )
+
+    bloqueadores = set(
+        AcaoPerfil.objects.filter(
+            perfil=perfil_atual,
+            tipo="BLOQUEIO",
+            usuario__isnull=False,
+        ).values_list("usuario_id", flat=True)
+    )
+    return bloqueados, bloqueadores
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def api_perfis_seguidos(request):
+    perfil_atual = _perfil_do_utilizador(request.user)
+    if not perfil_atual or perfil_atual.status != "ATIVO":
+        return Response(
+            {"detail": "A sua conta ainda não tem um perfil ativo no NKATA."},
+            status=403,
+        )
+
+    bloqueados, bloqueadores = _ids_bloqueados_para(request.user, perfil_atual)
+
+    actions = (
+        AcaoPerfil.objects
+        .filter(
+            usuario=request.user,
+            tipo="SEGUIR",
+            perfil__status="ATIVO",
+            perfil__visivel=True,
+        )
+        .select_related("perfil", "perfil__pedido", "perfil__usuario")
+        .order_by("-criado_em")
+    )
+
+    if bloqueados:
+        actions = actions.exclude(perfil_id__in=bloqueados)
+    if bloqueadores:
+        actions = actions.exclude(perfil__usuario_id__in=bloqueadores)
+
+    perfis = []
+    seen = set()
+    for action in actions:
+        if action.perfil_id == perfil_atual.id or action.perfil_id in seen:
+            continue
+        seen.add(action.perfil_id)
+        perfis.append(action.perfil)
+
+    serializer = PerfilResumoSerializer(
+        perfis,
+        many=True,
+        context={"request": request},
+    )
+    return Response({
+        "count": len(perfis),
+        "results": serializer.data,
+    })
 
 
 @api_view(["GET", "POST"])
@@ -78,8 +145,6 @@ def api_alternar_seguir(request, perfil_id):
         })
 
     if existing.exists():
-        # Remove todas as ocorrências antigas da mesma conta, caso existam
-        # registos legados associados a sessões diferentes.
         existing.delete()
         return Response({
             "ok": True,
