@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.contrib import admin
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from .models import PerfilNKATA
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
@@ -94,7 +95,10 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
     media_privada.short_description = "Ficheiro para revisão"
 
     def regras_moderacao(self, obj):
-        return format_html(
+        # HTML totalmente estático e controlado pelo código do NKATA.
+        # No Django 6, format_html() exige args/kwargs; como não existe nenhum
+        # dado dinâmico aqui, mark_safe() é a opção correta e mais simples.
+        return mark_safe(
             "<div style='max-width:680px;line-height:1.65'>"
             "<strong>Não aprovar:</strong> nudez ou conteúdo sexual explícito; "
             "oferta/solicitação de serviços sexuais ou prostituição; telefone, "
