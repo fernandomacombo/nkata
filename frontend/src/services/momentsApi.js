@@ -22,6 +22,13 @@ async function readPayload(response) {
   return contentType.includes("application/json") ? response.json() : null;
 }
 
+function csrfHeaders() {
+  const headers = { Accept: "application/json" };
+  const csrfToken = getCookie("csrftoken");
+  if (csrfToken) headers["X-CSRFToken"] = csrfToken;
+  return headers;
+}
+
 export async function fetchMoments({ signal } = {}) {
   const response = await fetch(`${API_BASE_URL}/api/momentos/`, {
     method: "GET",
@@ -46,14 +53,10 @@ export async function createMoment({ caption, visibility, media }) {
   form.append("visibilidade", visibility || "TODOS");
   if (media) form.append("media", media);
 
-  const headers = { Accept: "application/json" };
-  const csrfToken = getCookie("csrftoken");
-  if (csrfToken) headers["X-CSRFToken"] = csrfToken;
-
   const response = await fetch(`${API_BASE_URL}/api/momentos/`, {
     method: "POST",
     credentials: "include",
-    headers,
+    headers: csrfHeaders(),
     body: form,
   });
   const payload = await readPayload(response);
@@ -71,19 +74,54 @@ export async function createMoment({ caption, visibility, media }) {
 }
 
 export async function deleteMoment(momentId) {
-  const headers = { Accept: "application/json" };
-  const csrfToken = getCookie("csrftoken");
-  if (csrfToken) headers["X-CSRFToken"] = csrfToken;
-
   const response = await fetch(`${API_BASE_URL}/api/momentos/${momentId}/`, {
     method: "DELETE",
     credentials: "include",
-    headers,
+    headers: csrfHeaders(),
   });
   const payload = await readPayload(response);
   if (!response.ok) {
     throw new MomentsApiError(
       payload?.detail || "Não foi possível remover o Momento.",
+      response.status,
+      payload,
+    );
+  }
+  return payload;
+}
+
+export async function fetchMomentReactions(momentId, { signal } = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/momentos/${momentId}/reacoes/`, {
+    method: "GET",
+    credentials: "include",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    throw new MomentsApiError(
+      payload?.detail || "Não foi possível consultar as reações deste Momento.",
+      response.status,
+      payload,
+    );
+  }
+  return payload?.reactions || null;
+}
+
+export async function toggleMomentReaction(momentId, reactionType) {
+  const response = await fetch(`${API_BASE_URL}/api/momentos/${momentId}/reacoes/`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      ...csrfHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ tipo: reactionType }),
+  });
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    throw new MomentsApiError(
+      payload?.detail || payload?.tipo?.[0] || "Não foi possível enviar a reação.",
       response.status,
       payload,
     );
