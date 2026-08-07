@@ -136,6 +136,9 @@ class AcaoPerfil(models.Model):
         ("SEGUIR", "Seguir"),
         ("GUARDADO", "Perfil guardado"),
         ("BLOQUEIO", "Bloquear"),
+        ("SINAL_FLOR", "Sinal — Flor"),
+        ("SINAL_BEIJINHO", "Sinal — Beijinho"),
+        ("SINAL_OLA", "Sinal — Olá"),
     ]
     perfil = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="acoes_recebidas")
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="acoes_feitas")
