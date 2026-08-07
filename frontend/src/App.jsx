@@ -42,7 +42,7 @@ export default function App() {
   const [returnPageAfterLogin, setReturnPageAfterLogin] = useState("home");
   const [profiles, setProfiles] = useState(demoProfiles);
   const [loading, setLoading] = useState(true);
-  const [usingDemoData, setUsingDemoData] = useState(true);
+  const [usingDemoData, setUsingDemoData] = useState(demoProfiles.length > 0);
   const [loadError, setLoadError] = useState("");
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -91,6 +91,10 @@ export default function App() {
     refreshSession,
   } = useSession();
 
+  const sessionIdentity = authenticated
+    ? `user:${session?.user?.id || "unknown"}:profile:${session?.profile?.id || "unknown"}`
+    : "guest";
+
   const loadProfiles = useCallback(async ({ signal } = {}) => {
     setLoading(true);
     setLoadError("");
@@ -102,12 +106,12 @@ export default function App() {
         setUsingDemoData(false);
       } else {
         setProfiles(demoProfiles);
-        setUsingDemoData(true);
+        setUsingDemoData(demoProfiles.length > 0);
       }
     } catch (error) {
       if (error.name !== "AbortError") {
         setProfiles(demoProfiles);
-        setUsingDemoData(true);
+        setUsingDemoData(demoProfiles.length > 0);
         setLoadError(error.message || "Não foi possível atualizar os perfis.");
       }
     } finally {
@@ -174,10 +178,27 @@ export default function App() {
   }, [authenticated]);
 
   useEffect(() => {
+    if (sessionLoading) return undefined;
+
+    // A descoberta depende da conta atual. Ao entrar, sair ou trocar de
+    // utilizador, elimina imediatamente o próprio perfil conhecido e volta a
+    // consultar a API para não conservar a lista da sessão anterior.
+    if (authenticated && session?.profile?.id) {
+      setProfiles((current) => current.filter(
+        (profile) => String(profile.id) !== String(session.profile.id),
+      ));
+    }
+
     const controller = new AbortController();
     loadProfiles({ signal: controller.signal });
     return () => controller.abort();
-  }, [loadProfiles]);
+  }, [
+    authenticated,
+    loadProfiles,
+    session?.profile?.id,
+    sessionIdentity,
+    sessionLoading,
+  ]);
 
   useEffect(() => {
     if (!["matches", "conversation"].includes(activePage) || !authenticated) {
