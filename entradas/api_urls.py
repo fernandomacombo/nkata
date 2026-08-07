@@ -7,6 +7,7 @@ from . import (
     interest_views,
     notification_views,
     password_reset_api,
+    plan_views,
     profile_api,
     questionnaire_api,
     saved_views,
@@ -89,6 +90,11 @@ urlpatterns = [
         name="bloquear_perfil",
     ),
     path("minha-conta/", api_views.api_minha_conta, name="minha_conta"),
+    path(
+        "minha-conta/plano/",
+        plan_views.api_plano_da_conta,
+        name="plano_da_conta",
+    ),
     path(
         "minha-conta/foto/",
         api_views.api_atualizar_foto_perfil,
