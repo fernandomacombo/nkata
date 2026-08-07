@@ -4,6 +4,8 @@ import {
   BadgeCheck,
   Ban,
   Flag,
+  Flower2,
+  Hand,
   Heart,
   LockKeyhole,
   MapPin,
@@ -17,10 +19,16 @@ import { blockProfile, reportProfile } from "../services/api.js";
 import { fetchProfileSignals, sendProfileSignal } from "../services/signalApi.js";
 
 const DEFAULT_SIGNALS = [
-  { type: "FLOR", label: "Flor", emoji: "🌹", message: "Uma flor para mostrar que este perfil chamou a sua atenção." },
-  { type: "BEIJINHO", label: "Beijinho", emoji: "😘", message: "Um gesto carinhoso, sem abrir uma conversa privada." },
-  { type: "OLA", label: "Olá", emoji: "👋", message: "Olá, gostei do seu perfil e gostaria de conhecer melhor." },
+  { type: "FLOR", label: "Flor", icon: "flower", message: "Uma flor para mostrar que este perfil chamou a sua atenção." },
+  { type: "BEIJINHO", label: "Beijinho", icon: "heart", message: "Um gesto carinhoso, sem abrir uma conversa privada." },
+  { type: "OLA", label: "Olá", icon: "hand", message: "Olá, gostei do seu perfil e gostaria de conhecer melhor." },
 ];
+
+const SIGNAL_ICONS = {
+  FLOR: Flower2,
+  BEIJINHO: Heart,
+  OLA: Hand,
+};
 
 function DetailBlock({ title, children }) {
   return (
@@ -325,6 +333,7 @@ export default function ProfileDetailPage({
                 {signals.map((signal) => {
                   const sent = Boolean(signal.sent_to_profile_today);
                   const busy = signalSending === signal.type;
+                  const SignalIcon = SIGNAL_ICONS[signal.type] || Sparkles;
                   const disabled = (
                     signalLoading
                     || Boolean(signalSending)
@@ -342,7 +351,9 @@ export default function ProfileDetailPage({
                       disabled={authenticated ? disabled : false}
                       title={signal.message}
                     >
-                      <span>{signal.emoji}</span>
+                      <span className="nk-profile-signals__icon" aria-hidden="true">
+                        <SignalIcon size={27} strokeWidth={1.55} />
+                      </span>
                       <strong>{signal.label}</strong>
                       <small>
                         {!authenticated
