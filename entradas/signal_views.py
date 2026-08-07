@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -10,6 +11,7 @@ from rest_framework.response import Response
 from .models import AcaoPerfil, PerfilNKATA
 
 
+User = get_user_model()
 FREE_DAILY_SIGNAL_LIMIT = 3
 SIGNAL_DEFINITIONS = {
     "FLOR": {
@@ -144,9 +146,9 @@ def api_sinais_perfil(request, perfil_id):
         )
 
     with transaction.atomic():
-        # Em bases que suportam row locking, isto serializa dois envios
-        # simultâneos da mesma conta e protege o limite diário.
-        type(request.user).objects.select_for_update().get(pk=request.user.pk)
+        # Em PostgreSQL/MySQL isto serializa dois envios simultâneos da mesma
+        # conta. Em SQLite a escrita continua protegida pela transação.
+        User.objects.select_for_update().get(pk=request.user.pk)
 
         today_qs = _signals_today(request.user)
         used = today_qs.count()
