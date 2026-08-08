@@ -3,6 +3,7 @@ import {
   HeartHandshake,
   MapPin,
   MessageCircle,
+  Mic,
   RefreshCw,
   ShieldCheck,
   UserRound,
@@ -26,6 +27,21 @@ function formatDate(value) {
     day: "2-digit",
     month: "short",
   }).format(date);
+}
+
+function LastMessagePreview({ message }) {
+  if (!message) return <>O interesse é mútuo. Pode começar a conversa.</>;
+
+  if (message.type === "audio") {
+    return (
+      <span className="nk-match-card__voice-preview">
+        <Mic size={14} strokeWidth={2} />
+        {message.mine ? "Você: Nota de voz" : "Nota de voz"}
+      </span>
+    );
+  }
+
+  return <>{`${message.mine ? "Você: " : ""}${message.text}`}</>;
 }
 
 function MatchCard({ match, onOpen }) {
@@ -58,9 +74,7 @@ function MatchCard({ match, onOpen }) {
         </span>
 
         <span className={`nk-match-card__preview ${match.unreadCount ? "is-unread" : ""}`}>
-          {lastMessage
-            ? `${lastMessage.mine ? "Você: " : ""}${lastMessage.text}`
-            : "O interesse é mútuo. Pode começar a conversa."}
+          <LastMessagePreview message={lastMessage} />
         </span>
       </span>
 
