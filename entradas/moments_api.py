@@ -11,6 +11,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .content_moderation_service import analyse_content_media
 from .models import AcaoPerfil, MatchPerfil
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .plan_service import plan_for_user
@@ -344,6 +345,14 @@ def api_momentos(request):
                 "setup_required": True,
             },
             status=503,
+        )
+
+    if media:
+        analyse_content_media(
+            content_type="MOMENTO",
+            content_id=momento.id,
+            file_field=momento.media,
+            media_type=momento.tipo_media,
         )
 
     pending = moderation_status == "PENDENTE"
