@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Activity,
   ArrowLeft,
   Ban,
   Flag,
@@ -10,6 +11,7 @@ import {
   Mic,
   MoreHorizontal,
   Pause,
+  PenLine,
   Play,
   Send,
   ShieldCheck,
@@ -18,8 +20,18 @@ import {
   UserRound,
 } from "lucide-react";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
-import { blockProfile, closeMatch, reportProfile, sendMatchAudio } from "../services/api.js";
+import {
+  blockProfile,
+  closeMatch,
+  fetchMatchLive,
+  reportProfile,
+  sendMatchAudio,
+  updateMatchTyping,
+} from "../services/api.js";
 import { fetchMyPlan } from "../services/planApi.js";
+
+const LIVE_POLL_INTERVAL_MS = 2500;
+const TYPING_HEARTBEAT_MS = 2000;
 
 function formatMessageTime(value) {
   if (!value) return "";
@@ -34,6 +46,13 @@ function formatDuration(value) {
   const seconds = Math.max(0, Math.round(Number(value) || 0));
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function messageIdentity(message) {
+  if (message?.type === "audio") {
+    return `audio:${message.audioId || String(message.id || "").replace("audio-", "")}`;
+  }
+  return `text:${message?.id}`;
 }
 
 function VoiceNote({ message }) {
@@ -138,6 +157,10 @@ export default function ConversationPage({
   const [previewUrl, setPreviewUrl] = useState("");
   const [sendingAudio, setSendingAudio] = useState(false);
   const [localAudioMessages, setLocalAudioMessages] = useState([]);
+  const [liveMessages, setLiveMessages] = useState([]);
+  const [readReceiptKeys, setReadReceiptKeys] = useState(() => new Set());
+  const [remoteTyping, setRemoteTyping] = useState(false);
+  const [remoteActive, setRemoteActive] = useState(false);
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const endRef = useRef(null);
   const recorderRef = useRef(null);
@@ -147,13 +170,28 @@ export default function ConversationPage({
   const recordingStartedRef = useRef(0);
   const cancelRecordingRef = useRef(false);
   const previewAudioRef = useRef(null);
+  const liveCursorRef = useRef("");
+  const liveBusyRef = useRef(false);
   const profile = match?.otherProfile;
+  const isComposingText = Boolean(draft.trim()) && !recording && !recordedBlob;
 
-  const timeline = useMemo(() => (
-    [...messages, ...localAudioMessages].sort((a, b) => (
+  const timeline = useMemo(() => {
+    const merged = new Map();
+    [...messages, ...localAudioMessages, ...liveMessages].forEach((message) => {
+      if (!message) return;
+      const key = messageIdentity(message);
+      const previous = merged.get(key) || {};
+      merged.set(key, {
+        ...previous,
+        ...message,
+        read: Boolean(previous.read || message.read || readReceiptKeys.has(key)),
+      });
+    });
+
+    return [...merged.values()].sort((a, b) => (
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    ))
-  ), [localAudioMessages, messages]);
+    ));
+  }, [liveMessages, localAudioMessages, messages, readReceiptKeys]);
 
   const releaseRecordingResources = () => {
     if (timerRef.current) {
@@ -182,6 +220,11 @@ export default function ConversationPage({
     setSafetyStatus("");
     setAudioNotice("");
     setLocalAudioMessages([]);
+    setLiveMessages([]);
+    setReadReceiptKeys(new Set());
+    setRemoteTyping(false);
+    setRemoteActive(false);
+    liveCursorRef.current = "";
     clearRecordedAudio();
     releaseRecordingResources();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -209,7 +252,91 @@ export default function ConversationPage({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [timeline.length, loading]);
+  }, [timeline.length, loading, remoteTyping]);
+
+  useEffect(() => {
+    if (!match?.id || loading) return undefined;
+
+    if (!liveCursorRef.current && messages.length) {
+      const latest = messages.reduce((current, message) => {
+        if (!message?.createdAt) return current;
+        if (!current) return message.createdAt;
+        return new Date(message.createdAt) > new Date(current) ? message.createdAt : current;
+      }, "");
+      liveCursorRef.current = latest;
+    }
+
+    let disposed = false;
+
+    const poll = async () => {
+      if (disposed || liveBusyRef.current || document.visibilityState !== "visible") return;
+      liveBusyRef.current = true;
+      try {
+        const result = await fetchMatchLive(match.id, { since: liveCursorRef.current });
+        if (disposed) return;
+
+        if (result.serverTime) liveCursorRef.current = result.serverTime;
+        setRemoteTyping(Boolean(result.typing));
+        setRemoteActive(Boolean(result.active));
+
+        if (result.messages.length) {
+          setLiveMessages((current) => {
+            const merged = new Map(current.map((item) => [messageIdentity(item), item]));
+            result.messages.forEach((item) => {
+              const key = messageIdentity(item);
+              merged.set(key, { ...(merged.get(key) || {}), ...item });
+            });
+            return [...merged.values()];
+          });
+        }
+
+        if (result.readTextIds.length || result.readAudioIds.length) {
+          setReadReceiptKeys((current) => {
+            const next = new Set(current);
+            result.readTextIds.forEach((id) => next.add(`text:${id}`));
+            result.readAudioIds.forEach((id) => next.add(`audio:${id}`));
+            return next;
+          });
+        }
+      } catch {
+        // A conversa continua funcional mesmo se a atualização incremental falhar.
+      } finally {
+        liveBusyRef.current = false;
+      }
+    };
+
+    poll();
+    const intervalId = window.setInterval(poll, LIVE_POLL_INTERVAL_MS);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") poll();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [loading, match?.id, messages]);
+
+  useEffect(() => {
+    if (!match?.id) return undefined;
+
+    updateMatchTyping(match.id, isComposingText).catch(() => {});
+    if (!isComposingText) return undefined;
+
+    const heartbeatId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        updateMatchTyping(match.id, true).catch(() => {});
+      }
+    }, TYPING_HEARTBEAT_MS);
+
+    return () => window.clearInterval(heartbeatId);
+  }, [isComposingText, match?.id]);
+
+  useEffect(() => () => {
+    if (match?.id) updateMatchTyping(match.id, false).catch(() => {});
+  }, [match?.id]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -218,7 +345,10 @@ export default function ConversationPage({
     if (!text || sending || recording || recordedBlob) return;
 
     const sent = await onSend(text);
-    if (sent) setDraft("");
+    if (sent) {
+      setDraft("");
+      updateMatchTyping(match.id, false).catch(() => {});
+    }
   };
 
   const chooseRecordingMimeType = () => {
@@ -245,6 +375,7 @@ export default function ConversationPage({
     }
 
     clearRecordedAudio();
+    updateMatchTyping(match.id, false).catch(() => {});
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -415,7 +546,15 @@ export default function ConversationPage({
             </span>
             <div>
               <strong>{profile?.nome_publico || "Membro NKATA"}</strong>
-              <small><MapPin size={12} /> {profile?.cidade || "Moçambique"}</small>
+              <small className={remoteTyping ? "is-typing" : remoteActive ? "is-active" : ""}>
+                {remoteTyping ? (
+                  <><PenLine size={12} /> A escrever…</>
+                ) : remoteActive ? (
+                  <><Activity size={12} /> Ativo agora</>
+                ) : (
+                  <><MapPin size={12} /> {profile?.cidade || "Moçambique"}</>
+                )}
+              </small>
             </div>
           </div>
 
@@ -484,8 +623,18 @@ export default function ConversationPage({
           ) : timeline.length ? (
             <div className="nk-message-list">
               {timeline.map((message) => (
-                <MessageBubble key={message.id} message={message} />
+                <MessageBubble key={messageIdentity(message)} message={message} />
               ))}
+              {remoteTyping && (
+                <div className="nk-typing-row" aria-label={`${profile?.nome_publico || "A outra pessoa"} está a escrever`}>
+                  <div className="nk-typing-indicator">
+                    <PenLine size={14} />
+                    <span aria-hidden="true" />
+                    <span aria-hidden="true" />
+                    <span aria-hidden="true" />
+                  </div>
+                </div>
+              )}
               <div ref={endRef} />
             </div>
           ) : (
