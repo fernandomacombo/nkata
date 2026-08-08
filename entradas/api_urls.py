@@ -4,6 +4,7 @@ from . import (
     access_api,
     account_security_api,
     api_views,
+    chat_media_api,
     follow_views,
     interest_views,
     moment_reactions_api,
@@ -197,5 +198,15 @@ urlpatterns = [
         "minha-conta/matches/<int:match_id>/conversa/",
         api_views.api_conversa_match,
         name="conversa_match",
+    ),
+    path(
+        "minha-conta/matches/<int:match_id>/audio/",
+        chat_media_api.api_audios_match,
+        name="audios_match",
+    ),
+    path(
+        "minha-conta/matches/<int:match_id>/audio/<int:audio_id>/media/",
+        chat_media_api.api_media_audio_match,
+        name="media_audio_match",
     ),
 ]
