@@ -5,9 +5,15 @@ from django.test import SimpleTestCase, override_settings
 from .content_moderation_admin import automatic_review_panel
 from .content_moderation_models import AnaliseAutomaticaConteudoNKATA
 from .content_moderation_service import (
+    highest_risk,
     moderation_provider_label,
     risk_from_moderation_result,
     status_from_risk,
+)
+from .media_inspection_service import (
+    contact_signals_from_text,
+    merge_inspection_signals,
+    risk_from_inspection_signals,
 )
 
 
@@ -51,12 +57,55 @@ class MediaModerationRulesTests(SimpleTestCase):
         self.assertIn("GRAVE", human_choices)
         self.assertNotIn("BAIXO", human_choices)
 
-    @override_settings(NKATA_MEDIA_MODERATION_PROVIDER="manual")
-    def test_provider_manual_e_explicitamente_identificado(self):
-        self.assertIn("sem motor externo", moderation_provider_label().lower())
+    @override_settings(
+        NKATA_MEDIA_MODERATION_PROVIDER="manual",
+        NKATA_MEDIA_VISION_SCAN_ENABLED=False,
+    )
+    def test_provider_manual_identifica_open_cv_e_revisao_humana(self):
+        label = moderation_provider_label().lower()
+        self.assertIn("opencv", label)
+        self.assertIn("revisão humana", label)
 
     def test_admin_sem_analise_nao_quebra_no_django_6(self):
         with patch("entradas.content_moderation_admin.analysis_for", return_value=None):
             html = str(automatic_review_panel("PUBLICACAO", 999999))
         self.assertIn("Sem registo automático", html)
         self.assertIn("revisão humana", html)
+
+    def test_contactos_mocambicanos_email_handle_e_url_sao_reconhecidos(self):
+        signals = contact_signals_from_text(
+            "WhatsApp 876598403, email pessoa@example.com, @perfil e https://example.com"
+        )
+        self.assertTrue(signals["contact_phone"])
+        self.assertTrue(signals["contact_email"])
+        self.assertTrue(signals["contact_username"])
+        self.assertTrue(signals["contact_url"])
+
+    def test_qr_ou_contacto_e_risco_alto(self):
+        self.assertEqual(
+            risk_from_inspection_signals({"qr_code": True}),
+            "ALTO",
+        )
+        self.assertEqual(
+            risk_from_inspection_signals({"contact_phone": True}),
+            "ALTO",
+        )
+
+    def test_servicos_sexuais_e_risco_critico(self):
+        self.assertEqual(
+            risk_from_inspection_signals({"sexual_services_solicitation": True}),
+            "CRITICO",
+        )
+
+    def test_sinais_locais_e_visuais_sao_combinados_sem_apagar_alertas(self):
+        merged = merge_inspection_signals(
+            {"qr_code": True, "contact_phone": False},
+            {"contact_phone": True, "advertising_or_sales": True},
+        )
+        self.assertTrue(merged["qr_code"])
+        self.assertTrue(merged["contact_phone"])
+        self.assertTrue(merged["advertising_or_sales"])
+
+    def test_maior_risco_prevalece(self):
+        self.assertEqual(highest_risk("BAIXO", "ALTO", "MEDIO"), "ALTO")
+        self.assertEqual(highest_risk("ALTO", "CRITICO"), "CRITICO")
