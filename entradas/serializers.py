@@ -1,8 +1,10 @@
 import re
 
+from django.db import DatabaseError
 from django.db.models import Q
 from rest_framework import serializers
 
+from .chat_media_models import MensagemAudioMatchNKATA
 from .models import MatchPerfil, MensagemMatch, PerfilNKATA
 
 
@@ -283,17 +285,69 @@ class MatchSerializer(serializers.ModelSerializer):
 
         return PerfilResumoSerializer(outro, context=self.context).data
 
+    def _audio_payload(self, audio):
+        request = self.context.get("request")
+        audio_url = None
+        if request:
+            audio_url = request.build_absolute_uri(
+                f"/api/minha-conta/matches/{audio.match_id}/audio/{audio.id}/media/"
+            )
+        return {
+            "id": f"audio-{audio.id}",
+            "audio_id": audio.id,
+            "match": audio.match_id,
+            "remetente_id": audio.remetente_id,
+            "remetente_nome": (
+                getattr(getattr(audio.remetente, "perfil_nkata", None), "nome_publico", None)
+                or getattr(audio.remetente, "first_name", "")
+                or "Membro NKATA"
+            ),
+            "texto": "",
+            "tipo": "AUDIO",
+            "audio_url": audio_url,
+            "duracao_segundos": int(audio.duracao_segundos or 0),
+            "lida": bool(audio.lida),
+            "minha": bool(
+                request
+                and request.user.is_authenticated
+                and audio.remetente_id == request.user.id
+            ),
+            "criado_em": audio.criado_em,
+        }
+
     def get_ultima_mensagem(self, obj):
-        mensagem = obj.mensagens.order_by("-criado_em").first()
-        if not mensagem:
-            return None
-        return MensagemMatchSerializer(mensagem, context=self.context).data
+        texto = obj.mensagens.order_by("-criado_em").first()
+        try:
+            audio = (
+                MensagemAudioMatchNKATA.objects
+                .filter(match=obj)
+                .select_related("remetente", "remetente__perfil_nkata")
+                .order_by("-criado_em")
+                .first()
+            )
+        except DatabaseError:
+            audio = None
+
+        if audio and (not texto or audio.criado_em > texto.criado_em):
+            return self._audio_payload(audio)
+        if texto:
+            return MensagemMatchSerializer(texto, context=self.context).data
+        return None
 
     def get_mensagens_nao_lidas(self, obj):
         request = self.context.get("request")
-        qs = obj.mensagens.filter(lida=False)
+        text_qs = obj.mensagens.filter(lida=False)
 
         if request and request.user.is_authenticated:
-            qs = qs.exclude(remetente=request.user)
+            text_qs = text_qs.exclude(remetente=request.user)
 
-        return qs.count()
+        unread = text_qs.count()
+        try:
+            audio_qs = MensagemAudioMatchNKATA.objects.filter(match=obj, lida=False)
+            if request and request.user.is_authenticated:
+                audio_qs = audio_qs.exclude(remetente=request.user)
+            unread += audio_qs.count()
+        except DatabaseError:
+            pass
+
+        return unread
