@@ -1,5 +1,21 @@
 /* Ajuste final do cabeçalho da conversa quando Phone + Video + menu estão presentes. */
 
+.nk-conversation__secure {
+  order: 0;
+}
+
+.nk-call-launchers {
+  order: 1;
+}
+
+.nk-conversation__options-trigger {
+  order: 2;
+}
+
+.nk-conversation__safety-menu {
+  order: 3;
+}
+
 @media (max-width: 820px) {
   .nk-conversation__header {
     grid-template-columns: 42px minmax(0, 1fr) auto;
