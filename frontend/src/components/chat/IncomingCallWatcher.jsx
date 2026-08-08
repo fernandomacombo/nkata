@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { MapPin, Phone, PhoneOff, Video } from "lucide-react";
 import { fetchIncomingCall, updateMatchCall } from "../../services/callApi.js";
+import {
+  installCallAttentionUnlock,
+  startIncomingCallAttention,
+  stopIncomingCallAttention,
+} from "../../services/callAttention.js";
 
 const INCOMING_POLL_MS = 2000;
 
@@ -18,6 +23,17 @@ function hasAuthenticatedMemberShell() {
 export default function IncomingCallWatcher() {
   const [call, setCall] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => installCallAttentionUnlock(), []);
+
+  useEffect(() => {
+    if (call) {
+      startIncomingCallAttention();
+    } else {
+      stopIncomingCallAttention();
+    }
+    return () => stopIncomingCallAttention();
+  }, [call?.id]);
 
   useEffect(() => {
     let disposed = false;
@@ -60,6 +76,7 @@ export default function IncomingCallWatcher() {
 
   const decline = async () => {
     if (busy) return;
+    stopIncomingCallAttention();
     setBusy(true);
     try {
       await updateMatchCall(call.match_id, call.id, "decline");
@@ -72,6 +89,7 @@ export default function IncomingCallWatcher() {
   };
 
   const openConversation = () => {
+    stopIncomingCallAttention();
     window.location.assign(`/matches/${call.match_id}/conversa/`);
   };
 
