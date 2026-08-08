@@ -337,6 +337,29 @@ export async function sendMatchAudio(matchId, blob, durationSeconds) {
   return normalizeMessage(payload);
 }
 
+export async function fetchMatchLive(matchId, { since = "", signal } = {}) {
+  const params = new URLSearchParams();
+  if (since) params.set("since", since);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const payload = await request(`/api/minha-conta/matches/${matchId}/live/${suffix}`, { signal });
+  return {
+    messages: (payload?.results || []).map(normalizeMessage).filter(Boolean),
+    typing: Boolean(payload?.presence?.typing),
+    active: Boolean(payload?.presence?.active),
+    readTextIds: (payload?.read_receipts?.text || []).map(Number),
+    readAudioIds: (payload?.read_receipts?.audio || []).map(Number),
+    serverTime: payload?.server_time || "",
+    setupRequired: Boolean(payload?.setup_required),
+  };
+}
+
+export async function updateMatchTyping(matchId, typing) {
+  return request(`/api/minha-conta/matches/${matchId}/live/`, {
+    method: "POST",
+    body: { typing: Boolean(typing) },
+  });
+}
+
 export async function fetchNotifications({ signal } = {}) {
   const payload = await request("/api/minha-conta/notificacoes/", { signal });
   return {
