@@ -60,6 +60,18 @@
   font-size: 0.62rem;
 }
 
+.nk-match-card__voice-preview {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.nk-match-card__voice-preview svg {
+  flex: 0 0 auto;
+  color: var(--nk-wine);
+}
+
 .nk-voice-note {
   display: grid;
   grid-template-columns: 38px minmax(90px, 180px) auto;
