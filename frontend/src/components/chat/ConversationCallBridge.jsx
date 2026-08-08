@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchMatchConversation } from "../../services/api.js";
-import { endTrackedCall } from "../../services/callApi.js";
+import { endTrackedCall, fetchWebRtcReadiness } from "../../services/callApi.js";
 import { fetchMyPlan } from "../../services/planApi.js";
 import NkataCallExperience from "./NkataCallExperience.jsx";
 
@@ -55,13 +55,25 @@ export default function ConversationCallBridge() {
     Promise.all([
       fetchMatchConversation(matchId, { signal: controller.signal }),
       fetchMyPlan({ signal: controller.signal }),
+      fetchWebRtcReadiness({ signal: controller.signal }),
     ])
-      .then(([conversation, planPayload]) => {
+      .then(([conversation, planPayload, readiness]) => {
         if (controller.signal.aborted) return;
         setMatch(conversation?.match || null);
         const features = planPayload?.current_plan?.features || {};
+        const hasCallFeature = Boolean(features.chat_audio || features.chat_video);
         setAudioEnabled(Boolean(features.chat_audio));
         setVideoEnabled(Boolean(features.chat_video));
+
+        if (hasCallFeature && !readiness.turnConfigured) {
+          const warningKey = `nkata-turn-warning:${matchId}`;
+          if (!window.sessionStorage.getItem(warningKey)) {
+            window.sessionStorage.setItem(warningKey, "1");
+            setNotice(
+              "Ambiente WebRTC: TURN ainda não está configurado. Algumas redes móveis podem não estabelecer a chamada.",
+            );
+          }
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) setMatch(null);
@@ -72,7 +84,7 @@ export default function ConversationCallBridge() {
 
   useEffect(() => {
     if (!notice) return undefined;
-    const id = window.setTimeout(() => setNotice(""), 3200);
+    const id = window.setTimeout(() => setNotice(""), 4200);
     return () => window.clearTimeout(id);
   }, [notice]);
 
