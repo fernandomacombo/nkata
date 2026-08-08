@@ -54,6 +54,12 @@ if (-not $openssl) {
     throw "OpenSSL não foi encontrado. Instale/atualize o Git for Windows ou coloque openssl.exe no PATH."
 }
 
+$opensslPath = if ($openssl.PSObject.Properties.Name -contains "Source" -and $openssl.Source) {
+    $openssl.Source
+} else {
+    $openssl.FullName
+}
+
 New-Item -ItemType Directory -Force -Path $certDir | Out-Null
 
 $opensslConfig = @"
@@ -79,7 +85,7 @@ IP.2 = $IpAddress
 
 Set-Content -Path $configPath -Value $opensslConfig -Encoding ascii
 
-& $openssl.Source req `
+& $opensslPath req `
     -x509 `
     -newkey rsa:2048 `
     -sha256 `
@@ -93,7 +99,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "OpenSSL não conseguiu gerar o certificado HTTPS."
 }
 
-& $openssl.Source x509 -in $certPath -outform der -out $cerPath
+& $opensslPath x509 -in $certPath -outform der -out $cerPath
 if ($LASTEXITCODE -ne 0) {
     throw "Não foi possível gerar a cópia .cer para instalação no telemóvel."
 }
