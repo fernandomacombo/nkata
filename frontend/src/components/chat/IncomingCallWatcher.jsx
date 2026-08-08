@@ -11,6 +11,10 @@ function isCurrentConversation(matchId) {
   return normalized === `/matches/${matchId}/conversa/`;
 }
 
+function hasAuthenticatedMemberShell() {
+  return Boolean(document.querySelector(".nk-header__member"));
+}
+
 export default function IncomingCallWatcher() {
   const [call, setCall] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -20,6 +24,11 @@ export default function IncomingCallWatcher() {
 
     const poll = async () => {
       if (disposed || document.visibilityState !== "visible") return;
+      if (!hasAuthenticatedMemberShell()) {
+        setCall(null);
+        return;
+      }
+
       try {
         const result = await fetchIncomingCall();
         if (disposed) return;
