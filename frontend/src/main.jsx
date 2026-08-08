@@ -6,6 +6,8 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import FollowingPanel from "./components/account/FollowingPanel.jsx";
+import ConversationCallBridge from "./components/chat/ConversationCallBridge.jsx";
+import IncomingCallWatcher from "./components/chat/IncomingCallWatcher.jsx";
 import PublicationSafetyOverlay from "./components/feed/PublicationSafetyOverlay.jsx";
 import ProfileFollowAction from "./components/profile/ProfileFollowAction.jsx";
 import AccessRequestPage from "./pages/AccessRequestPage.jsx";
@@ -54,6 +56,7 @@ import "./mobile-app-contract.css";
 import "./profile-cards-premium.css";
 import "./chat-native-premium.css";
 import "./chat-realtime.css";
+import "./call-webrtc.css";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
 
@@ -132,6 +135,8 @@ createRoot(document.getElementById("root")).render(
         <ProfileFollowAction />
         <FollowingPanel />
         <PublicationSafetyOverlay />
+        <ConversationCallBridge />
+        <IncomingCallWatcher />
       </>
     )}
   </React.StrictMode>
