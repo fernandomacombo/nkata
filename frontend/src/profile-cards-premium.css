@@ -10,6 +10,7 @@
 
 .nk-profile-card {
   position: relative;
+  display: block;
   min-width: 0;
   min-height: 500px;
   overflow: hidden;
@@ -285,6 +286,8 @@
 
   .nk-profile-card,
   .nk-profile-card--compact {
+    display: block;
+    grid-template-columns: none;
     min-height: 0;
     aspect-ratio: 4 / 5.15;
     border: 0;
@@ -354,6 +357,7 @@
 @media (max-width: 420px) {
   .nk-profile-card,
   .nk-profile-card--compact {
+    grid-template-columns: none;
     aspect-ratio: 4 / 5.35;
     border-radius: 25px;
   }
