@@ -57,6 +57,7 @@ import "./profile-cards-premium.css";
 import "./chat-native-premium.css";
 import "./chat-realtime.css";
 import "./call-webrtc.css";
+import "./call-mobile-layout.css";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
 
