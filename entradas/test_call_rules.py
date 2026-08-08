@@ -46,3 +46,10 @@ class CallRulesTests(SimpleTestCase):
     def test_unanswered_call_expires(self):
         self.assertGreaterEqual(CALL_RING_TIMEOUT_SECONDS, 30)
         self.assertLessEqual(CALL_RING_TIMEOUT_SECONDS, 90)
+
+    def test_call_metadata_does_not_store_audio_or_video_recordings(self):
+        field_names = {field.name for field in ChamadaMatchNKATA._meta.fields}
+        for forbidden in {"audio", "video", "ficheiro", "file", "gravacao", "recording", "sdp", "ice"}:
+            self.assertNotIn(forbidden, field_names)
+        self.assertIn("tipo", field_names)
+        self.assertIn("estado", field_names)
