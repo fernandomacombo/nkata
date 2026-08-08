@@ -1,12 +1,16 @@
 from django.core.management.base import BaseCommand
 from django.db import connection
 
+from entradas.post_safety_models import (
+    DenunciaPublicacaoNKATA,
+    OcultacaoPublicacaoNKATA,
+)
 from entradas.posts_models import PublicacaoNKATA, ReacaoPublicacaoNKATA
 
 
 class Command(BaseCommand):
     help = (
-        "Prepara as tabelas isoladas de Publicações NKATA e respetivas reações. "
+        "Prepara as tabelas isoladas de Publicações NKATA, reações e segurança. "
         "Pode ser executado novamente com segurança."
     )
 
@@ -33,4 +37,12 @@ class Command(BaseCommand):
         self._ensure_model_table(
             ReacaoPublicacaoNKATA,
             "A tabela de reações das Publicações NKATA",
+        )
+        self._ensure_model_table(
+            OcultacaoPublicacaoNKATA,
+            "A tabela de publicações ocultadas",
+        )
+        self._ensure_model_table(
+            DenunciaPublicacaoNKATA,
+            "A tabela de denúncias de publicações",
         )
