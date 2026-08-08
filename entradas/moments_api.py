@@ -11,7 +11,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .content_moderation_service import analyse_content_media
+from .content_moderation_queue import queue_content_media_analysis
 from .models import AcaoPerfil, MatchPerfil
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .plan_service import plan_for_user
@@ -347,11 +347,11 @@ def api_momentos(request):
             status=503,
         )
 
+    queued = False
     if media:
-        analyse_content_media(
+        queued = queue_content_media_analysis(
             content_type="MOMENTO",
             content_id=momento.id,
-            file_field=momento.media,
             media_type=momento.tipo_media,
         )
 
@@ -360,6 +360,7 @@ def api_momentos(request):
         {
             "ok": True,
             "pending_review": pending,
+            "analysis_queued": queued if pending else False,
             "message": (
                 "Foto/vídeo enviado para análise. As 24 horas começam apenas depois da aprovação."
                 if pending
