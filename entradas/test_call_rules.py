@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.test import SimpleTestCase
 from django.urls import reverse
 
@@ -37,6 +38,21 @@ class CallRulesTests(SimpleTestCase):
         self.assertEqual(
             reverse("entradas_api:chamada_recebida"),
             "/api/minha-conta/chamadas/entrada/",
+        )
+
+    def test_webrtc_readiness_route_is_account_scoped(self):
+        self.assertEqual(
+            reverse("entradas_api:webrtc_readiness"),
+            "/api/minha-conta/webrtc/readiness/",
+        )
+
+    def test_default_stun_configuration_uses_stun_urls_only(self):
+        self.assertTrue(settings.NKATA_WEBRTC_STUN_URLS)
+        self.assertTrue(
+            all(
+                str(url).startswith(("stun:", "stuns:"))
+                for url in settings.NKATA_WEBRTC_STUN_URLS
+            )
         )
 
     def test_signaling_payload_has_conservative_limit(self):
