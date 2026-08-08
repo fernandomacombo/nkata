@@ -52,6 +52,7 @@ import "./feed-cleanup.css";
 import "./feed-safety.css";
 import "./mobile-app-contract.css";
 import "./profile-cards-premium.css";
+import "./chat-native-premium.css";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
 
