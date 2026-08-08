@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import SimpleTestCase, override_settings
 
 from .content_moderation_admin import automatic_review_panel
@@ -53,7 +55,8 @@ class MediaModerationRulesTests(SimpleTestCase):
     def test_provider_manual_e_explicitamente_identificado(self):
         self.assertIn("sem motor externo", moderation_provider_label().lower())
 
-    def test_admin_sem_tabela_nao_quebra_no_django_6(self):
-        html = str(automatic_review_panel("PUBLICACAO", 999999))
+    def test_admin_sem_analise_nao_quebra_no_django_6(self):
+        with patch("entradas.content_moderation_admin.analysis_for", return_value=None):
+            html = str(automatic_review_panel("PUBLICACAO", 999999))
         self.assertIn("Sem registo automático", html)
         self.assertIn("revisão humana", html)
