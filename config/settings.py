@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -16,8 +19,8 @@ DEBUG = env_bool("DJANGO_DEBUG", True)
 NKATA_FRONTEND_URL = os.getenv("NKATA_FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 # Pré-moderação de media. O padrão é manual/fail-closed: nenhum conteúdo é
-# automaticamente publicado. Para imagens, pode ser ativado o endpoint de
-# Moderation da OpenAI apenas por variável de ambiente.
+# automaticamente publicado. A moderação de segurança e a inspeção visual são
+# ativadas apenas por variáveis de ambiente.
 NKATA_MEDIA_MODERATION_PROVIDER = os.getenv(
     "NKATA_MEDIA_MODERATION_PROVIDER",
     "manual",
@@ -26,8 +29,11 @@ NKATA_OPENAI_MODERATION_MODEL = os.getenv(
     "NKATA_OPENAI_MODERATION_MODEL",
     "omni-moderation-latest",
 ).strip()
-NKATA_MEDIA_MODERATION_TIMEOUT = int(os.getenv("NKATA_MEDIA_MODERATION_TIMEOUT", "15"))
+NKATA_MEDIA_MODERATION_TIMEOUT = int(os.getenv("NKATA_MEDIA_MODERATION_TIMEOUT", "20"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+NKATA_MEDIA_VISION_SCAN_ENABLED = env_bool("NKATA_MEDIA_VISION_SCAN_ENABLED", False)
+NKATA_MEDIA_VISION_MODEL = os.getenv("NKATA_MEDIA_VISION_MODEL", "gpt-5.6-luna").strip()
+NKATA_MEDIA_VISION_MAX_IMAGES = int(os.getenv("NKATA_MEDIA_VISION_MAX_IMAGES", "4"))
 
 allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", "").strip()
 if allowed_hosts_env:
