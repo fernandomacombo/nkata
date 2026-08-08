@@ -6,6 +6,8 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from .content_moderation_admin import automatic_review_panel, automatic_risk_badge
+from .content_moderation_service import record_human_decision
 from .models import PerfilNKATA
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 
@@ -18,6 +20,7 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
         "perfil",
         "tipo_media",
         "visibilidade",
+        "risco_automatico",
         "moderacao_status",
         "criado_em",
         "expira_em",
@@ -47,6 +50,7 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
         "expira_em",
         "moderado_em",
         "media_privada",
+        "analise_automatica",
         "regras_moderacao",
     )
     actions = (
@@ -67,6 +71,7 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
         }),
         ("Moderação", {
             "fields": (
+                "analise_automatica",
                 "moderacao_status",
                 "moderacao_motivo",
                 "moderado_em",
@@ -100,10 +105,17 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
 
     media_privada.short_description = "Ficheiro para revisão"
 
+    def risco_automatico(self, obj):
+        return automatic_risk_badge("MOMENTO", obj.pk)
+
+    risco_automatico.short_description = "Risco automático"
+
+    def analise_automatica(self, obj):
+        return automatic_review_panel("MOMENTO", obj.pk)
+
+    analise_automatica.short_description = "Pré-moderação automática"
+
     def regras_moderacao(self, obj):
-        # HTML totalmente estático e controlado pelo código do NKATA.
-        # No Django 6, format_html() exige args/kwargs; como não existe nenhum
-        # dado dinâmico aqui, mark_safe() é a opção correta e mais simples.
         return mark_safe(
             "<div style='max-width:680px;line-height:1.65'>"
             "<strong>Não aprovar:</strong> nudez ou conteúdo sexual explícito; "
@@ -130,6 +142,7 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
             "moderado_em",
             "expira_em",
         ])
+        record_human_decision("MOMENTO", momento.pk, "APROVADO")
 
     def _rejeitar(self, momento, grave=False):
         momento.moderacao_status = "REJEITADO"
@@ -144,6 +157,11 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
             "moderacao_motivo",
             "moderado_em",
         ])
+        record_human_decision(
+            "MOMENTO",
+            momento.pk,
+            "GRAVE" if grave else "REJEITADO",
+        )
 
         if grave:
             PerfilNKATA.objects.filter(pk=momento.perfil_id).exclude(
@@ -182,6 +200,7 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
 
     @admin.action(description="Aprovar Momentos selecionados")
     def aprovar_momentos(self, request, queryset):
+        ids = list(queryset.values_list("id", flat=True))
         now = timezone.now()
         updated = queryset.update(
             moderacao_status="APROVADO",
@@ -189,6 +208,8 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
             moderado_em=now,
             expira_em=now + timedelta(hours=MOMENT_LIFETIME_HOURS),
         )
+        for content_id in ids:
+            record_human_decision("MOMENTO", content_id, "APROVADO")
         self.message_user(
             request,
             f"{updated} Momento(s) aprovado(s). As 24 horas começam agora.",
@@ -196,6 +217,7 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
 
     @admin.action(description="Rejeitar Momentos selecionados")
     def rejeitar_momentos(self, request, queryset):
+        ids = list(queryset.values_list("id", flat=True))
         updated = queryset.update(
             moderacao_status="REJEITADO",
             moderacao_motivo=(
@@ -203,10 +225,13 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
             ),
             moderado_em=timezone.now(),
         )
+        for content_id in ids:
+            record_human_decision("MOMENTO", content_id, "REJEITADO")
         self.message_user(request, f"{updated} Momento(s) rejeitado(s).")
 
     @admin.action(description="Rejeitar e pausar perfil por violação grave")
     def rejeitar_e_pausar_perfis(self, request, queryset):
+        ids = list(queryset.values_list("id", flat=True))
         profile_ids = list(queryset.values_list("perfil_id", flat=True).distinct())
         rejected = queryset.update(
             moderacao_status="REJEITADO",
@@ -215,6 +240,8 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
             ),
             moderado_em=timezone.now(),
         )
+        for content_id in ids:
+            record_human_decision("MOMENTO", content_id, "GRAVE")
         paused = PerfilNKATA.objects.filter(id__in=profile_ids).exclude(
             status="BLOQUEADO"
         ).update(
