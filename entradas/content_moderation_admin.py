@@ -12,6 +12,30 @@ RISK_COLORS = {
     "INDEFINIDO": ("#625753", "#f0ece9"),
 }
 
+CATEGORY_LABELS = {
+    "nkata/contact_phone": "Telefone ou WhatsApp visível",
+    "nkata/contact_email": "Email visível",
+    "nkata/contact_username": "@username visível",
+    "nkata/contact_url": "Link/URL visível",
+    "nkata/qr_code": "QR Code detectado",
+    "nkata/advertising_or_sales": "Publicidade ou venda",
+    "nkata/sexual_services_solicitation": "Serviços sexuais/prostituição",
+    "nkata/duplicate_severe_media": "Ficheiro grave já rejeitado anteriormente",
+    "sexual": "Conteúdo sexual",
+    "sexual/minors": "Conteúdo sexual envolvendo menores",
+    "violence/graphic": "Violência gráfica",
+    "violence": "Violência",
+    "harassment": "Assédio",
+    "harassment/threatening": "Assédio/ameaça",
+}
+
+
+def _category_label(key):
+    return CATEGORY_LABELS.get(
+        key,
+        key.replace("/", " / ").replace("_", " "),
+    )
+
 
 def automatic_risk_badge(content_type, content_id):
     analysis = analysis_for(content_type, content_id)
@@ -45,7 +69,7 @@ def automatic_review_panel(content_type, content_id):
         )
 
     flagged_categories = [
-        key.replace("/", " / ").replace("_", " ")
+        _category_label(key)
         for key, value in (analysis.categories or {}).items()
         if bool(value)
     ]
@@ -57,7 +81,7 @@ def automatic_review_panel(content_type, content_id):
             ((category,) for category in flagged_categories),
         )
         if flagged_categories
-        else mark_safe('<span style="color:#6c615d;">Nenhuma categoria sinalizada.</span>')
+        else mark_safe('<span style="color:#6c615d;">Nenhum sinal automático encontrado.</span>')
     )
 
     dimensions = (
