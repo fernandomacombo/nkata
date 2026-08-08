@@ -1,0 +1,377 @@
+/*
+ * NKATA — cartões de descoberta premium.
+ * A fotografia é a superfície principal; o conteúdo deixa de parecer um card web
+ * dividido em blocos e passa a funcionar como uma peça de descoberta da app.
+ */
+
+.nk-profile-grid {
+  align-items: stretch;
+}
+
+.nk-profile-card {
+  position: relative;
+  min-width: 0;
+  min-height: 500px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 34px;
+  background: #2f2926;
+  box-shadow:
+    0 22px 54px rgba(45, 33, 29, 0.13),
+    0 3px 10px rgba(45, 33, 29, 0.06);
+  transition:
+    transform 280ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    box-shadow 280ms ease,
+    border-color 280ms ease;
+}
+
+.nk-profile-card__open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.nk-profile-card__media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #d8cfc7;
+}
+
+.nk-profile-card__media > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+  transform: scale(1.002);
+  transition: transform 700ms cubic-bezier(0.2, 0.75, 0.25, 1), filter 280ms ease;
+}
+
+.nk-profile-card__fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-content: center;
+  justify-items: center;
+  gap: 11px;
+  background: #ded4cb;
+  color: #766a64;
+}
+
+.nk-profile-card__fallback span {
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.nk-profile-card__shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(19, 15, 14, 0.18) 0%, transparent 28%),
+    linear-gradient(0deg, rgba(25, 18, 17, 0.92) 0%, rgba(28, 20, 19, 0.68) 31%, rgba(28, 20, 19, 0.08) 65%, transparent 82%);
+  pointer-events: none;
+}
+
+.nk-profile-card__verified {
+  position: absolute;
+  z-index: 3;
+  top: 17px;
+  left: 17px;
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(24, 19, 18, 0.42);
+  padding: 0 11px;
+  color: rgba(255, 255, 255, 0.93);
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.015em;
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+.nk-profile-card__verified.is-verified svg {
+  color: #e6cf9e;
+}
+
+.nk-profile-card__verified.is-review {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.nk-profile-card__save {
+  position: absolute;
+  z-index: 5;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 15px;
+  background: rgba(28, 21, 20, 0.42);
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(17, 13, 12, 0.18);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+  transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.nk-profile-card__save:hover,
+.nk-profile-card__save:focus-visible {
+  transform: translateY(-1px);
+  background: rgba(255, 253, 249, 0.94);
+  color: var(--nk-wine);
+}
+
+.nk-profile-card__save.is-saved {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 253, 249, 0.96);
+  color: var(--nk-wine);
+}
+
+.nk-profile-card__story {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 30px 24px 22px;
+  color: #fff;
+}
+
+.nk-profile-card__intention {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 30px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(230, 207, 158, 0.34);
+  border-radius: 999px;
+  background: rgba(125, 38, 56, 0.46);
+  padding: 0 10px;
+  color: #fff4f0;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  backdrop-filter: blur(14px) saturate(135%);
+}
+
+.nk-profile-card__identity {
+  position: static;
+  margin-top: 13px;
+  color: #fff;
+}
+
+.nk-profile-card__identity h3 {
+  margin: 0;
+  color: #fff;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.nk-profile-card__identity p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.nk-profile-card__about {
+  display: -webkit-box;
+  min-height: 0;
+  margin: 15px 0 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.nk-profile-card__footer {
+  display: flex;
+  min-height: 47px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  padding-top: 14px;
+}
+
+.nk-profile-card__footer > span:first-child {
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.nk-profile-card__arrow {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.nk-profile-card--compact {
+  min-height: 430px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nk-profile-card:hover {
+    border-color: rgba(125, 38, 56, 0.22);
+    box-shadow:
+      0 30px 78px rgba(45, 33, 29, 0.18),
+      0 4px 12px rgba(45, 33, 29, 0.08);
+    transform: translateY(-7px);
+  }
+
+  .nk-profile-card:hover .nk-profile-card__media > img {
+    transform: scale(1.045);
+  }
+
+  .nk-profile-card:hover .nk-profile-card__arrow {
+    background: rgba(255, 255, 255, 0.19);
+    transform: translate(2px, -2px);
+  }
+}
+
+@media (min-width: 821px) and (max-width: 1080px) {
+  .nk-profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nk-profile-card {
+    min-height: 520px;
+  }
+}
+
+@media (max-width: 820px) {
+  .nk-profile-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .nk-profile-card,
+  .nk-profile-card--compact {
+    min-height: 0;
+    aspect-ratio: 4 / 5.15;
+    border: 0;
+    border-radius: 28px;
+    box-shadow: 0 14px 36px rgba(40, 30, 27, 0.11);
+  }
+
+  .nk-profile-card__open {
+    min-height: 0;
+  }
+
+  .nk-profile-card__verified {
+    top: 13px;
+    left: 13px;
+    min-height: 32px;
+    padding-inline: 10px;
+  }
+
+  .nk-profile-card__save {
+    top: 10px;
+    right: 10px;
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+  }
+
+  .nk-profile-card__story {
+    padding: 28px 19px 17px;
+  }
+
+  .nk-profile-card__identity h3 {
+    font-size: clamp(1.95rem, 8.6vw, 2.55rem);
+  }
+
+  .nk-profile-card__identity p {
+    margin-top: 7px;
+    font-size: 0.78rem;
+  }
+
+  .nk-profile-card__about {
+    margin-top: 13px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .nk-profile-card__footer {
+    min-height: 50px;
+    margin-top: 15px;
+    padding-top: 12px;
+  }
+
+  .nk-profile-card__footer > span:first-child {
+    font-size: 0.8rem;
+  }
+
+  .nk-profile-card__arrow {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .nk-profile-card:active {
+    transform: scale(0.992);
+  }
+}
+
+@media (max-width: 420px) {
+  .nk-profile-card,
+  .nk-profile-card--compact {
+    aspect-ratio: 4 / 5.35;
+    border-radius: 25px;
+  }
+
+  .nk-profile-card__story {
+    padding-inline: 17px;
+  }
+
+  .nk-profile-card__intention {
+    max-width: calc(100% - 6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-profile-card,
+  .nk-profile-card__media > img,
+  .nk-profile-card__save,
+  .nk-profile-card__arrow {
+    transition: none !important;
+  }
+}
