@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from .models import AcaoPerfil, MatchPerfil
 from .plan_service import plan_for_user
 from .post_reaction_service import reaction_payload, toggle_reaction
+from .post_safety_models import OcultacaoPublicacaoNKATA
 from .posts_models import PublicacaoNKATA
 
 
@@ -88,9 +89,18 @@ def _interest_profile_ids(user):
     )
 
 
+def _hidden_publication_ids(user):
+    return set(
+        OcultacaoPublicacaoNKATA.objects.filter(
+            usuario=user,
+        ).values_list("publicacao_id", flat=True)
+    )
+
+
 def _feed_queryset(user, perfil):
     matched_ids = _matched_profile_ids(perfil)
     followed_ids = _followed_profile_ids(user)
+    hidden_publication_ids = _hidden_publication_ids(user)
     blocked_profile_ids = set(
         AcaoPerfil.objects.filter(
             usuario=user,
@@ -138,6 +148,8 @@ def _feed_queryset(user, perfil):
         .order_by("relationship_priority", "-criado_em")
     )
 
+    if hidden_publication_ids:
+        qs = qs.exclude(id__in=hidden_publication_ids)
     if blocked_profile_ids:
         qs = qs.exclude(perfil_id__in=blocked_profile_ids)
     if blocker_user_ids:
