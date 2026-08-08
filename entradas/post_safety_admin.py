@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.html import format_html
 
+from .content_moderation_service import record_human_decision
 from .models import PerfilNKATA
 from .post_safety_models import DenunciaPublicacaoNKATA
 
@@ -84,6 +85,8 @@ class DenunciaPublicacaoNKATAAdmin(admin.ModelAdmin):
             moderacao_motivo="Publicação retirada após análise de denúncia da comunidade.",
             moderado_em=now,
         )
+        for content_id in publication_ids:
+            record_human_decision("PUBLICACAO", content_id, "REJEITADO")
         queryset.update(estado="ANALISADA", analisado_em=now)
         self.message_user(request, f"{removed} publicação/publicações retirada(s) do feed.")
 
@@ -98,6 +101,8 @@ class DenunciaPublicacaoNKATAAdmin(admin.ModelAdmin):
             moderacao_motivo="Publicação retirada por violação grave após denúncia.",
             moderado_em=now,
         )
+        for content_id in publication_ids:
+            record_human_decision("PUBLICACAO", content_id, "GRAVE")
         paused = PerfilNKATA.objects.filter(id__in=profile_ids).exclude(
             status="BLOQUEADO"
         ).update(status="PAUSADO", visivel=False)
