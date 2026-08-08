@@ -14,6 +14,11 @@ def env_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def env_list(name: str, default: str = "") -> list[str]:
+    value = os.getenv(name, default)
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-placeholder-change-in-production")
 DEBUG = env_bool("DJANGO_DEBUG", True)
 NKATA_FRONTEND_URL = os.getenv("NKATA_FRONTEND_URL", "http://localhost:5173").rstrip("/")
@@ -34,6 +39,13 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 NKATA_MEDIA_VISION_SCAN_ENABLED = env_bool("NKATA_MEDIA_VISION_SCAN_ENABLED", False)
 NKATA_MEDIA_VISION_MODEL = os.getenv("NKATA_MEDIA_VISION_MODEL", "gpt-5.6-luna").strip()
 NKATA_MEDIA_VISION_MAX_IMAGES = int(os.getenv("NKATA_MEDIA_VISION_MAX_IMAGES", "4"))
+
+# WebRTC. STUN/TURN são configurados no backend para não fixar fornecedor ou
+# credenciais dentro da bundle React. Para produção, configure TURN.
+NKATA_WEBRTC_STUN_URLS = env_list("NKATA_WEBRTC_STUN_URLS")
+NKATA_WEBRTC_TURN_URLS = env_list("NKATA_WEBRTC_TURN_URLS")
+NKATA_WEBRTC_TURN_USERNAME = os.getenv("NKATA_WEBRTC_TURN_USERNAME", "").strip()
+NKATA_WEBRTC_TURN_CREDENTIAL = os.getenv("NKATA_WEBRTC_TURN_CREDENTIAL", "").strip()
 
 allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", "").strip()
 if allowed_hosts_env:
