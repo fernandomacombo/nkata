@@ -65,12 +65,17 @@ function normalizeAccount(account) {
 
 function normalizeMessage(message) {
   if (!message) return null;
+  const type = String(message.tipo || "TEXTO").toLowerCase() === "audio" ? "audio" : "text";
   return {
     id: message.id,
+    audioId: message.audio_id || null,
     matchId: message.match,
     senderId: message.remetente_id,
     senderName: message.remetente_nome || "Membro NKATA",
+    type,
     text: message.texto || "",
+    audioUrl: message.audio_url || null,
+    durationSeconds: Number(message.duracao_segundos || 0),
     read: Boolean(message.lida),
     mine: Boolean(message.minha),
     createdAt: message.criado_em,
@@ -286,10 +291,27 @@ export async function closeMatch(matchId) {
 }
 
 export async function fetchMatchConversation(matchId, { signal } = {}) {
-  const payload = await request(`/api/minha-conta/matches/${matchId}/conversa/`, { signal });
+  const [textPayload, audioPayload] = await Promise.all([
+    request(`/api/minha-conta/matches/${matchId}/conversa/`, { signal }),
+    request(`/api/minha-conta/matches/${matchId}/audio/`, { signal }),
+  ]);
+
+  const textMessages = (textPayload?.results || []).map(normalizeMessage).filter(Boolean);
+  const audioMessages = (audioPayload?.results || []).map(normalizeMessage).filter(Boolean);
+  const messages = [...textMessages, ...audioMessages].sort((a, b) => (
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  ));
+
   return {
-    match: normalizeMatch(payload?.match),
-    messages: (payload?.results || []).map(normalizeMessage).filter(Boolean),
+    match: normalizeMatch(textPayload?.match),
+    messages,
+    capabilities: audioPayload?.capabilities || {
+      text_enabled: true,
+      audio_enabled: false,
+      video_enabled: false,
+      max_audio_seconds: 180,
+    },
+    audioSetupRequired: Boolean(audioPayload?.setup_required),
   };
 }
 
@@ -297,6 +319,20 @@ export async function sendMatchMessage(matchId, text) {
   const payload = await request(`/api/minha-conta/matches/${matchId}/conversa/`, {
     method: "POST",
     body: { texto: text },
+  });
+  return normalizeMessage(payload);
+}
+
+export async function sendMatchAudio(matchId, blob, durationSeconds) {
+  const form = new FormData();
+  const mimeType = blob?.type || "audio/webm";
+  const extension = mimeType.includes("mp4") ? "m4a" : mimeType.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", blob, `nota-voz.${extension}`);
+  form.append("duracao_segundos", String(Math.max(1, Math.round(durationSeconds || 0))));
+
+  const payload = await request(`/api/minha-conta/matches/${matchId}/audio/`, {
+    method: "POST",
+    body: form,
   });
   return normalizeMessage(payload);
 }
