@@ -91,7 +91,7 @@ def _validate_audio(file_obj, duration_seconds):
         return "Grave uma nota de voz antes de enviar."
 
     extension = os.path.splitext(file_obj.name or "")[1].lower()
-    content_type = str(getattr(file_obj, "content_type", "") or "").lower()
+    content_type = str(getattr(file_obj, "content_type", "") or "").lower().split(";", 1)[0].strip()
 
     if extension not in ALLOWED_AUDIO_EXTENSIONS:
         return "Formato de áudio não suportado. Grave novamente a nota de voz."
