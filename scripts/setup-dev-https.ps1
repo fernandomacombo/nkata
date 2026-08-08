@@ -24,7 +24,7 @@ if ([string]::IsNullOrWhiteSpace($IpAddress)) {
         Select-Object -First 1
 
     if (-not $candidate) {
-        throw "Não foi possível detectar o IPv4 da rede local. Execute novamente com -IpAddress 192.168.x.x"
+        throw "Nao foi possivel detectar o IPv4 da rede local. Execute novamente com -IpAddress 192.168.x.x"
     }
 
     $IpAddress = $candidate.IPAddress
@@ -32,33 +32,72 @@ if ([string]::IsNullOrWhiteSpace($IpAddress)) {
 
 $parsedIp = $null
 if (-not [System.Net.IPAddress]::TryParse($IpAddress, [ref]$parsedIp)) {
-    throw "Endereço IPv4 inválido: $IpAddress"
+    throw "Endereco IPv4 invalido: $IpAddress"
 }
 
-$openssl = Get-Command openssl.exe -ErrorAction SilentlyContinue
-if (-not $openssl) {
-    $candidates = @(
-        (Join-Path $env:ProgramFiles "Git\usr\bin\openssl.exe"),
-        (Join-Path $env:ProgramFiles "Git\mingw64\bin\openssl.exe")
-    )
-
-    foreach ($candidatePath in $candidates) {
-        if (Test-Path $candidatePath) {
-            $openssl = Get-Item $candidatePath
-            break
+function Resolve-OpenSslPath {
+    $command = Get-Command openssl.exe -ErrorAction SilentlyContinue
+    if ($command) {
+        if ($command.PSObject.Properties.Name -contains "Source" -and $command.Source) {
+            return $command.Source
+        }
+        if ($command.FullName) {
+            return $command.FullName
         }
     }
+
+    $candidatePaths = New-Object System.Collections.Generic.List[string]
+
+    # Descobre a raiz real do Git instalado, inclusive instalacoes por utilizador
+    # como C:\Users\<user>\AppData\Local\Programs\Git\cmd\git.exe.
+    $git = Get-Command git.exe -ErrorAction SilentlyContinue
+    if ($git) {
+        $gitPath = if ($git.PSObject.Properties.Name -contains "Source" -and $git.Source) {
+            $git.Source
+        } else {
+            $git.FullName
+        }
+
+        if ($gitPath) {
+            $gitCmdDir = Split-Path -Parent $gitPath
+            $gitRoot = Split-Path -Parent $gitCmdDir
+            $candidatePaths.Add((Join-Path $gitRoot "usr\bin\openssl.exe"))
+            $candidatePaths.Add((Join-Path $gitRoot "mingw64\bin\openssl.exe"))
+            $candidatePaths.Add((Join-Path $gitRoot "mingw32\bin\openssl.exe"))
+        }
+    }
+
+    $knownRoots = @(
+        (Join-Path $env:ProgramFiles "Git"),
+        $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} "Git" } else { $null }),
+        $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Programs\Git" } else { $null })
+    ) | Where-Object { $_ }
+
+    foreach ($root in $knownRoots) {
+        $candidatePaths.Add((Join-Path $root "usr\bin\openssl.exe"))
+        $candidatePaths.Add((Join-Path $root "mingw64\bin\openssl.exe"))
+        $candidatePaths.Add((Join-Path $root "mingw32\bin\openssl.exe"))
+    }
+
+    foreach ($candidatePath in ($candidatePaths | Select-Object -Unique)) {
+        if ($candidatePath -and (Test-Path $candidatePath)) {
+            return (Get-Item $candidatePath).FullName
+        }
+    }
+
+    return $null
 }
 
-if (-not $openssl) {
-    throw "OpenSSL não foi encontrado. Instale/atualize o Git for Windows ou coloque openssl.exe no PATH."
+$opensslPath = Resolve-OpenSslPath
+if (-not $opensslPath) {
+    $gitLocation = (Get-Command git.exe -ErrorAction SilentlyContinue).Source
+    if ($gitLocation) {
+        throw "OpenSSL nao foi encontrado dentro da instalacao atual do Git ($gitLocation). Atualize o Git for Windows ou instale OpenSSL e tente novamente."
+    }
+    throw "Git/OpenSSL nao foram encontrados. Instale ou atualize o Git for Windows e tente novamente."
 }
 
-$opensslPath = if ($openssl.PSObject.Properties.Name -contains "Source" -and $openssl.Source) {
-    $openssl.Source
-} else {
-    $openssl.FullName
-}
+Write-Host "OpenSSL encontrado em: $opensslPath" -ForegroundColor DarkGray
 
 New-Item -ItemType Directory -Force -Path $certDir | Out-Null
 
@@ -96,12 +135,12 @@ Set-Content -Path $configPath -Value $opensslConfig -Encoding ascii
     -config $configPath
 
 if ($LASTEXITCODE -ne 0) {
-    throw "OpenSSL não conseguiu gerar o certificado HTTPS."
+    throw "OpenSSL nao conseguiu gerar o certificado HTTPS."
 }
 
 & $opensslPath x509 -in $certPath -outform der -out $cerPath
 if ($LASTEXITCODE -ne 0) {
-    throw "Não foi possível gerar a cópia .cer para instalação no telemóvel."
+    throw "Nao foi possivel gerar a copia .cer para instalacao no telemovel."
 }
 
 try {
@@ -117,7 +156,7 @@ try {
 
 $envContent = @"
 # Gerado automaticamente por scripts/setup-dev-https.ps1
-# Não deve ser enviado ao Git.
+# Nao deve ser enviado ao Git.
 VITE_API_BASE_URL=https://${IpAddress}:5173
 NKATA_DEV_API_TARGET=http://127.0.0.1:8000
 "@
@@ -127,15 +166,15 @@ Write-Host ""
 Write-Host "NKATA HTTPS de desenvolvimento preparado." -ForegroundColor Green
 Write-Host "IP local: $IpAddress"
 Write-Host "Frontend: https://${IpAddress}:5173"
-Write-Host "Certificado para o telemóvel: $cerPath"
+Write-Host "Certificado para o telemovel: $cerPath"
 if ($trustedOnWindows) {
     Write-Host "Certificado confiado no utilizador atual do Windows." -ForegroundColor Green
 } else {
-    Write-Host "Não foi possível adicionar automaticamente o certificado à confiança do Windows." -ForegroundColor Yellow
+    Write-Host "Nao foi possivel adicionar automaticamente o certificado a confianca do Windows." -ForegroundColor Yellow
 }
 Write-Host ""
-Write-Host "Próximo comando:"
+Write-Host "Proximo comando:"
 Write-Host "  cd frontend"
 Write-Host "  npm run dev:https"
 Write-Host ""
-Write-Host "No telemóvel, instale nkata-dev-cert.cer como certificado confiável antes de testar microfone/câmara." -ForegroundColor Yellow
+Write-Host "No telemovel, instale nkata-dev-cert.cer como certificado confiavel antes de testar microfone/camara." -ForegroundColor Yellow
