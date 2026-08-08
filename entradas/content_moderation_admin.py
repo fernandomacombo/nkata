@@ -65,7 +65,7 @@ def automatic_review_panel(content_type, content_id):
         if analysis.image_width and analysis.image_height
         else "—"
     )
-    file_size_mb = (analysis.media_bytes or 0) / (1024 * 1024)
+    file_size_text = f"{((analysis.media_bytes or 0) / (1024 * 1024)):.2f} MB"
 
     return format_html(
         '<div style="max-width:760px;line-height:1.6;padding:14px;border-radius:12px;'
@@ -73,7 +73,7 @@ def automatic_review_panel(content_type, content_id):
         '<div style="margin-bottom:10px;">{}</div>'
         '<strong>Estado automático:</strong> {}<br>'
         '<strong>Motor:</strong> {}{}<br>'
-        '<strong>Ficheiro:</strong> {:.2f} MB · dimensões {}<br>'
+        '<strong>Ficheiro:</strong> {} · dimensões {}<br>'
         '<strong>SHA-256:</strong> <code style="font-size:11px;">{}</code><br>'
         '<strong>Sinais:</strong> <span>{}</span><br>'
         '<strong>Nota:</strong> {}<br><br>'
@@ -84,7 +84,7 @@ def automatic_review_panel(content_type, content_id):
         analysis.get_status_display(),
         analysis.provider,
         f" · {analysis.model_name}" if analysis.model_name else "",
-        file_size_mb,
+        file_size_text,
         dimensions,
         analysis.file_sha256 or "—",
         categories_html,
