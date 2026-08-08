@@ -20,6 +20,7 @@ from . import (
     questionnaire_api,
     saved_views,
     signal_views,
+    webrtc_config_api,
 )
 
 app_name = "entradas_api"
@@ -225,5 +226,10 @@ urlpatterns = [
         "minha-conta/chamadas/entrada/",
         call_api.api_chamada_recebida,
         name="chamada_recebida",
+    ),
+    path(
+        "minha-conta/webrtc/readiness/",
+        webrtc_config_api.api_webrtc_readiness,
+        name="webrtc_readiness",
     ),
 ]
