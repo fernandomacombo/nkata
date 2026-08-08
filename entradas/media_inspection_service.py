@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import os
 import re
 import tempfile
 from pathlib import Path
@@ -55,12 +56,15 @@ def extract_video_frames(file_field, max_frames=MAX_VIDEO_FRAMES):
     """Extrai frames distribuídos pelo vídeo. Retorna JPEG bytes."""
     data = _read_file_bytes(file_field)
     suffix = Path(getattr(file_field, "name", "video.mp4")).suffix or ".mp4"
+    temporary_path = None
 
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as temporary:
-        temporary.write(data)
-        temporary.flush()
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
+            temporary.write(data)
+            temporary_path = temporary.name
 
-        capture = cv2.VideoCapture(temporary.name)
+        # O ficheiro precisa estar fechado antes de VideoCapture no Windows.
+        capture = cv2.VideoCapture(temporary_path)
         if not capture.isOpened():
             capture.release()
             return []
@@ -105,6 +109,12 @@ def extract_video_frames(file_field, max_frames=MAX_VIDEO_FRAMES):
             return frames
         finally:
             capture.release()
+    finally:
+        if temporary_path:
+            try:
+                os.unlink(temporary_path)
+            except OSError:
+                pass
 
 
 def _qr_payloads_from_bytes(data):
@@ -261,7 +271,7 @@ def vision_scan(image_payloads):
         result = json.loads(output_text)
         result["model"] = payload.get("model") or model
         return result
-    except (urlerror.HTTPError, urlerror.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+    except (urlerror.HTTPError, urlerror.URLError, TimeoutError, ValueError) as exc:
         return {
             "scan_error": True,
             "error": str(exc)[:240],
