@@ -38,9 +38,11 @@ pnpm-debug.log*
 !package-lock.json
 !frontend/package-lock.json
 
-# Secrets
+# Secrets and local HTTPS development material
 .env
 *.env
+frontend/.env.https
+.dev-certs/
 
 # OS/editor
 .DS_Store
