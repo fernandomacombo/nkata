@@ -11,6 +11,7 @@ from . import (
     notification_views,
     password_reset_api,
     plan_views,
+    post_safety_api,
     posts_api,
     profile_api,
     questionnaire_api,
@@ -124,6 +125,16 @@ urlpatterns = [
         "publicacoes/<int:publicacao_id>/reacoes/",
         posts_api.api_reacoes_publicacao,
         name="reacoes_publicacao",
+    ),
+    path(
+        "publicacoes/<int:publicacao_id>/ocultar/",
+        post_safety_api.api_ocultar_publicacao,
+        name="ocultar_publicacao",
+    ),
+    path(
+        "publicacoes/<int:publicacao_id>/denunciar/",
+        post_safety_api.api_denunciar_publicacao,
+        name="denunciar_publicacao",
     ),
     path(
         "publicacoes/<int:publicacao_id>/",
