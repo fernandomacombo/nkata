@@ -6,6 +6,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import FollowingPanel from "./components/account/FollowingPanel.jsx";
+import PublicationSafetyOverlay from "./components/feed/PublicationSafetyOverlay.jsx";
 import ProfileFollowAction from "./components/profile/ProfileFollowAction.jsx";
 import AccessRequestPage from "./pages/AccessRequestPage.jsx";
 import AccessStatusPage from "./pages/AccessStatusPage.jsx";
@@ -48,6 +49,7 @@ import "./moments-autoplay.css";
 import "./moments-reactions.css";
 import "./feed.css";
 import "./feed-cleanup.css";
+import "./feed-safety.css";
 import "./mobile-app-contract.css";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
@@ -126,6 +128,7 @@ createRoot(document.getElementById("root")).render(
         <App />
         <ProfileFollowAction />
         <FollowingPanel />
+        <PublicationSafetyOverlay />
       </>
     )}
   </React.StrictMode>
