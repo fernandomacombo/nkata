@@ -1,10 +1,14 @@
+from types import SimpleNamespace
+
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from .call_api import CALL_RING_TIMEOUT_SECONDS, MAX_SIGNAL_PAYLOAD_CHARS
 from .call_models import ChamadaMatchNKATA, SinalChamadaNKATA
 from .plan_service import PLAN_DEFINITIONS
+from .webrtc_config_api import api_webrtc_readiness
 
 
 class CallRulesTests(SimpleTestCase):
@@ -54,6 +58,23 @@ class CallRulesTests(SimpleTestCase):
                 for url in settings.NKATA_WEBRTC_STUN_URLS
             )
         )
+
+    @override_settings(
+        NKATA_WEBRTC_STUN_URLS=["stun:example.invalid:3478"],
+        NKATA_WEBRTC_TURN_URLS=["turn:example.invalid:3478"],
+        NKATA_WEBRTC_TURN_USERNAME="segredo-usuario",
+        NKATA_WEBRTC_TURN_CREDENTIAL="segredo-credencial",
+    )
+    def test_readiness_does_not_expose_turn_credentials(self):
+        request = APIRequestFactory().get("/api/minha-conta/webrtc/readiness/")
+        force_authenticate(request, user=SimpleNamespace(is_authenticated=True))
+        response = api_webrtc_readiness(request)
+
+        self.assertTrue(response.data["stun_configured"])
+        self.assertTrue(response.data["turn_configured"])
+        rendered = str(response.data)
+        self.assertNotIn("segredo-usuario", rendered)
+        self.assertNotIn("segredo-credencial", rendered)
 
     def test_signaling_payload_has_conservative_limit(self):
         self.assertGreaterEqual(MAX_SIGNAL_PAYLOAD_CHARS, 32768)
