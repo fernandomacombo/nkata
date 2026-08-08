@@ -9,6 +9,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .content_moderation_service import analyse_content_media
 from .models import AcaoPerfil, MatchPerfil
 from .plan_service import plan_for_user
 from .post_reaction_service import reaction_payload, toggle_reaction
@@ -360,6 +361,13 @@ def api_publicacoes(request):
             },
             status=503,
         )
+
+    analyse_content_media(
+        content_type="PUBLICACAO",
+        content_id=publicacao.id,
+        file_field=publicacao.media,
+        media_type=publicacao.tipo_media,
+    )
 
     return Response(
         {
