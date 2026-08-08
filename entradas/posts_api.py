@@ -9,7 +9,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .content_moderation_service import analyse_content_media
+from .content_moderation_queue import queue_content_media_analysis
 from .models import AcaoPerfil, MatchPerfil
 from .plan_service import plan_for_user
 from .post_reaction_service import reaction_payload, toggle_reaction
@@ -362,10 +362,9 @@ def api_publicacoes(request):
             status=503,
         )
 
-    analyse_content_media(
+    queued = queue_content_media_analysis(
         content_type="PUBLICACAO",
         content_id=publicacao.id,
-        file_field=publicacao.media,
         media_type=publicacao.tipo_media,
     )
 
@@ -373,6 +372,7 @@ def api_publicacoes(request):
         {
             "ok": True,
             "pending_review": True,
+            "analysis_queued": queued,
             "message": "Publicação enviada para análise. Só aparece no feed depois da aprovação.",
             "publication": _publication_payload(request, publicacao),
             "capabilities": capabilities,
