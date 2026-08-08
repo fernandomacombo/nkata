@@ -1,0 +1,359 @@
+/* NKATA chat — voice notes and native composer refinement. */
+
+.nk-chat-dock {
+  position: relative;
+  border-top: 1px solid var(--nk-line);
+  background: rgba(255, 253, 249, 0.97);
+}
+
+.nk-chat-dock .nk-composer {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  border-top: 0;
+}
+
+.nk-composer__mic {
+  position: relative;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid var(--nk-line);
+  border-radius: 16px;
+  background: #f5efe9;
+  color: var(--nk-wine);
+  transition: transform 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.nk-composer__mic:hover {
+  background: var(--nk-wine-soft);
+  transform: translateY(-1px);
+}
+
+.nk-composer__mic.is-locked {
+  color: #938984;
+}
+
+.nk-composer__mic-lock {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  border-radius: 999px;
+  background: #fffdfa;
+  box-shadow: 0 0 0 3px #fffdfa;
+}
+
+.nk-chat-dock__notice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-bottom: 1px solid rgba(125, 38, 56, 0.09);
+  background: #f8ecee;
+  padding: 8px 16px;
+  color: var(--nk-wine-dark);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.nk-chat-dock__notice small {
+  margin-left: auto;
+  color: #847872;
+  font-size: 0.62rem;
+}
+
+.nk-voice-note {
+  display: grid;
+  grid-template-columns: 38px minmax(90px, 180px) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: min(280px, 62vw);
+}
+
+.nk-voice-note > audio,
+.nk-recorder-preview > audio {
+  display: none;
+}
+
+.nk-voice-note__play {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(125, 38, 56, 0.1);
+  color: var(--nk-wine);
+}
+
+.nk-message-row.is-mine .nk-voice-note__play {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.nk-voice-note__track {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(91, 77, 70, 0.15);
+}
+
+.nk-voice-note__track > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--nk-wine);
+}
+
+.nk-message-row.is-mine .nk-voice-note__track {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.nk-message-row.is-mine .nk-voice-note__track > span {
+  background: #fff;
+}
+
+.nk-voice-note > strong {
+  min-width: 34px;
+  color: #817670;
+  font-size: 0.65rem;
+  font-weight: 750;
+  text-align: right;
+}
+
+.nk-message-row.is-mine .nk-voice-note > strong {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.nk-message-bubble.is-audio {
+  padding: 9px 11px 7px;
+}
+
+.nk-recorder-bar,
+.nk-recorder-preview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 74px;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 16px;
+}
+
+.nk-recorder-bar__cancel,
+.nk-recorder-preview__delete,
+.nk-recorder-preview__play,
+.nk-recorder-bar__stop,
+.nk-recorder-preview__send {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 16px;
+}
+
+.nk-recorder-bar__cancel,
+.nk-recorder-preview__delete {
+  background: transparent;
+  color: #81746e;
+}
+
+.nk-recorder-bar__stop {
+  background: var(--nk-wine);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(125, 38, 56, 0.2);
+}
+
+.nk-recorder-bar__status {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.nk-recorder-bar__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--nk-wine);
+  box-shadow: 0 0 0 5px rgba(125, 38, 56, 0.09);
+  animation: nk-recording-pulse 1.2s ease-in-out infinite;
+}
+
+.nk-recorder-bar__status strong {
+  color: var(--nk-ink);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.96rem;
+}
+
+.nk-recorder-bar__status small {
+  color: var(--nk-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.nk-recorder-preview {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
+.nk-recorder-preview__play {
+  border-radius: 50%;
+  background: var(--nk-wine-soft);
+  color: var(--nk-wine);
+}
+
+.nk-recorder-preview__meta {
+  min-width: 0;
+}
+
+.nk-recorder-preview__meta strong,
+.nk-recorder-preview__meta small {
+  display: block;
+}
+
+.nk-recorder-preview__meta strong {
+  color: var(--nk-ink);
+  font-size: 0.8rem;
+}
+
+.nk-recorder-preview__meta small {
+  margin-top: 3px;
+  color: var(--nk-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.nk-recorder-preview__send {
+  background: var(--nk-wine);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(125, 38, 56, 0.2);
+}
+
+@keyframes nk-recording-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.52; transform: scale(0.86); }
+}
+
+@media (max-width: 820px) {
+  .nk-chat-dock {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(255, 253, 249, 0.98);
+    -webkit-backdrop-filter: blur(20px) saturate(145%);
+    backdrop-filter: blur(20px) saturate(145%);
+  }
+
+  .nk-chat-dock .nk-composer {
+    grid-template-columns: 46px minmax(0, 1fr) 48px;
+    align-items: end;
+    gap: 7px;
+    min-height: 66px;
+    padding: 8px 9px;
+  }
+
+  .nk-composer__count {
+    display: none;
+  }
+
+  .nk-composer__mic {
+    width: 46px;
+    height: 46px;
+    border-radius: 15px;
+    background: #f5efe9;
+  }
+
+  .nk-composer label {
+    display: flex;
+    min-width: 0;
+    align-items: flex-end;
+  }
+
+  .nk-composer textarea {
+    min-height: 46px;
+    max-height: 116px;
+    resize: none;
+    border-radius: 17px;
+    background: #f4eee8;
+    padding: 12px 14px;
+    font-size: 0.94rem;
+  }
+
+  .nk-composer__send {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    border-radius: 16px;
+    padding: 0;
+  }
+
+  .nk-composer__send span {
+    display: none;
+  }
+
+  .nk-chat-dock__notice {
+    padding: 7px 11px;
+    font-size: 0.68rem;
+  }
+
+  .nk-chat-dock__notice small {
+    display: none;
+  }
+
+  .nk-recorder-bar,
+  .nk-recorder-preview {
+    min-height: 66px;
+    padding: 8px 9px;
+  }
+
+  .nk-recorder-bar__cancel,
+  .nk-recorder-preview__delete,
+  .nk-recorder-preview__play,
+  .nk-recorder-bar__stop,
+  .nk-recorder-preview__send {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+
+  .nk-recorder-bar__status small {
+    display: none;
+  }
+
+  .nk-recorder-preview {
+    gap: 7px;
+  }
+
+  .nk-recorder-preview__delete {
+    width: 42px;
+  }
+
+  .nk-voice-note {
+    grid-template-columns: 38px minmax(80px, 1fr) auto;
+    min-width: min(260px, 66vw);
+  }
+
+  .nk-message-bubble.is-audio {
+    max-width: 84%;
+  }
+
+  .nk-conversation__body {
+    padding-bottom: 14px;
+  }
+}
+
+@media (max-width: 390px) {
+  .nk-recorder-preview__meta strong {
+    font-size: 0.73rem;
+  }
+
+  .nk-recorder-preview__delete {
+    width: 38px;
+  }
+
+  .nk-voice-note {
+    min-width: 220px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-recorder-bar__dot {
+    animation: none;
+  }
+}
