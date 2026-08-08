@@ -134,6 +134,16 @@ export async function fetchIncomingCall({ signal } = {}) {
   };
 }
 
+export async function fetchWebRtcReadiness({ signal } = {}) {
+  const payload = await request("/api/minha-conta/webrtc/readiness/", { signal });
+  return {
+    stunConfigured: Boolean(payload?.stun_configured),
+    turnConfigured: Boolean(payload?.turn_configured),
+    mobileRelayReady: Boolean(payload?.mobile_relay_ready),
+    message: payload?.message || "",
+  };
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("pagehide", () => {
     if (!trackedCall) return;
