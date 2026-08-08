@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchMatchConversation } from "../../services/api.js";
+import { endTrackedCall } from "../../services/callApi.js";
 import { fetchMyPlan } from "../../services/planApi.js";
 import NkataCallExperience from "./NkataCallExperience.jsx";
 
@@ -35,6 +36,14 @@ export default function ConversationCallBridge() {
       window.removeEventListener("popstate", sync);
     };
   }, []);
+
+  useEffect(() => {
+    if (!matchId) return undefined;
+    const currentMatchId = matchId;
+    return () => {
+      endTrackedCall(currentMatchId).catch(() => {});
+    };
+  }, [matchId]);
 
   useEffect(() => {
     if (!matchId || !target) {
