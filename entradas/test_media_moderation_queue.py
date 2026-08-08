@@ -37,8 +37,8 @@ class MediaModerationQueueTests(SimpleTestCase):
         ))
 
     def test_endpoints_de_upload_enfileiram_em_vez_de_analisar_sincronamente(self):
-        posts_source = inspect.getsource(posts_api.api_publicacoes)
-        moments_source = inspect.getsource(moments_api.api_momentos)
+        posts_source = inspect.getsource(posts_api)
+        moments_source = inspect.getsource(moments_api)
 
         self.assertIn("queue_content_media_analysis", posts_source)
         self.assertNotIn("analyse_content_media", posts_source)
