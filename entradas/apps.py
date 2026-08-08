@@ -38,10 +38,12 @@ class EntradasConfig(AppConfig):
             "session_key",
         )
 
-        # Momentos, Publicações e denúncias usam tabelas isoladas das migrações
-        # antigas, mas precisam de filas próprias no Django Admin.
+        # Momentos, Publicações, denúncias e a fila de pré-moderação usam
+        # tabelas isoladas das migrações antigas, mas precisam de filas próprias
+        # no Django Admin.
         from . import moments_admin  # noqa: F401
         from . import posts_admin  # noqa: F401
         from . import post_safety_admin  # noqa: F401
+        from . import content_moderation_queue_admin  # noqa: F401
 
         aplicar_fluxo_de_aprovacao_admin()
