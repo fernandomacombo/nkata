@@ -15,6 +15,20 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-placeholder-change-in-productio
 DEBUG = env_bool("DJANGO_DEBUG", True)
 NKATA_FRONTEND_URL = os.getenv("NKATA_FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
+# Pré-moderação de media. O padrão é manual/fail-closed: nenhum conteúdo é
+# automaticamente publicado. Para imagens, pode ser ativado o endpoint de
+# Moderation da OpenAI apenas por variável de ambiente.
+NKATA_MEDIA_MODERATION_PROVIDER = os.getenv(
+    "NKATA_MEDIA_MODERATION_PROVIDER",
+    "manual",
+).strip().lower()
+NKATA_OPENAI_MODERATION_MODEL = os.getenv(
+    "NKATA_OPENAI_MODERATION_MODEL",
+    "omni-moderation-latest",
+).strip()
+NKATA_MEDIA_MODERATION_TIMEOUT = int(os.getenv("NKATA_MEDIA_MODERATION_TIMEOUT", "15"))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+
 allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", "").strip()
 if allowed_hosts_env:
     ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
