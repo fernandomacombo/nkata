@@ -1,4 +1,5 @@
 from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
 
 from .content_moderation_service import analysis_for
 
@@ -15,7 +16,7 @@ RISK_COLORS = {
 def automatic_risk_badge(content_type, content_id):
     analysis = analysis_for(content_type, content_id)
     if not analysis:
-        return format_html(
+        return mark_safe(
             '<span style="display:inline-block;padding:5px 9px;border-radius:999px;'
             'background:#f0ece9;color:#625753;font-weight:700;">Sem análise</span>'
         )
@@ -36,7 +37,7 @@ def automatic_risk_badge(content_type, content_id):
 def automatic_review_panel(content_type, content_id):
     analysis = analysis_for(content_type, content_id)
     if not analysis:
-        return format_html(
+        return mark_safe(
             '<div style="max-width:760px;line-height:1.6;padding:12px;border-radius:10px;'
             'background:#f5f1ee;">Sem registo automático. Execute '
             '<code>python manage.py setup_nkata_media_moderation</code> e envie novo media. '
@@ -56,7 +57,7 @@ def automatic_review_panel(content_type, content_id):
             ((category,) for category in flagged_categories),
         )
         if flagged_categories
-        else format_html('<span style="color:#6c615d;">Nenhuma categoria sinalizada.</span>')
+        else mark_safe('<span style="color:#6c615d;">Nenhuma categoria sinalizada.</span>')
     )
 
     dimensions = (
