@@ -25,7 +25,7 @@ ALLOWED_AUDIO_CONTENT_TYPES = {
     "audio/mp3",
     "audio/wav",
     "audio/x-wav",
-    "video/webm",  # alguns browsers identificam MediaRecorder webm desta forma
+    "video/webm",
 }
 
 
@@ -104,14 +104,37 @@ def _validate_audio(file_obj, duration_seconds):
     return None
 
 
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
-def api_enviar_audio_match(request, match_id):
+def api_audios_match(request, match_id):
     match = _match_do_utilizador(request.user, match_id)
     if not match:
         return Response({"detail": "Conversa não encontrada."}, status=404)
 
     capabilities = chat_capabilities(request.user)
+
+    if request.method == "GET":
+        try:
+            match.mensagens_audio_nkata.filter(
+                lida=False,
+            ).exclude(remetente=request.user).update(lida=True)
+            messages = match.mensagens_audio_nkata.select_related(
+                "remetente",
+                "remetente__perfil_nkata",
+            ).all()
+        except DatabaseError:
+            return Response({
+                "results": [],
+                "capabilities": capabilities,
+                "setup_required": True,
+            })
+
+        return Response({
+            "results": [serialize_audio_message(request, message) for message in messages],
+            "capabilities": capabilities,
+            "setup_required": False,
+        })
+
     if not capabilities["audio_enabled"]:
         return Response(
             {
