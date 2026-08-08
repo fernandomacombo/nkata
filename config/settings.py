@@ -40,9 +40,14 @@ NKATA_MEDIA_VISION_SCAN_ENABLED = env_bool("NKATA_MEDIA_VISION_SCAN_ENABLED", Fa
 NKATA_MEDIA_VISION_MODEL = os.getenv("NKATA_MEDIA_VISION_MODEL", "gpt-5.6-luna").strip()
 NKATA_MEDIA_VISION_MAX_IMAGES = int(os.getenv("NKATA_MEDIA_VISION_MAX_IMAGES", "4"))
 
-# WebRTC. STUN/TURN são configurados no backend para não fixar fornecedor ou
-# credenciais dentro da bundle React. Para produção, configure TURN.
-NKATA_WEBRTC_STUN_URLS = env_list("NKATA_WEBRTC_STUN_URLS")
+# WebRTC. STUN/TURN são configurados no backend para não fixar credenciais
+# dentro da bundle React. STUN público ajuda na descoberta de endereço; TURN
+# deve ser configurado em produção para servir de relay quando a ligação direta
+# falhar em NATs/firewalls mais restritivos.
+NKATA_WEBRTC_STUN_URLS = env_list(
+    "NKATA_WEBRTC_STUN_URLS",
+    "stun:stun.cloudflare.com:3478",
+)
 NKATA_WEBRTC_TURN_URLS = env_list("NKATA_WEBRTC_TURN_URLS")
 NKATA_WEBRTC_TURN_USERNAME = os.getenv("NKATA_WEBRTC_TURN_USERNAME", "").strip()
 NKATA_WEBRTC_TURN_CREDENTIAL = os.getenv("NKATA_WEBRTC_TURN_CREDENTIAL", "").strip()
