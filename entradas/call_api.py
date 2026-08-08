@@ -83,6 +83,15 @@ def _ice_servers():
     return servers
 
 
+def _purge_signals(call):
+    if not call:
+        return
+    try:
+        call.sinais.all().delete()
+    except DatabaseError:
+        pass
+
+
 def _expire_ringing_call(call, now=None):
     if not call or call.estado != ChamadaMatchNKATA.ESTADO_CHAMANDO:
         return call
@@ -93,6 +102,7 @@ def _expire_ringing_call(call, now=None):
     call.estado = ChamadaMatchNKATA.ESTADO_PERDIDA
     call.terminada_em = now
     call.save(update_fields=["estado", "terminada_em", "atualizada_em"])
+    _purge_signals(call)
     return call
 
 
@@ -101,6 +111,26 @@ def _active_call_for_match(match):
         call = (
             ChamadaMatchNKATA.objects
             .filter(match=match, estado__in=LIVE_CALL_STATES)
+            .select_related("iniciador")
+            .order_by("-criada_em")
+            .first()
+        )
+    except DatabaseError:
+        return None
+    return _expire_ringing_call(call)
+
+
+def _active_call_for_user(user):
+    perfil = _perfil_do_utilizador(user)
+    if not perfil:
+        return None
+    try:
+        call = (
+            ChamadaMatchNKATA.objects
+            .filter(
+                Q(iniciador=user) | Q(match__perfil_1=perfil) | Q(match__perfil_2=perfil),
+                estado__in=LIVE_CALL_STATES,
+            )
             .select_related("iniciador")
             .order_by("-criada_em")
             .first()
@@ -212,12 +242,15 @@ def api_chamada_match(request, match_id):
         try:
             with transaction.atomic():
                 locked_match = _match_do_utilizador(request.user, match_id, for_update=True)
-                existing = _active_call_for_match(locked_match)
+                existing_match_call = _active_call_for_match(locked_match)
+                existing_user_call = _active_call_for_user(request.user)
+                existing_other_call = _active_call_for_user(other_user)
+                existing = existing_match_call or existing_user_call or existing_other_call
                 if existing and existing.estado in LIVE_CALL_STATES:
                     return Response(
                         {
-                            "detail": "Já existe uma chamada em curso nesta ligação.",
-                            "call": _serialize_call(existing, request),
+                            "detail": "Uma das pessoas já está numa chamada. Tente novamente daqui a pouco.",
+                            "code": "participant_already_in_call",
                         },
                         status=409,
                     )
@@ -332,9 +365,11 @@ def api_chamada_match(request, match_id):
         call.estado = ChamadaMatchNKATA.ESTADO_RECUSADA
         call.terminada_em = now
         call.save(update_fields=["estado", "terminada_em", "atualizada_em"])
+        _purge_signals(call)
 
     elif action in {"end", "failed"}:
         if call.estado not in LIVE_CALL_STATES:
+            _purge_signals(call)
             return Response({"call": _serialize_call(call, request)})
         call.estado = (
             ChamadaMatchNKATA.ESTADO_FALHOU
@@ -343,6 +378,7 @@ def api_chamada_match(request, match_id):
         )
         call.terminada_em = now
         call.save(update_fields=["estado", "terminada_em", "atualizada_em"])
+        _purge_signals(call)
 
     else:
         return Response({"action": ["Ação de chamada inválida."]}, status=400)
