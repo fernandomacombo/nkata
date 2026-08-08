@@ -1,5 +1,7 @@
 import { API_BASE_URL } from "./api.js";
 
+let trackedCall = null;
+
 export class CallApiError extends Error {
   constructor(message, status, payload = null) {
     super(message);
@@ -17,7 +19,18 @@ function getCookie(name) {
   return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
 }
 
-async function request(path, { method = "GET", body, signal } = {}) {
+function trackCall(matchId, call) {
+  if (!call?.id) {
+    if (trackedCall?.matchId === Number(matchId)) trackedCall = null;
+    return;
+  }
+  trackedCall = {
+    matchId: Number(matchId),
+    callId: Number(call.id),
+  };
+}
+
+async function request(path, { method = "GET", body, signal, keepalive = false } = {}) {
   const normalizedMethod = method.toUpperCase();
   const headers = { Accept: "application/json" };
   if (!["GET", "HEAD", "OPTIONS"].includes(normalizedMethod)) {
@@ -32,6 +45,7 @@ async function request(path, { method = "GET", body, signal } = {}) {
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
+    keepalive,
   });
 
   const contentType = response.headers.get("content-type") || "";
@@ -51,6 +65,7 @@ export async function fetchCallState(matchId, { sinceSignalId = 0, signal } = {}
   if (sinceSignalId) params.set("since_signal_id", String(sinceSignalId));
   const suffix = params.toString() ? `?${params.toString()}` : "";
   const payload = await request(`/api/minha-conta/matches/${matchId}/call/${suffix}`, { signal });
+  trackCall(matchId, payload?.call || null);
   return {
     call: payload?.call || null,
     signals: Array.isArray(payload?.signals) ? payload.signals : [],
@@ -61,17 +76,42 @@ export async function fetchCallState(matchId, { sinceSignalId = 0, signal } = {}
 }
 
 export async function startMatchCall(matchId, type) {
-  return request(`/api/minha-conta/matches/${matchId}/call/`, {
+  const payload = await request(`/api/minha-conta/matches/${matchId}/call/`, {
     method: "POST",
     body: { action: "start", type },
   });
+  trackCall(matchId, payload?.call || null);
+  return payload;
 }
 
 export async function updateMatchCall(matchId, callId, action) {
-  return request(`/api/minha-conta/matches/${matchId}/call/`, {
+  const payload = await request(`/api/minha-conta/matches/${matchId}/call/`, {
     method: "POST",
     body: { action, call_id: callId },
   });
+  if (["end", "decline", "failed"].includes(String(action))) {
+    trackedCall = null;
+  } else if (payload?.call) {
+    trackCall(matchId, payload.call);
+  }
+  return payload;
+}
+
+export async function endTrackedCall(matchId = null) {
+  if (!trackedCall) return;
+  if (matchId !== null && Number(matchId) !== trackedCall.matchId) return;
+
+  const current = trackedCall;
+  trackedCall = null;
+  try {
+    await request(`/api/minha-conta/matches/${current.matchId}/call/`, {
+      method: "POST",
+      body: { action: "end", call_id: current.callId },
+      keepalive: true,
+    });
+  } catch {
+    // Encerramento best-effort ao sair da conversa.
+  }
 }
 
 export async function sendCallSignal(matchId, callId, signalType, payload) {
@@ -92,4 +132,24 @@ export async function fetchIncomingCall({ signal } = {}) {
     call: payload?.call || null,
     setupRequired: Boolean(payload?.setup_required),
   };
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    if (!trackedCall) return;
+    const current = trackedCall;
+    trackedCall = null;
+    const csrfToken = getCookie("csrftoken");
+    fetch(`${API_BASE_URL}/api/minha-conta/matches/${current.matchId}/call/`, {
+      method: "POST",
+      credentials: "include",
+      keepalive: true,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+      },
+      body: JSON.stringify({ action: "end", call_id: current.callId }),
+    }).catch(() => {});
+  });
 }
