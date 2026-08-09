@@ -337,9 +337,10 @@ def api_chamada_match(request, match_id):
                 {"detail": "O seu plano atual não permite esta chamada."},
                 status=403,
             )
+        # Atender apenas inicia a negociação. O cronómetro real começa quando
+        # a ligação WebRTC reporta connectionState=connected (action=active).
         call.estado = ChamadaMatchNKATA.ESTADO_CONECTANDO
-        call.atendida_em = now
-        call.save(update_fields=["estado", "atendida_em", "atualizada_em"])
+        call.save(update_fields=["estado", "atualizada_em"])
 
     elif action == "active":
         if call.estado not in {
@@ -371,11 +372,21 @@ def api_chamada_match(request, match_id):
         if call.estado not in LIVE_CALL_STATES:
             _purge_signals(call)
             return Response({"call": _serialize_call(call, request)})
-        call.estado = (
-            ChamadaMatchNKATA.ESTADO_FALHOU
-            if action == "failed"
-            else ChamadaMatchNKATA.ESTADO_TERMINADA
-        )
+
+        if action == "failed":
+            call.estado = ChamadaMatchNKATA.ESTADO_FALHOU
+        elif (
+            call.estado == ChamadaMatchNKATA.ESTADO_CHAMANDO
+            and call.iniciador_id == request.user.id
+            and not call.atendida_em
+        ):
+            # O chamador desligou antes de haver ligação: para quem recebeu,
+            # isto deve aparecer como chamada perdida; para quem ligou, como
+            # não atendida.
+            call.estado = ChamadaMatchNKATA.ESTADO_PERDIDA
+        else:
+            call.estado = ChamadaMatchNKATA.ESTADO_TERMINADA
+
         call.terminada_em = now
         call.save(update_fields=["estado", "terminada_em", "atualizada_em"])
         _purge_signals(call)
