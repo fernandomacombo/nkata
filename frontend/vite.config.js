@@ -21,6 +21,25 @@ export default defineConfig(({ mode }) => {
     );
   }
 
+  const proxiedResource = ({ rewriteOrigin = false } = {}) => ({
+    target: apiTarget,
+    changeOrigin: true,
+    secure: false,
+    configure(proxy) {
+      proxy.on("proxyReq", (proxyReq, req) => {
+        const publicHost = req.headers.host || "localhost:5173";
+        proxyReq.setHeader("X-Forwarded-Host", publicHost);
+        proxyReq.setHeader("X-Forwarded-Proto", httpsMode ? "https" : "http");
+
+        if (rewriteOrigin) {
+          // A origem do browser é o Vite. Para a validação CSRF no runserver,
+          // a chamada interna é apresentada ao Django como local.
+          proxyReq.setHeader("Origin", apiTarget);
+        }
+      });
+    },
+  });
+
   return {
     plugins: [react()],
     server: {
@@ -34,20 +53,8 @@ export default defineConfig(({ mode }) => {
           }
         : undefined,
       proxy: {
-        "/api": {
-          target: apiTarget,
-          changeOrigin: true,
-          secure: false,
-          configure(proxy) {
-            // Em desenvolvimento HTTPS, o browser fala apenas com o Vite.
-            // O proxy adapta a origem para o runserver HTTP local do Django,
-            // evitando mixed content e mantendo a verificação CSRF confinada
-            // ao ambiente de desenvolvimento.
-            proxy.on("proxyReq", (proxyReq) => {
-              proxyReq.setHeader("Origin", apiTarget);
-            });
-          },
-        },
+        "/api": proxiedResource({ rewriteOrigin: true }),
+        "/media": proxiedResource(),
       },
     },
     preview: {
@@ -61,11 +68,8 @@ export default defineConfig(({ mode }) => {
           }
         : undefined,
       proxy: {
-        "/api": {
-          target: apiTarget,
-          changeOrigin: true,
-          secure: false,
-        },
+        "/api": proxiedResource({ rewriteOrigin: true }),
+        "/media": proxiedResource(),
       },
     },
   };
