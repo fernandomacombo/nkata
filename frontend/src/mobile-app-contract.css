@@ -173,7 +173,7 @@
 }
 
 /* Telefones estreitos: topo essencial e tab bar apenas com ícones. */
-@media (max-width: 430px) {
+@media (max-width: 520px) {
   :root {
     --nk-app-bottom-nav: 58px;
   }
