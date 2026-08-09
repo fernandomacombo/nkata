@@ -69,9 +69,7 @@ export default function ConversationCallBridge() {
           const warningKey = `nkata-turn-warning:${matchId}`;
           if (!window.sessionStorage.getItem(warningKey)) {
             window.sessionStorage.setItem(warningKey, "1");
-            setNotice(
-              "Ambiente WebRTC: TURN ainda não está configurado. Algumas redes móveis podem não estabelecer a chamada.",
-            );
+            setNotice("As chamadas podem ter limitações nesta rede.");
           }
         }
       })
@@ -84,7 +82,7 @@ export default function ConversationCallBridge() {
 
   useEffect(() => {
     if (!notice) return undefined;
-    const id = window.setTimeout(() => setNotice(""), 4200);
+    const id = window.setTimeout(() => setNotice(""), 3000);
     return () => window.clearTimeout(id);
   }, [notice]);
 
