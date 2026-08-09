@@ -1,4 +1,8 @@
-const browserApiBase = `${window.location.protocol}//${window.location.hostname}:8000`;
+import { normalizeAppUrl } from "./url.js";
+
+const browserApiBase = window.location.protocol === "https:"
+  ? window.location.origin
+  : `${window.location.protocol}//${window.location.hostname}:8000`;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || browserApiBase).replace(/\/$/, "");
 
 export class ApiError extends Error {
@@ -38,12 +42,13 @@ function normalizeProfile(profile) {
     sobre_si: profile.sobre_si || "Este perfil ainda não acrescentou uma apresentação.",
     o_que_valoriza: profile.o_que_valoriza || "",
     o_que_nao_aceita: profile.o_que_nao_aceita || "",
-    foto_url:
+    foto_url: normalizeAppUrl(
       profile.foto_url ||
       profile.foto_principal_url ||
       profile.foto_principal ||
       profile.foto ||
       null,
+    ),
     verificado: profile.verificado ?? false,
     interesse_ativo: profile.interesse_ativo ?? false,
     status: profile.status || "",
@@ -65,21 +70,48 @@ function normalizeAccount(account) {
 
 function normalizeMessage(message) {
   if (!message) return null;
-  const type = String(message.tipo || "TEXTO").toLowerCase() === "audio" ? "audio" : "text";
+  const rawType = String(message.tipo || "TEXTO").toUpperCase();
+  const type = rawType === "AUDIO" ? "audio" : rawType === "CALL" ? "call" : "text";
   return {
     id: message.id,
     audioId: message.audio_id || null,
+    callId: message.call_id || null,
+    callType: message.call_type || null,
+    callState: message.call_state || null,
+    callLabel: message.call_label || message.texto || "Chamada",
+    callDirection: message.call_direction || null,
+    callMissed: Boolean(message.call_missed),
     matchId: message.match,
     senderId: message.remetente_id,
     senderName: message.remetente_nome || "Membro NKATA",
     type,
     text: message.texto || "",
-    audioUrl: message.audio_url || null,
+    audioUrl: normalizeAppUrl(message.audio_url || null),
     durationSeconds: Number(message.duracao_segundos || 0),
     read: Boolean(message.lida),
     mine: Boolean(message.minha),
     createdAt: message.criado_em,
   };
+}
+
+function normalizeCallHistoryItem(item) {
+  if (!item) return null;
+  return normalizeMessage({
+    id: `call-${item.id}`,
+    tipo: "CALL",
+    match: item.match_id,
+    call_id: item.id,
+    call_type: item.type,
+    call_state: item.state,
+    call_label: item.status_label,
+    call_direction: item.direction,
+    call_missed: item.missed,
+    duracao_segundos: item.duration_seconds,
+    texto: item.status_label,
+    lida: true,
+    minha: item.direction === "OUTGOING",
+    criado_em: item.activity_at || item.ended_at || item.created_at,
+  });
 }
 
 function normalizeMatch(match) {
@@ -291,14 +323,16 @@ export async function closeMatch(matchId) {
 }
 
 export async function fetchMatchConversation(matchId, { signal } = {}) {
-  const [textPayload, audioPayload] = await Promise.all([
+  const [textPayload, audioPayload, callPayload] = await Promise.all([
     request(`/api/minha-conta/matches/${matchId}/conversa/`, { signal }),
     request(`/api/minha-conta/matches/${matchId}/audio/`, { signal }),
+    request(`/api/minha-conta/matches/${matchId}/calls/history/`, { signal }),
   ]);
 
   const textMessages = (textPayload?.results || []).map(normalizeMessage).filter(Boolean);
   const audioMessages = (audioPayload?.results || []).map(normalizeMessage).filter(Boolean);
-  const messages = [...textMessages, ...audioMessages].sort((a, b) => (
+  const callMessages = (callPayload?.results || []).map(normalizeCallHistoryItem).filter(Boolean);
+  const messages = [...textMessages, ...audioMessages, ...callMessages].sort((a, b) => (
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   ));
 
@@ -312,6 +346,7 @@ export async function fetchMatchConversation(matchId, { signal } = {}) {
       max_audio_seconds: 180,
     },
     audioSetupRequired: Boolean(audioPayload?.setup_required),
+    callSetupRequired: Boolean(callPayload?.setup_required),
   };
 }
 
