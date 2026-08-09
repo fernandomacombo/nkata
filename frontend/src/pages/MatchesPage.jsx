@@ -1,12 +1,15 @@
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   HeartHandshake,
   MapPin,
   MessageCircle,
   Mic,
+  Phone,
   RefreshCw,
   ShieldCheck,
   UserRound,
+  Video,
 } from "lucide-react";
 
 function formatDate(value) {
@@ -29,6 +32,22 @@ function formatDate(value) {
   }).format(date);
 }
 
+function MatchAvatar({ profile }) {
+  const [failed, setFailed] = useState(false);
+  const src = profile?.foto_url || "";
+
+  useEffect(() => setFailed(false), [src]);
+
+  if (!src || failed) return <UserRound size={34} strokeWidth={1.4} />;
+  return (
+    <img
+      src={src}
+      alt={`Foto de ${profile?.nome_publico || "membro NKATA"}`}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function LastMessagePreview({ message }) {
   if (!message) return <>O interesse é mútuo. Pode começar a conversa.</>;
 
@@ -37,6 +56,15 @@ function LastMessagePreview({ message }) {
       <span className="nk-match-card__voice-preview">
         <Mic size={14} strokeWidth={2} />
         {message.mine ? "Você: Nota de voz" : "Nota de voz"}
+      </span>
+    );
+  }
+
+  if (message.type === "call") {
+    return (
+      <span className={`nk-match-card__voice-preview ${message.callMissed ? "is-missed" : ""}`}>
+        {message.callType === "VIDEO" ? <Video size={14} /> : <Phone size={14} />}
+        {message.callLabel || "Chamada"}
       </span>
     );
   }
@@ -51,11 +79,7 @@ function MatchCard({ match, onOpen }) {
   return (
     <button type="button" className="nk-match-card" onClick={() => onOpen(match)}>
       <span className="nk-match-card__photo">
-        {profile?.foto_url ? (
-          <img src={profile.foto_url} alt={`Foto de ${profile.nome_publico}`} />
-        ) : (
-          <UserRound size={34} strokeWidth={1.4} />
-        )}
+        <MatchAvatar profile={profile} />
         <em><ShieldCheck size={12} /></em>
       </span>
 
