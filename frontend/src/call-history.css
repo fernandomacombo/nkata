@@ -1,0 +1,171 @@
+/* NKATA — histórico privado de chamadas dentro da conversa. */
+
+.nk-call-history {
+  width: min(760px, 100%);
+  margin: 18px auto 0;
+  border: 1px solid rgba(72, 57, 50, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 253, 249, 0.82);
+  padding: 13px;
+  box-shadow: 0 12px 34px rgba(50, 38, 33, 0.05);
+  backdrop-filter: blur(14px);
+}
+
+.nk-call-history__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2px 3px 11px;
+}
+
+.nk-call-history__heading strong {
+  display: block;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.nk-call-history__heading small {
+  display: block;
+  margin-top: 2px;
+  color: var(--nk-muted);
+  font-size: 0.66rem;
+}
+
+.nk-call-history__heading button {
+  min-height: 38px;
+  border-radius: 12px;
+  background: transparent;
+  padding-inline: 10px;
+  color: var(--nk-wine);
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.nk-call-history__list {
+  display: grid;
+  gap: 6px;
+}
+
+.nk-call-history__item {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  border-radius: 16px;
+  background: rgba(248, 244, 239, 0.74);
+  padding: 8px 10px;
+}
+
+.nk-call-history__item.is-missed {
+  background: rgba(125, 38, 56, 0.065);
+}
+
+.nk-call-history__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 13px;
+  background: #eee7df;
+  color: var(--nk-wine);
+}
+
+.nk-call-history__item.is-missed .nk-call-history__icon,
+.nk-call-history__item.is-missed .nk-call-history__title strong {
+  color: #9f3044;
+}
+
+.nk-call-history__body {
+  min-width: 0;
+}
+
+.nk-call-history__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.nk-call-history__title strong {
+  overflow: hidden;
+  color: var(--nk-ink);
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-call-history__title svg {
+  flex: 0 0 auto;
+  color: var(--nk-wine);
+}
+
+.nk-call-history__body > small {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--nk-muted);
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-call-history__meta {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  color: var(--nk-muted);
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+
+.nk-call-history__meta small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--nk-ink);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+@media (max-width: 820px) {
+  .nk-call-history {
+    width: 100%;
+    margin-top: 14px;
+    border-radius: 20px;
+    padding: 10px;
+  }
+
+  .nk-call-history__heading button {
+    min-height: var(--nk-app-touch, 44px);
+  }
+
+  .nk-call-history__item {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    min-height: 60px;
+    gap: 8px;
+    border-radius: 15px;
+    padding-inline: 8px;
+  }
+
+  .nk-call-history__meta {
+    max-width: 92px;
+  }
+}
+
+@media (max-width: 390px) {
+  .nk-call-history__item {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .nk-call-history__meta {
+    grid-column: 2;
+    justify-items: start;
+    grid-auto-flow: column;
+    justify-content: start;
+    max-width: none;
+  }
+}
