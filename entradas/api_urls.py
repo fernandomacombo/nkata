@@ -5,6 +5,7 @@ from . import (
     account_security_api,
     api_views,
     call_api,
+    call_history_api,
     chat_media_api,
     chat_realtime_api,
     follow_views,
@@ -221,6 +222,11 @@ urlpatterns = [
         "minha-conta/matches/<int:match_id>/call/",
         call_api.api_chamada_match,
         name="chamada_match",
+    ),
+    path(
+        "minha-conta/matches/<int:match_id>/calls/history/",
+        call_history_api.api_historico_chamadas_match,
+        name="historico_chamadas_match",
     ),
     path(
         "minha-conta/chamadas/entrada/",
