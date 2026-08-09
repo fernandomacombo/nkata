@@ -4,6 +4,7 @@ from django.db import DatabaseError
 from django.db.models import Q
 from rest_framework import serializers
 
+from .call_models import ChamadaMatchNKATA
 from .chat_media_models import MensagemAudioMatchNKATA
 from .models import MatchPerfil, MensagemMatch, PerfilNKATA
 
@@ -55,6 +56,15 @@ def _validar_texto_natural(value, *, min_chars, min_words, label):
     return texto
 
 
+def _file_url(file_field):
+    if not file_field:
+        return None
+    try:
+        return file_field.url
+    except (ValueError, AttributeError):
+        return None
+
+
 class PerfilResumoSerializer(serializers.ModelSerializer):
     foto_principal = serializers.SerializerMethodField()
     objetivo_display = serializers.CharField(source="get_objetivo_display", read_only=True)
@@ -80,16 +90,8 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
         ]
 
     def get_foto_principal(self, obj):
-        request = self.context.get("request")
-        foto = obj.foto_principal
-
-        if not foto:
-            return None
-
-        url = foto.url
-        if request:
-            return request.build_absolute_uri(url)
-        return url
+        # URL relativa mantém media no mesmo origin do frontend/proxy HTTPS.
+        return _file_url(obj.foto_principal)
 
     def get_verificado(self, obj):
         pedido_status = getattr(obj.pedido, "status", "")
@@ -158,14 +160,7 @@ class MinhaContaSerializer(serializers.ModelSerializer):
         }
 
     def get_foto_principal(self, obj):
-        request = self.context.get("request")
-        foto = obj.foto_principal
-
-        if not foto:
-            return None
-
-        url = foto.url
-        return request.build_absolute_uri(url) if request else url
+        return _file_url(obj.foto_principal)
 
     def get_total_matches(self, obj):
         return MatchPerfil.objects.filter(
@@ -287,11 +282,6 @@ class MatchSerializer(serializers.ModelSerializer):
 
     def _audio_payload(self, audio):
         request = self.context.get("request")
-        audio_url = None
-        if request:
-            audio_url = request.build_absolute_uri(
-                f"/api/minha-conta/matches/{audio.match_id}/audio/{audio.id}/media/"
-            )
         return {
             "id": f"audio-{audio.id}",
             "audio_id": audio.id,
@@ -304,7 +294,7 @@ class MatchSerializer(serializers.ModelSerializer):
             ),
             "texto": "",
             "tipo": "AUDIO",
-            "audio_url": audio_url,
+            "audio_url": f"/api/minha-conta/matches/{audio.match_id}/audio/{audio.id}/media/",
             "duracao_segundos": int(audio.duracao_segundos or 0),
             "lida": bool(audio.lida),
             "minha": bool(
@@ -315,8 +305,51 @@ class MatchSerializer(serializers.ModelSerializer):
             "criado_em": audio.criado_em,
         }
 
+    def _call_payload(self, call):
+        request = self.context.get("request")
+        user_id = request.user.id if request and request.user.is_authenticated else None
+        outgoing = call.iniciador_id == user_id
+        missed = call.estado == ChamadaMatchNKATA.ESTADO_PERDIDA and not outgoing
+        duration_seconds = 0
+        if call.atendida_em and call.terminada_em:
+            duration_seconds = max(0, int((call.terminada_em - call.atendida_em).total_seconds()))
+
+        if missed:
+            label = "Chamada perdida"
+        elif call.estado == ChamadaMatchNKATA.ESTADO_PERDIDA:
+            label = "Chamada não atendida"
+        elif call.estado == ChamadaMatchNKATA.ESTADO_RECUSADA:
+            label = "Chamada recusada"
+        elif call.estado == ChamadaMatchNKATA.ESTADO_FALHOU:
+            label = "Chamada não concluída"
+        elif call.estado == ChamadaMatchNKATA.ESTADO_ATIVA:
+            label = "Chamada em curso"
+        else:
+            label = call.get_tipo_display()
+
+        return {
+            "id": f"call-{call.id}",
+            "match": call.match_id,
+            "tipo": "CALL",
+            "call_id": call.id,
+            "call_type": call.tipo,
+            "call_state": call.estado,
+            "call_label": label,
+            "call_direction": "SAIDA" if outgoing else "ENTRADA",
+            "call_missed": missed,
+            "duracao_segundos": duration_seconds,
+            "texto": label,
+            "lida": True,
+            "minha": outgoing,
+            "criado_em": call.terminada_em or call.atualizada_em or call.criada_em,
+        }
+
     def get_ultima_mensagem(self, obj):
+        candidates = []
         texto = obj.mensagens.order_by("-criado_em").first()
+        if texto:
+            candidates.append((texto.criado_em, MensagemMatchSerializer(texto, context=self.context).data))
+
         try:
             audio = (
                 MensagemAudioMatchNKATA.objects
@@ -327,12 +360,25 @@ class MatchSerializer(serializers.ModelSerializer):
             )
         except DatabaseError:
             audio = None
+        if audio:
+            candidates.append((audio.criado_em, self._audio_payload(audio)))
 
-        if audio and (not texto or audio.criado_em > texto.criado_em):
-            return self._audio_payload(audio)
-        if texto:
-            return MensagemMatchSerializer(texto, context=self.context).data
-        return None
+        try:
+            call = (
+                ChamadaMatchNKATA.objects
+                .filter(match=obj)
+                .order_by("-atualizada_em", "-criada_em")
+                .first()
+            )
+        except DatabaseError:
+            call = None
+        if call:
+            call_time = call.terminada_em or call.atualizada_em or call.criada_em
+            candidates.append((call_time, self._call_payload(call)))
+
+        if not candidates:
+            return None
+        return max(candidates, key=lambda item: item[0])[1]
 
     def get_mensagens_nao_lidas(self, obj):
         request = self.context.get("request")
