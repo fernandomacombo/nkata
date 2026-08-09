@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
+  ChevronDown,
   CirclePlay,
   Flower2,
   Heart,
@@ -309,6 +310,9 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
   const [caption, setCaption] = useState("SEM_LEGENDA");
   const [visibility, setVisibility] = useState("TODOS");
   const [publishing, setPublishing] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(
+    () => !window.matchMedia("(max-width: 820px)").matches,
+  );
   const fileRef = useRef(null);
 
   const capabilities = data?.capabilities || null;
@@ -424,7 +428,10 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
       <section className="nk-shell nk-member-home__layout">
         <div className="nk-member-home__feed-column">
-          <form className={`nk-feed-composer ${canPublish ? "" : "is-locked"}`} onSubmit={publish}>
+          <form
+            className={`nk-feed-composer ${canPublish ? "" : "is-locked"} ${composerOpen ? "is-open" : "is-collapsed"}`}
+            onSubmit={publish}
+          >
             <header>
               <span><ImagePlus size={20} /></span>
               <div>
@@ -432,10 +439,21 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                 <small>{capabilities?.plan_label || "A confirmar o seu plano"}</small>
               </div>
               {!canPublish && <LockKeyhole size={18} />}
+              {canPublish && (
+                <button
+                  type="button"
+                  className="nk-feed-composer__toggle"
+                  onClick={() => setComposerOpen((current) => !current)}
+                  aria-expanded={composerOpen}
+                  aria-label={composerOpen ? "Fechar criação de publicação" : "Criar publicação"}
+                >
+                  <ChevronDown size={18} />
+                </button>
+              )}
             </header>
 
             {canPublish ? (
-              <>
+              <div className="nk-feed-composer__body">
                 <div className="nk-feed-composer__policy">
                   <ShieldCheck size={17} />
                   <span>Sem texto livre. Fotos e vídeos passam por moderação antes de aparecer no feed.</span>
@@ -500,7 +518,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   {publishing ? <LoaderCircle size={18} className="is-spinning" /> : <Send size={18} />}
                   {publishing ? "A enviar" : "Enviar para análise"}
                 </button>
-              </>
+              </div>
             ) : (
               <div className="nk-feed-composer__locked-copy">
                 <LockKeyhole size={22} />
