@@ -675,13 +675,20 @@
 }
 
 .nk-admin-thumb.is-empty,
-.nk-admin-thumb.is-video {
+.nk-admin-thumb.is-video,
+.nk-admin-thumb.is-operation {
   display: grid;
   place-items: center;
   color: var(--nk-muted);
 }
 
 .nk-admin-thumb.is-video { color: var(--nk-wine); }
+
+.nk-admin-thumb.is-operation {
+  border-color: #ead8dc;
+  background: #f6e9ec;
+  color: var(--nk-wine);
+}
 
 .nk-admin-row__identity,
 .nk-admin-row__meta {

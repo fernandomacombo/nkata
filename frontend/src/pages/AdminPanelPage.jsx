@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   UserCheck,
   Users,
+  Video,
   X,
 } from "lucide-react";
 import {
@@ -270,6 +271,13 @@ function Overview({ summary, loading, error, onRetry, onOpenSection }) {
 }
 
 function MediaThumb({ item }) {
+  if (item.operation_type === "CALL") {
+    const CallIcon = item.call_type === "VIDEO" ? Video : Phone;
+    return <span className="nk-admin-thumb is-operation"><CallIcon size={20} /></span>;
+  }
+  if (item.operation_type === "MATCH") {
+    return <span className="nk-admin-thumb is-operation"><HeartHandshake size={20} /></span>;
+  }
   if (!item.photo_url && !item.media_url) {
     return <span className="nk-admin-thumb is-empty"><Image size={19} /></span>;
   }
@@ -347,7 +355,15 @@ function AdminRow({ section, item, onAction }) {
         {section === "members" && <><span>{item.age} anos · {item.visible ? "Visível" : "Oculto"}</span><small>{item.pending_reports ? `${item.pending_reports} denúncia(s) pendente(s)` : "Sem denúncias pendentes"}</small></>}
         {section === "content" && <><span>Risco: {item.risk_label}</span><small>{item.visibility_label}</small></>}
         {section === "reports" && <><span>Por {item.reporter}</span><small>{formatDate(item.created_at)}</small></>}
-        {section === "operations" && item.operation_type === "CALL" && <><span>{item.initiator}</span><small>{formatDuration(item.duration_seconds)}</small></>}
+        {section === "operations" && item.operation_type === "CALL" && (
+          <>
+            <span>Iniciada por {item.initiator}</span>
+            <small>
+              {item.connected ? `${formatDuration(item.duration_seconds)} · ` : ""}
+              {formatDate(item.created_at)}
+            </small>
+          </>
+        )}
         {section === "operations" && item.operation_type === "MATCH" && <><span>{item.detail}</span><small>Atualizado {formatDate(item.updated_at)}</small></>}
         {!['reports', 'operations'].includes(section) && <small>{formatDate(item.created_at)}</small>}
       </div>

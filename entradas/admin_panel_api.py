@@ -352,6 +352,25 @@ def _report_rows(request, limit):
     return {"total": len(rows), "results": rows[:limit]}
 
 
+def _admin_call_duration_seconds(call, now=None):
+    """Return only real connected time; ringing time is never billed as a call."""
+    if not call.atendida_em:
+        return 0
+    ended_at = call.terminada_em
+    if not ended_at and call.estado == ChamadaMatchNKATA.ESTADO_ATIVA:
+        ended_at = now or timezone.now()
+    if not ended_at:
+        return 0
+    return max(0, int((ended_at - call.atendida_em).total_seconds()))
+
+
+def _admin_call_status(call):
+    """Use an operational label when a call ended before WebRTC connected."""
+    if call.estado == ChamadaMatchNKATA.ESTADO_TERMINADA and not call.atendida_em:
+        return "SEM_ATENDIMENTO", "Sem atendimento"
+    return call.estado, call.get_estado_display()
+
+
 def _operation_rows(request, limit):
     kind = str(request.query_params.get("kind", "CALLS")).strip().upper()
     status_filter = str(request.query_params.get("status", "")).strip().upper()
@@ -396,22 +415,25 @@ def _operation_rows(request, limit):
     total = queryset.count()
     results = []
     for call in queryset.order_by("-criada_em")[:limit]:
-        duration = 0
-        if call.atendida_em and call.terminada_em:
-            duration = max(0, int((call.terminada_em - call.atendida_em).total_seconds()))
+        duration = _admin_call_duration_seconds(call)
+        display_status, display_label = _admin_call_status(call)
         results.append({
             "id": call.id,
             "operation_type": "CALL",
+            "call_type": call.tipo,
             "title": (
                 f"{call.match.perfil_1.nome_publico} ↔ "
                 f"{call.match.perfil_2.nome_publico}"
             ),
             "detail": call.get_tipo_display(),
             "initiator": call.iniciador.email or call.iniciador.get_username(),
-            "status": call.estado,
-            "status_label": call.get_estado_display(),
+            "status": display_status,
+            "status_label": display_label,
+            "connected": bool(call.atendida_em),
             "duration_seconds": duration,
             "created_at": call.criada_em,
+            "answered_at": call.atendida_em,
+            "ended_at": call.terminada_em,
             "updated_at": call.atualizada_em,
         })
     return {"total": total, "results": results}

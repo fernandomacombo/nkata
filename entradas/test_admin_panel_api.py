@@ -1,8 +1,14 @@
+from datetime import timedelta
+from types import SimpleNamespace
+
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+from .admin_panel_api import _admin_call_duration_seconds, _admin_call_status
+from .call_models import ChamadaMatchNKATA
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 from .posts_models import PublicacaoNKATA
 
@@ -144,3 +150,31 @@ class AdminPanelApiTests(TestCase):
         publication.refresh_from_db()
         self.assertEqual(publication.moderacao_status, "APROVADO")
         self.assertIsNotNone(publication.moderado_em)
+
+
+class AdminCallPresentationTests(SimpleTestCase):
+    def test_connected_call_shows_only_real_connected_duration(self):
+        ended_at = timezone.now()
+        call = SimpleNamespace(
+            estado=ChamadaMatchNKATA.ESTADO_TERMINADA,
+            atendida_em=ended_at - timedelta(seconds=18),
+            terminada_em=ended_at,
+            get_estado_display=lambda: "Terminada",
+        )
+
+        self.assertEqual(_admin_call_duration_seconds(call), 18)
+        self.assertEqual(_admin_call_status(call), ("TERMINADA", "Terminada"))
+
+    def test_ended_call_without_connection_is_not_presented_as_completed(self):
+        call = SimpleNamespace(
+            estado=ChamadaMatchNKATA.ESTADO_TERMINADA,
+            atendida_em=None,
+            terminada_em=timezone.now(),
+            get_estado_display=lambda: "Terminada",
+        )
+
+        self.assertEqual(_admin_call_duration_seconds(call), 0)
+        self.assertEqual(
+            _admin_call_status(call),
+            ("SEM_ATENDIMENTO", "Sem atendimento"),
+        )
