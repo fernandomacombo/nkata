@@ -122,6 +122,10 @@
   font-size: 0.75rem;
 }
 
+.nk-feed-composer__toggle {
+  display: none;
+}
+
 .nk-feed-composer__policy {
   margin-top: 16px;
   display: flex;
@@ -800,6 +804,43 @@
     width: 38px;
     height: 38px;
     border-radius: 12px;
+  }
+
+  .nk-feed-composer > header {
+    min-height: 44px;
+  }
+
+  .nk-feed-composer__toggle {
+    display: grid;
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    margin-left: auto;
+    place-items: center;
+    border: 1px solid rgba(64, 47, 43, 0.11);
+    border-radius: 13px;
+    background: #fffdfa;
+    color: #695954;
+  }
+
+  .nk-feed-composer__toggle svg {
+    transition: transform 180ms ease;
+  }
+
+  .nk-feed-composer.is-open .nk-feed-composer__toggle svg {
+    transform: rotate(180deg);
+  }
+
+  .nk-feed-composer.is-collapsed {
+    padding-block: 9px;
+  }
+
+  .nk-feed-composer.is-collapsed .nk-feed-composer__body {
+    display: none;
+  }
+
+  .nk-feed-composer.is-collapsed > header small {
+    display: none;
   }
 
   .nk-feed-composer__options {
