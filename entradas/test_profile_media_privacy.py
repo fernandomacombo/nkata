@@ -94,14 +94,16 @@ class ProfileMediaPrivacyTests(TestCase):
     def test_authenticated_member_can_stream_visible_profile_photo(self):
         self.client.force_login(self.member)
         response = self.client.get(f"/api/perfis/{self.perfil.id}/foto/")
-
-        self.assertEqual(
-            response.status_code,
-            200,
-            (getattr(response, "data", None), dict(response.items())),
-        )
-        self.assertEqual(response["Cache-Control"], "private, max-age=300")
-        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        try:
+            self.assertEqual(
+                response.status_code,
+                200,
+                (getattr(response, "data", None), dict(response.items())),
+            )
+            self.assertEqual(response["Cache-Control"], "private, max-age=300")
+            self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        finally:
+            response.close()
 
     def test_identity_document_is_available_only_to_staff(self):
         url = f"/api/admin/pedidos/{self.pedido.id}/media/bi_frente/"
@@ -112,8 +114,11 @@ class ProfileMediaPrivacyTests(TestCase):
 
         self.client.force_login(self.staff)
         allowed = self.client.get(url)
-        self.assertEqual(allowed.status_code, 200)
-        self.assertEqual(allowed["Cache-Control"], "no-store")
+        try:
+            self.assertEqual(allowed.status_code, 200)
+            self.assertEqual(allowed["Cache-Control"], "no-store")
+        finally:
+            allowed.close()
 
     def test_generic_media_url_is_not_served(self):
         with self.assertRaises(ValueError):
