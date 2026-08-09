@@ -54,12 +54,21 @@ def _status_label(call, user_id):
         return "A conectar"
     if call.estado == ChamadaMatchNKATA.ESTADO_ATIVA:
         return "Chamada em curso"
+    if call.estado == ChamadaMatchNKATA.ESTADO_TERMINADA and not call.atendida_em:
+        return "Chamada cancelada" if outgoing else "Chamada perdida"
     return "Chamada terminada"
 
 
 def serialize_call_history(call, user_id):
     outgoing = call.iniciador_id == user_id
-    missed = call.estado == ChamadaMatchNKATA.ESTADO_PERDIDA and not outgoing
+    missed = bool(
+        not outgoing
+        and not call.atendida_em
+        and call.estado in {
+            ChamadaMatchNKATA.ESTADO_PERDIDA,
+            ChamadaMatchNKATA.ESTADO_TERMINADA,
+        }
+    )
     return {
         "id": call.id,
         "match_id": call.match_id,
@@ -74,6 +83,26 @@ def serialize_call_history(call, user_id):
         "answered_at": call.atendida_em,
         "ended_at": call.terminada_em,
         "activity_at": call.terminada_em or call.atualizada_em or call.criada_em,
+    }
+
+
+def serialize_call_message(call, user_id):
+    item = serialize_call_history(call, user_id)
+    return {
+        "id": f"call-{item['id']}",
+        "match": item["match_id"],
+        "tipo": "CALL",
+        "call_id": item["id"],
+        "call_type": item["type"],
+        "call_state": item["state"],
+        "call_label": item["status_label"],
+        "call_direction": item["direction"],
+        "call_missed": item["missed"],
+        "duracao_segundos": item["duration_seconds"],
+        "texto": item["status_label"],
+        "lida": True,
+        "minha": item["direction"] == "OUTGOING",
+        "criado_em": item["activity_at"],
     }
 
 
