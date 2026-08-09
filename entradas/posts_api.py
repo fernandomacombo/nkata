@@ -177,7 +177,9 @@ def _publication_payload(request, publicacao, *, followed_ids=None, interest_ids
     return {
         "id": publicacao.id,
         "profile": _profile_payload(request, publicacao.perfil),
-        "media_url": request.build_absolute_uri(f"/api/publicacoes/{publicacao.id}/media/"),
+        # Mantém a mídia no mesmo origin do frontend. Em desenvolvimento o
+        # Vite encaminha /api ao Django; em produção ambos usam o mesmo host.
+        "media_url": f"/api/publicacoes/{publicacao.id}/media/",
         "media_type": publicacao.tipo_media,
         "caption": publicacao.legenda,
         "visibility": publicacao.visibilidade,

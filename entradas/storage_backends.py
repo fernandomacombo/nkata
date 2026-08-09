@@ -1,3 +1,5 @@
+import os
+
 from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import storages
 from storages.backends.s3 import S3Storage
@@ -11,7 +13,23 @@ class _ProtectedUrlMixin:
 
 
 class ProtectedFileSystemStorage(_ProtectedUrlMixin, FileSystemStorage):
-    pass
+    """Storage privado com leitura compatível dos uploads locais antigos."""
+
+    def __init__(self, *args, legacy_location=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._legacy_storage = (
+            FileSystemStorage(location=legacy_location, base_url=None)
+            if legacy_location
+            else None
+        )
+
+    def path(self, name):
+        primary_path = super().path(name)
+        if os.path.exists(primary_path) or not self._legacy_storage:
+            return primary_path
+
+        legacy_path = self._legacy_storage.path(name)
+        return legacy_path if os.path.exists(legacy_path) else primary_path
 
 
 class ProtectedS3Storage(_ProtectedUrlMixin, S3Storage):

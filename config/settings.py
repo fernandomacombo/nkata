@@ -259,7 +259,13 @@ else:
         },
         "private": {
             "BACKEND": "entradas.storage_backends.ProtectedFileSystemStorage",
-            "OPTIONS": {"location": PRIVATE_MEDIA_ROOT, "base_url": None},
+            "OPTIONS": {
+                "location": PRIVATE_MEDIA_ROOT,
+                "base_url": None,
+                # Lê uploads existentes antes da separação da mídia privada.
+                # Novos ficheiros continuam a ser guardados em PRIVATE_MEDIA_ROOT.
+                "legacy_location": MEDIA_ROOT,
+            },
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
