@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./api.js";
+import { normalizeAppUrl } from "./url.js";
 
 let trackedCall = null;
 
@@ -28,6 +29,13 @@ function trackCall(matchId, call) {
     matchId: Number(matchId),
     callId: Number(call.id),
   };
+}
+
+function notifyCallActivity(matchId) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("nkata:call-activity", {
+    detail: { matchId: Number(matchId) },
+  }));
 }
 
 async function request(path, { method = "GET", body, signal, keepalive = false } = {}) {
@@ -81,6 +89,7 @@ export async function startMatchCall(matchId, type) {
     body: { action: "start", type },
   });
   trackCall(matchId, payload?.call || null);
+  notifyCallActivity(matchId);
   return payload;
 }
 
@@ -94,6 +103,7 @@ export async function updateMatchCall(matchId, callId, action) {
   } else if (payload?.call) {
     trackCall(matchId, payload.call);
   }
+  notifyCallActivity(matchId);
   return payload;
 }
 
@@ -109,6 +119,7 @@ export async function endTrackedCall(matchId = null) {
       body: { action: "end", call_id: current.callId },
       keepalive: true,
     });
+    notifyCallActivity(current.matchId);
   } catch {
     // Encerramento best-effort ao sair da conversa.
   }
@@ -128,9 +139,37 @@ export async function sendCallSignal(matchId, callId, signalType, payload) {
 
 export async function fetchIncomingCall({ signal } = {}) {
   const payload = await request("/api/minha-conta/chamadas/entrada/", { signal });
+  const call = payload?.call || null;
+  if (call?.caller) {
+    call.caller = {
+      ...call.caller,
+      foto_url: normalizeAppUrl(call.caller.foto_url),
+    };
+  }
   return {
-    call: payload?.call || null,
+    call,
     setupRequired: Boolean(payload?.setup_required),
+  };
+}
+
+export async function fetchCallHistory(matchId, { signal } = {}) {
+  const payload = await request(`/api/minha-conta/matches/${matchId}/calls/history/`, { signal });
+  return {
+    setupRequired: Boolean(payload?.setup_required),
+    results: (payload?.results || []).map((item) => ({
+      id: item.id,
+      matchId: item.match_id,
+      type: item.type,
+      typeLabel: item.type_label || (item.type === "VIDEO" ? "Videochamada" : "Chamada de áudio"),
+      state: item.state,
+      statusLabel: item.status_label || "Chamada",
+      direction: item.direction,
+      missed: Boolean(item.missed),
+      durationSeconds: Number(item.duration_seconds || 0),
+      createdAt: item.activity_at || item.created_at,
+      answeredAt: item.answered_at || null,
+      endedAt: item.ended_at || null,
+    })),
   };
 }
 
