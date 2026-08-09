@@ -23,6 +23,15 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-placeholder-change-in-productio
 DEBUG = env_bool("DJANGO_DEBUG", True)
 NKATA_FRONTEND_URL = os.getenv("NKATA_FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
+# Em desenvolvimento HTTPS, o Vite termina TLS e encaminha /api e /media para
+# o runserver Django. Confiamos apenas no indicador de protocolo enviado por
+# esse proxy para que build_absolute_uri gere URLs HTTPS do origin público.
+# Em produção fica desligado por padrão e deve ser ativado somente atrás de um
+# proxy reverso controlado pela própria infraestrutura NKATA.
+NKATA_TRUST_PROXY_HEADERS = env_bool("NKATA_TRUST_PROXY_HEADERS", DEBUG)
+if NKATA_TRUST_PROXY_HEADERS:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Pré-moderação de media. O padrão é manual/fail-closed: nenhum conteúdo é
 # automaticamente publicado. A moderação de segurança e a inspeção visual são
 # ativadas apenas por variáveis de ambiente.
