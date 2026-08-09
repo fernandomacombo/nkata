@@ -21,21 +21,16 @@ export default defineConfig(({ mode }) => {
     );
   }
 
-  const proxiedResource = ({ rewriteOrigin = false } = {}) => ({
+  const proxiedResource = () => ({
     target: apiTarget,
-    changeOrigin: true,
+    // Preserva Host/Origin públicos (ex.: 192.168.0.102:5173). Assim o
+    // Django consegue construir URLs absolutas que continuam no mesmo origin
+    // HTTPS visto pelo iPhone, em vez de expor 127.0.0.1:8000 ao browser.
+    changeOrigin: false,
     secure: false,
     configure(proxy) {
-      proxy.on("proxyReq", (proxyReq, req) => {
-        const publicHost = req.headers.host || "localhost:5173";
-        proxyReq.setHeader("X-Forwarded-Host", publicHost);
+      proxy.on("proxyReq", (proxyReq) => {
         proxyReq.setHeader("X-Forwarded-Proto", httpsMode ? "https" : "http");
-
-        if (rewriteOrigin) {
-          // A origem do browser é o Vite. Para a validação CSRF no runserver,
-          // a chamada interna é apresentada ao Django como local.
-          proxyReq.setHeader("Origin", apiTarget);
-        }
       });
     },
   });
@@ -53,7 +48,7 @@ export default defineConfig(({ mode }) => {
           }
         : undefined,
       proxy: {
-        "/api": proxiedResource({ rewriteOrigin: true }),
+        "/api": proxiedResource(),
         "/media": proxiedResource(),
       },
     },
@@ -68,7 +63,7 @@ export default defineConfig(({ mode }) => {
           }
         : undefined,
       proxy: {
-        "/api": proxiedResource({ rewriteOrigin: true }),
+        "/api": proxiedResource(),
         "/media": proxiedResource(),
       },
     },
