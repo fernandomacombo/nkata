@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  ArrowDownLeft,
   ArrowLeft,
+  ArrowUpRight,
   Ban,
   Flag,
   Link2Off,
@@ -12,12 +14,14 @@ import {
   MoreHorizontal,
   Pause,
   PenLine,
+  Phone,
   Play,
   Send,
   ShieldCheck,
   Square,
   Trash2,
   UserRound,
+  Video,
 } from "lucide-react";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import {
@@ -49,10 +53,32 @@ function formatDuration(value) {
 }
 
 function messageIdentity(message) {
+  if (message?.type === "call") {
+    return `call:${message.callId || String(message.id || "").replace("call-", "")}`;
+  }
   if (message?.type === "audio") {
     return `audio:${message.audioId || String(message.id || "").replace("audio-", "")}`;
   }
   return `text:${message?.id}`;
+}
+
+function ProfileAvatar({ profile }) {
+  const [failed, setFailed] = useState(false);
+  const src = profile?.foto_url || "";
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) return <UserRound size={28} />;
+
+  return (
+    <img
+      src={src}
+      alt={`Foto de ${profile?.nome_publico || "membro NKATA"}`}
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 function VoiceNote({ message }) {
@@ -114,7 +140,35 @@ function VoiceNote({ message }) {
   );
 }
 
+function CallEvent({ message }) {
+  const outgoing = message.callDirection === "OUTGOING" || message.mine;
+  const isVideo = message.callType === "VIDEO";
+  const duration = Math.max(0, Number(message.durationSeconds || 0));
+  const status = message.callLabel || (isVideo ? "Videochamada" : "Chamada de áudio");
+
+  return (
+    <div className={`nk-call-history ${message.callMissed ? "is-missed" : ""}`}>
+      <div className="nk-call-history__icon" aria-hidden="true">
+        {isVideo ? <Video size={19} /> : <Phone size={18} />}
+      </div>
+      <div className="nk-call-history__content">
+        <strong>{isVideo ? "Videochamada" : "Chamada de áudio"}</strong>
+        <span className="nk-call-history__status">
+          {outgoing ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}
+          {status}
+        </span>
+      </div>
+      <div className="nk-call-history__meta">
+        {duration > 0 && <strong>Duração {formatDuration(duration)}</strong>}
+        <small>{formatMessageTime(message.createdAt)}</small>
+      </div>
+    </div>
+  );
+}
+
 function MessageBubble({ message }) {
+  if (message.type === "call") return <CallEvent message={message} />;
+
   return (
     <div className={`nk-message-row ${message.mine ? "is-mine" : ""}`}>
       <div className={`nk-message-bubble ${message.type === "audio" ? "is-audio" : ""}`}>
@@ -538,11 +592,7 @@ export default function ConversationPage({
 
           <div className="nk-conversation__person">
             <span className="nk-conversation__avatar">
-              {profile?.foto_url ? (
-                <img src={profile.foto_url} alt={`Foto de ${profile.nome_publico}`} />
-              ) : (
-                <UserRound size={28} />
-              )}
+              <ProfileAvatar profile={profile} />
             </span>
             <div>
               <strong>{profile?.nome_publico || "Membro NKATA"}</strong>
