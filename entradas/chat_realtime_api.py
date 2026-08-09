@@ -8,6 +8,8 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .call_history_api import serialize_call_message
+from .call_models import ChamadaMatchNKATA
 from .chat_media_api import serialize_audio_message
 from .chat_realtime_models import EstadoConversaNKATA
 from .models import MatchPerfil
@@ -163,6 +165,22 @@ def _new_audio_messages(request, match, since, snapshot_time):
         return []
 
 
+def _new_call_messages(user, match, since, snapshot_time):
+    try:
+        calls = (
+            ChamadaMatchNKATA.objects
+            .filter(
+                match=match,
+                atualizada_em__gt=since,
+                atualizada_em__lte=snapshot_time,
+            )
+            .order_by("atualizada_em", "id")
+        )
+        return [serialize_call_message(call, user.id) for call in calls]
+    except DatabaseError:
+        return []
+
+
 def _mark_incoming_read(match, user):
     match.mensagens.filter(lida=False).exclude(remetente=user).update(lida=True)
     try:
@@ -230,7 +248,8 @@ def api_chat_live(request, match_id):
 
     text_messages = list(_new_text_messages(request, match, since, snapshot_time))
     audio_messages = _new_audio_messages(request, match, since, snapshot_time)
-    results = [*text_messages, *audio_messages]
+    call_messages = _new_call_messages(request.user, match, since, snapshot_time)
+    results = [*text_messages, *audio_messages, *call_messages]
     results.sort(key=lambda item: str(item.get("criado_em") or ""))
 
     presence = _presence_payload(match, request.user, snapshot_time)
