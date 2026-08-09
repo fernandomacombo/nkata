@@ -40,11 +40,11 @@ def _perfil_do_utilizador(user):
     return getattr(user, "perfil_nkata", None)
 
 
-def _absolute_file_url(request, file_field):
+def _file_url(file_field):
     if not file_field:
         return None
     try:
-        return request.build_absolute_uri(file_field.url)
+        return file_field.url
     except (ValueError, AttributeError):
         return None
 
@@ -54,7 +54,7 @@ def _profile_payload(request, perfil):
         "id": perfil.id,
         "nome_publico": perfil.nome_publico,
         "cidade": perfil.cidade,
-        "foto_url": _absolute_file_url(request, perfil.foto_principal),
+        "foto_url": _file_url(perfil.foto_principal),
         "verificado": perfil.pedido.status == "APROVADO",
     }
 
@@ -70,11 +70,7 @@ def _moment_payload(request, momento):
         )
         expires_at = momento.expira_em
 
-    media_url = (
-        request.build_absolute_uri(f"/api/momentos/{momento.id}/media/")
-        if momento.media
-        else None
-    )
+    media_url = f"/api/momentos/{momento.id}/media/" if momento.media else None
     payload = {
         "id": momento.id,
         "profile": _profile_payload(request, momento.perfil),
@@ -224,11 +220,10 @@ def _capabilities(user):
     return {
         "plan": plan["code"],
         "plan_label": plan["label"],
-        "text_enabled": bool(plan["features"].get("status_text", True)),
-        "free_text_enabled": False,
+        "text_enabled": True,
         "media_enabled": bool(plan["features"].get("status_media", False)),
         "media_requires_moderation": True,
-        "expires_hours": MOMENT_LIFETIME_HOURS,
+        "free_text_enabled": False,
         "caption_options": [
             {"value": item["value"], "label": item["label"]}
             for item in MOMENT_CAPTIONS
@@ -252,7 +247,7 @@ def api_momentos(request):
 
     if request.method == "GET":
         try:
-            momentos = list(_feed_queryset(request.user, perfil))
+            momentos = list(_feed_queryset(request.user, perfil)[:60])
             em_revisao = list(_review_queryset(request.user))
         except DatabaseError:
             return Response(
@@ -263,81 +258,68 @@ def api_momentos(request):
                 status=503,
             )
 
-        payloads = [_moment_payload(request, momento) for momento in momentos]
         return Response({
-            "results": payloads,
-            "mine": [item for item in payloads if item["mine"]],
+            "results": [_moment_payload(request, momento) for momento in momentos],
             "review_items": [_moment_payload(request, momento) for momento in em_revisao],
             "capabilities": _capabilities(request.user),
         })
 
+    capabilities = _capabilities(request.user)
     free_text = str(request.data.get("texto", "") or "").strip()
     if free_text:
         return Response(
             {
-                "detail": "Momentos não aceitam texto livre. Escolha uma frase NKATA.",
+                "detail": "Os Momentos não aceitam texto livre. Escolha uma frase NKATA.",
                 "code": "free_text_not_allowed",
             },
             status=400,
         )
 
-    caption_code = str(
-        request.data.get("legenda", "SEM_LEGENDA") or "SEM_LEGENDA"
-    ).strip().upper()
+    caption_code = str(request.data.get("caption", "SEM_LEGENDA") or "SEM_LEGENDA").upper()
     caption = CAPTION_BY_CODE.get(caption_code)
     if not caption:
-        return Response(
-            {"legenda": ["Escolha uma frase disponível no NKATA."]},
-            status=400,
-        )
+        return Response({"caption": ["Escolha uma frase NKATA válida."]}, status=400)
 
-    visibilidade = str(
-        request.data.get("visibilidade", "TODOS") or "TODOS"
-    ).strip().upper()
+    visibility = str(request.data.get("visibilidade", "TODOS") or "TODOS").upper()
+    if visibility not in VALID_VISIBILITIES:
+        return Response({"visibilidade": ["Escolha quem pode ver este Momento."]}, status=400)
+
     media = request.FILES.get("media")
-
-    if visibilidade not in VALID_VISIBILITIES:
-        return Response(
-            {"visibilidade": ["Escolha uma opção de privacidade válida."]},
-            status=400,
-        )
-    if not caption["text"] and not media:
-        return Response(
-            {"detail": "Escolha uma frase NKATA ou uma fotografia/vídeo."},
-            status=400,
-        )
-
-    tipo_media, media_error = _validate_media(media)
+    media_type, media_error = _validate_media(media)
     if media_error:
         return Response({"media": [media_error]}, status=400)
-
-    capabilities = _capabilities(request.user)
     if media and not capabilities["media_enabled"]:
         return Response(
             {
-                "detail": "Fotografias e vídeos nos Momentos exigem um plano pago.",
-                "code": "paid_plan_required_for_moment_media",
+                "detail": "Fotografias e vídeos nos Momentos exigem NKATA Essencial ou Premium.",
+                "code": "paid_plan_required_for_status_media",
                 "capabilities": capabilities,
             },
             status=403,
         )
 
     moderation_status = "PENDENTE" if media else "APROVADO"
-    expires_at = timezone.now() + timedelta(hours=MOMENT_LIFETIME_HOURS)
+    approved_at = timezone.now() if moderation_status == "APROVADO" else None
+    expires_at = (
+        approved_at + timedelta(hours=MOMENT_LIFETIME_HOURS)
+        if approved_at
+        else timezone.now() + timedelta(hours=MOMENT_LIFETIME_HOURS)
+    )
 
     try:
         momento = MomentoNKATA.objects.create(
-            perfil=perfil,
             usuario=request.user,
+            perfil=perfil,
             texto=caption["text"],
-            media=media or "",
-            tipo_media=tipo_media or "TEXTO",
-            visibilidade=visibilidade,
+            visibilidade=visibility,
+            tipo_media=media_type or "TEXTO",
+            media=media,
             moderacao_status=moderation_status,
-            moderacao_motivo="",
-            moderado_em=None if media else timezone.now(),
+            aprovado_em=approved_at,
             expira_em=expires_at,
         )
+        if media:
+            queue_content_media_analysis("MOMENTO", momento.id, media_type or "")
     except DatabaseError:
         return Response(
             {
@@ -347,62 +329,38 @@ def api_momentos(request):
             status=503,
         )
 
-    queued = False
-    if media:
-        queued = queue_content_media_analysis(
-            content_type="MOMENTO",
-            content_id=momento.id,
-            media_type=momento.tipo_media,
-        )
-
-    pending = moderation_status == "PENDENTE"
-    return Response(
-        {
-            "ok": True,
-            "pending_review": pending,
-            "analysis_queued": queued if pending else False,
-            "message": (
-                "Foto/vídeo enviado para análise. As 24 horas começam apenas depois da aprovação."
-                if pending
-                else "Momento publicado. Fica disponível durante 24 horas."
-            ),
-            "moment": _moment_payload(request, momento),
-            "capabilities": capabilities,
-        },
-        status=202 if pending else 201,
-    )
+    return Response(_moment_payload(request, momento), status=201)
 
 
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def api_media_momento(request, momento_id):
     perfil = _perfil_do_utilizador(request.user)
-    if not perfil and not request.user.is_staff:
+    if not perfil:
         return Response({"detail": "Conteúdo não disponível."}, status=404)
 
     try:
-        if request.user.is_staff:
-            momento = MomentoNKATA.objects.filter(id=momento_id).first()
-        else:
-            momento = MomentoNKATA.objects.filter(
-                id=momento_id,
-                usuario=request.user,
-            ).first()
-            if not momento:
-                momento = _feed_queryset(request.user, perfil).filter(id=momento_id).first()
+        momento = MomentoNKATA.objects.select_related("perfil", "usuario").filter(id=momento_id).first()
     except DatabaseError:
         return Response({"detail": "Conteúdo não disponível."}, status=404)
 
     if not momento or not momento.media:
         return Response({"detail": "Conteúdo não disponível."}, status=404)
 
+    is_owner = momento.usuario_id == request.user.id
+    if not is_owner:
+        if momento.moderacao_status != "APROVADO" or momento.expira_em <= timezone.now():
+            return Response({"detail": "Conteúdo não disponível."}, status=404)
+        if not _feed_queryset(request.user, perfil).filter(id=momento.id).exists():
+            return Response({"detail": "Conteúdo não disponível."}, status=404)
+
     try:
-        file_handle = momento.media.open("rb")
+        handle = momento.media.open("rb")
     except (FileNotFoundError, OSError, ValueError):
         return Response({"detail": "Conteúdo não disponível."}, status=404)
 
     content_type = mimetypes.guess_type(momento.media.name)[0] or "application/octet-stream"
-    response = FileResponse(file_handle, content_type=content_type)
+    response = FileResponse(handle, content_type=content_type)
     response["Content-Disposition"] = f'inline; filename="{os.path.basename(momento.media.name)}"'
     response["Cache-Control"] = "private, max-age=120"
     response["X-Content-Type-Options"] = "nosniff"
@@ -412,25 +370,17 @@ def api_media_momento(request, momento_id):
 @api_view(["DELETE"])
 @permission_classes([permissions.IsAuthenticated])
 def api_apagar_momento(request, momento_id):
+    perfil = _perfil_do_utilizador(request.user)
+    if not perfil:
+        return Response({"detail": "Momento não encontrado."}, status=404)
+
     try:
-        momento = MomentoNKATA.objects.filter(
-            id=momento_id,
-            usuario=request.user,
-        ).first()
+        momento = MomentoNKATA.objects.filter(id=momento_id, usuario=request.user).first()
     except DatabaseError:
-        return Response({"detail": "Momentos indisponíveis neste ambiente."}, status=503)
+        return Response({"detail": "Momento não encontrado."}, status=404)
 
     if not momento:
         return Response({"detail": "Momento não encontrado."}, status=404)
 
-    media = momento.media
-    storage = media.storage if media else None
-    media_name = media.name if media else ""
     momento.delete()
-    if storage and media_name:
-        try:
-            storage.delete(media_name)
-        except OSError:
-            pass
-
-    return Response({"ok": True, "message": "Momento removido."})
+    return Response({"message": "Momento apagado."})
