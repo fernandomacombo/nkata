@@ -54,6 +54,8 @@ def _dados_da_sessao(request):
             "id": request.user.id,
             "name": request.user.first_name or request.user.get_username(),
             "email": request.user.email,
+            "is_staff": request.user.is_staff,
+            "is_superuser": request.user.is_superuser,
         },
         "profile": (
             {

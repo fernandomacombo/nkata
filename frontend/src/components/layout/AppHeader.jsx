@@ -10,6 +10,7 @@ import {
   LogIn,
   LogOut,
   Menu,
+  PanelsTopLeft,
   Search,
   ShieldCheck,
   UserPlus,
@@ -103,6 +104,15 @@ export default function AppHeader({
               onClick={() => navigate("moments")}
             >
               Momentos
+            </button>
+          )}
+          {session?.user?.is_staff && (
+            <button
+              type="button"
+              className={activePage === "admin" ? "is-active" : ""}
+              onClick={() => navigate("admin")}
+            >
+              Painel
             </button>
           )}
           {authenticated && (
@@ -278,6 +288,17 @@ export default function AppHeader({
                 >
                   <span><CirclePlay size={19} /></span>
                   <div><strong>Momentos</strong><small>Histórias que desaparecem em 24 horas</small></div>
+                </button>
+              )}
+
+              {session?.user?.is_staff && (
+                <button
+                  type="button"
+                  className={activePage === "admin" ? "is-active" : ""}
+                  onClick={() => navigate("admin")}
+                >
+                  <span><PanelsTopLeft size={19} /></span>
+                  <div><strong>Painel NKATA</strong><small>Administração e moderação</small></div>
                 </button>
               )}
 

@@ -3,6 +3,7 @@ from django.urls import path
 from . import (
     access_api,
     account_security_api,
+    admin_panel_api,
     api_views,
     call_api,
     call_history_api,
@@ -32,6 +33,9 @@ urlpatterns = [
     path("session/", api_views.api_session, name="session"),
     path("auth/login/", api_views.api_login, name="login"),
     path("auth/logout/", api_views.api_logout, name="logout"),
+    path("painel/resumo/", admin_panel_api.api_admin_summary, name="admin_summary"),
+    path("painel/lista/", admin_panel_api.api_admin_list, name="admin_list"),
+    path("painel/acoes/", admin_panel_api.api_admin_action, name="admin_action"),
     path(
         "auth/password-change/",
         account_security_api.api_alterar_palavra_passe,

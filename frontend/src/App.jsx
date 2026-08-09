@@ -5,6 +5,7 @@ import { demoProfiles } from "./data/demoProfiles.js";
 import useProfileLibrary from "./hooks/useProfileLibrary.js";
 import useSession from "./hooks/useSession.js";
 import AccountPage from "./pages/AccountPage.jsx";
+import AdminPanelPage from "./pages/AdminPanelPage.jsx";
 import ConversationPage from "./pages/ConversationPage.jsx";
 import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
@@ -32,7 +33,7 @@ import {
   updateMyAccount,
 } from "./services/api.js";
 
-const AUTH_ONLY_PAGES = ["moments", "matches", "conversation", "notifications", "account"];
+const AUTH_ONLY_PAGES = ["moments", "matches", "conversation", "notifications", "account", "admin"];
 
 export default function App() {
   const {
@@ -253,6 +254,13 @@ export default function App() {
   }, [activePage, authenticated, sessionLoading, setActivePage]);
 
   useEffect(() => {
+    if (sessionLoading || activePage !== "admin" || !authenticated) return;
+    if (!session?.user?.is_staff) {
+      setActivePage("home", { replace: true });
+    }
+  }, [activePage, authenticated, session?.user?.is_staff, sessionLoading, setActivePage]);
+
+  useEffect(() => {
     if (activePage !== "profile" || !routeProfileId) return undefined;
     if (String(selectedProfile?.id) === String(routeProfileId)) return undefined;
 
@@ -369,7 +377,7 @@ export default function App() {
       return;
     }
 
-    if (["moments", "matches", "notifications", "account"].includes(page) && !authenticated) {
+    if (["moments", "matches", "notifications", "account", "admin"].includes(page) && !authenticated) {
       openLogin(page);
       return;
     }
@@ -795,11 +803,17 @@ export default function App() {
         />
       )}
 
-      <BottomNavigation
-        activePage={visiblePage}
-        onNavigate={handleNavigate}
-        unreadMatches={totalUnread}
-      />
+      {activePage === "admin" && authenticated && session?.user?.is_staff && (
+        <AdminPanelPage session={session} />
+      )}
+
+      {activePage !== "admin" && (
+        <BottomNavigation
+          activePage={visiblePage}
+          onNavigate={handleNavigate}
+          unreadMatches={totalUnread}
+        />
+      )}
     </div>
   );
 }

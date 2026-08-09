@@ -170,7 +170,7 @@ function firstPayloadMessage(payload) {
   return "";
 }
 
-async function request(path, { method = "GET", body, signal, headers = {} } = {}) {
+export async function request(path, { method = "GET", body, signal, headers = {} } = {}) {
   const requestHeaders = { Accept: "application/json", ...headers };
   const normalizedMethod = method.toUpperCase();
   const isFormData = body instanceof FormData;

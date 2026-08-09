@@ -58,6 +58,7 @@ import "./chat-realtime.css";
 import "./call-webrtc.css";
 import "./call-mobile-layout.css";
 import "./call-history.css";
+import "./admin-panel.css";
 import "./mobile-app-contract.css";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
