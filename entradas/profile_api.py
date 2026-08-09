@@ -61,7 +61,7 @@ def _bloqueio_entre_perfis(perfil_a, perfil_b):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.AllowAny])
+@permission_classes([permissions.IsAuthenticated])
 def api_perfis(request):
     perfis = PerfilNKATA.objects.filter(
         status="ATIVO",
@@ -98,7 +98,7 @@ def api_perfis(request):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.AllowAny])
+@permission_classes([permissions.IsAuthenticated])
 def api_perfil_detalhe(request, perfil_id):
     try:
         perfil = PerfilNKATA.objects.select_related("pedido", "usuario").get(

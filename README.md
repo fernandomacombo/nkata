@@ -30,14 +30,14 @@ O registo técnico detalhado encontra-se em [`AUTHORSHIP.md`](AUTHORSHIP.md).
 
 ## Como executar localmente
 
-### Django
+### Django (Windows)
 
 ```bat
 python -m venv venv
 venv\Scripts\activate
 python -m pip install -r requirements.txt
+python manage.py migrate
 python manage.py check
-python manage.py setup_nkata_notifications
 python manage.py runserver 0.0.0.0:8000
 ```
 
@@ -50,6 +50,18 @@ npm run dev
 ```
 
 A aplicação React fica disponível em `http://localhost:5173/` e a API Django em `http://localhost:8000/`.
+
+Use `http://localhost:5173/` no computador. O modo HTTPS local com certificado
+é opcional e só é necessário para testar câmara/microfone noutro aparelho da rede.
+As tabelas de notificações, publicações, momentos e chamadas agora são criadas
+por `python manage.py migrate`; não é necessário executar comandos `setup_nkata_*`.
+
+## Produção
+
+O projeto inclui `Dockerfile`, `Procfile`, workflow de CI e um comando de arranque
+que aplica as migrações, recolhe ficheiros estáticos e inicia Gunicorn. O checklist
+de domínio, PostgreSQL, armazenamento privado, email, TURN e HTTPS está em
+[`PRODUCTION.md`](PRODUCTION.md).
 
 ## Endpoints principais
 

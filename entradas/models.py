@@ -2,6 +2,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from .storage_backends import identity_media_storage, profile_media_storage
+
 
 class PedidoEntrada(models.Model):
     GENERO_CHOICES = [
@@ -35,13 +37,34 @@ class PedidoEntrada(models.Model):
     genero = models.CharField(max_length=30, choices=GENERO_CHOICES)
     objetivo = models.CharField(max_length=40, choices=OBJETIVO_CHOICES)
     aceita_verificacao = models.BooleanField(default=False)
-    foto_perfil = models.ImageField(upload_to="pedidos/fotos/")
-    foto_extra_1 = models.ImageField(upload_to="pedidos/fotos/")
-    foto_extra_2 = models.ImageField(upload_to="pedidos/fotos/")
-    foto_extra_3 = models.ImageField(upload_to="pedidos/fotos/")
-    bi_frente = models.ImageField(upload_to="pedidos/documentos/")
-    bi_verso = models.ImageField(upload_to="pedidos/documentos/")
-    selfie_com_bi = models.ImageField(upload_to="pedidos/documentos/")
+    foto_perfil = models.ImageField(
+        storage=profile_media_storage,
+        upload_to="pedidos/fotos/",
+    )
+    foto_extra_1 = models.ImageField(
+        storage=profile_media_storage,
+        upload_to="pedidos/fotos/",
+    )
+    foto_extra_2 = models.ImageField(
+        storage=profile_media_storage,
+        upload_to="pedidos/fotos/",
+    )
+    foto_extra_3 = models.ImageField(
+        storage=profile_media_storage,
+        upload_to="pedidos/fotos/",
+    )
+    bi_frente = models.ImageField(
+        storage=identity_media_storage,
+        upload_to="pedidos/documentos/",
+    )
+    bi_verso = models.ImageField(
+        storage=identity_media_storage,
+        upload_to="pedidos/documentos/",
+    )
+    selfie_com_bi = models.ImageField(
+        storage=identity_media_storage,
+        upload_to="pedidos/documentos/",
+    )
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="PENDENTE")
     observacao_admin = models.TextField(blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)

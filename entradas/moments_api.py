@@ -12,8 +12,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .content_moderation_queue import queue_content_media_analysis
+from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .models import AcaoPerfil, MatchPerfil
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
+from .profile_media_api import profile_photo_url
 from .plan_service import plan_for_user
 
 
@@ -40,21 +42,12 @@ def _perfil_do_utilizador(user):
     return getattr(user, "perfil_nkata", None)
 
 
-def _file_url(file_field):
-    if not file_field:
-        return None
-    try:
-        return file_field.url
-    except (ValueError, AttributeError):
-        return None
-
-
 def _profile_payload(request, perfil):
     return {
         "id": perfil.id,
         "nome_publico": perfil.nome_publico,
         "cidade": perfil.cidade,
-        "foto_url": _file_url(perfil.foto_principal),
+        "foto_url": profile_photo_url(perfil),
         "verificado": perfil.pedido.status == "APROVADO",
     }
 
@@ -199,9 +192,12 @@ def _validate_media(file_obj):
             return None, "A imagem deve ter no máximo 8 MB."
         try:
             image = Image.open(file_obj)
+            if not image_dimensions_are_safe(image):
+                file_obj.seek(0)
+                return None, "A imagem possui dimensões demasiado grandes."
             image.verify()
             file_obj.seek(0)
-        except (UnidentifiedImageError, OSError, ValueError):
+        except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
             return None, "O ficheiro enviado não é uma imagem válida."
         return "IMAGEM", None
 
@@ -297,6 +293,11 @@ def api_momentos(request):
             },
             status=403,
         )
+    if media_type == "IMAGEM":
+        try:
+            media = sanitized_image_upload(media)
+        except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
+            return Response({"media": ["Não foi possível preparar esta imagem."]}, status=400)
 
     moderation_status = "PENDENTE" if media else "APROVADO"
     approved_at = timezone.now() if moderation_status == "APROVADO" else None
@@ -336,7 +337,7 @@ def api_momentos(request):
 @permission_classes([permissions.IsAuthenticated])
 def api_media_momento(request, momento_id):
     perfil = _perfil_do_utilizador(request.user)
-    if not perfil:
+    if not perfil and not request.user.is_staff:
         return Response({"detail": "Conteúdo não disponível."}, status=404)
 
     try:
@@ -348,7 +349,7 @@ def api_media_momento(request, momento_id):
         return Response({"detail": "Conteúdo não disponível."}, status=404)
 
     is_owner = momento.usuario_id == request.user.id
-    if not is_owner:
+    if not request.user.is_staff and not is_owner:
         if momento.moderacao_status != "APROVADO" or momento.expira_em <= timezone.now():
             return Response({"detail": "Conteúdo não disponível."}, status=404)
         if not _feed_queryset(request.user, perfil).filter(id=momento.id).exists():

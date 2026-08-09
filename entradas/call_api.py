@@ -1,6 +1,5 @@
 import json
 
-from django.conf import settings
 from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -9,8 +8,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .call_models import ChamadaMatchNKATA, SinalChamadaNKATA
+from .profile_media_api import profile_photo_url
 from .models import MatchPerfil
 from .plan_service import plan_for_user
+from .webrtc_credentials import ice_servers_for_user
 
 
 CALL_RING_TIMEOUT_SECONDS = 45
@@ -63,24 +64,6 @@ def _feature_for_call_type(call_type):
 def _capability_available(user, call_type):
     feature = _feature_for_call_type(call_type)
     return bool(plan_for_user(user)["features"].get(feature, False))
-
-
-def _ice_servers():
-    servers = []
-    stun_urls = list(getattr(settings, "NKATA_WEBRTC_STUN_URLS", []) or [])
-    if stun_urls:
-        servers.append({"urls": stun_urls})
-
-    turn_urls = list(getattr(settings, "NKATA_WEBRTC_TURN_URLS", []) or [])
-    turn_username = str(getattr(settings, "NKATA_WEBRTC_TURN_USERNAME", "") or "")
-    turn_credential = str(getattr(settings, "NKATA_WEBRTC_TURN_CREDENTIAL", "") or "")
-    if turn_urls and turn_username and turn_credential:
-        servers.append({
-            "urls": turn_urls,
-            "username": turn_username,
-            "credential": turn_credential,
-        })
-    return servers
 
 
 def _purge_signals(call):
@@ -208,7 +191,7 @@ def api_chamada_match(request, match_id):
         return Response({
             "call": _serialize_call(call, request),
             "signals": signals,
-            "ice_servers": _ice_servers(),
+            "ice_servers": ice_servers_for_user(request.user),
             "ring_timeout_seconds": CALL_RING_TIMEOUT_SECONDS,
             "setup_required": False,
         })
@@ -266,7 +249,7 @@ def api_chamada_match(request, match_id):
         return Response({
             "call": _serialize_call(call, request),
             "signals": [],
-            "ice_servers": _ice_servers(),
+            "ice_servers": ice_servers_for_user(request.user),
         }, status=201)
 
     try:
@@ -432,8 +415,7 @@ def api_chamada_recebida(request):
             if call.match.perfil_1.usuario_id == call.iniciador_id
             else call.match.perfil_2
         )
-        foto = caller_profile.foto_principal
-        foto_url = request.build_absolute_uri(foto.url) if foto else None
+        foto_url = profile_photo_url(caller_profile)
         return Response({
             "call": {
                 **_serialize_call(call, request),

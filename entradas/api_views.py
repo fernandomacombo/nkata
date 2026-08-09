@@ -1,10 +1,11 @@
 from PIL import Image, UnidentifiedImageError
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.db import connection
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework import permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 
 from .models import (
@@ -14,6 +15,7 @@ from .models import (
     MensagemMatch,
     PerfilNKATA,
 )
+from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .serializers import (
     MatchSerializer,
     MensagemMatchSerializer,
@@ -21,6 +23,7 @@ from .serializers import (
     PerfilDetalheSerializer,
     PerfilResumoSerializer,
 )
+from .throttles import LoginRateThrottle
 
 
 MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024
@@ -203,12 +206,16 @@ def _validar_foto_perfil(foto):
         image = Image.open(foto)
         width, height = image.size
         image_format = (image.format or "").upper()
+        safe_dimensions = image_dimensions_are_safe(image)
         foto.seek(0)
-    except (UnidentifiedImageError, OSError, ValueError):
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
         return "O ficheiro enviado não é uma fotografia válida."
 
     if image_format not in ALLOWED_PROFILE_PHOTO_FORMATS:
         return "Use uma fotografia em JPG, PNG ou WEBP."
+
+    if not safe_dimensions:
+        return "A fotografia possui dimensões demasiado grandes."
 
     if width < MIN_PROFILE_PHOTO_SIDE or height < MIN_PROFILE_PHOTO_SIDE:
         return "A fotografia deve ter pelo menos 500 × 500 píxeis."
@@ -219,12 +226,20 @@ def _validar_foto_perfil(foto):
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def api_status(request):
-    return Response({
-        "name": "NKATA API",
-        "status": "online",
-        "frontend_target": "React + Tailwind",
-        "backend": "Django REST API",
-    })
+    try:
+        connection.ensure_connection()
+        database_ready = connection.is_usable()
+    except Exception:  # A resposta não deve expor detalhes da infraestrutura.
+        database_ready = False
+
+    return Response(
+        {
+            "name": "NKATA API",
+            "status": "online" if database_ready else "degraded",
+            "database_ready": database_ready,
+        },
+        status=200 if database_ready else 503,
+    )
 
 
 @ensure_csrf_cookie
@@ -237,6 +252,7 @@ def api_session(request):
 @csrf_protect
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([LoginRateThrottle])
 def api_login(request):
     email = str(request.data.get("email", "")).strip()
     password = str(request.data.get("password", ""))
@@ -331,6 +347,10 @@ def api_atualizar_foto_perfil(request):
     erro = _validar_foto_perfil(foto)
     if erro:
         return Response({"foto": [erro]}, status=400)
+    try:
+        foto = sanitized_image_upload(foto)
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
+        return Response({"foto": ["Não foi possível preparar esta fotografia."]}, status=400)
 
     pedido = perfil.pedido
     foto_anterior = pedido.foto_perfil
@@ -355,7 +375,7 @@ def api_atualizar_foto_perfil(request):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.AllowAny])
+@permission_classes([permissions.IsAuthenticated])
 def api_perfis(request):
     perfis = PerfilNKATA.objects.filter(
         status="ATIVO",
@@ -391,7 +411,7 @@ def api_perfis(request):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.AllowAny])
+@permission_classes([permissions.IsAuthenticated])
 def api_perfil_detalhe(request, perfil_id):
     try:
         perfil = PerfilNKATA.objects.select_related("pedido", "usuario").get(

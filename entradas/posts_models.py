@@ -1,14 +1,8 @@
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage
 from django.db import models
 
 from .models import PerfilNKATA
-
-
-PRIVATE_POST_STORAGE = FileSystemStorage(
-    location=settings.BASE_DIR / "private_media" / "posts",
-    base_url=None,
-)
+from .storage_backends import private_content_storage
 
 
 class PublicacaoNKATA(models.Model):
@@ -37,8 +31,8 @@ class PublicacaoNKATA(models.Model):
         related_name="publicacoes_nkata",
     )
     media = models.FileField(
-        storage=PRIVATE_POST_STORAGE,
-        upload_to="%Y/%m/%d/",
+        storage=private_content_storage,
+        upload_to="posts/%Y/%m/%d/",
     )
     tipo_media = models.CharField(max_length=12, choices=MEDIA_CHOICES)
     legenda = models.CharField(max_length=180, blank=True)

@@ -3,8 +3,15 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from rest_framework import permissions
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+    throttle_classes,
+)
 from rest_framework.response import Response
+
+from .throttles import TokenFlowRateThrottle
 
 from .forms import QuestionarioEntradaForm
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
@@ -143,6 +150,7 @@ def _pedido_aprovado(token):
 @api_view(["GET", "POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([TokenFlowRateThrottle])
 def api_questionario(request, token):
     pedido, error_response = _pedido_aprovado(token)
     if error_response:
@@ -217,6 +225,7 @@ def api_questionario(request, token):
 @api_view(["POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([TokenFlowRateThrottle])
 def api_criar_senha_questionario(request, token):
     pedido, error_response = _pedido_aprovado(token)
     if error_response:

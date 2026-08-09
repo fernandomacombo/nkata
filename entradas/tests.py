@@ -13,6 +13,7 @@ from .models import (
     MensagemMatch,
     PedidoEntrada,
     PerfilNKATA,
+    QuestionarioEntrada,
 )
 
 
@@ -57,6 +58,18 @@ class NkataApiTests(TestCase):
             bi_verso=uploaded_file(f"{name}-bi-verso.jpg"),
             selfie_com_bi=uploaded_file(f"{name}-selfie.jpg"),
             status="APROVADO",
+        )
+        QuestionarioEntrada.objects.create(
+            pedido=pedido,
+            disponibilidade="SIM",
+            tem_filhos="NAO",
+            aceita_pessoa_com_filhos="SIM",
+            cidade_preferida=city,
+            faixa_etaria_preferida="25 a 40 anos",
+            sobre_si="Procuro conhecer alguém com calma e intenção.",
+            o_que_valoriza="Respeito, diálogo e compromisso.",
+            o_que_nao_aceita="Mentiras e desrespeito.",
+            aceita_regras=True,
         )
         perfil = PerfilNKATA.objects.create(
             pedido=pedido,

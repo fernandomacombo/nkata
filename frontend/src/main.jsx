@@ -6,7 +6,6 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import FollowingPanel from "./components/account/FollowingPanel.jsx";
-import CallHistoryPanel from "./components/chat/CallHistoryPanel.jsx";
 import ConversationCallBridge from "./components/chat/ConversationCallBridge.jsx";
 import IncomingCallWatcher from "./components/chat/IncomingCallWatcher.jsx";
 import PublicationSafetyOverlay from "./components/feed/PublicationSafetyOverlay.jsx";
@@ -139,7 +138,6 @@ createRoot(document.getElementById("root")).render(
         <FollowingPanel />
         <PublicationSafetyOverlay />
         <ConversationCallBridge />
-        <CallHistoryPanel />
         <IncomingCallWatcher />
       </>
     )}

@@ -88,8 +88,8 @@ class Command(BaseCommand):
             retried = requeue_failed_jobs() if options.get("retry_failed") else 0
         except DatabaseError as exc:
             raise CommandError(
-                "A fila de pré-moderação ainda não está pronta. Execute primeiro "
-                "`python manage.py setup_nkata_media_moderation`."
+                "A fila de pré-moderação ainda não está pronta. Aplique primeiro "
+                "`python manage.py migrate`."
             ) from exc
 
         if recovered:

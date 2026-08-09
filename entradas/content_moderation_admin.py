@@ -63,8 +63,8 @@ def automatic_review_panel(content_type, content_id):
     if not analysis:
         return mark_safe(
             '<div style="max-width:760px;line-height:1.6;padding:12px;border-radius:10px;'
-            'background:#f5f1ee;">Sem registo automático. Execute '
-            '<code>python manage.py setup_nkata_media_moderation</code> e envie novo media. '
+            'background:#f5f1ee;">Sem registo automático. Confirme que as migrações '
+            'foram aplicadas e que o worker de moderação está ativo. '
             '<strong>O conteúdo continua a exigir revisão humana.</strong></div>'
         )
 

@@ -18,6 +18,7 @@ from . import (
     post_safety_api,
     posts_api,
     profile_api,
+    profile_media_api,
     questionnaire_api,
     saved_views,
     signal_views,
@@ -74,6 +75,16 @@ urlpatterns = [
     ),
     path("perfis/", profile_api.api_perfis, name="perfis"),
     path("perfis/<int:perfil_id>/", profile_api.api_perfil_detalhe, name="perfil_detalhe"),
+    path(
+        "perfis/<int:perfil_id>/foto/",
+        profile_media_api.api_foto_perfil,
+        name="perfil_foto",
+    ),
+    path(
+        "admin/pedidos/<int:pedido_id>/media/<str:field_name>/",
+        profile_media_api.api_media_pedido_admin,
+        name="pedido_media_admin",
+    ),
     path(
         "perfis/<int:perfil_id>/interesse/",
         interest_views.api_alternar_interesse,

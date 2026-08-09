@@ -4,9 +4,11 @@ from django.db import DatabaseError
 from django.db.models import Q
 from rest_framework import serializers
 
+from .call_history_api import serialize_call_message
 from .call_models import ChamadaMatchNKATA
 from .chat_media_models import MensagemAudioMatchNKATA
 from .models import MatchPerfil, MensagemMatch, PerfilNKATA
+from .profile_media_api import profile_photo_url
 
 
 TEXT_RULES = {
@@ -56,15 +58,6 @@ def _validar_texto_natural(value, *, min_chars, min_words, label):
     return texto
 
 
-def _file_url(file_field):
-    if not file_field:
-        return None
-    try:
-        return file_field.url
-    except (ValueError, AttributeError):
-        return None
-
-
 class PerfilResumoSerializer(serializers.ModelSerializer):
     foto_principal = serializers.SerializerMethodField()
     objetivo_display = serializers.CharField(source="get_objetivo_display", read_only=True)
@@ -90,8 +83,7 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
         ]
 
     def get_foto_principal(self, obj):
-        # URL relativa mantém media no mesmo origin do frontend/proxy HTTPS.
-        return _file_url(obj.foto_principal)
+        return profile_photo_url(obj)
 
     def get_verificado(self, obj):
         pedido_status = getattr(obj.pedido, "status", "")
@@ -160,7 +152,7 @@ class MinhaContaSerializer(serializers.ModelSerializer):
         }
 
     def get_foto_principal(self, obj):
-        return _file_url(obj.foto_principal)
+        return profile_photo_url(obj)
 
     def get_total_matches(self, obj):
         return MatchPerfil.objects.filter(
@@ -308,41 +300,7 @@ class MatchSerializer(serializers.ModelSerializer):
     def _call_payload(self, call):
         request = self.context.get("request")
         user_id = request.user.id if request and request.user.is_authenticated else None
-        outgoing = call.iniciador_id == user_id
-        missed = call.estado == ChamadaMatchNKATA.ESTADO_PERDIDA and not outgoing
-        duration_seconds = 0
-        if call.atendida_em and call.terminada_em:
-            duration_seconds = max(0, int((call.terminada_em - call.atendida_em).total_seconds()))
-
-        if missed:
-            label = "Chamada perdida"
-        elif call.estado == ChamadaMatchNKATA.ESTADO_PERDIDA:
-            label = "Chamada não atendida"
-        elif call.estado == ChamadaMatchNKATA.ESTADO_RECUSADA:
-            label = "Chamada recusada"
-        elif call.estado == ChamadaMatchNKATA.ESTADO_FALHOU:
-            label = "Chamada não concluída"
-        elif call.estado == ChamadaMatchNKATA.ESTADO_ATIVA:
-            label = "Chamada em curso"
-        else:
-            label = call.get_tipo_display()
-
-        return {
-            "id": f"call-{call.id}",
-            "match": call.match_id,
-            "tipo": "CALL",
-            "call_id": call.id,
-            "call_type": call.tipo,
-            "call_state": call.estado,
-            "call_label": label,
-            "call_direction": "SAIDA" if outgoing else "ENTRADA",
-            "call_missed": missed,
-            "duracao_segundos": duration_seconds,
-            "texto": label,
-            "lida": True,
-            "minha": outgoing,
-            "criado_em": call.terminada_em or call.atualizada_em or call.criada_em,
-        }
+        return serialize_call_message(call, user_id)
 
     def get_ultima_mensagem(self, obj):
         candidates = []

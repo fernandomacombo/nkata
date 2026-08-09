@@ -7,8 +7,15 @@ from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import permissions
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+    throttle_classes,
+)
 from rest_framework.response import Response
+
+from .throttles import PasswordResetRateThrottle, TokenFlowRateThrottle
 
 
 User = get_user_model()
@@ -56,6 +63,7 @@ def _send_reset_email(user):
 @api_view(["POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([PasswordResetRateThrottle])
 def api_pedir_recuperacao_senha(request):
     email = str(request.data.get("email", "")).strip().lower()
 
@@ -76,6 +84,7 @@ def api_pedir_recuperacao_senha(request):
 @api_view(["GET", "POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([TokenFlowRateThrottle])
 def api_confirmar_recuperacao_senha(request, uidb64, token):
     user = _user_from_reset_link(uidb64)
     valid = bool(user and default_token_generator.check_token(user, token))

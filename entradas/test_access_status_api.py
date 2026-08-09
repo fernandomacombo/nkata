@@ -1,10 +1,11 @@
 from io import BytesIO
 
 from PIL import Image
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from .models import PedidoEntrada
+from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 
 
 def image_file(name):
@@ -122,6 +123,37 @@ class AccessStatusApiTests(TestCase):
 
     def test_pedido_aprovado_indica_que_pode_entrar(self):
         pedido = self.create_request(status="APROVADO", email="aprovado@example.com")
+        user = User.objects.create_user(
+            username="aprovado",
+            email=pedido.email,
+            password="SenhaForte123",
+        )
+        QuestionarioEntrada.objects.create(
+            pedido=pedido,
+            disponibilidade="SIM",
+            tem_filhos="NAO",
+            aceita_pessoa_com_filhos="SIM",
+            cidade_preferida="Maputo",
+            faixa_etaria_preferida="25 a 40 anos",
+            sobre_si="Procuro conhecer alguém com calma e intenção.",
+            o_que_valoriza="Respeito, diálogo e compromisso.",
+            o_que_nao_aceita="Mentiras e desrespeito.",
+            aceita_regras=True,
+        )
+        PerfilNKATA.objects.create(
+            pedido=pedido,
+            usuario=user,
+            nome_publico="Pessoa Aprovada",
+            cidade="Maputo",
+            idade=31,
+            genero="FEMININO",
+            objetivo="RELACIONAMENTO_SERIO",
+            sobre_si="Procuro uma relação séria e tranquila.",
+            o_que_valoriza="Respeito e compromisso.",
+            o_que_nao_aceita="Mentiras e desrespeito.",
+            status="ATIVO",
+            visivel=True,
+        )
 
         response = self.client.post(
             "/api/acompanhar-pedido/",

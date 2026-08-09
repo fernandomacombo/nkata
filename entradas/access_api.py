@@ -2,11 +2,18 @@ import uuid
 
 from PIL import Image, UnidentifiedImageError
 from rest_framework import permissions
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+    throttle_classes,
+)
 from rest_framework.response import Response
 
 from .forms import PedidoEntradaForm
+from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .models import PedidoEntrada, PerfilNKATA
+from .throttles import AccessRequestRateThrottle, AccessStatusRateThrottle
 
 
 MAX_ACCESS_IMAGE_SIZE = 6 * 1024 * 1024
@@ -94,11 +101,14 @@ def _validar_imagem(upload):
         upload.seek(0)
         image = Image.open(upload)
         image_format = (image.format or "").upper()
+        safe_dimensions = image_dimensions_are_safe(image)
         upload.seek(0)
-    except (UnidentifiedImageError, OSError, ValueError):
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
         return "O ficheiro escolhido não é uma imagem válida."
     if image_format not in ALLOWED_ACCESS_IMAGE_FORMATS:
         return "Use uma imagem em JPG, PNG ou WEBP."
+    if not safe_dimensions:
+        return "A imagem possui dimensões demasiado grandes."
     return None
 
 
@@ -148,12 +158,20 @@ def _status_payload(pedido):
 @api_view(["POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([AccessRequestRateThrottle])
 def api_pedir_acesso(request):
     image_errors = {}
+    safe_files = request.FILES.copy()
     for field in IMAGE_FIELDS:
-        error = _validar_imagem(request.FILES.get(field))
+        upload = request.FILES.get(field)
+        error = _validar_imagem(upload)
         if error:
             image_errors[field] = [error]
+            continue
+        try:
+            safe_files[field] = sanitized_image_upload(upload)
+        except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
+            image_errors[field] = ["Não foi possível preparar esta imagem."]
     if image_errors:
         return Response({
             "detail": "Revise as imagens antes de continuar.",
@@ -173,7 +191,7 @@ def api_pedir_acesso(request):
     if email:
         data["email"] = email
 
-    form = PedidoEntradaForm(data, request.FILES)
+    form = PedidoEntradaForm(data, safe_files)
     if not form.is_valid():
         return Response({
             "detail": "Há alguns campos que precisam da sua atenção.",
@@ -198,6 +216,7 @@ def api_pedir_acesso(request):
 @api_view(["POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([AccessStatusRateThrottle])
 def api_acompanhar_pedido(request):
     email = str(request.data.get("email", "")).strip().lower()
     raw_code = str(request.data.get("codigo", "")).strip()

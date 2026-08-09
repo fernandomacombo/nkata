@@ -77,7 +77,7 @@
 
   /* Área autenticada: conteúdo nunca deve ficar escondido atrás da tab bar. */
   body:has(.nk-header__member) main:not(.nk-conversation-page) {
-    padding-bottom: calc(var(--nk-app-bottom-nav) + var(--nk-app-bottom-safe) + 14px);
+    padding-bottom: calc(var(--nk-app-bottom-nav) + var(--nk-app-bottom-safe) + 22px);
   }
 
   /* A navegação inferior é a navegação primária do membro no telemóvel. */
@@ -234,6 +234,58 @@
   .nk-bottom-nav__icon svg {
     width: 21px;
     height: 21px;
+  }
+
+  /* O cabeçalho global já contém a navegação principal. Esta faixa mostra
+     apenas o título e atualizar, sem repetir Momentos. */
+  .nk-member-home__topbar-inner {
+    min-height: 50px;
+  }
+
+  .nk-member-home__topbar h1 {
+    font-size: 1.18rem;
+  }
+
+  .nk-member-home__topbar-inner > div:last-child button:first-child {
+    display: none;
+  }
+
+  .nk-member-home__layout {
+    padding-top: 6px;
+  }
+
+  .nk-feed-composer.is-collapsed {
+    margin-block: 0 8px;
+    border-block: 1px solid rgba(64, 47, 43, 0.08);
+  }
+
+  .nk-feed-composer__policy {
+    margin-top: 10px;
+    padding: 8px 10px;
+    font-size: 0.68rem;
+  }
+
+  .nk-feed-composer__pick {
+    min-height: 68px;
+    margin-top: 10px;
+    padding: 12px;
+  }
+
+  .nk-feed-composer__options,
+  .nk-feed-composer__submit {
+    margin-top: 10px;
+  }
+}
+
+@media (min-width: 400px) and (max-width: 520px) {
+  .nk-feed-composer__options {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .nk-feed-composer__options select {
+    padding-inline: 9px;
+    font-size: 0.86rem !important;
   }
 }
 

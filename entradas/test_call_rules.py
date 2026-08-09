@@ -8,10 +8,11 @@ from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from .call_api import CALL_RING_TIMEOUT_SECONDS, MAX_SIGNAL_PAYLOAD_CHARS
-from .call_history_api import serialize_call_history
+from .call_history_api import serialize_call_history, serialize_call_message
 from .call_models import ChamadaMatchNKATA, SinalChamadaNKATA
 from .plan_service import PLAN_DEFINITIONS
 from .webrtc_config_api import api_webrtc_readiness
+from .webrtc_credentials import ice_servers_for_user
 
 
 class CallRulesTests(SimpleTestCase):
@@ -76,7 +77,7 @@ class CallRulesTests(SimpleTestCase):
     )
     def test_readiness_does_not_expose_turn_credentials(self):
         request = APIRequestFactory().get("/api/minha-conta/webrtc/readiness/")
-        force_authenticate(request, user=SimpleNamespace(is_authenticated=True))
+        force_authenticate(request, user=SimpleNamespace(is_authenticated=True, pk=999))
         response = api_webrtc_readiness(request)
 
         self.assertTrue(response.data["stun_configured"])
@@ -87,7 +88,7 @@ class CallRulesTests(SimpleTestCase):
 
     def test_missing_turn_does_not_generate_member_error_message(self):
         request = APIRequestFactory().get("/api/minha-conta/webrtc/readiness/")
-        force_authenticate(request, user=SimpleNamespace(is_authenticated=True))
+        force_authenticate(request, user=SimpleNamespace(is_authenticated=True, pk=999))
         with override_settings(
             NKATA_WEBRTC_STUN_URLS=["stun:example.invalid:3478"],
             NKATA_WEBRTC_TURN_URLS=[],
@@ -97,6 +98,24 @@ class CallRulesTests(SimpleTestCase):
             response = api_webrtc_readiness(request)
         self.assertFalse(response.data["turn_configured"])
         self.assertEqual(response.data["message"], "")
+
+    @override_settings(
+        NKATA_WEBRTC_STUN_URLS=["stun:example.invalid:3478"],
+        NKATA_WEBRTC_TURN_URLS=["turn:example.invalid:3478"],
+        NKATA_WEBRTC_TURN_USERNAME="",
+        NKATA_WEBRTC_TURN_CREDENTIAL="",
+        NKATA_WEBRTC_TURN_SHARED_SECRET="segredo-do-coturn",
+        NKATA_WEBRTC_TURN_CREDENTIAL_TTL=900,
+    )
+    def test_turn_shared_secret_generates_temporary_member_credentials(self):
+        servers = ice_servers_for_user(SimpleNamespace(pk=42))
+        turn = servers[-1]
+        expires_at, member_id = turn["username"].split(":", 1)
+
+        self.assertEqual(member_id, "42")
+        self.assertGreater(int(expires_at), int(timezone.now().timestamp()))
+        self.assertTrue(turn["credential"])
+        self.assertNotEqual(turn["credential"], "segredo-do-coturn")
 
     def test_signaling_payload_has_conservative_limit(self):
         self.assertGreaterEqual(MAX_SIGNAL_PAYLOAD_CHARS, 32768)
@@ -148,6 +167,12 @@ class CallRulesTests(SimpleTestCase):
         self.assertEqual(item["status_label"], "Chamada perdida")
         self.assertTrue(item["missed"])
         self.assertEqual(item["duration_seconds"], 0)
+
+        live_item = serialize_call_message(call, user_id=4)
+        self.assertEqual(live_item["tipo"], "CALL")
+        self.assertEqual(live_item["call_direction"], "INCOMING")
+        self.assertTrue(live_item["call_missed"])
+        self.assertEqual(live_item["duracao_segundos"], 0)
 
     def test_call_metadata_does_not_store_audio_or_video_recordings(self):
         field_names = {field.name for field in ChamadaMatchNKATA._meta.fields}

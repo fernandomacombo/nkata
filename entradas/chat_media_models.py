@@ -1,14 +1,8 @@
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage
 from django.db import models
 
 from .models import MatchPerfil
-
-
-PRIVATE_CHAT_STORAGE = FileSystemStorage(
-    location=settings.BASE_DIR / "private_media" / "chat",
-    base_url=None,
-)
+from .storage_backends import private_content_storage
 
 
 class MensagemAudioMatchNKATA(models.Model):
@@ -25,8 +19,8 @@ class MensagemAudioMatchNKATA(models.Model):
         related_name="mensagens_audio_nkata_enviadas",
     )
     audio = models.FileField(
-        storage=PRIVATE_CHAT_STORAGE,
-        upload_to="%Y/%m/%d/",
+        storage=private_content_storage,
+        upload_to="chat/%Y/%m/%d/",
     )
     duracao_segundos = models.PositiveSmallIntegerField(default=0)
     lida = models.BooleanField(default=False)

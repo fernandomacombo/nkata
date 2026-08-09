@@ -5,7 +5,14 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
-from .models import AcaoPerfil, MatchPerfil, MensagemMatch, PedidoEntrada, PerfilNKATA
+from .models import (
+    AcaoPerfil,
+    MatchPerfil,
+    MensagemMatch,
+    PedidoEntrada,
+    PerfilNKATA,
+    QuestionarioEntrada,
+)
 from .notification_models import NotificacaoNKATA
 
 
@@ -43,6 +50,18 @@ class NkataNotificationApiTests(TestCase):
             selfie_com_bi=uploaded_file(f"{name}-selfie.jpg"),
             status="APROVADO",
         )
+        QuestionarioEntrada.objects.create(
+            pedido=pedido,
+            disponibilidade="SIM",
+            tem_filhos="NAO",
+            aceita_pessoa_com_filhos="SIM",
+            cidade_preferida=city,
+            faixa_etaria_preferida="25 a 40 anos",
+            sobre_si="Procuro conhecer alguém com calma e intenção.",
+            o_que_valoriza="Respeito, diálogo e compromisso.",
+            o_que_nao_aceita="Mentiras e desrespeito.",
+            aceita_regras=True,
+        )
         perfil = PerfilNKATA.objects.create(
             pedido=pedido,
             usuario=user,
@@ -63,12 +82,13 @@ class NkataNotificationApiTests(TestCase):
         user_a, _ = self.create_profile("interesse-a@example.com", "Amélia")
         user_b, perfil_b = self.create_profile("interesse-b@example.com", "Bento")
 
-        AcaoPerfil.objects.create(
-            perfil=perfil_b,
-            usuario=user_a,
-            tipo="INTERESSE",
-            session_key="interesse-a-b",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            AcaoPerfil.objects.create(
+                perfil=perfil_b,
+                usuario=user_a,
+                tipo="INTERESSE",
+                session_key="interesse-a-b",
+            )
 
         notificacao = NotificacaoNKATA.objects.get(destinatario=user_b)
         self.assertEqual(notificacao.tipo, "INTERESSE")
@@ -79,7 +99,8 @@ class NkataNotificationApiTests(TestCase):
         user_a, perfil_a = self.create_profile("match-a@example.com", "Ana")
         user_b, perfil_b = self.create_profile("match-b@example.com", "Bruno")
 
-        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+        with self.captureOnCommitCallbacks(execute=True):
+            match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
 
         self.assertTrue(
             NotificacaoNKATA.objects.filter(
@@ -99,20 +120,23 @@ class NkataNotificationApiTests(TestCase):
     def test_mensagens_do_mesmo_match_atualizam_um_unico_aviso(self):
         user_a, perfil_a = self.create_profile("mensagem-a@example.com", "Alice")
         user_b, perfil_b = self.create_profile("mensagem-b@example.com", "Bernardo")
-        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+        with self.captureOnCommitCallbacks(execute=True):
+            match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
 
         NotificacaoNKATA.objects.filter(tipo="MATCH").delete()
 
-        MensagemMatch.objects.create(
-            match=match,
-            remetente=user_a,
-            texto="Olá, gostei muito da sua apresentação.",
-        )
-        MensagemMatch.objects.create(
-            match=match,
-            remetente=user_a,
-            texto="Como foi o seu dia?",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            MensagemMatch.objects.create(
+                match=match,
+                remetente=user_a,
+                texto="Olá, gostei muito da sua apresentação.",
+            )
+        with self.captureOnCommitCallbacks(execute=True):
+            MensagemMatch.objects.create(
+                match=match,
+                remetente=user_a,
+                texto="Como foi o seu dia?",
+            )
 
         avisos = NotificacaoNKATA.objects.filter(
             destinatario=user_b,
@@ -126,7 +150,8 @@ class NkataNotificationApiTests(TestCase):
     def test_api_lista_e_marca_notificacoes_como_lidas(self):
         user_a, perfil_a = self.create_profile("api-a@example.com", "Alda")
         user_b, perfil_b = self.create_profile("api-b@example.com", "Basilio")
-        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+        with self.captureOnCommitCallbacks(execute=True):
+            match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
 
         self.client.force_login(user_a)
         lista = self.client.get("/api/minha-conta/notificacoes/")

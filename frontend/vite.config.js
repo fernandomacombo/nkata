@@ -49,7 +49,6 @@ export default defineConfig(({ mode }) => {
         : undefined,
       proxy: {
         "/api": proxiedResource(),
-        "/media": proxiedResource(),
       },
     },
     preview: {
@@ -64,7 +63,6 @@ export default defineConfig(({ mode }) => {
         : undefined,
       proxy: {
         "/api": proxiedResource(),
-        "/media": proxiedResource(),
       },
     },
   };

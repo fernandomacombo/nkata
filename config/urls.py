@@ -1,17 +1,23 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+
+from .frontend import frontend_index
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-
-    # Páginas Django atuais
-    path("", include("entradas.urls")),
-
-    # API preparada para o futuro frontend React + Tailwind
     path("api/", include("entradas.api_urls")),
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # O frontend Vite roda separadamente em desenvolvimento; estas páginas
+    # permanecem apenas como compatibilidade local.
+    urlpatterns += [path("", include("entradas.urls"))]
+else:
+    # Em produção, todas as rotas da aplicação são resolvidas pelo React.
+    urlpatterns += [
+        re_path(
+            r"^(?!api/|admin/|static/|assets/|media/).*$",
+            frontend_index,
+        )
+    ]
