@@ -125,6 +125,28 @@ class AdminPanelApiTests(TestCase):
         pending.refresh_from_db()
         self.assertEqual(pending.status, "APROVADO")
 
+    def test_questionnaire_link_is_exposed_only_for_approved_pending_response(self):
+        waiting = create_request("aguarda@nkata.test", status="APROVADO")
+        pending = create_request("pendente@nkata.test", status="PENDENTE")
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(
+            reverse("entradas_api:admin_list"),
+            {"section": "access"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        rows = {item["email"]: item for item in response.data["results"]}
+        self.assertEqual(
+            rows[waiting.email]["questionnaire_path"],
+            f"/questionario/{waiting.token}/",
+        )
+        self.assertEqual(rows[pending.email]["questionnaire_path"], "")
+        self.assertEqual(
+            rows[self.request_record.email]["questionnaire_path"],
+            "",
+        )
+
     def test_staff_can_approve_pending_content(self):
         publication = PublicacaoNKATA.objects.create(
             perfil=self.profile,

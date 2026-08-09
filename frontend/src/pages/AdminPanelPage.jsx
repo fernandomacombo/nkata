@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleAlert,
   Clock3,
+  Copy,
   ExternalLink,
   FileCheck2,
   HeartHandshake,
@@ -89,6 +90,25 @@ function formatDuration(seconds = 0) {
   const minutes = Math.floor(value / 60);
   const remaining = value % 60;
   return minutes ? `${minutes} min ${remaining}s` : `${remaining}s`;
+}
+
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const field = document.createElement("textarea");
+  field.value = value;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.appendChild(field);
+  field.select();
+  try {
+    if (!document.execCommand("copy")) throw new Error("copy_failed");
+  } finally {
+    document.body.removeChild(field);
+  }
 }
 
 function statusTone(status = "") {
@@ -290,12 +310,15 @@ function MediaThumb({ item }) {
 
 function actionsFor(section, item) {
   if (section === "access") {
-    return [
-      item.status !== "EM_ANALISE" && { action: "review", label: "Analisar", description: `Colocar o pedido de ${item.name} em análise.`, icon: Clock3 },
-      item.status !== "APROVADO" && { action: "approve", label: "Aprovar", description: `Aprovar o pedido de ${item.name} e libertar o questionário.`, icon: UserCheck },
-      { action: "correction", label: "Pedir correção", description: `Devolver o pedido de ${item.name} para correção.`, acceptsNote: true, noteRequired: true, icon: CircleAlert },
-      { action: "reject", label: "Recusar", description: `Recusar o pedido de ${item.name}. O perfil associado ficará oculto.`, acceptsNote: true, danger: true, icon: Ban },
-    ].filter(Boolean);
+    const review = { action: "review", label: "Analisar", description: `Colocar o pedido de ${item.name} em análise.`, icon: Clock3 };
+    const approve = { action: "approve", label: "Aprovar", description: `Aprovar o pedido de ${item.name} e libertar o questionário.`, icon: UserCheck };
+    const correction = { action: "correction", label: "Pedir correção", description: `Devolver o pedido de ${item.name} para correção.`, acceptsNote: true, noteRequired: true, icon: CircleAlert };
+    const reject = { action: "reject", label: "Recusar", description: `Recusar o pedido de ${item.name}. O perfil associado ficará oculto.`, acceptsNote: true, danger: true, icon: Ban };
+    if (item.status === "PENDENTE") return [review, approve, correction];
+    if (item.status === "EM_ANALISE") return [approve, correction, reject];
+    if (item.status === "PRECISA_CORRIGIR") return [review, approve, reject];
+    if (["RECUSADO", "BLOQUEADO"].includes(item.status)) return [review];
+    return [];
   }
   if (section === "members") {
     return [
@@ -327,7 +350,7 @@ function actionsFor(section, item) {
   return [];
 }
 
-function AdminRow({ section, item, onAction }) {
+function AdminRow({ section, item, onAction, onCopyQuestionnaire }) {
   const actions = actionsFor(section, item);
   const title = item.name || item.author || item.target || item.title;
   const subtitle = section === "access"
@@ -368,6 +391,15 @@ function AdminRow({ section, item, onAction }) {
         {!['reports', 'operations'].includes(section) && <small>{formatDate(item.created_at)}</small>}
       </div>
       <div className="nk-admin-row__actions">
+        {section === "access" && item.questionnaire_path && (
+          <button
+            type="button"
+            onClick={() => onCopyQuestionnaire(item)}
+            title="Copiar link do questionário"
+          >
+            <Copy size={16} /><span>Copiar link</span>
+          </button>
+        )}
         {actions.slice(0, 3).map((action) => {
           const Icon = action.icon;
           return (
@@ -471,6 +503,16 @@ export default function AdminPanelPage({ session }) {
   };
 
   const openAction = (action) => setPendingAction(action);
+
+  const copyQuestionnaire = async (item) => {
+    try {
+      const url = new URL(item.questionnaire_path, window.location.origin).toString();
+      await copyText(url);
+      setToast(`Link do questionário de ${item.name} copiado.`);
+    } catch {
+      setToast("Não foi possível copiar o link do questionário.");
+    }
+  };
 
   const confirmAction = async (note) => {
     if (!pendingAction) return;
@@ -591,7 +633,15 @@ export default function AdminPanelPage({ session }) {
 
                 <div className="nk-admin-list">
                   {listData.results?.length && !listLoading
-                    ? listData.results.map((item) => <AdminRow key={`${item.content_type || item.report_type || item.operation_type || activeSection}-${item.id}`} section={activeSection} item={item} onAction={openAction} />)
+                    ? listData.results.map((item) => (
+                      <AdminRow
+                        key={`${item.content_type || item.report_type || item.operation_type || activeSection}-${item.id}`}
+                        section={activeSection}
+                        item={item}
+                        onAction={openAction}
+                        onCopyQuestionnaire={copyQuestionnaire}
+                      />
+                    ))
                     : <EmptyState loading={listLoading} error={listError} onRetry={() => loadList()} />}
                 </div>
               </>

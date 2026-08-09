@@ -205,6 +205,11 @@ def _access_rows(request, limit):
             "status_label": item.get_status_display(),
             "accepted_verification": item.aceita_verificacao,
             "has_questionnaire": has_questionnaire,
+            "questionnaire_path": (
+                f"/questionario/{item.token}/"
+                if item.status == "APROVADO" and not has_questionnaire
+                else ""
+            ),
             "has_profile": bool(profile),
             "has_password": bool(
                 profile and profile.usuario and profile.usuario.has_usable_password()
