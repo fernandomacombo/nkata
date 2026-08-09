@@ -1,0 +1,61 @@
+const DEMO_PROFILES_ENABLED =
+  String(import.meta.env.VITE_ENABLE_DEMO_PROFILES || "").toLowerCase() === "true";
+
+const DEMO_PROFILES = [
+  {
+    id: "demo-1",
+    nome_publico: "Amélia",
+    idade: 29,
+    cidade: "Maputo",
+    genero_display: "Feminino",
+    objetivo_display: "Relacionamento sério",
+    sobre_si: "Valorizo maturidade, família, conversa honesta e uma relação construída com calma.",
+    o_que_valoriza: "Respeito, presença, estabilidade emocional e comunicação transparente.",
+    o_que_nao_aceita: "Desrespeito, jogos emocionais e falta de clareza sobre intenções.",
+    verificado: true,
+    foto_url: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1000&q=88",
+  },
+  {
+    id: "demo-2",
+    nome_publico: "Nelson",
+    idade: 33,
+    cidade: "Matola",
+    genero_display: "Masculino",
+    objetivo_display: "Conhecer com intenção",
+    sobre_si: "Sou reservado, profissional e procuro alguém com valores, respeito e visão de futuro.",
+    o_que_valoriza: "Família, serenidade, compromisso e capacidade de conversar com maturidade.",
+    o_que_nao_aceita: "Desonestidade, exposição desnecessária e relações sem propósito.",
+    verificado: true,
+    foto_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1000&q=88",
+  },
+  {
+    id: "demo-3",
+    nome_publico: "Lídia",
+    idade: 31,
+    cidade: "Beira",
+    genero_display: "Feminino",
+    objetivo_display: "Casamento no futuro",
+    sobre_si: "Acredito numa relação equilibrada, com propósito, amizade e compromisso verdadeiro.",
+    o_que_valoriza: "Lealdade, espiritualidade, crescimento mútuo e responsabilidade afetiva.",
+    o_que_nao_aceita: "Manipulação, falta de respeito e ausência de compromisso.",
+    verificado: true,
+    foto_url: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1000&q=88",
+  },
+  {
+    id: "demo-4",
+    nome_publico: "Armando",
+    idade: 36,
+    cidade: "Vilankulo",
+    genero_display: "Masculino",
+    objetivo_display: "Relacionamento sério",
+    sobre_si: "Procuro uma pessoa sincera, tranquila e preparada para construir algo consistente.",
+    o_que_valoriza: "Sinceridade, paz, trabalho, família e respeito pelos objetivos de cada pessoa.",
+    o_que_nao_aceita: "Mentiras, desconsideração e relações sem direção.",
+    verificado: true,
+    foto_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1000&q=88",
+  },
+];
+
+// Perfis fictícios nunca aparecem por acidente. Para os usar numa demonstração
+// local, defina VITE_ENABLE_DEMO_PROFILES=true antes de iniciar o Vite.
+export const demoProfiles = DEMO_PROFILES_ENABLED ? DEMO_PROFILES : [];

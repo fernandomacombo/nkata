@@ -1,0 +1,26 @@
+/* NKATA Feed — remove blocos informativos laterais e mantém uma única coluna premium. */
+
+.nk-member-home__layout {
+  grid-template-columns: minmax(0, 720px);
+  justify-content: center;
+}
+
+.nk-member-home__feed-column {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.nk-member-home__aside {
+  display: none !important;
+}
+
+@media (max-width: 820px) {
+  .nk-member-home__layout {
+    display: block;
+  }
+
+  .nk-member-home__feed-column {
+    max-width: none;
+  }
+}

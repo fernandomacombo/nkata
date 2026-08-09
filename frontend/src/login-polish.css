@@ -1,0 +1,124 @@
+/* Ajustes finos dos campos de autenticação. */
+.nk-login-field {
+  position: relative;
+  min-height: 58px;
+  gap: 12px;
+  border: 1px solid rgba(42, 35, 31, 0.14);
+  border-radius: 16px;
+  background: #fffdfa;
+  padding: 0 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 220ms ease,
+    transform 180ms ease;
+}
+
+.nk-login-field:hover {
+  border-color: rgba(125, 38, 56, 0.28);
+  background: #fff;
+}
+
+.nk-login-field:focus-within {
+  border-color: rgba(125, 38, 56, 0.72);
+  background: #fff;
+  box-shadow:
+    0 0 0 3px rgba(125, 38, 56, 0.1),
+    0 10px 24px rgba(71, 46, 39, 0.07);
+  transform: translateY(-1px);
+}
+
+.nk-login-field > svg {
+  width: 19px;
+  height: 19px;
+  color: #8f8781;
+  transition: color 180ms ease;
+}
+
+.nk-login-field:focus-within > svg {
+  color: var(--nk-wine);
+}
+
+.nk-login-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  flex: 1;
+  appearance: none;
+  border: 0 !important;
+  border-radius: 0;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0;
+  color: var(--nk-ink);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.nk-login-field input:focus,
+.nk-login-field input:focus-visible {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.nk-login-field input::placeholder {
+  color: #a39b95;
+  opacity: 1;
+  font-weight: 450;
+}
+
+.nk-login-field input::-ms-reveal,
+.nk-login-field input::-ms-clear {
+  display: none;
+}
+
+.nk-login-field button {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 12px;
+  outline: 0;
+  background: transparent;
+  color: #8f8781;
+}
+
+.nk-login-field button:hover {
+  background: rgba(125, 38, 56, 0.07);
+  color: var(--nk-wine);
+}
+
+.nk-login-field button:focus-visible {
+  outline: 2px solid rgba(125, 38, 56, 0.3);
+  outline-offset: 1px;
+}
+
+.nk-login-form label > span {
+  margin-bottom: 8px;
+  color: #4b433f;
+  font-size: 0.77rem;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 700px) {
+  .nk-login-field {
+    min-height: 56px;
+    padding: 0 14px;
+  }
+
+  .nk-login-field input {
+    min-height: 54px;
+    font-size: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-login-field:focus-within {
+    transform: none;
+  }
+}

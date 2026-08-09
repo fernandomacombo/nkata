@@ -1,0 +1,14 @@
+/* NKATA */
+Creator: Fernando Macombo
+Role: Founder, product creator and development lead
+Location: Mozambique
+Project: NKATA
+Created: 2026
+Repository: fernandomacombo/nkata
+
+/* Technology */
+Backend: Django and Django REST Framework
+Frontend: React, Vite and Tailwind CSS
+
+/* Authorship */
+The NKATA product vision, identity, functional direction and implementation leadership are attributed to Fernando Macombo.

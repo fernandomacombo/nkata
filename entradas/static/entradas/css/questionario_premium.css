@@ -1,0 +1,588 @@
+/*
+ * NKATA — questionário aprovado, acabamento visual premium.
+ * Mantém integralmente o formulário e a lógica Django existentes.
+ */
+
+:root {
+  --quiz-ink: #28211f;
+  --quiz-muted: #786f69;
+  --quiz-cream: #f7f2eb;
+  --quiz-paper: #fffdfa;
+  --quiz-wine: #8f2940;
+  --quiz-wine-dark: #6f1f32;
+  --quiz-wine-soft: #f5e7ea;
+  --quiz-line: rgba(62, 49, 44, 0.11);
+  --quiz-green: #456f5e;
+  --quiz-green-soft: #eaf2ed;
+}
+
+body {
+  background: var(--quiz-cream);
+  color: var(--quiz-ink);
+}
+
+/* Cabeçalho coerente com a aplicação React */
+.nk-header {
+  border-bottom: 1px solid var(--quiz-line);
+  background: rgba(248, 244, 238, 0.94);
+  box-shadow: none;
+}
+
+.nk-header-inner {
+  min-height: 72px;
+}
+
+.nk-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--quiz-ink);
+  font-size: 0.86rem;
+  font-weight: 850;
+  letter-spacing: 0.19em;
+}
+
+.nk-logo span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--quiz-wine);
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+  letter-spacing: 0;
+  box-shadow: 0 11px 28px rgba(111, 31, 50, 0.17);
+}
+
+.nk-desktop-nav a,
+.nk-header-actions .nk-btn {
+  color: #5d5550;
+  font-size: 0.78rem;
+}
+
+/* Hero editorial claro */
+.quiz-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 84% 18%, rgba(143, 41, 64, 0.095), transparent 29%),
+    radial-gradient(circle at 12% 76%, rgba(69, 111, 94, 0.07), transparent 30%),
+    var(--quiz-cream);
+  color: var(--quiz-ink);
+  padding: 54px 0 62px;
+}
+
+.quiz-hero::after {
+  position: absolute;
+  right: -160px;
+  bottom: -190px;
+  width: 430px;
+  height: 430px;
+  border: 1px solid rgba(143, 41, 64, 0.08);
+  border-radius: 50%;
+  content: "";
+}
+
+.quiz-layout {
+  position: relative;
+  z-index: 1;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: clamp(32px, 6vw, 82px);
+}
+
+.nk-badge {
+  border: 1px solid rgba(143, 41, 64, 0.15);
+  background: var(--quiz-wine-soft);
+  color: var(--quiz-wine);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.quiz-copy h1 {
+  max-width: 760px;
+  margin: 21px 0 18px;
+  color: var(--quiz-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3.2rem, 5.4vw, 5.5rem);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.94;
+}
+
+.quiz-copy > p {
+  max-width: 660px;
+  color: var(--quiz-muted);
+  font-size: 0.98rem;
+  line-height: 1.72;
+}
+
+.quiz-points {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 760px;
+  gap: 10px;
+  margin-top: 27px;
+}
+
+.quiz-points div {
+  min-height: 98px;
+  grid-template-columns: 30px 1fr;
+  align-items: flex-start;
+  border: 1px solid var(--quiz-line);
+  border-radius: 18px;
+  background: rgba(255, 253, 250, 0.68);
+  padding: 14px;
+  box-shadow: none;
+}
+
+.quiz-points span {
+  width: 30px;
+  height: 30px;
+  background: var(--quiz-green-soft);
+  color: var(--quiz-green);
+  font-size: 0.72rem;
+}
+
+.quiz-points p {
+  color: #6f6661;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.approved-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  background: #292322;
+  padding: 30px;
+  color: #fff;
+  box-shadow: 0 30px 70px rgba(49, 35, 31, 0.16);
+}
+
+.approved-card::after {
+  position: absolute;
+  top: -90px;
+  right: -80px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(143, 41, 64, 0.28);
+  content: "";
+  filter: blur(5px);
+}
+
+.approved-icon {
+  position: relative;
+  z-index: 1;
+  width: 46px;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #d9eee5;
+}
+
+.approved-card h2 {
+  position: relative;
+  z-index: 1;
+  margin-top: 6px;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.9rem, 3vw, 2.7rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.approved-card > p {
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.67);
+  font-size: 0.88rem;
+}
+
+.approved-list {
+  position: relative;
+  z-index: 1;
+  gap: 8px;
+}
+
+.approved-list div {
+  min-height: 78px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.approved-list span {
+  color: #e4b9c2;
+}
+
+/* Conteúdo do formulário */
+.form-section {
+  padding: 54px 0 86px;
+  background: #f9f6f1;
+  border-top: 1px solid var(--quiz-line);
+}
+
+.form-layout {
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
+  gap: 22px;
+}
+
+.form-card,
+.privacy-panel {
+  border: 1px solid var(--quiz-line);
+  border-radius: 28px;
+  background: var(--quiz-paper);
+  box-shadow: 0 24px 72px rgba(58, 45, 40, 0.055);
+}
+
+.form-card {
+  padding: clamp(25px, 4vw, 42px);
+}
+
+.form-head {
+  gap: 13px;
+  margin-bottom: 22px;
+}
+
+.form-head > span,
+.block-title > span {
+  background: var(--quiz-wine-soft);
+  color: var(--quiz-wine);
+}
+
+.form-head h2,
+.block-title h3,
+.rules-box h3,
+.privacy-panel h3 {
+  color: var(--quiz-ink);
+}
+
+.form-head h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+}
+
+.form-head p,
+.block-title p,
+.form-group small {
+  color: var(--quiz-muted);
+}
+
+.form-block {
+  border-top-color: var(--quiz-line);
+  padding: 26px 0;
+}
+
+.block-title {
+  margin-bottom: 19px;
+}
+
+.block-title > span {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  font-size: 0.7rem;
+}
+
+.block-title h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.32rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.form-grid {
+  gap: 17px;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  color: #514945;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  min-height: 54px;
+  border: 1px solid #ded6cf;
+  border-radius: 15px;
+  background: #fbf8f4;
+  padding: 14px 15px;
+  color: var(--quiz-ink);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  transition:
+    border-color 170ms ease,
+    box-shadow 170ms ease,
+    background 170ms ease,
+    transform 170ms ease;
+}
+
+.form-group textarea {
+  min-height: 136px;
+}
+
+.form-group input:hover,
+.form-group select:hover,
+.form-group textarea:hover {
+  border-color: #cfc4bd;
+  background: #fffdfa;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: rgba(143, 41, 64, 0.46);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(143, 41, 64, 0.07);
+}
+
+.error-box {
+  border-color: rgba(143, 41, 64, 0.14);
+  background: #f9e9ec;
+  color: #84263a;
+}
+
+.error-box ul {
+  margin: 7px 0 0 18px;
+}
+
+.rules-box {
+  margin-top: 4px;
+  border: 1px solid rgba(69, 111, 94, 0.14);
+  border-radius: 20px;
+  background: var(--quiz-green-soft);
+  padding: 18px;
+}
+
+.rules-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--quiz-green);
+}
+
+.check-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--quiz-wine);
+}
+
+.check-row span {
+  color: #66736d;
+  font-size: 0.86rem;
+}
+
+.form-actions {
+  align-items: center;
+  margin-top: 25px;
+}
+
+.form-actions .nk-btn {
+  min-height: 50px;
+  border-radius: 999px;
+  padding: 0 23px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.form-actions .nk-btn-primary {
+  border: 0;
+  background: var(--quiz-wine);
+  box-shadow: 0 15px 32px rgba(143, 41, 64, 0.18);
+}
+
+.form-actions .nk-btn-primary:hover {
+  background: var(--quiz-wine-dark);
+  transform: translateY(-1px);
+}
+
+.form-actions .nk-btn-ghost {
+  border-color: var(--quiz-line);
+  background: transparent;
+  color: #6b625d;
+}
+
+.privacy-panel {
+  position: sticky;
+  top: 94px;
+  background: #2a2422;
+  padding: 28px;
+  color: #fff;
+}
+
+.privacy-icon {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 1rem;
+}
+
+.privacy-panel h3 {
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.75rem;
+  font-weight: 500;
+}
+
+.privacy-panel > p {
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.85rem;
+}
+
+.privacy-list div {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.privacy-list span {
+  background: rgba(69, 111, 94, 0.2);
+  color: #cfe4da;
+}
+
+.privacy-list p {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+}
+
+/* Entrada suave, sem exagero */
+.quiz-copy,
+.approved-card,
+.form-card,
+.privacy-panel {
+  animation: quiz-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.approved-card,
+.privacy-panel {
+  animation-delay: 70ms;
+}
+
+@keyframes quiz-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .quiz-layout,
+  .form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .quiz-points {
+    grid-template-columns: 1fr;
+  }
+
+  .quiz-points div {
+    min-height: 62px;
+  }
+
+  .approved-card {
+    max-width: 620px;
+  }
+
+  .privacy-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 680px) {
+  .nk-header-inner {
+    min-height: 64px;
+  }
+
+  .nk-logo {
+    font-size: 0.78rem;
+  }
+
+  .nk-logo span {
+    width: 34px;
+    height: 34px;
+  }
+
+  .quiz-hero {
+    padding: 35px 0 39px;
+  }
+
+  .quiz-copy h1 {
+    max-width: 370px;
+    font-size: clamp(2.6rem, 12vw, 3.7rem);
+  }
+
+  .quiz-copy > p {
+    font-size: 0.9rem;
+  }
+
+  .approved-card {
+    padding: 22px;
+    border-radius: 23px;
+  }
+
+  .form-section {
+    padding: 30px 0 54px;
+  }
+
+  .form-card,
+  .privacy-panel {
+    border-radius: 22px;
+  }
+
+  .form-card {
+    padding: 20px 17px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-group.full {
+    grid-column: auto;
+  }
+
+  .form-actions {
+    gap: 9px;
+  }
+
+  .form-actions .nk-btn {
+    width: 100%;
+  }
+
+  /* Durante o onboarding, a navegação inferior antiga só distrai. */
+  .nk-bottom-nav {
+    display: none !important;
+  }
+
+  body {
+    padding-bottom: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-copy,
+  .approved-card,
+  .form-card,
+  .privacy-panel {
+    animation: none;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea,
+  .form-actions .nk-btn {
+    transition: none;
+  }
+}

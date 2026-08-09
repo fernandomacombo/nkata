@@ -17,13 +17,32 @@ db.sqlite3-journal
 
 # Media/uploads
 media/
+private_media/
 
 # Static collected files
 staticfiles/
 
-# Secrets
+# Frontend dependencies and builds
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Keep lockfiles for reproducible installs
+!package-lock.json
+!frontend/package-lock.json
+
+# Secrets and local HTTPS development material
 .env
 *.env
+frontend/.env.https
+.dev-certs/
 
 # OS/editor
 .DS_Store

@@ -1,0 +1,343 @@
+/* A seguir — lista privada com comportamento mobile de aplicação. */
+
+.nk-following-panel {
+  margin-top: 24px;
+  border: 1px solid rgba(54, 42, 39, 0.1);
+  border-radius: 24px;
+  background: #fffdf9;
+  padding: 22px;
+  box-shadow: 0 18px 48px rgba(42, 28, 25, 0.07);
+}
+
+.nk-following-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.nk-following-panel__header > div:first-child > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #7d2638;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nk-following-panel__header h2 {
+  margin: 6px 0 4px;
+  color: #2e2422;
+  font-size: clamp(1.35rem, 2.2vw, 1.8rem);
+}
+
+.nk-following-panel__header p {
+  margin: 0;
+  color: #786762;
+  font-size: 0.9rem;
+}
+
+.nk-following-panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nk-following-panel__private {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: #f4eee8;
+  padding: 8px 11px;
+  color: #685854;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.nk-following-panel__header-actions > button {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(54, 42, 39, 0.11);
+  border-radius: 50%;
+  background: white;
+  color: #4c3d39;
+  cursor: pointer;
+}
+
+.nk-following-panel__people {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.nk-following-person {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(54, 42, 39, 0.1);
+  border-radius: 18px;
+  background: #fbf7f2;
+}
+
+.nk-following-person__identity {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nk-following-person__photo {
+  position: relative;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  overflow: visible;
+  border-radius: 50%;
+  background: #eee5de;
+  color: #7d2638;
+}
+
+.nk-following-person__photo img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.nk-following-person__photo em {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 2px solid #fbf7f2;
+  border-radius: 50%;
+  background: #7d2638;
+  color: white;
+}
+
+.nk-following-person__copy {
+  min-width: 0;
+}
+
+.nk-following-person__copy strong,
+.nk-following-person__copy small,
+.nk-following-person__copy > span {
+  display: block;
+}
+
+.nk-following-person__copy strong {
+  overflow: hidden;
+  color: #302523;
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-following-person__copy small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  color: #786762;
+  font-size: 0.72rem;
+}
+
+.nk-following-person__copy > span {
+  overflow: hidden;
+  margin-top: 5px;
+  color: #8b7974;
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-following-person__remove {
+  display: flex;
+  width: calc(100% - 20px);
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0 10px 10px;
+  border: 1px solid rgba(125, 38, 56, 0.14);
+  border-radius: 12px;
+  background: transparent;
+  color: #7d2638;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.nk-following-panel__empty,
+.nk-following-panel__loading {
+  display: flex;
+  min-height: 120px;
+  align-items: center;
+  gap: 14px;
+  border-radius: 18px;
+  background: #f8f3ed;
+  padding: 18px;
+  color: #675753;
+}
+
+.nk-following-panel__empty > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: white;
+  color: #7d2638;
+}
+
+.nk-following-panel__empty strong,
+.nk-following-panel__empty p {
+  display: block;
+}
+
+.nk-following-panel__empty p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+}
+
+.nk-following-panel__empty button,
+.nk-following-panel__moments {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 12px;
+  background: #7d2638;
+  padding: 0 14px;
+  color: white;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.nk-following-panel__empty button {
+  margin-left: auto;
+}
+
+.nk-following-panel__moments {
+  margin-top: 14px;
+}
+
+.nk-following-panel__error {
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: #fff0ef;
+  padding: 10px 12px;
+  color: #8d2e3d;
+  font-size: 0.78rem;
+}
+
+.nk-following-panel .is-spinning {
+  animation: nk-following-spin 900ms linear infinite;
+}
+
+@keyframes nk-following-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 820px) {
+  .nk-following-panel {
+    margin: 14px calc(var(--nk-app-gutter) * -1) 0;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 18px var(--nk-app-gutter) 20px;
+  }
+
+  .nk-following-panel__header {
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .nk-following-panel__header p {
+    max-width: 30ch;
+    font-size: 0.78rem;
+  }
+
+  .nk-following-panel__private {
+    display: none;
+  }
+
+  .nk-following-panel__header-actions > button {
+    width: var(--nk-app-touch);
+    height: var(--nk-app-touch);
+  }
+
+  .nk-following-panel__people {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 2px var(--nk-app-gutter) 8px 0;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .nk-following-panel__people::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nk-following-person {
+    width: min(78vw, 286px);
+    flex: 0 0 min(78vw, 286px);
+    scroll-snap-align: start;
+    border-radius: 20px;
+  }
+
+  .nk-following-person__identity {
+    min-height: 92px;
+  }
+
+  .nk-following-person__remove {
+    min-height: var(--nk-app-touch);
+  }
+
+  .nk-following-panel__empty {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+  }
+
+  .nk-following-panel__empty button {
+    width: 100%;
+    min-height: var(--nk-app-touch);
+    grid-column: 1 / -1;
+    margin-left: 0;
+  }
+
+  .nk-following-panel__moments {
+    width: 100%;
+    min-height: var(--nk-app-touch);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-following-panel .is-spinning {
+    animation: none;
+  }
+}
