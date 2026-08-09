@@ -17,9 +17,7 @@ def api_webrtc_readiness(request):
         "stun_configured": bool(stun_urls),
         "turn_configured": turn_configured,
         "mobile_relay_ready": turn_configured,
-        "message": (
-            "STUN e TURN estão configurados."
-            if turn_configured
-            else "STUN está disponível, mas TURN ainda não está configurado. Algumas redes móveis ou firewalls podem impedir a chamada."
-        ),
+        # Estado técnico apenas. A ausência de TURN não deve ser apresentada
+        # automaticamente como erro ao membro dentro da conversa.
+        "message": "STUN e TURN estão configurados." if turn_configured else "",
     })
