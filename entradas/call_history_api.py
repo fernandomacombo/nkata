@@ -5,6 +5,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .call_api import _expire_ringing_call
 from .call_models import ChamadaMatchNKATA
 from .models import MatchPerfil
 
@@ -89,6 +90,7 @@ def api_historico_chamadas_match(request, match_id):
             .filter(match=match)
             .order_by("-criada_em")[:MAX_CALL_HISTORY_ITEMS]
         )
+        calls = [_expire_ringing_call(call) for call in calls]
     except DatabaseError:
         return Response({
             "results": [],
