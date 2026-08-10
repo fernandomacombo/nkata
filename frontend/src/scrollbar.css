@@ -1,0 +1,63 @@
+/*
+ * NKATA — rolagem global discreta.
+ * Desktop mantém uma pista visual mínima; dispositivos táteis ocultam a barra
+ * sem bloquear wheel, teclado, touch ou rolagem programática.
+ */
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-color: rgba(125, 35, 57, 0.46) transparent;
+  scrollbar-width: thin;
+}
+
+* {
+  scrollbar-color: rgba(125, 35, 57, 0.4) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(125, 35, 57, 0.4);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(125, 35, 57, 0.66);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: rgba(125, 35, 57, 0.82);
+  background-clip: padding-box;
+}
+
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+  * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
