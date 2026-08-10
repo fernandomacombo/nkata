@@ -1,0 +1,346 @@
+/* NKATA — ficha de perfil premium e responsiva. */
+
+.nk-profile-detail {
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(125, 38, 56, 0.055), transparent 24rem),
+    radial-gradient(circle at 91% 18%, rgba(179, 148, 95, 0.08), transparent 22rem),
+    #f7f2ec;
+}
+
+.nk-profile-detail > .nk-shell {
+  width: min(100% - 40px, 1220px);
+}
+
+.nk-profile-detail__back {
+  min-height: 42px;
+  margin-bottom: 20px;
+  border-radius: 999px;
+  padding: 0 12px;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.nk-profile-detail__back:hover {
+  background: rgba(255, 253, 249, 0.82);
+  transform: translateX(-2px);
+}
+
+.nk-profile-detail__layout {
+  grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
+  gap: clamp(34px, 5vw, 68px);
+}
+
+.nk-profile-detail__media {
+  top: 96px;
+  width: 100%;
+  height: clamp(540px, calc(100dvh - 190px), 680px);
+  min-height: 0;
+  border: 7px solid rgba(255, 253, 249, 0.96);
+  border-radius: 38px;
+  box-shadow: 0 26px 70px rgba(48, 34, 29, 0.18);
+}
+
+.nk-profile-detail__media > img,
+.nk-profile-detail__fallback {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.nk-profile-detail__media > img {
+  object-position: center 18%;
+}
+
+.nk-profile-detail__media-shade {
+  background: linear-gradient(to top, rgba(25, 19, 18, 0.74), rgba(25, 19, 18, 0.08) 48%, transparent 70%);
+}
+
+.nk-profile-detail__verified {
+  top: 18px;
+  left: 18px;
+  background: rgba(35, 29, 28, 0.5);
+  box-shadow: 0 8px 24px rgba(25, 18, 17, 0.12);
+}
+
+.nk-profile-detail__media-copy {
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  background: rgba(35, 29, 28, 0.34);
+  padding: 16px 17px;
+  box-shadow: 0 12px 34px rgba(24, 17, 16, 0.15);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.nk-profile-detail__media-copy > span { margin-bottom: 6px; }
+.nk-profile-detail__media-copy strong { font-size: clamp(1.8rem, 3vw, 2.35rem); }
+
+.nk-profile-detail__content {
+  min-width: 0;
+  padding-top: 12px;
+}
+
+.nk-profile-detail__heading {
+  gap: 22px;
+  padding-bottom: 24px;
+}
+
+.nk-profile-detail__heading > div:first-child { min-width: 0; }
+
+.nk-profile-detail__heading h1 {
+  overflow-wrap: anywhere;
+  margin-top: 15px;
+  font-size: clamp(3rem, 5vw, 4.7rem);
+}
+
+.nk-profile-detail__quick-actions {
+  justify-content: flex-end;
+}
+
+.nk-profile-detail__save,
+.nk-profile-detail__share,
+.nk-profile-detail__quick-actions .nk-profile-follow {
+  min-height: 46px;
+  box-shadow: 0 8px 22px rgba(48, 34, 29, 0.055);
+}
+
+.nk-profile-detail__blocks {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.nk-profile-detail__block {
+  min-width: 0;
+  border: 1px solid rgba(57, 44, 40, 0.09);
+  border-radius: 20px;
+  background: rgba(255, 253, 249, 0.7);
+  padding: 19px 20px;
+}
+
+.nk-profile-detail__block:first-child { grid-column: 1 / -1; }
+
+.nk-profile-detail__block p {
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+  line-height: 1.68;
+}
+
+.nk-profile-detail__assurance {
+  margin-top: 14px;
+  border-radius: 20px;
+}
+
+.nk-profile-detail__actions .nk-button {
+  min-height: 48px;
+}
+
+@media (max-width: 1100px) {
+  .nk-profile-detail > .nk-shell { width: min(100% - 30px, 1040px); }
+
+  .nk-profile-detail__layout {
+    grid-template-columns: minmax(300px, 0.86fr) minmax(0, 1.14fr);
+    gap: 28px;
+  }
+
+  .nk-profile-detail__media {
+    height: clamp(510px, calc(100dvh - 175px), 620px);
+  }
+
+  .nk-profile-detail__heading {
+    display: grid;
+  }
+
+  .nk-profile-detail__heading h1 { font-size: clamp(2.7rem, 5vw, 3.8rem); }
+  .nk-profile-detail__quick-actions { justify-content: flex-start; }
+  .nk-profile-detail__blocks { grid-template-columns: 1fr; }
+  .nk-profile-detail__block:first-child { grid-column: auto; }
+}
+
+@media (min-width: 700px) and (max-width: 900px) {
+  .nk-profile-detail { padding-top: 16px; }
+
+  .nk-profile-detail__layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+    gap: 22px;
+  }
+
+  .nk-profile-detail__media {
+    position: sticky;
+    top: 86px;
+    height: min(520px, calc(100dvh - 150px));
+    border-radius: 30px;
+  }
+
+  .nk-profile-detail__content { padding: 6px 0 30px; }
+  .nk-profile-detail__heading h1 { font-size: clamp(2.4rem, 6vw, 3.2rem); }
+
+  .nk-profile-detail__quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nk-profile-detail__quick-actions .nk-profile-follow-wrap { grid-column: 1 / -1; }
+  .nk-profile-detail__save,
+  .nk-profile-detail__share,
+  .nk-profile-detail__quick-actions .nk-profile-follow { width: 100%; }
+}
+
+@media (max-width: 699px) {
+  .nk-profile-detail {
+    padding: 6px 0 calc(112px + env(safe-area-inset-bottom));
+  }
+
+  .nk-profile-detail > .nk-shell {
+    width: 100%;
+    padding-inline: 0;
+  }
+
+  .nk-profile-detail__back {
+    margin: 4px 14px 8px;
+    padding-inline: 7px 12px;
+  }
+
+  .nk-profile-detail__layout { display: block; }
+
+  .nk-profile-detail__media {
+    position: relative;
+    top: auto;
+    width: calc(100% - 20px);
+    height: clamp(360px, 50dvh, 460px);
+    margin-inline: auto;
+    border-width: 5px;
+    border-radius: 28px;
+    box-shadow: 0 18px 46px rgba(48, 34, 29, 0.16);
+  }
+
+  .nk-profile-detail__verified {
+    top: 14px;
+    left: 14px;
+    padding: 9px 11px;
+    font-size: 0.68rem;
+  }
+
+  .nk-profile-detail__media-copy {
+    right: 11px;
+    bottom: 11px;
+    left: 11px;
+    border-radius: 17px;
+    padding: 12px 13px;
+  }
+
+  .nk-profile-detail__media-copy > span {
+    margin-bottom: 4px;
+    font-size: 0.6rem;
+  }
+
+  .nk-profile-detail__media-copy strong { font-size: 1.7rem; }
+  .nk-profile-detail__media-copy small { margin-top: 4px; font-size: 0.75rem; }
+
+  .nk-profile-detail__content {
+    position: relative;
+    z-index: 2;
+    margin-top: -8px;
+    border-radius: 26px 26px 0 0;
+    background: #f7f2ec;
+    padding: 21px 14px 28px;
+  }
+
+  .nk-profile-detail__heading {
+    display: grid;
+    gap: 15px;
+    padding-bottom: 18px;
+  }
+
+  .nk-profile-detail__heading .nk-eyebrow { display: none; }
+
+  .nk-profile-detail__heading h1 {
+    margin: 0;
+    font-size: clamp(2rem, 10vw, 2.65rem);
+    line-height: 1;
+  }
+
+  .nk-profile-detail__heading p {
+    margin-top: 8px;
+    font-size: 0.82rem;
+  }
+
+  .nk-profile-detail__quick-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .nk-profile-detail__save,
+  .nk-profile-detail__share,
+  .nk-profile-detail__quick-actions .nk-profile-follow {
+    width: 100%;
+    min-width: 0;
+    min-height: 47px;
+    padding-inline: 10px;
+    font-size: 0.72rem;
+  }
+
+  .nk-profile-detail__quick-actions .nk-profile-follow-wrap {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .nk-profile-detail__blocks {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .nk-profile-detail__block,
+  .nk-profile-detail__block:first-child {
+    grid-column: auto;
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .nk-profile-detail__block > span { margin-bottom: 7px; font-size: 0.62rem; }
+  .nk-profile-detail__block p { font-size: 0.88rem; line-height: 1.62; }
+
+  .nk-profile-detail__assurance {
+    gap: 12px;
+    margin-top: 10px;
+    padding: 15px;
+  }
+
+  .nk-profile-detail__assurance > span {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+    border-radius: 12px;
+  }
+
+  .nk-profile-detail__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .nk-profile-detail__actions .nk-button { width: 100%; }
+}
+
+@media (max-width: 390px) {
+  .nk-profile-detail__media {
+    width: calc(100% - 14px);
+    height: clamp(345px, 48dvh, 420px);
+    border-radius: 24px;
+  }
+
+  .nk-profile-detail__content { padding-inline: 12px; }
+  .nk-profile-detail__quick-actions { grid-template-columns: 1fr; }
+  .nk-profile-detail__quick-actions .nk-profile-follow-wrap { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-profile-detail__back { transition: none; }
+}

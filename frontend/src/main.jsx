@@ -58,6 +58,7 @@ import "./chat-realtime.css";
 import "./call-webrtc.css";
 import "./call-mobile-layout.css";
 import "./call-history.css";
+import "./profile-detail-premium.css";
 import "./admin-panel.css";
 import "./scrollbar.css";
 import "./mobile-app-contract.css";

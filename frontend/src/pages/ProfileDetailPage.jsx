@@ -256,7 +256,7 @@ export default function ProfileDetailPage({
             </span>
             <div className="nk-profile-detail__media-copy">
               <span>{profile.objetivo_display}</span>
-              <strong>{profile.nome_publico}</strong>
+              <strong>{profile.nome_publico}{profile.idade ? `, ${profile.idade}` : ""}</strong>
               <small><MapPin size={14} /> {profile.cidade}</small>
             </div>
           </aside>
