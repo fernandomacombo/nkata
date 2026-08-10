@@ -100,6 +100,11 @@ class AdminPanelApiTests(TestCase):
         self.assertEqual(members.status_code, 200)
         self.assertEqual(members.data["total"], 1)
         self.assertEqual(members.data["results"][0]["name"], "Membro")
+        self.assertEqual(members.data["results"][0]["gender_label"], "Feminino")
+        self.assertEqual(
+            members.data["results"][0]["objective_label"],
+            "Relacionamento sério",
+        )
 
     def test_staff_can_pause_member(self):
         self.client.force_authenticate(self.staff)

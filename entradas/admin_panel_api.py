@@ -160,6 +160,8 @@ def _member_rows(request, limit):
             "phone": profile.pedido.telefone,
             "city": profile.cidade,
             "age": profile.idade,
+            "gender_label": profile.get_genero_display(),
+            "objective_label": profile.get_objetivo_display(),
             "status": profile.status,
             "status_label": profile.get_status_display(),
             "visible": profile.visivel,

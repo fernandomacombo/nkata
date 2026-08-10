@@ -129,6 +129,117 @@ function StatusBadge({ status, label }) {
   return <span className={`nk-admin-status is-${statusTone(status)}`}>{label || status || "—"}</span>;
 }
 
+function yesNo(value) {
+  return value ? "Sim" : "Não";
+}
+
+function detailRowsFor(section, item) {
+  if (section === "access") {
+    return [
+      ["Estado", item.status_label], ["Recebido", formatDate(item.created_at)],
+      ["Email", item.email], ["Telefone", item.phone],
+      ["Cidade", item.city], ["Idade", `${item.age} anos`],
+      ["Género", item.gender_label], ["Objetivo", item.objective_label],
+      ["Aceitou verificação", yesNo(item.accepted_verification)],
+      ["Questionário concluído", yesNo(item.has_questionnaire)],
+      ["Perfil criado", yesNo(item.has_profile)], ["Senha definida", yesNo(item.has_password)],
+      ["Observação administrativa", item.note || "Sem observações.", true],
+    ];
+  }
+  if (section === "members") {
+    return [
+      ["Estado", item.status_label], ["Entrada", formatDate(item.created_at)],
+      ["Email", item.email], ["Telefone", item.phone],
+      ["Cidade", item.city], ["Idade", `${item.age} anos`],
+      ["Género", item.gender_label], ["Objetivo", item.objective_label],
+      ["Perfil visível", yesNo(item.visible)], ["Identidade verificada", yesNo(item.verified)],
+      ["Conta ativa", yesNo(item.account_active)], ["Denúncias pendentes", item.pending_reports || "Nenhuma"],
+    ];
+  }
+  if (section === "content") {
+    return [
+      ["Autor", item.author], ["Publicado", formatDate(item.created_at)],
+      ["Conteúdo", item.content_label], ["Formato", item.media_type],
+      ["Visibilidade", item.visibility_label], ["Estado", item.status_label],
+      ["Risco", item.risk_label], ["Análise automática", item.analysis_status || "Não realizada"],
+      ["Texto", item.text || "Sem texto.", true],
+      ["Nota de moderação", item.moderation_note || "Sem observações.", true],
+    ];
+  }
+  if (section === "reports") {
+    return [
+      ["Tipo", item.report_label], ["Estado", item.status_label || item.status],
+      ["Alvo", item.target], ["Denunciante", item.reporter],
+      ["Motivo", item.reason], ["Recebida", formatDate(item.created_at)],
+      ["Detalhes", item.details || "Sem detalhes adicionais.", true],
+    ];
+  }
+  if (section === "operations" && item.operation_type === "CALL") {
+    return [
+      ["Participantes", item.title, true], ["Tipo", item.detail],
+      ["Estado", item.status_label], ["Iniciada por", item.initiator],
+      ["Ligação estabelecida", yesNo(item.connected)],
+      ["Duração", item.connected ? formatDuration(item.duration_seconds) : "Não aplicável"],
+      ["Iniciada", formatDate(item.created_at)], ["Atendida", formatDate(item.answered_at)],
+      ["Terminada", formatDate(item.ended_at)],
+    ];
+  }
+  if (section === "operations") {
+    return [
+      ["Participantes", item.title, true], ["Origem", item.detail],
+      ["Estado", item.status_label], ["Criado", formatDate(item.created_at)],
+      ["Última atualização", formatDate(item.updated_at)],
+    ];
+  }
+  if (section === "audit") {
+    return [
+      ["Objeto", item.title, true], ["Tipo de objeto", item.object_type],
+      ["Ação", item.status_label], ["Operador", item.operator],
+      ["Data e hora", formatDate(item.created_at)],
+      ["Descrição", item.detail || "Ação administrativa registada.", true],
+    ];
+  }
+  return [];
+}
+
+function DetailsDialog({ pending, onClose }) {
+  if (!pending) return null;
+  const { section, item } = pending;
+  const sectionLabel = SECTIONS.find((entry) => entry.id === section)?.label || "Detalhes";
+  const title = item.name || item.author || item.target || item.title || sectionLabel;
+  return (
+    <div className="nk-admin-dialog-layer" role="presentation">
+      <button type="button" className="nk-admin-dialog-backdrop" onClick={onClose} aria-label="Fechar" />
+      <section className="nk-admin-dialog nk-admin-details" role="dialog" aria-modal="true" aria-labelledby="admin-details-title">
+        <header>
+          <span><FileCheck2 size={22} /></span>
+          <button type="button" onClick={onClose} aria-label="Fechar"><X size={19} /></button>
+        </header>
+        <div>
+          <small>Ficha administrativa · {sectionLabel}</small>
+          <h2 id="admin-details-title">{title}</h2>
+          <dl className="nk-admin-details__grid">
+            {detailRowsFor(section, item).map(([label, value, wide]) => (
+              <div className={wide ? "is-wide" : ""} key={label}>
+                <dt>{label}</dt>
+                <dd>{value ?? "—"}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <footer>
+          {item.admin_url && (
+            <a className="nk-admin-button is-quiet" href={item.admin_url} target="_blank" rel="noreferrer">
+              <ExternalLink size={16} /> Abrir ficha técnica
+            </a>
+          )}
+          <button type="button" className="nk-admin-button is-primary" onClick={onClose}>Fechar</button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 function EmptyState({ loading, error, onRetry }) {
   if (loading) {
     return (
@@ -359,7 +470,7 @@ function actionsFor(section, item) {
   return [];
 }
 
-function AdminRow({ section, item, onAction, onCopyQuestionnaire }) {
+function AdminRow({ section, item, onAction, onCopyQuestionnaire, onDetails }) {
   const actions = actionsFor(section, item);
   const title = item.name || item.author || item.target || item.title;
   const subtitle = section === "access"
@@ -427,11 +538,9 @@ function AdminRow({ section, item, onAction, onCopyQuestionnaire }) {
             </button>
           );
         })}
-        {item.admin_url && (
-          <a href={item.admin_url} target="_blank" rel="noreferrer" title="Abrir ficha técnica">
-            <ExternalLink size={16} /><span>Detalhes</span>
-          </a>
-        )}
+        <button type="button" onClick={() => onDetails({ section, item })} title="Ver detalhes">
+          <ExternalLink size={16} /><span>Detalhes</span>
+        </button>
       </div>
     </article>
   );
@@ -448,6 +557,7 @@ export default function AdminPanelPage({ session }) {
   const [draftQuery, setDraftQuery] = useState("");
   const [filters, setFilters] = useState({ query: "", status: "", kind: "" });
   const [pendingAction, setPendingAction] = useState(null);
+  const [selectedDetails, setSelectedDetails] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -653,6 +763,7 @@ export default function AdminPanelPage({ session }) {
                         item={item}
                         onAction={openAction}
                         onCopyQuestionnaire={copyQuestionnaire}
+                        onDetails={setSelectedDetails}
                       />
                     ))
                     : <EmptyState loading={listLoading} error={listError} onRetry={() => loadList()} />}
@@ -664,6 +775,7 @@ export default function AdminPanelPage({ session }) {
       </div>
 
       {toast && <div className="nk-admin-toast" role="status"><CheckCircle2 size={18} />{toast}</div>}
+      <DetailsDialog pending={selectedDetails} onClose={() => setSelectedDetails(null)} />
       <ActionDialog pending={pendingAction} busy={actionBusy} onClose={() => !actionBusy && setPendingAction(null)} onConfirm={confirmAction} />
     </main>
   );
