@@ -113,6 +113,18 @@ class AdminPanelApiTests(TestCase):
         self.assertEqual(self.profile.status, "PAUSADO")
         self.assertFalse(self.profile.visivel)
 
+        audit = self.client.get(
+            reverse("entradas_api:admin_list"),
+            {"section": "audit", "status": "ALTERACAO"},
+        )
+        self.assertEqual(audit.status_code, 200)
+        self.assertEqual(audit.data["total"], 1)
+        entry = audit.data["results"][0]
+        self.assertEqual(entry["operation_type"], "AUDIT")
+        self.assertEqual(entry["status"], "ALTERACAO")
+        self.assertEqual(entry["operator"], self.staff.email)
+        self.assertIn("Membro pausado", entry["detail"])
+
     def test_staff_can_approve_access_request(self):
         pending = create_request("candidato@nkata.test", status="PENDENTE")
         self.client.force_authenticate(self.staff)

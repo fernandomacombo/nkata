@@ -12,6 +12,7 @@ import {
   ExternalLink,
   FileCheck2,
   HeartHandshake,
+  History,
   Image,
   LayoutDashboard,
   Loader2,
@@ -41,6 +42,7 @@ const SECTIONS = [
   { id: "content", label: "Moderação", description: "Publicações e momentos", icon: ShieldCheck },
   { id: "reports", label: "Denúncias", description: "Segurança da comunidade", icon: ShieldAlert },
   { id: "operations", label: "Operações", description: "Matches e chamadas", icon: Activity },
+  { id: "audit", label: "Auditoria", description: "Histórico administrativo", icon: History },
 ];
 
 const FILTERS = {
@@ -61,6 +63,10 @@ const FILTERS = {
   operations: [
     ["", "Todos os estados"], ["ATIVA", "Ativa"], ["TERMINADA", "Terminada"],
     ["PERDIDA", "Não atendida"], ["FALHOU", "Falhou"],
+  ],
+  audit: [
+    ["", "Todas as ações"], ["CRIACAO", "Criações"],
+    ["ALTERACAO", "Alterações"], ["REMOCAO", "Remoções"],
   ],
 };
 
@@ -113,8 +119,8 @@ async function copyText(value) {
 
 function statusTone(status = "") {
   const value = String(status).toUpperCase();
-  if (["ATIVO", "ATIVA", "APROVADO", "TERMINADA", "ANALISADA", "BAIXO"].includes(value)) return "positive";
-  if (["BLOQUEADO", "REJEITADO", "FALHOU", "CRITICO", "ALTO"].includes(value)) return "danger";
+  if (["ATIVO", "ATIVA", "APROVADO", "TERMINADA", "ANALISADA", "BAIXO", "CRIACAO"].includes(value)) return "positive";
+  if (["BLOQUEADO", "REJEITADO", "FALHOU", "CRITICO", "ALTO", "REMOCAO"].includes(value)) return "danger";
   if (["PENDENTE", "EM_ANALISE", "CHAMANDO", "CONECTANDO", "MEDIO"].includes(value)) return "warning";
   return "neutral";
 }
@@ -298,6 +304,9 @@ function MediaThumb({ item }) {
   if (item.operation_type === "MATCH") {
     return <span className="nk-admin-thumb is-operation"><HeartHandshake size={20} /></span>;
   }
+  if (item.operation_type === "AUDIT") {
+    return <span className="nk-admin-thumb is-operation"><History size={20} /></span>;
+  }
   if (!item.photo_url && !item.media_url) {
     return <span className="nk-admin-thumb is-empty"><Image size={19} /></span>;
   }
@@ -361,6 +370,8 @@ function AdminRow({ section, item, onAction, onCopyQuestionnaire }) {
         ? `${item.content_label} · ${item.media_type}`
         : section === "reports"
           ? `${item.report_label} · ${item.reason}`
+          : section === "audit"
+            ? item.object_type
           : item.detail;
   const status = item.status;
   const statusLabel = item.status_label || (status === "ANALISADA" ? "Analisada" : status === "PENDENTE" ? "Pendente" : status);
@@ -372,6 +383,7 @@ function AdminRow({ section, item, onAction, onCopyQuestionnaire }) {
         <span>{subtitle}</span>
         {section === "content" && item.text && <p>{item.text}</p>}
         {section === "reports" && item.details && <p>{item.details}</p>}
+        {section === "audit" && item.detail && <p>{item.detail}</p>}
       </div>
       <div className="nk-admin-row__meta">
         {section === "access" && <><span>{item.age} anos · {item.gender_label}</span><small>{item.has_questionnaire ? "Questionário concluído" : "Aguardando questionário"}</small></>}
@@ -388,7 +400,8 @@ function AdminRow({ section, item, onAction, onCopyQuestionnaire }) {
           </>
         )}
         {section === "operations" && item.operation_type === "MATCH" && <><span>{item.detail}</span><small>Atualizado {formatDate(item.updated_at)}</small></>}
-        {!['reports', 'operations'].includes(section) && <small>{formatDate(item.created_at)}</small>}
+        {section === "audit" && <><span>Por {item.operator}</span><small>{formatDate(item.created_at)}</small></>}
+        {!['reports', 'operations', 'audit'].includes(section) && <small>{formatDate(item.created_at)}</small>}
       </div>
       <div className="nk-admin-row__actions">
         {section === "access" && item.questionnaire_path && (

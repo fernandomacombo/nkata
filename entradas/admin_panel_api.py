@@ -32,6 +32,11 @@ CONTENT_TYPES = {
     "PUBLICACAO": PublicacaoNKATA,
     "MOMENTO": MomentoNKATA,
 }
+AUDIT_ACTIONS = {
+    1: ("CRIACAO", "Criação"),
+    2: ("ALTERACAO", "Alteração"),
+    3: ("REMOCAO", "Remoção"),
+}
 
 
 def _safe_limit(request):
@@ -376,6 +381,52 @@ def _admin_call_status(call):
     return call.estado, call.get_estado_display()
 
 
+def _audit_rows(request, limit):
+    query = str(request.query_params.get("q", "")).strip()
+    status_filter = str(request.query_params.get("status", "")).strip().upper()
+    queryset = LogEntry.objects.select_related("user", "content_type").filter(
+        content_type__app_label="entradas",
+    )
+    if query:
+        queryset = queryset.filter(
+            Q(user__username__icontains=query)
+            | Q(user__email__icontains=query)
+            | Q(object_repr__icontains=query)
+            | Q(change_message__icontains=query)
+            | Q(content_type__model__icontains=query)
+        )
+    flag_by_status = {
+        "CRIACAO": 1,
+        "ALTERACAO": 2,
+        "REMOCAO": 3,
+    }
+    if status_filter in flag_by_status:
+        queryset = queryset.filter(action_flag=flag_by_status[status_filter])
+
+    total = queryset.count()
+    results = []
+    for entry in queryset.order_by("-action_time")[:limit]:
+        status, status_label = AUDIT_ACTIONS.get(
+            entry.action_flag,
+            ("REGISTO", "Registo"),
+        )
+        operator = entry.user.get_full_name().strip()
+        if not operator:
+            operator = entry.user.email or entry.user.get_username()
+        results.append({
+            "id": entry.id,
+            "operation_type": "AUDIT",
+            "title": entry.object_repr,
+            "detail": entry.get_change_message() or "Ação administrativa registada.",
+            "object_type": str(entry.content_type.name).title(),
+            "operator": operator,
+            "status": status,
+            "status_label": status_label,
+            "created_at": entry.action_time,
+        })
+    return {"total": total, "results": results}
+
+
 def _operation_rows(request, limit):
     kind = str(request.query_params.get("kind", "CALLS")).strip().upper()
     status_filter = str(request.query_params.get("status", "")).strip().upper()
@@ -461,6 +512,7 @@ def api_admin_list(request):
         "content": _content_rows,
         "reports": _report_rows,
         "operations": _operation_rows,
+        "audit": _audit_rows,
     }
     handler = handlers.get(section)
     if not handler:
