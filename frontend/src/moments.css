@@ -6,7 +6,7 @@
 .nk-moments-page__intro {
   border-bottom: 1px solid var(--nk-line);
   background: rgba(255, 253, 249, 0.76);
-  padding: 44px 0 36px;
+  padding: 30px 0 26px;
 }
 
 .nk-moments-page__intro-inner {
@@ -17,9 +17,9 @@
 }
 
 .nk-moments-page__intro h1 {
-  margin: 12px 0 0;
+  margin: 0;
   font-family: "Playfair Display", Georgia, serif;
-  font-size: clamp(2.35rem, 5vw, 4.1rem);
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
   font-weight: 600;
   letter-spacing: -0.045em;
   line-height: 1;
@@ -27,7 +27,7 @@
 
 .nk-moments-page__intro p {
   max-width: 660px;
-  margin: 14px 0 0;
+  margin: 8px 0 0;
   color: var(--nk-muted);
   line-height: 1.65;
 }
@@ -47,7 +47,7 @@
 }
 
 .nk-moments-page__content {
-  padding-block: 28px 110px;
+  padding-block: 22px 110px;
 }
 
 .nk-moment-composer {
@@ -552,7 +552,7 @@
   }
 
   .nk-moments-page__intro {
-    padding: 22px 0 18px;
+    padding: 16px 0 14px;
   }
 
   .nk-moments-page__intro-inner {
@@ -561,11 +561,12 @@
   }
 
   .nk-moments-page__intro h1 {
-    font-size: clamp(2rem, 9vw, 2.65rem);
+    font-size: clamp(1.9rem, 8vw, 2.3rem);
   }
 
   .nk-moments-page__intro p {
-    font-size: 0.88rem;
+    margin-top: 5px;
+    font-size: 0.82rem;
   }
 
   .nk-moments-page__private {

@@ -70,17 +70,15 @@ export default function DiscoverPage({
               <ShieldCheck size={15} />
               Perfis verificados
             </span>
-            <h1>Encontre alguém que procura o mesmo que você.</h1>
-            <p>
-              Veja a cidade, a idade e o que cada pessoa procura antes de abrir o perfil.
-            </p>
+            <h1>Encontre pessoas compatíveis.</h1>
+            <p>Filtre por cidade, idade ou objetivo.</p>
           </div>
 
           <aside className="nk-discover__privacy">
             <LockKeyhole size={21} />
             <div>
-              <strong>Os seus contactos não aparecem aqui</strong>
-              <span>Telefone, email e documentos ficam fora da área pública.</span>
+              <strong>Contactos privados</strong>
+              <span>Telefone, email e documentos não são exibidos.</span>
             </div>
           </aside>
         </div>
@@ -107,7 +105,7 @@ export default function DiscoverPage({
           <div className="nk-api-notice" role="status">
             <div>
               <strong>Não foi possível atualizar os perfis</strong>
-              <span>Nenhum perfil fictício será mostrado. Tente atualizar novamente.</span>
+              <span>Tente novamente.</span>
             </div>
           </div>
         )}
@@ -117,10 +115,10 @@ export default function DiscoverPage({
             <strong>{filteredProfiles.length} {filteredProfiles.length === 1 ? "perfil" : "perfis"}</strong>
             <span>
               {usingDemoData && hasProfiles
-                ? "Ambiente de demonstração"
+                ? "Demonstração"
                 : hasProfiles
-                  ? "Perfis aprovados e disponíveis"
-                  : "Aguardando perfis aprovados"}
+                  ? "Perfis disponíveis"
+                  : "Sem perfis disponíveis"}
             </span>
           </div>
           <button type="button" onClick={onReload} disabled={loading}>
@@ -154,11 +152,8 @@ export default function DiscoverPage({
         ) : !hasProfiles ? (
           <div className="nk-empty-state nk-empty-state--community">
             <ShieldCheck size={28} />
-            <h2>A comunidade está a ser preparada</h2>
-            <p>
-              Ainda não existem perfis aprovados e visíveis. O NKATA não apresenta pessoas
-              fictícias como se fossem membros reais.
-            </p>
+            <h2>Ainda não há perfis</h2>
+            <p>Novos membros aparecerão aqui após aprovação.</p>
             <button type="button" onClick={() => window.location.assign("/pedir-acesso/")}>
               Pedir acesso
             </button>
@@ -166,11 +161,11 @@ export default function DiscoverPage({
         ) : (
           <div className="nk-empty-state">
             <ShieldCheck size={28} />
-            <h2>Nenhum perfil corresponde aos filtros</h2>
+            <h2>Nenhum resultado</h2>
             <p>
               {hasActiveFilters
-                ? "Tente outra cidade, faixa etária ou uma pesquisa mais simples."
-                : "Atualize a página para consultar novamente os perfis disponíveis."}
+                ? "Altere ou limpe os filtros."
+                : "Atualize para tentar novamente."}
             </p>
             <button type="button" onClick={hasActiveFilters ? clearFilters : onReload}>
               {hasActiveFilters ? "Limpar filtros" : "Atualizar perfis"}

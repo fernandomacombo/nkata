@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Bookmark, Clock3, Trash2 } from "lucide-react";
+import { Bookmark, Trash2 } from "lucide-react";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import { fetchSavedProfiles } from "../services/api.js";
 
@@ -56,8 +56,8 @@ export default function SavedProfilesPage({
             <Bookmark size={15} />
             A sua seleção
           </span>
-          <h1>Perfis que guardou</h1>
-          <p>Regresse a estes perfis quando desejar, sem precisar de procurar novamente.</p>
+          <h1>Guardados</h1>
+          <p>Perfis que escolheu rever.</p>
         </div>
       </section>
 
@@ -74,8 +74,8 @@ export default function SavedProfilesPage({
         ) : (
           <section className="nk-library__empty">
             <span><Bookmark size={27} /></span>
-            <h2>Ainda não guardou nenhum perfil</h2>
-            <p>Quando encontrar alguém que lhe interesse, toque no coração para guardar o perfil na sua conta.</p>
+            <h2>Nenhum perfil guardado</h2>
+            <p>Guarde um perfil para encontrá-lo aqui.</p>
             <button type="button" className="nk-button nk-button--wine" onClick={onDiscover}>
               Ver perfis
             </button>
@@ -86,9 +86,7 @@ export default function SavedProfilesPage({
           <section className="nk-library__section nk-library__recent">
             <div className="nk-section-heading">
               <div>
-                <span className="nk-library__recent-label"><Clock3 size={15} /> Vistos recentemente</span>
-                <h2>Perfis que abriu</h2>
-                <p>Uma forma rápida de continuar de onde parou.</p>
+                <h2>Vistos recentemente</h2>
               </div>
               <button type="button" className="nk-library__clear" onClick={onClearRecent}>
                 <Trash2 size={16} /> Limpar histórico

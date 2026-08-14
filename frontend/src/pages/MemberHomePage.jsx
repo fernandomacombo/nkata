@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
   ChevronDown,
@@ -400,12 +400,6 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
     }));
   };
 
-  const feedHeading = useMemo(() => (
-    publications.length
-      ? "Pessoas e momentos que podem fazer sentido para si."
-      : "O feed começa quando a comunidade publica."
-  ), [publications.length]);
-
   return (
     <main className="nk-member-home">
       <section className="nk-member-home__topbar">
@@ -456,7 +450,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
               <div className="nk-feed-composer__body">
                 <div className="nk-feed-composer__policy">
                   <ShieldCheck size={17} />
-                  <span>Sem texto livre. Fotos e vídeos passam por moderação antes de aparecer no feed.</span>
+                  <span>Conteúdo revisto antes de publicar.</span>
                 </div>
 
                 {previewUrl ? (
@@ -523,8 +517,8 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
               <div className="nk-feed-composer__locked-copy">
                 <LockKeyhole size={22} />
                 <div>
-                  <strong>Publicações com media fazem parte dos planos pagos.</strong>
-                  <p>Pode ver, reagir, seguir e demonstrar interesse no plano Livre. Para publicar fotografia ou vídeo, use Essencial ou Premium.</p>
+                  <strong>Publicar exige um plano pago.</strong>
+                  <p>Essencial e Premium permitem fotos e vídeos.</p>
                 </div>
                 <button type="button" onClick={() => onNavigate("account")}>Ver planos</button>
               </div>
@@ -537,8 +531,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           {reviewItems.length > 0 && (
             <section className="nk-feed-review-list">
               <header>
-                <strong>As suas publicações em revisão</strong>
-                <small>Conteúdo pendente não aparece para outros membros.</small>
+                <strong>Em análise</strong>
               </header>
               <div>
                 {reviewItems.map((publication) => (
@@ -555,7 +548,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           <div className="nk-member-home__feed-heading">
             <div>
               <span>Para si</span>
-              <h2>{feedHeading}</h2>
+              <h2>Publicações</h2>
             </div>
           </div>
 
@@ -580,8 +573,8 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           ) : (
             <div className="nk-feed-empty">
               <span><ImagePlus size={28} /></span>
-              <h2>Ainda não há publicações aprovadas.</h2>
-              <p>O NKATA não preenche o feed com conteúdo fictício. As publicações aparecem depois da moderação.</p>
+              <h2>Nenhuma publicação</h2>
+              <p>Novas publicações aparecerão aqui após aprovação.</p>
               <button type="button" onClick={() => onNavigate("discover")}>
                 <UserRound size={17} /> Explorar perfis
               </button>
@@ -593,15 +586,15 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           <article>
             <ShieldCheck size={19} />
             <div>
-              <strong>Feed sem comentários</strong>
-              <p>As interações públicas ficam limitadas a reações, seguir e interesse.</p>
+              <strong>Sem comentários públicos</strong>
+              <p>Use reações, seguir e interesse.</p>
             </div>
           </article>
           <article>
             <UsersRound size={19} />
             <div>
-              <strong>Prioridade às suas ligações</strong>
-              <p>Pessoas que segue aparecem antes no feed, sem alterar as regras de privacidade.</p>
+              <strong>Ligações primeiro</strong>
+              <p>Perfis que segue aparecem antes.</p>
             </div>
           </article>
         </aside>

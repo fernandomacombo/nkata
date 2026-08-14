@@ -131,8 +131,8 @@ export default function MatchesPage({
               <HeartHandshake size={15} />
               Matches
             </span>
-            <h1>O interesse é dos dois lados.</h1>
-            <p>As conversas aparecem aqui quando duas pessoas demonstram interesse.</p>
+            <h1>Os seus matches</h1>
+            <p>Converse quando o interesse for mútuo.</p>
           </div>
 
           <button type="button" className="nk-matches__refresh" onClick={onReload} disabled={loading}>
@@ -172,8 +172,8 @@ export default function MatchesPage({
         ) : (
           <div className="nk-matches__empty">
             <span><HeartHandshake size={30} /></span>
-            <h2>Ainda não há matches</h2>
-            <p>Quando o interesse for mútuo, a pessoa aparecerá aqui e poderão conversar.</p>
+            <h2>Nenhum match</h2>
+            <p>Novos matches aparecerão aqui.</p>
             <button type="button" className="nk-button nk-button--wine" onClick={onDiscover}>
               Ver perfis
             </button>

@@ -274,10 +274,10 @@ export default function AccountPage({
           <div>
             <span className="nk-eyebrow nk-eyebrow--dark">
               <UserRound size={15} />
-              A sua conta
+              Conta e privacidade
             </span>
-            <h1>O seu espaço no NKATA.</h1>
-            <p>Atualize a apresentação, escolha quando o perfil fica visível e acompanhe as suas ligações.</p>
+            <h1>A sua conta</h1>
+            <p>Perfil, privacidade e segurança.</p>
           </div>
 
           <div className="nk-account__intro-actions">
@@ -403,7 +403,7 @@ export default function AccountPage({
             <div className="nk-account-form__heading">
               <div>
                 <h2>Editar perfil</h2>
-                <p>Escreva de forma simples e verdadeira. Estas informações serão vistas por outros membros.</p>
+                <p>Estas informações aparecem no seu perfil.</p>
               </div>
               <button type="submit" className="nk-button nk-button--wine" disabled={saving}>
                 <Save size={17} />
@@ -501,7 +501,6 @@ export default function AccountPage({
             <div className="nk-account-interests__heading">
               <div>
                 <h2>Interesses enviados</h2>
-                <p>Perfis em que demonstrou interesse.</p>
               </div>
               <span>{interests.length}</span>
             </div>
@@ -525,7 +524,7 @@ export default function AccountPage({
               <span><LockKeyhole size={19} /></span>
               <div>
                 <h2>Segurança da conta</h2>
-                <p>A palavra-passe e os documentos de verificação não são apresentados no perfil.</p>
+                <p>Palavra-passe e documentos são privados.</p>
               </div>
             </div>
 

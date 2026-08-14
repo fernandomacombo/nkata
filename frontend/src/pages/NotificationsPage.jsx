@@ -106,10 +106,10 @@ export default function NotificationsPage({
         <div className="nk-shell nk-notifications-page__intro-inner">
           <div>
             <span className="nk-eyebrow nk-eyebrow--dark">
-              <Bell size={15} /> Aconteceu por aqui
+              <Bell size={15} /> Atualizações
             </span>
-            <h1>As suas notificações</h1>
-            <p>Veja com calma os novos sinais, reações, interesses, matches e mensagens.</p>
+            <h1>Notificações</h1>
+            <p>Sinais, interesses, matches e mensagens.</p>
           </div>
 
           <div className="nk-notifications-page__intro-actions">
@@ -174,11 +174,11 @@ export default function NotificationsPage({
         ) : (
           <div className="nk-notifications-page__empty">
             <span><Bell size={28} /></span>
-            <h2>{filter === "unread" ? "Está tudo visto" : "Está tranquilo por aqui"}</h2>
+            <h2>{filter === "unread" ? "Tudo visto" : "Nenhuma notificação"}</h2>
             <p>
               {filter === "unread"
-                ? "Não ficou nenhuma novidade por abrir."
-                : "Quando alguém enviar um sinal, reagir, demonstrar interesse, surgir um match ou chegar uma mensagem, verá aqui."}
+                ? "Não há notificações por ler."
+                : "As novidades aparecerão aqui."}
             </p>
           </div>
         )}

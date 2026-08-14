@@ -203,7 +203,7 @@ function ReviewItem({ moment, onDelete }) {
         <strong>{pending ? "Em análise" : "Não aprovado"}</strong>
         <p>
           {pending
-            ? "Só você e a equipa NKATA conseguem ver este ficheiro. As 24 horas ainda não começaram."
+            ? "Visível apenas para si. As 24 horas começam após aprovação."
             : (moment.moderation_note || "Este conteúdo não foi aprovado para publicação.")}
         </p>
       </div>
@@ -345,11 +345,9 @@ export default function MomentsPage({ onOpenProfile }) {
       <section className="nk-moments-page__intro">
         <div className="nk-shell nk-moments-page__intro-inner">
           <div>
-            <span className="nk-eyebrow nk-eyebrow--dark"><Play size={15} /> Momentos</span>
-            <h1>Partilhe um pouco do seu dia.</h1>
-            <p>Sem contactos ou anúncios. Fotografias e vídeos são revistos antes de aparecerem na comunidade.</p>
+            <h1>Momentos</h1>
+            <p>Partilhe fotos, vídeos ou frases por 24 horas.</p>
           </div>
-          <span className="nk-moments-page__private"><ShieldCheck size={17} /> Apenas membros NKATA</span>
         </div>
       </section>
 
@@ -366,13 +364,13 @@ export default function MomentsPage({ onOpenProfile }) {
           <div className="nk-moment-composer__safety-note">
             <ShieldCheck size={18} />
             <div>
-              <strong>Sem texto livre</strong>
-              <span>Escolha apenas uma frase NKATA. Telefone, WhatsApp, links, anúncios e ofertas de serviços não entram nos Momentos.</span>
+              <strong>Use uma frase NKATA</strong>
+              <span>Sem contactos, links ou anúncios.</span>
             </div>
           </div>
 
           <label className="nk-moment-composer__caption">
-            <span>Frase do Momento</span>
+            <span>Frase</span>
             <select value={caption} onChange={(event) => setCaption(event.target.value)}>
               {captionOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -386,7 +384,7 @@ export default function MomentsPage({ onOpenProfile }) {
                 ? <video src={mediaPreview} controls playsInline />
                 : <img src={mediaPreview} alt="Pré-visualização" />}
               <button type="button" onClick={clearMedia} aria-label="Remover ficheiro"><X size={17} /></button>
-              <span><ShieldCheck size={14} /> Será revisto antes de publicar</span>
+              <span><ShieldCheck size={14} /> Em análise antes de publicar</span>
             </div>
           )}
 
@@ -430,8 +428,8 @@ export default function MomentsPage({ onOpenProfile }) {
 
           <small className="nk-moment-composer__counter">
             {media
-              ? "Foto/vídeo: as 24h começam somente após aprovação."
-              : "Frases NKATA aprovadas: publicação imediata por 24h."}
+              ? "Disponível por 24 horas após aprovação."
+              : "Disponível por 24 horas."}
           </small>
         </form>
 
@@ -441,10 +439,7 @@ export default function MomentsPage({ onOpenProfile }) {
         {reviewItems.length > 0 && (
           <section className="nk-moment-review">
             <div className="nk-moment-review__heading">
-              <div>
-                <h2>Os seus envios em revisão</h2>
-                <p>Conteúdo pendente não aparece para outras pessoas.</p>
-              </div>
+              <h2>Em análise</h2>
               <span>{reviewItems.length}</span>
             </div>
             <div className="nk-moment-review__list">
@@ -456,10 +451,7 @@ export default function MomentsPage({ onOpenProfile }) {
         )}
 
         <div className="nk-moments-page__heading">
-          <div>
-            <h2>Momentos recentes</h2>
-            <p>Sem comentários públicos. Apenas conteúdo aprovado e ainda dentro das 24 horas.</p>
-          </div>
+          <h2>Recentes</h2>
           <button type="button" onClick={() => load()} disabled={loading}>
             <RefreshCw size={16} className={loading ? "is-spinning" : ""} /> Atualizar
           </button>
@@ -489,8 +481,8 @@ export default function MomentsPage({ onOpenProfile }) {
         ) : (
           <div className="nk-moments-page__empty">
             <Clock3 size={27} />
-            <h2>Ainda não há Momentos ativos</h2>
-            <p>Os conteúdos aparecem aqui depois de aprovados e desaparecem após 24 horas.</p>
+            <h2>Nenhum Momento ativo</h2>
+            <p>Publique o primeiro.</p>
           </div>
         )}
       </section>

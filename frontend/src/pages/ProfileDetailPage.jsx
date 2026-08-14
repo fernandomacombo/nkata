@@ -306,7 +306,7 @@ export default function ProfileDetailPage({
               <span><LockKeyhole size={18} /></span>
               <div>
                 <strong>Telefone, email e documentos não são mostrados</strong>
-                <p>Os contactos só são partilhados quando existir autorização dos dois lados.</p>
+                <p>Os contactos exigem autorização dos dois lados.</p>
               </div>
             </div>
 
@@ -314,11 +314,11 @@ export default function ProfileDetailPage({
               <div className="nk-profile-signals__heading">
                 <div>
                   <span>Sinais NKATA</span>
-                  <h2>Um gesto simples, antes da conversa.</h2>
+                  <h2>Enviar um sinal</h2>
                   <p>
                     {authenticated && quota
-                      ? `${quota.plan_label}: ${quota.daily_limit} sinais por dia. A recarga só é usada depois desse limite.`
-                      : "Envie uma flor, um beijinho ou um olá sem abrir o chat."}
+                      ? `${quota.daily_limit} sinais diários no plano ${quota.plan_label}.`
+                      : "Mostre interesse sem iniciar uma conversa."}
                   </p>
                 </div>
                 {authenticated && quota && (
