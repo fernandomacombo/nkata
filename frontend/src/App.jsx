@@ -34,6 +34,12 @@ import {
 } from "./services/api.js";
 
 const AUTH_ONLY_PAGES = ["moments", "matches", "conversation", "notifications", "account", "admin"];
+const MOBILE_BACK_DESTINATIONS = {
+  saved: "discover",
+  notifications: "home",
+  admin: "home",
+};
+const MOBILE_BACK_SAFE_ORIGINS = ["home", "discover", "moments", "matches", "account"];
 
 export default function App() {
   const {
@@ -44,6 +50,7 @@ export default function App() {
   } = useAppRoute();
 
   const [previousPage, setPreviousPage] = useState("discover");
+  const [secondaryReturnPage, setSecondaryReturnPage] = useState("");
   const [returnPageAfterLogin, setReturnPageAfterLogin] = useState("home");
   const [profiles, setProfiles] = useState(demoProfiles);
   const [loading, setLoading] = useState(true);
@@ -382,6 +389,15 @@ export default function App() {
       return;
     }
 
+    if (MOBILE_BACK_DESTINATIONS[page]) {
+      const origin = activePage === "profile" ? previousPage : activePage;
+      setSecondaryReturnPage(
+        MOBILE_BACK_SAFE_ORIGINS.includes(origin)
+          ? origin
+          : MOBILE_BACK_DESTINATIONS[page],
+      );
+    }
+
     setActivePage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -653,6 +669,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleMobileBack = () => {
+    const destination = secondaryReturnPage || MOBILE_BACK_DESTINATIONS[activePage];
+    if (!destination) return;
+    setActivePage(destination);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const visiblePage = activePage === "profile" || activePage === "login"
     ? previousPage
     : activePage === "conversation"
@@ -674,6 +697,8 @@ export default function App() {
         sessionLoading={sessionLoading}
         onSignOut={handleSignOut}
         heroMode={activePage === "home" && !authenticated}
+        showMobileBack={Boolean(MOBILE_BACK_DESTINATIONS[activePage])}
+        onMobileBack={handleMobileBack}
       />
 
       {activePage === "home" && (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  ArrowLeft,
   Bell,
   Bookmark,
   CirclePlay,
@@ -28,6 +29,8 @@ export default function AppHeader({
   sessionLoading = false,
   onSignOut,
   heroMode = false,
+  showMobileBack = false,
+  onMobileBack,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const authenticated = Boolean(session?.authenticated);
@@ -72,6 +75,18 @@ export default function AppHeader({
   return (
     <header className={`nk-header ${heroMode ? "nk-header--hero" : ""}`}>
       <div className="nk-shell nk-header__inner">
+        {showMobileBack && (
+          <button
+            type="button"
+            className="nk-header__mobile-back"
+            onClick={onMobileBack}
+            aria-label="Voltar"
+          >
+            <ArrowLeft size={19} />
+            <span>Voltar</span>
+          </button>
+        )}
+
         <button
           type="button"
           className="nk-brand"
