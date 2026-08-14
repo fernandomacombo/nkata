@@ -181,6 +181,7 @@ def responder_questionario(request, token):
                     "o_que_nao_aceita": questionario.o_que_nao_aceita,
                     "status": "ATIVO",
                     "visivel": True,
+                    "foto_destaque_publico_aprovada": True,
                     "owner_session_key": request.session.session_key,
                 }
             )

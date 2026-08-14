@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Globe2,
   Heart,
   ImageUp,
   LockKeyhole,
@@ -151,6 +152,7 @@ export default function AccountPage({
   onReload,
   onSave,
   onToggleVisibility,
+  onTogglePublicPreview,
   onOpenProfile,
   onSignOut,
 }) {
@@ -366,6 +368,44 @@ export default function AccountPage({
               {account.visivel ? <EyeOff size={17} /> : <Eye size={17} />}
               {account.visivel ? "Ocultar perfil" : "Mostrar perfil"}
             </button>
+
+            <div className={`nk-account-card__public-preview ${account.destaque_publico ? "is-active" : ""}`}>
+              <div className="nk-account-card__public-preview-heading">
+                <span><Globe2 size={17} /></span>
+                <div>
+                  <strong>Apresentação pública</strong>
+                  <small>
+                    {account.destaque_publico
+                      ? "O seu cartão pode aparecer antes do login."
+                      : account.destaque_publico_elegivel
+                        ? "Autorize o seu cartão na página pública."
+                        : account.visivel
+                          ? "A fotografia aguarda aprovação."
+                          : "Primeiro torne o perfil visível."}
+                  </small>
+                </div>
+              </div>
+
+              <div className="nk-account-card__public-preview-meta">
+                <span>{account.destaque_publico_exibicoes} aparições</span>
+                <em>{account.destaque_publico ? "Ativo" : "Desligado"}</em>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onTogglePublicPreview(!account.destaque_publico)}
+                disabled={
+                  saving
+                  || (!account.destaque_publico && !account.destaque_publico_elegivel)
+                }
+                aria-pressed={account.destaque_publico}
+              >
+                {account.destaque_publico ? "Retirar da página pública" : "Permitir apresentação pública"}
+              </button>
+
+              {error && <small className="nk-account-card__public-preview-message is-error">{error}</small>}
+              {success && <small className="nk-account-card__public-preview-message is-success">{success}</small>}
+            </div>
           </article>
 
           <div className="nk-account__stats">

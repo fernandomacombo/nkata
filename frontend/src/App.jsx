@@ -658,6 +658,27 @@ export default function App() {
     }
   };
 
+  const handleTogglePublicPreview = async (enabled) => {
+    setAccountSaving(true);
+    setAccountError("");
+    setAccountSuccess("");
+
+    try {
+      const updated = await updateMyAccount({ destaque_publico: enabled });
+      setAccount(updated);
+      setAccountSuccess(
+        enabled
+          ? "O seu perfil pode aparecer na apresentação pública."
+          : "O seu perfil deixou a apresentação pública.",
+      );
+      window.setTimeout(() => setAccountSuccess(""), 3200);
+    } catch (error) {
+      setAccountError(error.message || "Não foi possível alterar a apresentação pública.");
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
   const handleBackFromProfile = () => {
     const destination = previousPage === "profile" ? "discover" : previousPage;
     setActivePage(destination || "discover");
@@ -825,6 +846,7 @@ export default function App() {
           onReload={() => loadAccount()}
           onSave={handleSaveAccount}
           onToggleVisibility={handleToggleVisibility}
+          onTogglePublicPreview={handleTogglePublicPreview}
           onOpenProfile={handleOpenProfile}
           onSignOut={handleSignOut}
         />

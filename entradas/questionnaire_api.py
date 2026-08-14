@@ -191,6 +191,7 @@ def api_questionario(request, token):
                     "o_que_nao_aceita": questionario.o_que_nao_aceita,
                     "status": "PAUSADO",
                     "visivel": False,
+                    "foto_destaque_publico_aprovada": True,
                 },
             )
 

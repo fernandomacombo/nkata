@@ -354,6 +354,7 @@ def api_atualizar_foto_perfil(request):
     except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
         return Response({"foto": ["Não foi possível preparar esta fotografia."]}, status=400)
 
+    public_preview_was_enabled = perfil.destaque_publico
     pedido = perfil.pedido
     foto_anterior = pedido.foto_perfil
     nome_anterior = foto_anterior.name if foto_anterior else ""
@@ -366,12 +367,24 @@ def api_atualizar_foto_perfil(request):
     if nome_anterior and nome_anterior != novo_nome and storage.exists(nome_anterior):
         storage.delete(nome_anterior)
 
+    perfil.destaque_publico = False
+    perfil.foto_destaque_publico_aprovada = False
+    perfil.save(update_fields=[
+        "destaque_publico",
+        "foto_destaque_publico_aprovada",
+        "atualizado_em",
+    ])
+
     serializer = MinhaContaSerializer(
         perfil,
         context={"request": request},
     )
     return Response({
-        "message": "Fotografia atualizada.",
+        "message": (
+            "Fotografia atualizada. A apresentação pública foi desligada até a nova foto ser aprovada."
+            if public_preview_was_enabled
+            else "Fotografia atualizada. A nova foto aguarda aprovação para apresentação pública."
+        ),
         "account": serializer.data,
     })
 

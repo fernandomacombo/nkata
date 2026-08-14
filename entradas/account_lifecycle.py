@@ -38,11 +38,13 @@ def manter_perfil_privado_ate_conta_ficar_pronta(sender, instance, **kwargs):
     """
     if instance.status == "BLOQUEADO":
         instance.visivel = False
+        instance.destaque_publico = False
         return
 
     if not perfil_pronto_para_publicar(instance):
         instance.status = "PAUSADO"
         instance.visivel = False
+        instance.destaque_publico = False
 
 
 @receiver(pre_save, sender=User)
@@ -102,4 +104,5 @@ def ocultar_perfil_quando_pedido_deixa_de_estar_aprovado(sender, instance, **kwa
     PerfilNKATA.objects.filter(pk=perfil.pk).update(
         status=novo_status,
         visivel=False,
+        destaque_publico=False,
     )

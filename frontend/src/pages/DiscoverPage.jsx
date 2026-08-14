@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   LockKeyhole,
+  MapPin,
   RefreshCw,
   ShieldCheck,
   UserRound,
@@ -9,8 +10,99 @@ import {
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import ProfileFilters from "../components/profiles/ProfileFilters.jsx";
+import { fetchPublicProfilePreviews } from "../services/api.js";
+
+function GuestPreviewCard({ profile, position, onOpen }) {
+  const isMain = position === "main";
+  const Tag = isMain && profile ? "button" : "article";
+  const className = `nk-guest-preview nk-guest-preview--${position} ${profile ? "has-profile" : ""}`;
+
+  return (
+    <Tag
+      className={className}
+      {...(isMain && profile
+        ? {
+            type: "button",
+            onClick: onOpen,
+            "aria-label": `Entrar para conhecer ${profile.nome_publico}`,
+          }
+        : { "aria-hidden": true })}
+    >
+      <UserRound
+        className={isMain ? "nk-guest-preview__person" : undefined}
+        size={isMain ? 104 : 72}
+        strokeWidth={isMain ? 0.9 : 1.05}
+      />
+
+      {profile?.foto_url && (
+        <img
+          src={profile.foto_url}
+          alt=""
+          onError={(event) => {
+            event.currentTarget.hidden = true;
+          }}
+        />
+      )}
+
+      {isMain ? (
+        <>
+          <span className="nk-guest-preview__lock"><LockKeyhole size={17} /></span>
+          <div className="nk-guest-preview__caption">
+            <span>{profile?.objetivo_display || "Apenas membros"}</span>
+            <strong>
+              {profile
+                ? `${profile.nome_publico}${profile.idade ? `, ${profile.idade}` : ""}`
+                : "Perfil protegido"}
+            </strong>
+            <small>
+              {profile ? <MapPin size={14} /> : <ShieldCheck size={14} />}
+              {profile?.cidade || "Verificação NKATA"}
+              {profile && <ShieldCheck className="nk-guest-preview__verified" size={14} />}
+            </small>
+          </div>
+        </>
+      ) : (
+        <LockKeyhole size={17} />
+      )}
+    </Tag>
+  );
+}
 
 function GuestProfilesExperience({ onRequireLogin }) {
+  const [profiles, setProfiles] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [rotationSeconds, setRotationSeconds] = useState(7);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPublicProfilePreviews({ signal: controller.signal })
+      .then((result) => {
+        setProfiles(result.profiles);
+        setRotationSeconds(result.rotationSeconds);
+        setActiveIndex(0);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setProfiles([]);
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (profiles.length < 2) return undefined;
+    const intervalId = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % profiles.length);
+    }, rotationSeconds * 1000);
+    return () => window.clearInterval(intervalId);
+  }, [profiles.length, rotationSeconds]);
+
+  const mainProfile = profiles[activeIndex] || null;
+  const leftProfile = profiles.length > 1
+    ? profiles[(activeIndex + 1) % profiles.length]
+    : null;
+  const rightProfile = profiles.length > 2
+    ? profiles[(activeIndex + 2) % profiles.length]
+    : null;
+
   return (
     <main className="nk-discover nk-guest-profiles">
       <CompactPageHeader title="Perfis" />
@@ -35,32 +127,21 @@ function GuestProfilesExperience({ onRequireLogin }) {
 
           <span className="nk-guest-profiles__privacy">
             <LockKeyhole size={15} />
-            Fotografias visíveis apenas para membros
+            Apenas perfis que autorizaram aparecem aqui
           </span>
         </div>
 
-        <div className="nk-guest-profiles__visual" aria-hidden="true">
+        <div className="nk-guest-profiles__visual">
           <div className="nk-guest-profiles__halo" />
 
-          <article className="nk-guest-preview nk-guest-preview--left">
-            <LockKeyhole size={17} />
-            <UserRound size={72} strokeWidth={1.05} />
-          </article>
-
-          <article className="nk-guest-preview nk-guest-preview--right">
-            <LockKeyhole size={17} />
-            <UserRound size={72} strokeWidth={1.05} />
-          </article>
-
-          <article className="nk-guest-preview nk-guest-preview--main">
-            <span className="nk-guest-preview__lock"><LockKeyhole size={17} /></span>
-            <UserRound className="nk-guest-preview__person" size={104} strokeWidth={0.9} />
-            <div className="nk-guest-preview__caption">
-              <span>Apenas membros</span>
-              <strong>Perfil protegido</strong>
-              <small><ShieldCheck size={14} /> Verificação NKATA</small>
-            </div>
-          </article>
+          <GuestPreviewCard profile={leftProfile} position="left" />
+          <GuestPreviewCard profile={rightProfile} position="right" />
+          <GuestPreviewCard
+            key={mainProfile?.id || "protected"}
+            profile={mainProfile}
+            position="main"
+            onOpen={onRequireLogin}
+          />
         </div>
       </section>
     </main>

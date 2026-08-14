@@ -336,6 +336,9 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
         "objetivo",
         "status",
         "visivel",
+        "destaque_publico",
+        "foto_destaque_publico_aprovada",
+        "destaque_publico_exibicoes",
         "usuario",
         "criado_em",
     )
@@ -343,6 +346,8 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
     list_filter = (
         "status",
         "visivel",
+        "destaque_publico",
+        "foto_destaque_publico_aprovada",
         "genero",
         "objetivo",
         "cidade",
@@ -362,6 +367,9 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
         "pedido",
         "usuario",
         "owner_session_key",
+        "destaque_publico_consentido_em",
+        "destaque_publico_exibicoes",
+        "destaque_publico_ultima_exibicao_em",
         "criado_em",
         "atualizado_em",
     )
@@ -370,12 +378,14 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
         "pausar_perfis",
         "reativar_perfis",
         "bloquear_perfis",
+        "aprovar_fotos_para_destaque_publico",
     ]
 
     def pausar_perfis(self, request, queryset):
         atualizados = queryset.exclude(status="BLOQUEADO").update(
             status="PAUSADO",
-            visivel=False
+            visivel=False,
+            destaque_publico=False,
         )
 
         self.message_user(
@@ -401,7 +411,8 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
     def bloquear_perfis(self, request, queryset):
         atualizados = queryset.update(
             status="BLOQUEADO",
-            visivel=False
+            visivel=False,
+            destaque_publico=False,
         )
 
         self.message_user(
@@ -410,6 +421,21 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
         )
 
     bloquear_perfis.short_description = "Bloquear perfis selecionados"
+
+    def aprovar_fotos_para_destaque_publico(self, request, queryset):
+        elegiveis = queryset.filter(
+            pedido__status="APROVADO",
+            status="ATIVO",
+        ).exclude(pedido__foto_perfil="")
+        atualizados = elegiveis.update(foto_destaque_publico_aprovada=True)
+        self.message_user(
+            request,
+            f"{atualizados} fotografia/fotografias aprovadas para apresentação pública.",
+        )
+
+    aprovar_fotos_para_destaque_publico.short_description = (
+        "Aprovar fotografia para apresentação pública"
+    )
 
 
 @admin.register(AcaoPerfil)

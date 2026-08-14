@@ -20,6 +20,7 @@ from . import (
     posts_api,
     profile_api,
     profile_media_api,
+    public_profile_api,
     questionnaire_api,
     saved_views,
     signal_views,
@@ -78,6 +79,16 @@ urlpatterns = [
         name="questionario_criar_senha",
     ),
     path("perfis/", profile_api.api_perfis, name="perfis"),
+    path(
+        "publico/perfis/",
+        public_profile_api.api_destaques_publicos,
+        name="destaques_publicos",
+    ),
+    path(
+        "publico/perfis/<int:perfil_id>/foto/",
+        profile_media_api.api_foto_destaque_publico,
+        name="foto_destaque_publico",
+    ),
     path("perfis/<int:perfil_id>/", profile_api.api_perfil_detalhe, name="perfil_detalhe"),
     path(
         "perfis/<int:perfil_id>/foto/",

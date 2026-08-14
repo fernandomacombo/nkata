@@ -65,6 +65,11 @@ function normalizeAccount(account) {
     membro_desde: account.membro_desde || account.criado_em || null,
     total_matches: Number(account.total_matches || 0),
     total_interesses_enviados: Number(account.total_interesses_enviados || 0),
+    destaque_publico: Boolean(account.destaque_publico),
+    destaque_publico_consentido_em: account.destaque_publico_consentido_em || null,
+    destaque_publico_exibicoes: Number(account.destaque_publico_exibicoes || 0),
+    foto_destaque_publico_aprovada: Boolean(account.foto_destaque_publico_aprovada),
+    destaque_publico_elegivel: Boolean(account.destaque_publico_elegivel),
   };
 }
 
@@ -243,6 +248,14 @@ export async function fetchProfiles({ signal } = {}) {
   const payload = await request("/api/perfis/", { signal });
   const results = Array.isArray(payload) ? payload : payload?.results || [];
   return results.map(normalizeProfile);
+}
+
+export async function fetchPublicProfilePreviews({ signal } = {}) {
+  const payload = await request("/api/publico/perfis/", { signal });
+  return {
+    profiles: (payload?.results || []).map(normalizeProfile).filter(Boolean),
+    rotationSeconds: Math.max(5, Number(payload?.rotation_seconds || 7)),
+  };
 }
 
 export async function fetchProfileDetail(profileId, { signal } = {}) {

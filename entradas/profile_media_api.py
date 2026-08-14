@@ -29,6 +29,14 @@ def profile_photo_url(perfil):
     return f"/api/perfis/{perfil.id}/foto/?v={stamp}"
 
 
+def public_profile_photo_url(perfil):
+    if not perfil or not perfil.foto_principal:
+        return None
+    version = getattr(perfil.pedido, "atualizado_em", None)
+    stamp = int(version.timestamp()) if version else 0
+    return f"/api/publico/perfis/{perfil.id}/foto/?v={stamp}"
+
+
 def _stream(field_file, *, private_cache=True):
     try:
         handle = field_file.open("rb")
@@ -91,6 +99,33 @@ def api_foto_perfil(request, perfil_id):
         {"detail": "Fotografia não encontrada."},
         status=404,
     )
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def api_foto_destaque_publico(request, perfil_id):
+    perfil = (
+        PerfilNKATA.objects
+        .select_related("pedido", "usuario")
+        .filter(
+            id=perfil_id,
+            status="ATIVO",
+            visivel=True,
+            destaque_publico=True,
+            foto_destaque_publico_aprovada=True,
+            pedido__status="APROVADO",
+            usuario__is_active=True,
+        )
+        .first()
+    )
+    if not perfil or not perfil.foto_principal:
+        return Response({"detail": "Fotografia não encontrada."}, status=404)
+
+    response = _stream(perfil.foto_principal, private_cache=False)
+    if not response:
+        return Response({"detail": "Fotografia não encontrada."}, status=404)
+    response["X-Robots-Tag"] = "noindex, noimageindex, noarchive"
+    return response
 
 
 @api_view(["GET"])

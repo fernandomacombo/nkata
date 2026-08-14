@@ -2,6 +2,7 @@ import re
 
 from django.db import DatabaseError
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework import serializers
 
 from .call_history_api import serialize_call_message
@@ -107,6 +108,7 @@ class MinhaContaSerializer(serializers.ModelSerializer):
     membro_desde = serializers.DateTimeField(source="criado_em", read_only=True)
     total_matches = serializers.SerializerMethodField()
     total_interesses_enviados = serializers.SerializerMethodField()
+    destaque_publico_elegivel = serializers.SerializerMethodField()
 
     class Meta:
         model = PerfilNKATA
@@ -126,6 +128,11 @@ class MinhaContaSerializer(serializers.ModelSerializer):
             "foto_principal",
             "status",
             "visivel",
+            "destaque_publico",
+            "destaque_publico_consentido_em",
+            "destaque_publico_exibicoes",
+            "foto_destaque_publico_aprovada",
+            "destaque_publico_elegivel",
             "membro_desde",
             "total_matches",
             "total_interesses_enviados",
@@ -137,6 +144,10 @@ class MinhaContaSerializer(serializers.ModelSerializer):
             "genero",
             "status",
             "foto_principal",
+            "destaque_publico_consentido_em",
+            "destaque_publico_exibicoes",
+            "foto_destaque_publico_aprovada",
+            "destaque_publico_elegivel",
             "membro_desde",
             "total_matches",
             "total_interesses_enviados",
@@ -149,6 +160,7 @@ class MinhaContaSerializer(serializers.ModelSerializer):
             "o_que_valoriza": {"required": False, "max_length": 1800},
             "o_que_nao_aceita": {"required": False, "max_length": 1800},
             "visivel": {"required": False},
+            "destaque_publico": {"required": False},
         }
 
     def get_foto_principal(self, obj):
@@ -164,6 +176,15 @@ class MinhaContaSerializer(serializers.ModelSerializer):
         if not obj.usuario_id:
             return 0
         return obj.usuario.acoes_feitas.filter(tipo="INTERESSE").count()
+
+    def get_destaque_publico_elegivel(self, obj):
+        return bool(
+            obj.status == "ATIVO"
+            and obj.visivel
+            and obj.foto_destaque_publico_aprovada
+            and obj.foto_principal
+            and getattr(obj.pedido, "status", "") == "APROVADO"
+        )
 
     def validate(self, attrs):
         text_fields = [
@@ -192,10 +213,38 @@ class MinhaContaSerializer(serializers.ModelSerializer):
             except serializers.ValidationError as error:
                 errors[field] = error.detail
 
+        next_visible = attrs.get("visivel", getattr(self.instance, "visivel", True))
+        if not next_visible:
+            attrs["destaque_publico"] = False
+
+        if attrs.get("destaque_publico"):
+            instance = self.instance
+            eligible = bool(
+                instance
+                and instance.status == "ATIVO"
+                and next_visible
+                and instance.foto_destaque_publico_aprovada
+                and instance.foto_principal
+                and getattr(instance.pedido, "status", "") == "APROVADO"
+            )
+            if not eligible:
+                errors["destaque_publico"] = (
+                    "A fotografia e o perfil precisam estar aprovados e visíveis."
+                )
+
         if errors:
             raise serializers.ValidationError(errors)
 
         return attrs
+
+    def update(self, instance, validated_data):
+        enabling_public_preview = bool(
+            validated_data.get("destaque_publico")
+            and not instance.destaque_publico
+        )
+        if enabling_public_preview:
+            validated_data["destaque_publico_consentido_em"] = timezone.now()
+        return super().update(instance, validated_data)
 
 
 class MensagemMatchSerializer(serializers.ModelSerializer):

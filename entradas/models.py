@@ -135,6 +135,15 @@ class PerfilNKATA(models.Model):
     o_que_nao_aceita = models.TextField()
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="ATIVO")
     visivel = models.BooleanField(default=True)
+    destaque_publico = models.BooleanField(default=False, db_index=True)
+    destaque_publico_consentido_em = models.DateTimeField(null=True, blank=True)
+    foto_destaque_publico_aprovada = models.BooleanField(default=False)
+    destaque_publico_exibicoes = models.PositiveBigIntegerField(default=0, editable=False)
+    destaque_publico_ultima_exibicao_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+    )
     owner_session_key = models.CharField(max_length=120, blank=True, db_index=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
