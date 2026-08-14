@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import AutoplayMomentViewer from "../components/moments/AutoplayMomentViewer.jsx";
+import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import { createMoment, deleteMoment, fetchMoments } from "../services/momentsApi.js";
 
 const FALLBACK_CAPTIONS = [
@@ -344,14 +345,7 @@ export default function MomentsPage({ onOpenProfile }) {
 
   return (
     <main className="nk-moments-page">
-      <section className="nk-moments-page__intro">
-        <div className="nk-shell nk-moments-page__intro-inner">
-          <div>
-            <h1>Momentos</h1>
-            <p>Partilhe fotos, vídeos ou frases por 24 horas.</p>
-          </div>
-        </div>
-      </section>
+      <CompactPageHeader title="Momentos" />
 
       <section className="nk-shell nk-moments-page__content">
         <form

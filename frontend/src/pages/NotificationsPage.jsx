@@ -11,6 +11,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
+import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 
 const iconByType = {
   INTERESSE: Heart,
@@ -102,29 +103,17 @@ export default function NotificationsPage({
 
   return (
     <main className="nk-notifications-page">
-      <section className="nk-notifications-page__intro">
-        <div className="nk-shell nk-notifications-page__intro-inner">
-          <div>
-            <span className="nk-eyebrow nk-eyebrow--dark">
-              <Bell size={15} /> Atualizações
-            </span>
-            <h1>Notificações</h1>
-            <p>Sinais, interesses, matches e mensagens.</p>
-          </div>
-
-          <div className="nk-notifications-page__intro-actions">
-            {unread > 0 && (
-              <button type="button" onClick={onMarkAll}>
-                <CheckCheck size={17} /> Já vi tudo
-              </button>
-            )}
-            <button type="button" onClick={onReload} disabled={loading}>
-              <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
-              Atualizar
-            </button>
-          </div>
-        </div>
-      </section>
+      <CompactPageHeader title="Notificações">
+        {unread > 0 && (
+          <button type="button" onClick={onMarkAll}>
+            <CheckCheck size={17} /> Marcar como lidas
+          </button>
+        )}
+        <button type="button" onClick={onReload} disabled={loading}>
+          <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
+          Atualizar
+        </button>
+      </CompactPageHeader>
 
       <section className="nk-shell nk-notifications-page__content">
         <div className="nk-notifications-page__toolbar">

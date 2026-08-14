@@ -60,7 +60,7 @@ export default function PlanPanel() {
     return (
       <section className="nk-plan-panel nk-plan-panel--loading">
         <LoaderCircle size={24} className="is-spinning" />
-        <div><strong>A preparar o seu plano…</strong><span>A confirmar limites e benefícios.</span></div>
+        <div><strong>A carregar o plano…</strong></div>
       </section>
     );
   }
@@ -89,14 +89,15 @@ export default function PlanPanel() {
   return (
     <section className="nk-plan-panel">
       <header className="nk-plan-panel__heading">
-        <div>
-          <span className="nk-eyebrow nk-eyebrow--dark"><WalletCards size={15} /> Plano e recargas</span>
-          <h2>O seu acesso ao NKATA</h2>
-          <p>O plano define limites e recursos. A recarga acrescenta sinais sem alterar o plano.</p>
-        </div>
-        <button type="button" className="nk-plan-panel__refresh" onClick={() => load()} disabled={loading}>
+        <h2>Plano</h2>
+        <button
+          type="button"
+          className="nk-plan-panel__refresh"
+          onClick={() => load()}
+          disabled={loading}
+          aria-label="Atualizar plano"
+        >
           <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
-          Atualizar
         </button>
       </header>
 
@@ -153,7 +154,7 @@ export default function PlanPanel() {
                 ))}
               </ul>
               <button type="button" disabled>
-                {active ? "Plano atual" : "Pagamento em preparação"}
+                {active ? "Atual" : "Em breve"}
               </button>
             </article>
           );
@@ -164,8 +165,8 @@ export default function PlanPanel() {
         <div className="nk-recharge-panel__copy">
           <span><Volume2 size={19} /></span>
           <div>
-            <strong>Precisa de mais sinais no mesmo dia?</strong>
-            <p>A recarga só começa a ser consumida depois de terminar a franquia diária do seu plano.</p>
+            <strong>Mais sinais</strong>
+            <p>Use recargas após o limite diário.</p>
           </div>
         </div>
         <div className="nk-recharge-panel__packs">
@@ -177,7 +178,7 @@ export default function PlanPanel() {
             </button>
           ))}
         </div>
-        <small>Os pagamentos ainda não estão ativos. Nesta fase, os pacotes servem para testar o motor de permissões.</small>
+        <small>Pagamentos ainda não disponíveis.</small>
       </div>
     </section>
   );

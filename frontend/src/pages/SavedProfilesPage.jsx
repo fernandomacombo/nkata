@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Bookmark, Trash2 } from "lucide-react";
+import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import { fetchSavedProfiles } from "../services/api.js";
 
@@ -11,7 +12,7 @@ function ProfileSection({ title, description, profiles, onOpenProfile, isSaved, 
       <div className="nk-section-heading">
         <div>
           <h2>{title}</h2>
-          <p>{description}</p>
+          {description && <p>{description}</p>}
         </div>
       </div>
 
@@ -50,22 +51,12 @@ export default function SavedProfilesPage({
 
   return (
     <main className="nk-library">
-      <section className="nk-library__intro">
-        <div className="nk-shell">
-          <span className="nk-eyebrow nk-eyebrow--dark">
-            <Bookmark size={15} />
-            A sua seleção
-          </span>
-          <h1>Guardados</h1>
-          <p>Perfis que escolheu rever.</p>
-        </div>
-      </section>
+      <CompactPageHeader title="Guardados" />
 
       <div className="nk-shell nk-library__content">
         {savedProfiles.length ? (
           <ProfileSection
-            title="Guardados"
-            description={`${savedProfiles.length} ${savedProfiles.length === 1 ? "perfil guardado" : "perfis guardados"}`}
+            title={`${savedProfiles.length} ${savedProfiles.length === 1 ? "perfil" : "perfis"}`}
             profiles={savedProfiles}
             onOpenProfile={onOpenProfile}
             isSaved={isSaved}

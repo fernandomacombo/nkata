@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
+import { RefreshCw, ShieldCheck } from "lucide-react";
+import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import ProfileFilters from "../components/profiles/ProfileFilters.jsx";
 
 export default function DiscoverPage({
   profiles,
   loading,
-  usingDemoData,
   loadError,
   onReload,
   onOpenProfile,
@@ -63,26 +63,7 @@ export default function DiscoverPage({
 
   return (
     <main className="nk-discover">
-      <section className="nk-discover__intro">
-        <div className="nk-shell nk-discover__intro-grid">
-          <div>
-            <span className="nk-eyebrow nk-eyebrow--dark">
-              <ShieldCheck size={15} />
-              Perfis verificados
-            </span>
-            <h1>Encontre pessoas compatíveis.</h1>
-            <p>Filtre por cidade, idade ou objetivo.</p>
-          </div>
-
-          <aside className="nk-discover__privacy">
-            <LockKeyhole size={21} />
-            <div>
-              <strong>Contactos privados</strong>
-              <span>Telefone, email e documentos não são exibidos.</span>
-            </div>
-          </aside>
-        </div>
-      </section>
+      <CompactPageHeader title="Perfis" />
 
       <section className="nk-shell nk-discover__content">
         <ProfileFilters
@@ -111,19 +92,9 @@ export default function DiscoverPage({
         )}
 
         <div className="nk-results-heading">
-          <div>
-            <strong>{filteredProfiles.length} {filteredProfiles.length === 1 ? "perfil" : "perfis"}</strong>
-            <span>
-              {usingDemoData && hasProfiles
-                ? "Demonstração"
-                : hasProfiles
-                  ? "Perfis disponíveis"
-                  : "Sem perfis disponíveis"}
-            </span>
-          </div>
-          <button type="button" onClick={onReload} disabled={loading}>
+          <strong>{filteredProfiles.length} {filteredProfiles.length === 1 ? "perfil" : "perfis"}</strong>
+          <button type="button" onClick={onReload} disabled={loading} aria-label="Atualizar perfis">
             <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
-            Atualizar
           </button>
         </div>
 

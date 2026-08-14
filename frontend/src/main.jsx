@@ -63,6 +63,7 @@ import "./profile-detail-premium.css";
 import "./admin-panel.css";
 import "./scrollbar.css";
 import "./mobile-session-actions.css";
+import "./compact-pages.css";
 import "./mobile-app-contract.css";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");

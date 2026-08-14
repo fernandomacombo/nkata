@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import PlanPanel from "../components/account/PlanPanel.jsx";
+import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import { API_BASE_URL, uploadMyProfilePhoto } from "../services/api.js";
 
 const objectiveOptions = [
@@ -154,6 +155,7 @@ export default function AccountPage({
   onSignOut,
 }) {
   const [form, setForm] = useState(emptyForm);
+  const [accountSection, setAccountSection] = useState("profile");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(null);
   const [pendingPhotoUrl, setPendingPhotoUrl] = useState("");
@@ -269,28 +271,15 @@ export default function AccountPage({
 
   return (
     <main className="nk-account">
-      <section className="nk-account__intro">
-        <div className="nk-shell nk-account__intro-inner">
-          <div>
-            <span className="nk-eyebrow nk-eyebrow--dark">
-              <UserRound size={15} />
-              Conta e privacidade
-            </span>
-            <h1>A sua conta</h1>
-            <p>Perfil, privacidade e segurança.</p>
-          </div>
-
-          <div className="nk-account__intro-actions">
-            <button type="button" className="nk-account__preview-button" onClick={() => setPreviewOpen(true)}>
-              <Eye size={17} /> Ver como aparece
-            </button>
-            <button type="button" className="nk-account__reload" onClick={onReload} disabled={loading}>
-              <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
-              Atualizar
-            </button>
-          </div>
-        </div>
-      </section>
+      <CompactPageHeader title="Conta">
+        <button type="button" className="nk-account__preview-button" onClick={() => setPreviewOpen(true)}>
+          <Eye size={17} /> Pré-visualizar
+        </button>
+        <button type="button" className="nk-account__reload" onClick={onReload} disabled={loading}>
+          <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
+          Atualizar
+        </button>
+      </CompactPageHeader>
 
       <section className="nk-shell nk-account__layout">
         <aside className="nk-account__sidebar">
@@ -399,7 +388,27 @@ export default function AccountPage({
         </aside>
 
         <div className="nk-account__main">
-          <form className="nk-account-form" onSubmit={handleSubmit}>
+          <nav className="nk-account-tabs" aria-label="Áreas da conta">
+            {[
+              ["profile", "Perfil"],
+              ["plan", "Plano"],
+              ["interests", "Interesses"],
+              ["security", "Segurança"],
+            ].map(([section, label]) => (
+              <button
+                type="button"
+                key={section}
+                className={accountSection === section ? "is-active" : ""}
+                onClick={() => setAccountSection(section)}
+                aria-current={accountSection === section ? "page" : undefined}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          {accountSection === "profile" && (
+            <form className="nk-account-form" onSubmit={handleSubmit}>
             <div className="nk-account-form__heading">
               <div>
                 <h2>Editar perfil</h2>
@@ -493,55 +502,60 @@ export default function AccountPage({
                 <small>Mínimo 12 caracteres · {form.o_que_nao_aceita.length}/1800</small>
               </label>
             </div>
-          </form>
+            </form>
+          )}
 
-          <PlanPanel />
+          {accountSection === "plan" && <PlanPanel />}
 
-          <section className="nk-account-interests">
-            <div className="nk-account-interests__heading">
+          {accountSection === "interests" && (
+            <section className="nk-account-interests">
+              <div className="nk-account-interests__heading">
+                <div>
+                  <h2>Interesses enviados</h2>
+                </div>
+                <span>{interests.length}</span>
+              </div>
+
+              {interests.length ? (
+                <div className="nk-account-interests__list">
+                  {interests.map((profile) => (
+                    <InterestItem key={profile.id} profile={profile} onOpen={onOpenProfile} />
+                  ))}
+                </div>
+              ) : (
+                <div className="nk-account-interests__empty">
+                  <Heart size={22} />
+                  <span>Nenhum interesse enviado.</span>
+                </div>
+              )}
+            </section>
+          )}
+
+          {accountSection === "security" && (
+            <section className="nk-account-security">
               <div>
-                <h2>Interesses enviados</h2>
+                <span><LockKeyhole size={19} /></span>
+                <div>
+                  <h2>Segurança</h2>
+                  <p>Palavra-passe e documentos são privados.</p>
+                </div>
               </div>
-              <span>{interests.length}</span>
-            </div>
 
-            {interests.length ? (
-              <div className="nk-account-interests__list">
-                {interests.map((profile) => (
-                  <InterestItem key={profile.id} profile={profile} onOpen={onOpenProfile} />
-                ))}
+              <div className="nk-account-security__actions">
+                <button
+                  type="button"
+                  onClick={() => window.location.assign(
+                    new URL("/minha-conta/alterar-senha/", API_BASE_URL).toString(),
+                  )}
+                >
+                  Alterar palavra-passe
+                </button>
+                <button type="button" className="is-danger" onClick={onSignOut}>
+                  <LogOut size={16} /> Terminar sessão
+                </button>
               </div>
-            ) : (
-              <div className="nk-account-interests__empty">
-                <Heart size={22} />
-                <span>Ainda não enviou nenhum interesse.</span>
-              </div>
-            )}
-          </section>
-
-          <section className="nk-account-security">
-            <div>
-              <span><LockKeyhole size={19} /></span>
-              <div>
-                <h2>Segurança da conta</h2>
-                <p>Palavra-passe e documentos são privados.</p>
-              </div>
-            </div>
-
-            <div className="nk-account-security__actions">
-              <button
-                type="button"
-                onClick={() => window.location.assign(
-                  new URL("/minha-conta/alterar-senha/", API_BASE_URL).toString(),
-                )}
-              >
-                Alterar palavra-passe
-              </button>
-              <button type="button" className="is-danger" onClick={onSignOut}>
-                <LogOut size={16} /> Terminar sessão
-              </button>
-            </div>
-          </section>
+            </section>
+          )}
         </div>
       </section>
 

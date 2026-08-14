@@ -1,4 +1,4 @@
-import { MapPin, Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 
 export default function ProfileFilters({
   query,
@@ -27,17 +27,6 @@ export default function ProfileFilters({
         />
       </label>
 
-      <label className="nk-select-field">
-        <MapPin size={17} />
-        <select value={city} onChange={(event) => onCityChange(event.target.value)}>
-          <option value="">Todas as cidades</option>
-          <option value="Maputo">Maputo</option>
-          <option value="Matola">Matola</option>
-          <option value="Beira">Beira</option>
-          <option value="Vilankulo">Vilankulo</option>
-        </select>
-      </label>
-
       <button
         type="button"
         className={`nk-filter-button ${showAdvanced ? "is-active" : ""}`}
@@ -45,11 +34,22 @@ export default function ProfileFilters({
         aria-expanded={showAdvanced}
       >
         <SlidersHorizontal size={17} />
-        Mais filtros
+        Filtros
       </button>
 
       {showAdvanced && (
         <div className="nk-filters__advanced">
+          <label>
+            <span>Cidade</span>
+            <select value={city} onChange={(event) => onCityChange(event.target.value)}>
+              <option value="">Todas as cidades</option>
+              <option value="Maputo">Maputo</option>
+              <option value="Matola">Matola</option>
+              <option value="Beira">Beira</option>
+              <option value="Vilankulo">Vilankulo</option>
+            </select>
+          </label>
+
           <label>
             <span>O que procura</span>
             <select value={objective} onChange={(event) => onObjectiveChange(event.target.value)}>

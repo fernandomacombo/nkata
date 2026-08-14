@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
   ChevronDown,
-  CirclePlay,
   Flower2,
   Heart,
   HeartHandshake,
@@ -12,7 +11,6 @@ import {
   MapPin,
   RefreshCw,
   Send,
-  ShieldCheck,
   Sparkles,
   Trash2,
   UserCheck,
@@ -21,6 +19,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import {
   createPublication,
   deletePublication,
@@ -308,11 +307,8 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
   const [media, setMedia] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [caption, setCaption] = useState("SEM_LEGENDA");
-  const [visibility, setVisibility] = useState("TODOS");
   const [publishing, setPublishing] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(
-    () => !window.matchMedia("(max-width: 820px)").matches,
-  );
+  const [composerOpen, setComposerOpen] = useState(false);
   const fileRef = useRef(null);
 
   const capabilities = data?.capabilities || null;
@@ -375,7 +371,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
     setError("");
     setStatus("");
     try {
-      const result = await createPublication({ media, caption, visibility });
+      const result = await createPublication({ media, caption, visibility: "TODOS" });
       setData((current) => ({
         ...(current || {}),
         review_items: [result.publication, ...(current?.review_items || [])],
@@ -383,6 +379,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
       }));
       clearMedia();
       setCaption("SEM_LEGENDA");
+      setComposerOpen(false);
       setStatus(result.message || "Publicação enviada para análise.");
       window.setTimeout(() => setStatus(""), 4200);
     } catch (requestError) {
@@ -402,23 +399,12 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
   return (
     <main className="nk-member-home">
-      <section className="nk-member-home__topbar">
-        <div className="nk-shell nk-member-home__topbar-inner">
-          <div>
-            <span><ShieldCheck size={15} /> Comunidade privada</span>
-            <h1>Início</h1>
-          </div>
-          <div>
-            <button type="button" onClick={() => onNavigate("moments")}>
-              <CirclePlay size={19} />
-              <span>Momentos</span>
-            </button>
-            <button type="button" onClick={() => load()} disabled={loading} aria-label="Atualizar feed">
-              <RefreshCw size={19} className={loading ? "is-spinning" : ""} />
-            </button>
-          </div>
-        </div>
-      </section>
+      <CompactPageHeader title="Início">
+        <button type="button" onClick={() => load()} disabled={loading} aria-label="Atualizar feed">
+          <RefreshCw size={19} className={loading ? "is-spinning" : ""} />
+          Atualizar
+        </button>
+      </CompactPageHeader>
 
       <section className="nk-shell nk-member-home__layout">
         <div className="nk-member-home__feed-column">
@@ -430,7 +416,6 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
               <span><ImagePlus size={20} /></span>
               <div>
                 <strong>Nova publicação</strong>
-                <small>{capabilities?.plan_label || "A confirmar o seu plano"}</small>
               </div>
               {!canPublish && <LockKeyhole size={18} />}
               {canPublish && (
@@ -448,11 +433,6 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
             {canPublish ? (
               <div className="nk-feed-composer__body">
-                <div className="nk-feed-composer__policy">
-                  <ShieldCheck size={17} />
-                  <span>Conteúdo revisto antes de publicar.</span>
-                </div>
-
                 {previewUrl ? (
                   <div className="nk-feed-composer__preview">
                     {media?.type?.startsWith("video/") ? (
@@ -472,8 +452,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   >
                     <ImagePlus size={22} />
                     <span>
-                      <strong>Escolher fotografia ou vídeo</strong>
-                      <small>Imagem até 10 MB · vídeo até 60 MB</small>
+                      <strong>Foto ou vídeo</strong>
                     </span>
                   </button>
                 )}
@@ -488,18 +467,11 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
                 <div className="nk-feed-composer__options">
                   <label>
-                    <span>Frase NKATA</span>
+                    <span className="sr-only">Frase</span>
                     <select value={caption} onChange={(event) => setCaption(event.target.value)}>
                       {captionOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Quem pode ver</span>
-                    <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
-                      <option value="TODOS">Todos os membros</option>
-                      <option value="MATCHES">Apenas matches</option>
                     </select>
                   </label>
                 </div>
@@ -510,7 +482,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   disabled={!media || publishing}
                 >
                   {publishing ? <LoaderCircle size={18} className="is-spinning" /> : <Send size={18} />}
-                  {publishing ? "A enviar" : "Enviar para análise"}
+                  {publishing ? "A publicar" : "Publicar"}
                 </button>
               </div>
             ) : (
@@ -547,7 +519,6 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
           <div className="nk-member-home__feed-heading">
             <div>
-              <span>Para si</span>
               <h2>Publicações</h2>
             </div>
           </div>
@@ -582,22 +553,6 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           )}
         </div>
 
-        <aside className="nk-member-home__aside">
-          <article>
-            <ShieldCheck size={19} />
-            <div>
-              <strong>Sem comentários públicos</strong>
-              <p>Use reações, seguir e interesse.</p>
-            </div>
-          </article>
-          <article>
-            <UsersRound size={19} />
-            <div>
-              <strong>Ligações primeiro</strong>
-              <p>Perfis que segue aparecem antes.</p>
-            </div>
-          </article>
-        </aside>
       </section>
     </main>
   );

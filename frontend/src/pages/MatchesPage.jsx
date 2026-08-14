@@ -11,6 +11,7 @@ import {
   UserRound,
   Video,
 } from "lucide-react";
+import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 
 function formatDate(value) {
   if (!value) return "";
@@ -124,23 +125,12 @@ export default function MatchesPage({
 }) {
   return (
     <main className="nk-matches">
-      <section className="nk-matches__intro">
-        <div className="nk-shell nk-matches__intro-inner">
-          <div>
-            <span className="nk-eyebrow nk-eyebrow--dark">
-              <HeartHandshake size={15} />
-              Matches
-            </span>
-            <h1>Os seus matches</h1>
-            <p>Converse quando o interesse for mútuo.</p>
-          </div>
-
-          <button type="button" className="nk-matches__refresh" onClick={onReload} disabled={loading}>
-            <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
-            Atualizar
-          </button>
-        </div>
-      </section>
+      <CompactPageHeader title="Matches">
+        <button type="button" className="nk-matches__refresh" onClick={onReload} disabled={loading}>
+          <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
+          Atualizar
+        </button>
+      </CompactPageHeader>
 
       <section className="nk-shell nk-matches__content">
         {error && (
