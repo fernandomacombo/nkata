@@ -180,6 +180,7 @@ export default function AppHeader({
                 className="nk-header__logout"
                 onClick={signOut}
                 aria-label="Terminar sessão"
+                title="Sair"
               >
                 <LogOut size={17} />
               </button>
@@ -190,8 +191,11 @@ export default function AppHeader({
               className="nk-header__login"
               onClick={() => navigate("login")}
               disabled={sessionLoading}
+              aria-label="Entrar"
+              title="Entrar"
             >
-              Entrar
+              <LogIn size={17} />
+              <span>Entrar</span>
             </button>
           )}
 
