@@ -26,6 +26,17 @@ function getCookie(name) {
 function normalizeProfile(profile) {
   if (!profile) return null;
 
+  const gallery = (profile.gallery || []).map((item) => ({
+    id: item.id,
+    mediaUrl: normalizeAppUrl(item.media_url || null),
+    mediaType: item.media_type || "IMAGEM",
+    caption: item.caption || "",
+    visibility: item.visibility || "TODOS",
+    createdAt: item.created_at || null,
+    isCover: Boolean(item.is_cover),
+    canBeCover: Boolean(item.can_be_cover),
+  }));
+
   return {
     id: profile.id,
     nome_publico: profile.nome_publico || profile.nome || "Perfil NKATA",
@@ -54,6 +65,28 @@ function normalizeProfile(profile) {
     status: profile.status || "",
     visivel: profile.visivel ?? true,
     criado_em: profile.criado_em || null,
+    cover_url: normalizeAppUrl(profile.cover_url || null),
+    gallery,
+    gallery_count: Number(profile.gallery_count ?? gallery.length),
+  };
+}
+
+function normalizeProfileGallery(payload) {
+  const source = payload?.gallery || payload || {};
+  return {
+    count: Number(source.count || 0),
+    coverPublicationId: source.cover_publication_id || null,
+    coverUrl: normalizeAppUrl(source.cover_url || null),
+    results: (source.results || []).map((item) => ({
+      id: item.id,
+      mediaUrl: normalizeAppUrl(item.media_url || null),
+      mediaType: item.media_type || "IMAGEM",
+      caption: item.caption || "",
+      visibility: item.visibility || "TODOS",
+      createdAt: item.created_at || null,
+      isCover: Boolean(item.is_cover),
+      canBeCover: Boolean(item.can_be_cover),
+    })),
   };
 }
 
@@ -316,6 +349,22 @@ export async function uploadMyProfilePhoto(file) {
   return {
     message: payload?.message || "Fotografia atualizada.",
     account: normalizeAccount(payload?.account),
+  };
+}
+
+export async function fetchMyProfileGallery({ signal } = {}) {
+  const payload = await request("/api/minha-conta/galeria/", { signal });
+  return normalizeProfileGallery(payload);
+}
+
+export async function updateMyProfileCover(publicationId) {
+  const payload = await request("/api/minha-conta/capa/", {
+    method: "PATCH",
+    body: { publication_id: publicationId || null },
+  });
+  return {
+    message: payload?.message || "Capa atualizada.",
+    gallery: normalizeProfileGallery(payload),
   };
 }
 

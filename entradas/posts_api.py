@@ -11,7 +11,7 @@ from rest_framework.response import Response
 
 from .content_moderation_queue import queue_content_media_analysis
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
-from .models import AcaoPerfil, MatchPerfil
+from .models import AcaoPerfil, MatchPerfil, PerfilNKATA
 from .plan_service import plan_for_user
 from .post_reaction_service import reaction_payload, toggle_reaction
 from .post_safety_models import OcultacaoPublicacaoNKATA
@@ -474,6 +474,9 @@ def api_apagar_publicacao(request, publicacao_id):
     media = publicacao.media
     storage = media.storage if media else None
     media_name = media.name if media else ""
+    PerfilNKATA.objects.filter(capa_publicacao_id=publicacao.id).update(
+        capa_publicacao_id=None,
+    )
     publicacao.delete()
     if storage and media_name:
         try:

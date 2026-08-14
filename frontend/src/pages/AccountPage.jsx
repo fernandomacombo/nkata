@@ -8,18 +8,25 @@ import {
   Globe2,
   Heart,
   ImageUp,
+  Images,
   LockKeyhole,
   LogOut,
   MapPin,
   RefreshCw,
   Save,
   ShieldCheck,
+  Play,
   UserRound,
   X,
 } from "lucide-react";
 import PlanPanel from "../components/account/PlanPanel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
-import { API_BASE_URL, uploadMyProfilePhoto } from "../services/api.js";
+import {
+  API_BASE_URL,
+  fetchMyProfileGallery,
+  updateMyProfileCover,
+  uploadMyProfilePhoto,
+} from "../services/api.js";
 
 const objectiveOptions = [
   { value: "RELACIONAMENTO_SERIO", label: "Relacionamento sério" },
@@ -139,6 +146,110 @@ function ProfilePreview({ account, form, imageUrl, onClose }) {
         </div>
       </section>
     </div>
+  );
+}
+
+function ProfileGalleryManager() {
+  const [gallery, setGallery] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    fetchMyProfileGallery({ signal: controller.signal })
+      .then(setGallery)
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") {
+          setError(requestError.message || "Não foi possível abrir a galeria.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const changeCover = async (publicationId) => {
+    setSavingId(publicationId || "remove");
+    setError("");
+    setMessage("");
+    try {
+      const result = await updateMyProfileCover(publicationId);
+      setGallery(result.gallery);
+      setMessage(result.message);
+      window.setTimeout(() => setMessage(""), 2600);
+    } catch (requestError) {
+      setError(requestError.message || "Não foi possível atualizar a capa.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <section className="nk-account-gallery">
+      <header>
+        <div>
+          <span><Images size={18} /></span>
+          <div>
+            <h2>Capa e galeria</h2>
+            <p>Conteúdo aprovado aparece automaticamente.</p>
+          </div>
+        </div>
+        {gallery?.coverPublicationId && (
+          <button
+            type="button"
+            onClick={() => changeCover(null)}
+            disabled={Boolean(savingId)}
+          >
+            Remover capa
+          </button>
+        )}
+      </header>
+
+      {loading ? (
+        <div className="nk-account-gallery__loading" aria-label="A carregar galeria">
+          <span /><span /><span />
+        </div>
+      ) : gallery?.results?.length ? (
+        <div className="nk-account-gallery__grid">
+          {gallery.results.map((item) => (
+            <article key={item.id} className={item.isCover ? "is-cover" : ""}>
+              {item.mediaType === "VIDEO" ? (
+                <>
+                  <video src={item.mediaUrl} muted playsInline preload="metadata" />
+                  <span className="nk-account-gallery__video"><Play size={17} fill="currentColor" /></span>
+                </>
+              ) : (
+                <img src={item.mediaUrl} alt="Publicação aprovada" loading="lazy" />
+              )}
+
+              {item.isCover ? (
+                <strong>Capa</strong>
+              ) : item.canBeCover ? (
+                <button
+                  type="button"
+                  onClick={() => changeCover(item.id)}
+                  disabled={Boolean(savingId)}
+                >
+                  {savingId === item.id ? "A guardar…" : "Usar como capa"}
+                </button>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="nk-account-gallery__empty">
+          <Images size={22} />
+          <span>As suas publicações aprovadas aparecerão aqui.</span>
+        </div>
+      )}
+
+      {message && <div className="nk-account-gallery__message is-success">{message}</div>}
+      {error && <div className="nk-account-gallery__message is-error">{error}</div>}
+    </section>
   );
 }
 
@@ -448,6 +559,7 @@ export default function AccountPage({
           </nav>
 
           {accountSection === "profile" && (
+            <>
             <form className="nk-account-form" onSubmit={handleSubmit}>
             <div className="nk-account-form__heading">
               <div>
@@ -543,6 +655,8 @@ export default function AccountPage({
               </label>
             </div>
             </form>
+            <ProfileGalleryManager />
+            </>
           )}
 
           {accountSection === "plan" && <PlanPanel />}

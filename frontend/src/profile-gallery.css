@@ -1,0 +1,406 @@
+/* Galeria do perfil: apenas publicações aprovadas e mídia servida pela API privada. */
+
+.nk-profile-detail__cover {
+  position: relative;
+  height: clamp(190px, 24vw, 280px);
+  overflow: hidden;
+  border: 6px solid rgba(255, 253, 249, 0.92);
+  border-radius: 34px;
+  background: linear-gradient(135deg, #cdbdaf, #7d5f63 56%, #405e57);
+  box-shadow: 0 22px 62px rgba(48, 34, 29, 0.15);
+}
+
+.nk-profile-detail__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nk-profile-detail__cover > div {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(31, 23, 22, 0.32));
+}
+
+.nk-profile-detail__layout.has-cover {
+  position: relative;
+  z-index: 2;
+}
+
+.nk-profile-detail__layout.has-cover .nk-profile-detail__media {
+  margin-top: -82px;
+}
+
+.nk-profile-gallery {
+  margin-top: 14px;
+  border: 1px solid rgba(57, 44, 40, 0.09);
+  border-radius: 22px;
+  background: rgba(255, 253, 249, 0.72);
+  padding: 18px;
+}
+
+.nk-profile-gallery > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.nk-profile-gallery > header > span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--nk-wine-soft);
+  color: var(--nk-wine);
+}
+
+.nk-profile-gallery h2,
+.nk-profile-gallery p {
+  margin: 0;
+}
+
+.nk-profile-gallery h2 {
+  color: var(--nk-ink);
+  font-size: 0.9rem;
+}
+
+.nk-profile-gallery p {
+  margin-top: 2px;
+  color: var(--nk-muted);
+  font-size: 0.67rem;
+}
+
+.nk-profile-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nk-profile-gallery__grid > button {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 15px;
+  background: #ded4cb;
+  color: white;
+  box-shadow: inset 0 0 0 1px rgba(35, 28, 26, 0.06);
+}
+
+.nk-profile-gallery__grid img,
+.nk-profile-gallery__grid video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 220ms ease;
+}
+
+.nk-profile-gallery__grid > button:hover img,
+.nk-profile-gallery__grid > button:hover video {
+  transform: scale(1.035);
+}
+
+.nk-profile-gallery__grid > button > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(28, 21, 20, 0.3);
+}
+
+.nk-profile-gallery__viewer {
+  position: fixed;
+  z-index: 520;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(19, 15, 14, 0.82);
+  padding: 22px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.nk-profile-gallery__viewer > section {
+  position: relative;
+  display: grid;
+  width: min(920px, 100%);
+  max-height: calc(100dvh - 44px);
+  place-items: center;
+}
+
+.nk-profile-gallery__viewer img,
+.nk-profile-gallery__viewer video {
+  max-width: 100%;
+  max-height: calc(100dvh - 44px);
+  border-radius: 22px;
+  background: #171312;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+}
+
+.nk-profile-gallery__viewer section > button {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  background: rgba(28, 21, 20, 0.58);
+  color: white;
+  backdrop-filter: blur(10px);
+}
+
+.nk-account-gallery {
+  border: 1px solid var(--nk-line);
+  border-radius: 30px;
+  background: rgba(255, 253, 249, 0.92);
+  padding: 24px;
+  box-shadow: var(--nk-shadow-sm);
+}
+
+.nk-account-gallery > header,
+.nk-account-gallery > header > div {
+  display: flex;
+  align-items: center;
+}
+
+.nk-account-gallery > header {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nk-account-gallery > header > div {
+  gap: 11px;
+}
+
+.nk-account-gallery > header > div > span {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--nk-wine-soft);
+  color: var(--nk-wine);
+}
+
+.nk-account-gallery h2,
+.nk-account-gallery p {
+  margin: 0;
+}
+
+.nk-account-gallery h2 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.nk-account-gallery p {
+  margin-top: 3px;
+  color: var(--nk-muted);
+  font-size: 0.72rem;
+}
+
+.nk-account-gallery > header > button {
+  min-height: 38px;
+  border: 1px solid var(--nk-line);
+  border-radius: 999px;
+  background: transparent;
+  padding: 0 13px;
+  color: var(--nk-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.nk-account-gallery__grid,
+.nk-account-gallery__loading {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.nk-account-gallery__grid article,
+.nk-account-gallery__loading span {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 17px;
+  background: #e4dad1;
+}
+
+.nk-account-gallery__loading span {
+  background: linear-gradient(90deg, #e8dfd7, #f8f3ed, #e8dfd7);
+  background-size: 220% 100%;
+  animation: nk-account-loading 1.2s linear infinite;
+}
+
+.nk-account-gallery__grid img,
+.nk-account-gallery__grid video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nk-account-gallery__grid article::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 54%;
+  background: linear-gradient(transparent, rgba(26, 20, 19, 0.6));
+  content: "";
+  pointer-events: none;
+}
+
+.nk-account-gallery__grid article.is-cover {
+  box-shadow: 0 0 0 3px rgba(125, 38, 56, 0.72);
+}
+
+.nk-account-gallery__grid article > button,
+.nk-account-gallery__grid article > strong,
+.nk-account-gallery__video {
+  position: absolute;
+  z-index: 2;
+}
+
+.nk-account-gallery__grid article > button,
+.nk-account-gallery__grid article > strong {
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  border-radius: 999px;
+  padding: 7px 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.nk-account-gallery__grid article > button {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 253, 249, 0.9);
+  color: var(--nk-wine);
+}
+
+.nk-account-gallery__grid article > strong {
+  background: var(--nk-wine);
+  color: white;
+}
+
+.nk-account-gallery__video {
+  top: 9px;
+  right: 9px;
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(28, 21, 20, 0.48);
+  color: white;
+}
+
+.nk-account-gallery__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  border: 1px dashed rgba(51, 42, 37, 0.15);
+  border-radius: 17px;
+  padding: 24px;
+  color: var(--nk-muted);
+  font-size: 0.76rem;
+}
+
+.nk-account-gallery__message {
+  margin-top: 12px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.nk-account-gallery__message.is-success {
+  background: rgba(63, 105, 89, 0.1);
+  color: var(--nk-success);
+}
+
+.nk-account-gallery__message.is-error {
+  background: #f8e7e9;
+  color: #8b2b3d;
+}
+
+@media (max-width: 699px) {
+  .nk-profile-detail__cover {
+    width: calc(100% - 20px);
+    height: 150px;
+    margin-inline: auto;
+    border-width: 4px;
+    border-radius: 24px;
+  }
+
+  .nk-profile-detail__layout.has-cover .nk-profile-detail__media {
+    margin-top: -34px;
+  }
+
+  .nk-profile-gallery {
+    border-radius: 18px;
+    padding: 14px;
+  }
+
+  .nk-profile-gallery__grid {
+    gap: 6px;
+  }
+
+  .nk-profile-gallery__grid > button {
+    border-radius: 12px;
+  }
+
+  .nk-profile-gallery__viewer {
+    padding: 10px;
+  }
+
+  .nk-profile-gallery__viewer img,
+  .nk-profile-gallery__viewer video {
+    max-height: calc(100dvh - 20px);
+    border-radius: 16px;
+  }
+
+  .nk-account-gallery {
+    border-radius: 24px;
+    padding: 18px;
+  }
+
+  .nk-account-gallery > header {
+    align-items: flex-start;
+  }
+
+  .nk-account-gallery__grid,
+  .nk-account-gallery__loading {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .nk-account-gallery__grid article {
+    border-radius: 13px;
+  }
+
+  .nk-account-gallery__grid article > button,
+  .nk-account-gallery__grid article > strong {
+    right: 5px;
+    bottom: 5px;
+    left: 5px;
+    padding: 6px 4px;
+    font-size: 0.55rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-profile-gallery__grid img,
+  .nk-profile-gallery__grid video {
+    transition: none;
+  }
+}

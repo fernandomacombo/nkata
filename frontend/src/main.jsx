@@ -61,6 +61,7 @@ import "./call-mobile-layout.css";
 import "./call-history.css";
 import "./matches-conversation-premium.css";
 import "./profile-detail-premium.css";
+import "./profile-gallery.css";
 import "./admin-panel.css";
 import "./scrollbar.css";
 import "./mobile-session-actions.css";

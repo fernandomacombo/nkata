@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import AcaoPerfil, PerfilNKATA
+from .profile_gallery_api import gallery_for_profile_viewer
 from .serializers import PerfilDetalheSerializer, PerfilResumoSerializer
 
 
@@ -123,6 +124,7 @@ def api_perfil_detalhe(request, perfil_id):
 
     serializer = PerfilDetalheSerializer(perfil, context={"request": request})
     data = dict(serializer.data)
+    data.update(gallery_for_profile_viewer(request, perfil))
 
     if request.user.is_authenticated:
         data["interesse_ativo"] = AcaoPerfil.objects.filter(

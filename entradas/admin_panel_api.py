@@ -589,6 +589,10 @@ def _action_content(request, object_id, action):
         decision = "APROVADO"
         message = "Conteúdo aprovado e disponibilizado."
     elif action in {"reject", "severe"}:
+        if content_type == "PUBLICACAO":
+            PerfilNKATA.objects.filter(capa_publicacao_id=item.id).update(
+                capa_publicacao_id=None,
+            )
         item.moderacao_status = "REJEITADO"
         item.moderacao_motivo = note or (
             "Conteúdo rejeitado por violação grave das regras da comunidade."
@@ -654,6 +658,9 @@ def _action_report(request, object_id, action):
         report.save(update_fields=["estado", "analisado_em"])
         if action in {"remove", "severe"}:
             publication = report.publicacao
+            PerfilNKATA.objects.filter(capa_publicacao_id=publication.id).update(
+                capa_publicacao_id=None,
+            )
             publication.moderacao_status = "REJEITADO"
             publication.moderacao_motivo = (
                 "Publicação retirada por violação grave após denúncia."

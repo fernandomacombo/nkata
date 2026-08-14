@@ -141,6 +141,9 @@ class PublicacaoNKATAAdmin(admin.ModelAdmin):
         record_human_decision("PUBLICACAO", publicacao.pk, "APROVADO")
 
     def _rejeitar(self, publicacao, grave=False):
+        PerfilNKATA.objects.filter(capa_publicacao_id=publicacao.id).update(
+            capa_publicacao_id=None,
+        )
         publicacao.moderacao_status = "REJEITADO"
         publicacao.moderacao_motivo = (
             "Conteúdo rejeitado por violação grave das regras da comunidade."
@@ -210,6 +213,9 @@ class PublicacaoNKATAAdmin(admin.ModelAdmin):
     @admin.action(description="Rejeitar Publicações selecionadas")
     def rejeitar_publicacoes(self, request, queryset):
         ids = list(queryset.values_list("id", flat=True))
+        PerfilNKATA.objects.filter(capa_publicacao_id__in=ids).update(
+            capa_publicacao_id=None,
+        )
         updated = queryset.update(
             moderacao_status="REJEITADO",
             moderacao_motivo=(
@@ -224,6 +230,9 @@ class PublicacaoNKATAAdmin(admin.ModelAdmin):
     @admin.action(description="Rejeitar e pausar perfil por violação grave")
     def rejeitar_e_pausar_perfis(self, request, queryset):
         ids = list(queryset.values_list("id", flat=True))
+        PerfilNKATA.objects.filter(capa_publicacao_id__in=ids).update(
+            capa_publicacao_id=None,
+        )
         profile_ids = list(queryset.values_list("perfil_id", flat=True).distinct())
         rejected = queryset.update(
             moderacao_status="REJEITADO",

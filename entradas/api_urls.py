@@ -19,6 +19,7 @@ from . import (
     post_safety_api,
     posts_api,
     profile_api,
+    profile_gallery_api,
     profile_media_api,
     public_profile_api,
     questionnaire_api,
@@ -182,6 +183,16 @@ urlpatterns = [
         "minha-conta/foto/",
         api_views.api_atualizar_foto_perfil,
         name="atualizar_foto_perfil",
+    ),
+    path(
+        "minha-conta/galeria/",
+        profile_gallery_api.api_minha_galeria,
+        name="minha_galeria",
+    ),
+    path(
+        "minha-conta/capa/",
+        profile_gallery_api.api_minha_capa,
+        name="minha_capa",
     ),
     path(
         "minha-conta/interesses/",

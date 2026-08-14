@@ -144,6 +144,11 @@ class PerfilNKATA(models.Model):
         blank=True,
         editable=False,
     )
+    capa_publicacao_id = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
     owner_session_key = models.CharField(max_length=120, blank=True, db_index=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)

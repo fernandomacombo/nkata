@@ -7,12 +7,15 @@ import {
   Flower2,
   Hand,
   Heart,
+  Images,
   LockKeyhole,
   MapPin,
+  Play,
   Share2,
   ShieldCheck,
   Sparkles,
   UserRound,
+  X,
 } from "lucide-react";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import { blockProfile, reportProfile } from "../services/api.js";
@@ -35,6 +38,64 @@ function DetailBlock({ title, children }) {
     <section className="nk-profile-detail__block">
       <span>{title}</span>
       <p>{children}</p>
+    </section>
+  );
+}
+
+function ProfileGallery({ items, personName }) {
+  const [selected, setSelected] = useState(null);
+  if (!items?.length) return null;
+
+  return (
+    <section className="nk-profile-gallery">
+      <header>
+        <span><Images size={17} /></span>
+        <div>
+          <h2>Galeria</h2>
+          <p>{items.length} {items.length === 1 ? "publicação" : "publicações"}</p>
+        </div>
+      </header>
+
+      <div className="nk-profile-gallery__grid">
+        {items.map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            onClick={() => setSelected(item)}
+            aria-label={`Abrir publicação de ${personName}`}
+          >
+            {item.mediaType === "VIDEO" ? (
+              <>
+                <video src={item.mediaUrl} muted playsInline preload="metadata" />
+                <span><Play size={20} fill="currentColor" /></span>
+              </>
+            ) : (
+              <img src={item.mediaUrl} alt="" loading="lazy" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {selected && (
+        <div
+          className="nk-profile-gallery__viewer"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelected(null);
+          }}
+        >
+          <section role="dialog" aria-modal="true" aria-label={`Publicação de ${personName}`}>
+            <button type="button" onClick={() => setSelected(null)} aria-label="Fechar publicação">
+              <X size={21} />
+            </button>
+            {selected.mediaType === "VIDEO" ? (
+              <video src={selected.mediaUrl} controls autoPlay playsInline />
+            ) : (
+              <img src={selected.mediaUrl} alt={`Publicação de ${personName}`} />
+            )}
+          </section>
+        </div>
+      )}
     </section>
   );
 }
@@ -234,7 +295,18 @@ export default function ProfileDetailPage({
           <ArrowLeft size={18} /> Voltar
         </button>
 
-        <div className="nk-profile-detail__layout">
+        {profile.cover_url && (
+          <div className="nk-profile-detail__cover" aria-hidden="true">
+            <img
+              src={profile.cover_url}
+              alt=""
+              onError={(event) => { event.currentTarget.hidden = true; }}
+            />
+            <div />
+          </div>
+        )}
+
+        <div className={`nk-profile-detail__layout ${profile.cover_url ? "has-cover" : ""}`}>
           <aside className="nk-profile-detail__media">
             {hasImage ? (
               <img
@@ -301,6 +373,8 @@ export default function ProfileDetailPage({
                 {profile.o_que_nao_aceita || "Ainda não foi preenchido."}
               </DetailBlock>
             </div>
+
+            <ProfileGallery items={profile.gallery} personName={profile.nome_publico} />
 
             <div className="nk-profile-detail__assurance">
               <span><LockKeyhole size={18} /></span>
