@@ -224,6 +224,7 @@ export default function ConversationPage({
   const recordingStartedRef = useRef(0);
   const cancelRecordingRef = useRef(false);
   const previewAudioRef = useRef(null);
+  const composerTextareaRef = useRef(null);
   const liveCursorRef = useRef("");
   const liveBusyRef = useRef(false);
   const profile = match?.otherProfile;
@@ -307,6 +308,14 @@ export default function ConversationPage({
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [timeline.length, loading, remoteTyping]);
+
+  useEffect(() => {
+    const textarea = composerTextareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 116)}px`;
+  }, [draft]);
 
   useEffect(() => {
     if (!match?.id || loading) return undefined;
@@ -770,6 +779,7 @@ export default function ConversationPage({
               <label>
                 <span className="sr-only">Mensagem</span>
                 <textarea
+                  ref={composerTextareaRef}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value.slice(0, 1200))}
                   placeholder="Mensagem…"
