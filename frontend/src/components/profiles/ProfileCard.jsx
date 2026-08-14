@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpRight, Heart, MapPin, ShieldCheck, UserRound } from "lucide-react";
+import { Heart, MapPin, ShieldCheck, UserRound } from "lucide-react";
 
 export default function ProfileCard({
   profile,
@@ -42,36 +42,29 @@ export default function ProfileCard({
 
           <div className="nk-profile-card__shade" aria-hidden="true" />
 
-          <div
-            className={`nk-profile-card__verified ${profile.verificado ? "is-verified" : "is-review"}`}
-          >
-            <ShieldCheck size={14} strokeWidth={2} />
-            <span>{profile.verificado ? "Verificado" : "Em análise"}</span>
-          </div>
-
           <div className="nk-profile-card__story">
-            <span className="nk-profile-card__intention">
-              {profile.objetivo_display || "Conhecer com intenção"}
-            </span>
-
             <div className="nk-profile-card__identity">
-              <h3>{displayName}</h3>
+              <h3>
+                <span>{displayName}</span>
+                {profile.verificado && (
+                  <span
+                    className="nk-profile-card__verified"
+                    aria-label="Perfil verificado"
+                    title="Perfil verificado"
+                  >
+                    <ShieldCheck size={16} strokeWidth={2.1} />
+                  </span>
+                )}
+              </h3>
               <p>
                 <MapPin size={15} strokeWidth={1.9} />
                 <span>{profile.cidade || "Moçambique"}</span>
               </p>
             </div>
 
-            {profile.sobre_si && (
-              <p className="nk-profile-card__about">{profile.sobre_si}</p>
-            )}
-
-            <div className="nk-profile-card__footer">
-              <span>Conhecer perfil</span>
-              <span className="nk-profile-card__arrow" aria-hidden="true">
-                <ArrowUpRight size={18} strokeWidth={2} />
-              </span>
-            </div>
+            <span className="nk-profile-card__intention">
+              {profile.objetivo_display || "Conhecer com intenção"}
+            </span>
           </div>
         </div>
       </button>
