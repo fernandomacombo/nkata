@@ -16,39 +16,6 @@
   font-size: clamp(1.1rem, 2.1vw, 1.5rem);
 }
 
-.nk-moment-composer__safety-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  margin-bottom: 14px;
-  border: 1px solid rgba(63, 105, 89, 0.14);
-  border-radius: 17px;
-  background: rgba(232, 241, 236, 0.68);
-  padding: 12px 13px;
-  color: #315c4c;
-}
-
-.nk-moment-composer__safety-note > svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-}
-
-.nk-moment-composer__safety-note strong,
-.nk-moment-composer__safety-note span {
-  display: block;
-}
-
-.nk-moment-composer__safety-note strong {
-  font-size: 0.78rem;
-}
-
-.nk-moment-composer__safety-note span {
-  margin-top: 3px;
-  color: #59756a;
-  font-size: 0.7rem;
-  line-height: 1.5;
-}
-
 .nk-moment-composer__caption {
   display: grid;
   gap: 7px;
@@ -71,24 +38,6 @@
   font: inherit;
   font-size: 0.84rem;
   font-weight: 700;
-}
-
-.nk-moment-composer__preview > span {
-  position: absolute;
-  right: 9px;
-  bottom: 9px;
-  left: 9px;
-  display: inline-flex;
-  width: fit-content;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  background: rgba(15, 12, 11, 0.76);
-  padding: 7px 10px;
-  color: white;
-  font-size: 0.63rem;
-  font-weight: 800;
-  backdrop-filter: blur(10px);
 }
 
 .nk-moment-review {
@@ -227,22 +176,10 @@
     border-radius: 0;
   }
 
-  .nk-moment-composer__controls {
-    align-items: stretch;
-  }
-
-  .nk-moment-composer__controls,
-  .nk-moment-composer__controls > div {
-    display: grid;
-    grid-template-columns: 1fr;
-    width: 100%;
-  }
-
   .nk-moment-composer__media,
-  .nk-moment-composer__visibility select,
   .nk-moment-composer__controls > .nk-button {
     width: 100%;
-    min-height: 50px;
+    min-height: 48px;
   }
 
   .nk-moment-review {

@@ -32,20 +32,6 @@
   line-height: 1.65;
 }
 
-.nk-moments-page__private {
-  display: inline-flex;
-  min-height: 42px;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(63, 105, 89, 0.15);
-  border-radius: 999px;
-  background: rgba(232, 241, 236, 0.68);
-  padding: 0 15px;
-  color: var(--nk-success);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
 .nk-moments-page__content {
   padding-block: 22px 110px;
 }
@@ -54,57 +40,75 @@
   width: min(820px, 100%);
   margin-inline: auto;
   border: 1px solid rgba(61, 47, 42, 0.1);
-  border-radius: 28px;
+  border-radius: 22px;
   background: rgba(255, 253, 249, 0.94);
-  padding: 20px;
+  padding: 10px;
   box-shadow: var(--nk-shadow-sm);
+}
+
+.nk-moment-composer.is-collapsed {
+  width: min(620px, 100%);
 }
 
 .nk-moment-composer__heading {
   display: flex;
+  width: 100%;
+  min-height: 52px;
   align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
+  border-radius: 15px;
+  background: transparent;
+  padding: 0 4px;
+  color: var(--nk-ink);
+  text-align: left;
 }
 
 .nk-moment-composer__plus {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   place-items: center;
-  border-radius: 15px;
+  border-radius: 14px;
   background: var(--nk-wine-soft);
   color: var(--nk-wine);
 }
 
-.nk-moment-composer__heading strong,
-.nk-moment-composer__heading small {
-  display: block;
+.nk-moment-composer__label {
+  flex: 1;
+  font-size: 0.92rem;
+  font-weight: 800;
 }
 
-.nk-moment-composer__heading strong {
-  font-family: "Playfair Display", Georgia, serif;
-  font-size: 1.18rem;
-  font-weight: 600;
-}
-
-.nk-moment-composer__heading small {
-  margin-top: 3px;
+.nk-moment-composer__expand {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border: 1px solid var(--nk-line);
+  border-radius: 12px;
   color: var(--nk-muted);
-  font-size: 0.7rem;
 }
 
-.nk-moment-composer textarea {
-  width: 100%;
-  min-height: 108px;
-  resize: vertical;
-  border: 1px solid rgba(64, 51, 45, 0.12);
-  border-radius: 18px;
-  background: #fbf8f4;
-  padding: 14px 15px;
-  color: var(--nk-ink);
-  font: inherit;
-  line-height: 1.55;
+.nk-moment-composer__expand svg {
+  transition: transform 180ms ease;
+}
+
+.nk-moment-composer.is-open .nk-moment-composer__expand svg {
+  transform: rotate(180deg);
+}
+
+.nk-moment-composer__body {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  animation: nk-moment-composer-in 180ms ease both;
+}
+
+@keyframes nk-moment-composer-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .nk-moment-composer__preview {
@@ -138,47 +142,31 @@
 }
 
 .nk-moment-composer__controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 14px;
+  gap: 10px;
 }
 
-.nk-moment-composer__controls > div {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-wrap: wrap;
-}
-
-.nk-moment-composer__media,
-.nk-moment-composer__visibility select {
+.nk-moment-composer__media {
+  display: inline-flex;
+  width: 100%;
   min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid rgba(61, 47, 42, 0.11);
   border-radius: 14px;
   background: #f8f3ed;
+  padding: 0 13px;
   color: var(--nk-ink);
   font-size: 0.76rem;
   font-weight: 700;
 }
 
-.nk-moment-composer__media {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 13px;
-}
-
-.nk-moment-composer__visibility select {
-  padding: 0 34px 0 12px;
-}
-
-.nk-moment-composer__counter {
-  display: block;
-  margin-top: 9px;
-  color: #91847d;
-  font-size: 0.66rem;
+.nk-moment-composer__controls > .nk-button {
+  min-width: 150px;
+  min-height: 44px;
 }
 
 .nk-moments-page__message {
@@ -569,41 +557,25 @@
     font-size: 0.82rem;
   }
 
-  .nk-moments-page__private {
-    width: fit-content;
-    min-height: 38px;
-  }
-
   .nk-moments-page__content {
     padding-top: 14px;
     padding-bottom: 18px;
   }
 
   .nk-moment-composer {
-    border-radius: 22px;
-    padding: 14px;
-  }
-
-  .nk-moment-composer textarea {
-    min-height: 96px;
-    font-size: 16px;
+    border-radius: 18px;
+    padding: 8px;
   }
 
   .nk-moment-composer__controls {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .nk-moment-composer__controls > div {
-    display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
 
   .nk-moment-composer__media,
-  .nk-moment-composer__visibility select,
   .nk-moment-composer__controls > .nk-button {
     width: 100%;
+    min-width: 0;
     min-height: 48px;
   }
 

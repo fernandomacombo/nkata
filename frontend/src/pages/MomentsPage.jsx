@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -219,9 +220,9 @@ export default function MomentsPage({ onOpenProfile }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [caption, setCaption] = useState("SEM_LEGENDA");
-  const [visibility, setVisibility] = useState("TODOS");
   const [media, setMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState("");
   const [viewerGroup, setViewerGroup] = useState(null);
@@ -295,7 +296,7 @@ export default function MomentsPage({ onOpenProfile }) {
     setStatus("");
 
     try {
-      const result = await createMoment({ caption, visibility, media });
+      const result = await createMoment({ caption, visibility: "TODOS", media });
       setData((current) => {
         const base = current || {};
         if (result.pending_review) {
@@ -314,6 +315,7 @@ export default function MomentsPage({ onOpenProfile }) {
       });
       setCaption("SEM_LEGENDA");
       clearMedia();
+      setComposerOpen(false);
       setStatus(result.message || "Momento enviado.");
       window.setTimeout(() => setStatus(""), 4200);
     } catch (requestError) {
@@ -352,85 +354,72 @@ export default function MomentsPage({ onOpenProfile }) {
       </section>
 
       <section className="nk-shell nk-moments-page__content">
-        <form className="nk-moment-composer" onSubmit={handlePublish}>
-          <div className="nk-moment-composer__heading">
+        <form
+          className={`nk-moment-composer ${composerOpen ? "is-open" : "is-collapsed"}`}
+          onSubmit={handlePublish}
+        >
+          <button
+            type="button"
+            className="nk-moment-composer__heading"
+            onClick={() => setComposerOpen((current) => !current)}
+            aria-expanded={composerOpen}
+          >
             <span className="nk-moment-composer__plus"><Plus size={20} /></span>
-            <div>
-              <strong>Novo Momento</strong>
-              <small>{capabilities?.plan_label || "A confirmar o seu plano…"}</small>
-            </div>
-          </div>
+            <span className="nk-moment-composer__label">Novo Momento</span>
+            <span className="nk-moment-composer__expand">
+              <ChevronDown size={18} />
+            </span>
+          </button>
 
-          <div className="nk-moment-composer__safety-note">
-            <ShieldCheck size={18} />
-            <div>
-              <strong>Use uma frase NKATA</strong>
-              <span>Sem contactos, links ou anúncios.</span>
-            </div>
-          </div>
-
-          <label className="nk-moment-composer__caption">
-            <span>Frase</span>
-            <select value={caption} onChange={(event) => setCaption(event.target.value)}>
-              {captionOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-
-          {mediaPreview && (
-            <div className="nk-moment-composer__preview">
-              {media?.type?.startsWith("video/")
-                ? <video src={mediaPreview} controls playsInline />
-                : <img src={mediaPreview} alt="Pré-visualização" />}
-              <button type="button" onClick={clearMedia} aria-label="Remover ficheiro"><X size={17} /></button>
-              <span><ShieldCheck size={14} /> Em análise antes de publicar</span>
-            </div>
-          )}
-
-          <div className="nk-moment-composer__controls">
-            <div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-                onChange={handleFile}
-                hidden
-              />
-              <button
-                type="button"
-                className="nk-moment-composer__media"
-                onClick={() => mediaEnabled
-                  ? fileRef.current?.click()
-                  : setError("Fotografias e vídeos exigem NKATA Essencial ou Premium.")}
-              >
-                {mediaEnabled ? <ImagePlus size={18} /> : <LockKeyhole size={17} />}
-                {mediaEnabled ? "Foto ou vídeo" : "Media no plano pago"}
-              </button>
-
-              <label className="nk-moment-composer__visibility">
-                <span className="sr-only">Quem pode ver</span>
-                <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
-                  {(capabilities?.visibility_options || [
-                    { value: "TODOS", label: "Todos os membros" },
-                    { value: "MATCHES", label: "Apenas matches" },
-                  ]).map((option) => (
+          {composerOpen && (
+            <div className="nk-moment-composer__body">
+              <label className="nk-moment-composer__caption">
+                <span className="sr-only">Frase</span>
+                <select
+                  value={caption}
+                  onChange={(event) => setCaption(event.target.value)}
+                  aria-label="Frase do Momento"
+                >
+                  {captionOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </label>
+
+              {mediaPreview && (
+                <div className="nk-moment-composer__preview">
+                  {media?.type?.startsWith("video/")
+                    ? <video src={mediaPreview} controls playsInline />
+                    : <img src={mediaPreview} alt="Pré-visualização" />}
+                  <button type="button" onClick={clearMedia} aria-label="Remover ficheiro"><X size={17} /></button>
+                </div>
+              )}
+
+              <div className="nk-moment-composer__controls">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                  onChange={handleFile}
+                  hidden
+                />
+                <button
+                  type="button"
+                  className="nk-moment-composer__media"
+                  onClick={() => mediaEnabled
+                    ? fileRef.current?.click()
+                    : setError("Fotografias e vídeos exigem NKATA Essencial ou Premium.")}
+                >
+                  {mediaEnabled ? <ImagePlus size={18} /> : <LockKeyhole size={17} />}
+                  Foto ou vídeo
+                </button>
+
+                <button type="submit" className="nk-button nk-button--wine" disabled={publishing || !canPublish}>
+                  <Send size={17} /> {publishing ? "A publicar…" : "Publicar"}
+                </button>
+              </div>
             </div>
-
-            <button type="submit" className="nk-button nk-button--wine" disabled={publishing || !canPublish}>
-              <Send size={17} /> {publishing ? "A enviar…" : media ? "Enviar para análise" : "Publicar"}
-            </button>
-          </div>
-
-          <small className="nk-moment-composer__counter">
-            {media
-              ? "Disponível por 24 horas após aprovação."
-              : "Disponível por 24 horas."}
-          </small>
+          )}
         </form>
 
         {error && <div className="nk-moments-page__message is-error">{error}</div>}
