@@ -337,6 +337,10 @@ export async function fetchMyAccount({ signal } = {}) {
   return normalizeAccount(payload);
 }
 
+export async function fetchMyAccountSummary({ signal } = {}) {
+  return request("/api/minha-conta/resumo/", { signal });
+}
+
 export async function updateMyAccount(values) {
   const payload = await request("/api/minha-conta/", { method: "PATCH", body: values });
   return normalizeAccount(payload);

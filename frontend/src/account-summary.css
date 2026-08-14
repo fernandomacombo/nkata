@@ -1,0 +1,344 @@
+.nk-account-summary {
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--nk-line);
+  border-radius: 30px;
+  background: rgba(255, 253, 249, 0.94);
+  padding: 26px;
+  box-shadow: var(--nk-shadow-sm);
+}
+
+.nk-account-summary__heading,
+.nk-account-summary__heading > div,
+.nk-account-summary__heading > div:last-child {
+  display: flex;
+  align-items: center;
+}
+
+.nk-account-summary__heading {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.nk-account-summary__heading > div:first-child {
+  display: block;
+}
+
+.nk-account-summary__heading > div:first-child > span {
+  color: var(--nk-wine);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.nk-account-summary__heading h2 {
+  margin: 4px 0 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.nk-account-summary__heading > div:last-child {
+  gap: 8px;
+}
+
+.nk-account-summary__heading > div:last-child > strong {
+  display: inline-flex;
+  min-height: 39px;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  background: var(--nk-wine-soft);
+  padding: 0 13px;
+  color: var(--nk-wine);
+  font-size: 0.7rem;
+}
+
+.nk-account-summary__heading button {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  border: 1px solid var(--nk-line);
+  border-radius: 13px;
+  background: #fffdf9;
+  color: var(--nk-wine);
+}
+
+.nk-account-summary__notice {
+  border-radius: 12px;
+  background: #f8e7e9;
+  padding: 10px 12px;
+  color: #8b2b3d;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.nk-account-summary__top {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 12px;
+}
+
+.nk-account-summary__completion,
+.nk-account-summary__signals {
+  min-width: 0;
+  border: 1px solid rgba(57, 44, 40, 0.09);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(125, 38, 56, 0.055), #fffdfa);
+  padding: 18px;
+}
+
+.nk-account-summary__completion {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+}
+
+.nk-account-summary__ring {
+  position: relative;
+  display: grid;
+  width: 70px;
+  height: 70px;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--nk-wine) var(--nk-summary-progress),
+    rgba(125, 38, 56, 0.1) 0
+  );
+}
+
+.nk-account-summary__ring::before {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #fffdfa;
+  content: "";
+}
+
+.nk-account-summary__ring span {
+  position: relative;
+  z-index: 1;
+  color: var(--nk-wine);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.nk-account-summary__completion small,
+.nk-account-summary__completion strong,
+.nk-account-summary__completion span {
+  display: block;
+}
+
+.nk-account-summary__completion small,
+.nk-account-summary__signals small {
+  color: var(--nk-muted);
+  font-size: 0.66rem;
+}
+
+.nk-account-summary__completion strong {
+  margin: 4px 0;
+  font-size: 0.9rem;
+}
+
+.nk-account-summary__completion > svg {
+  color: var(--nk-success);
+}
+
+.nk-account-summary__signals {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+}
+
+.nk-account-summary__signals > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.nk-account-summary__signals > div:first-child > span {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--nk-wine-soft);
+  color: var(--nk-wine);
+}
+
+.nk-account-summary__signals strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.92rem;
+}
+
+.nk-account-summary__bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(125, 38, 56, 0.09);
+}
+
+.nk-account-summary__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7d2638, #b37986);
+}
+
+.nk-account-summary__metrics,
+.nk-account-summary__activity {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.nk-account-summary__activity {
+  border-top: 1px solid var(--nk-line);
+  padding-top: 18px;
+}
+
+.nk-account-summary__metric {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 9px;
+  border: 1px solid rgba(57, 44, 40, 0.085);
+  border-radius: 17px;
+  background: #fffdfa;
+  padding: 13px;
+}
+
+.nk-account-summary__metric > span {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  grid-row: span 2;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--nk-wine-soft);
+  color: var(--nk-wine);
+}
+
+.nk-account-summary__metric strong,
+.nk-account-summary__metric small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-account-summary__metric strong {
+  font-size: 0.96rem;
+}
+
+.nk-account-summary__metric small {
+  color: var(--nk-muted);
+  font-size: 0.62rem;
+}
+
+.nk-account-summary__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.nk-account-summary__actions button {
+  min-height: 42px;
+  border: 1px solid var(--nk-line);
+  border-radius: 999px;
+  background: transparent;
+  padding: 0 15px;
+  color: var(--nk-ink);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.nk-account-summary__actions button:last-child {
+  border-color: var(--nk-wine);
+  background: var(--nk-wine);
+  color: white;
+}
+
+.nk-account-summary--loading {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nk-account-summary--loading > span {
+  height: 120px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #e8dfd7, #f8f3ed, #e8dfd7);
+  background-size: 220% 100%;
+  animation: nk-account-loading 1.2s linear infinite;
+}
+
+.nk-account-summary--error {
+  justify-items: start;
+}
+
+.nk-account-summary--error > span {
+  color: var(--nk-muted);
+  font-size: 0.75rem;
+}
+
+.nk-account-summary--error button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px;
+  border-radius: 13px;
+  padding: 0 13px;
+}
+
+@media (max-width: 760px) {
+  .nk-account-summary {
+    gap: 14px;
+    border-radius: 24px;
+    padding: 18px;
+  }
+
+  .nk-account-summary__top {
+    grid-template-columns: 1fr;
+  }
+
+  .nk-account-summary__metrics,
+  .nk-account-summary__activity {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .nk-account-summary__metric {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 390px) {
+  .nk-account-summary__heading > div:last-child > strong {
+    max-width: 118px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .nk-account-summary__completion {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .nk-account-summary__completion > svg {
+    display: none;
+  }
+
+  .nk-account-summary__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nk-account-summary__actions button {
+    width: 100%;
+    padding-inline: 8px;
+  }
+}

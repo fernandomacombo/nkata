@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import PlanPanel from "../components/account/PlanPanel.jsx";
+import AccountSummaryPanel from "../components/account/AccountSummaryPanel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import {
   API_BASE_URL,
@@ -268,7 +269,7 @@ export default function AccountPage({
   onSignOut,
 }) {
   const [form, setForm] = useState(emptyForm);
-  const [accountSection, setAccountSection] = useState("profile");
+  const [accountSection, setAccountSection] = useState("summary");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(null);
   const [pendingPhotoUrl, setPendingPhotoUrl] = useState("");
@@ -541,6 +542,7 @@ export default function AccountPage({
         <div className="nk-account__main">
           <nav className="nk-account-tabs" aria-label="Áreas da conta">
             {[
+              ["summary", "Resumo"],
               ["profile", "Perfil"],
               ["plan", "Plano"],
               ["interests", "Interesses"],
@@ -557,6 +559,10 @@ export default function AccountPage({
               </button>
             ))}
           </nav>
+
+          {accountSection === "summary" && (
+            <AccountSummaryPanel onOpenSection={setAccountSection} />
+          )}
 
           {accountSection === "profile" && (
             <>

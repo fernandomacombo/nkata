@@ -3,6 +3,7 @@ from django.urls import path
 from . import (
     access_api,
     account_security_api,
+    account_summary_api,
     admin_panel_api,
     api_views,
     call_api,
@@ -174,6 +175,11 @@ urlpatterns = [
         name="apagar_publicacao",
     ),
     path("minha-conta/", api_views.api_minha_conta, name="minha_conta"),
+    path(
+        "minha-conta/resumo/",
+        account_summary_api.api_resumo_da_conta,
+        name="resumo_da_conta",
+    ),
     path(
         "minha-conta/plano/",
         plan_views.api_plano_da_conta,

@@ -123,7 +123,7 @@
 
 .nk-account-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   border: 1px solid var(--nk-line);
   border-radius: 16px;
@@ -252,7 +252,7 @@
     position: sticky;
     z-index: 15;
     top: calc(var(--nk-mobile-topbar) + 6px);
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .nk-account-tabs button {
