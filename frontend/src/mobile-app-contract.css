@@ -80,6 +80,16 @@
     padding-bottom: calc(var(--nk-app-bottom-nav) + var(--nk-app-bottom-safe) + 22px);
   }
 
+  /* O feed já reserva o espaço da tab bar dentro do seu próprio layout.
+     Evita somar duas áreas vazias no fim da página. */
+  body:has(.nk-header__member) main.nk-member-home {
+    padding-bottom: 0;
+  }
+
+  .nk-member-home__layout {
+    padding-bottom: calc(var(--nk-app-bottom-nav) + var(--nk-app-bottom-safe) + 12px);
+  }
+
   /* A navegação inferior é a navegação primária do membro no telemóvel. */
   body:has(.nk-header__member) .nk-bottom-nav {
     position: fixed;
@@ -286,6 +296,60 @@
   .nk-feed-composer__options select {
     padding-inline: 9px;
     font-size: 0.86rem !important;
+  }
+}
+
+@media (max-width: 390px) {
+  /* Mantém "Seguir" legível: o botão não deve virar um círculo apertado. */
+  .nk-feed-card__header {
+    gap: 6px;
+    padding-inline: 10px;
+  }
+
+  .nk-feed-card__person {
+    gap: 8px;
+  }
+
+  .nk-feed-card__avatar {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .nk-feed-card__person strong {
+    max-width: none;
+    font-size: 0.8rem;
+  }
+
+  .nk-feed-card__person small {
+    gap: 3px;
+    overflow: hidden;
+    font-size: 0.62rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .nk-feed-card__follow {
+    width: auto;
+    min-width: 70px;
+    min-height: 40px;
+    flex: 0 0 auto;
+    gap: 5px;
+    padding-inline: 8px;
+    font-size: 0.66rem;
+    white-space: nowrap;
+  }
+
+  .nk-feed-card__follow svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+  }
+
+  .nk-feed-safety-trigger {
+    width: 36px;
+    height: 40px;
+    flex-basis: 36px;
   }
 }
 
