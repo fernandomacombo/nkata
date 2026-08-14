@@ -1,10 +1,74 @@
 import { useMemo, useState } from "react";
-import { RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  LockKeyhole,
+  RefreshCw,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import ProfileFilters from "../components/profiles/ProfileFilters.jsx";
 
+function GuestProfilesExperience({ onRequireLogin }) {
+  return (
+    <main className="nk-discover nk-guest-profiles">
+      <CompactPageHeader title="Perfis" />
+
+      <section className="nk-shell nk-guest-profiles__stage">
+        <div className="nk-guest-profiles__copy">
+          <span className="nk-guest-profiles__eyebrow">
+            <ShieldCheck size={15} />
+            Área de membros
+          </span>
+
+          <h1>Perfis reais.<br />Acesso reservado.</h1>
+          <p>Entre para conhecer membros aprovados do NKATA.</p>
+
+          <div className="nk-guest-profiles__actions">
+            <button type="button" onClick={onRequireLogin}>
+              Entrar para ver perfis
+              <ArrowRight size={18} />
+            </button>
+            <a href="/pedir-acesso/">Pedir acesso</a>
+          </div>
+
+          <span className="nk-guest-profiles__privacy">
+            <LockKeyhole size={15} />
+            Fotografias visíveis apenas para membros
+          </span>
+        </div>
+
+        <div className="nk-guest-profiles__visual" aria-hidden="true">
+          <div className="nk-guest-profiles__halo" />
+
+          <article className="nk-guest-preview nk-guest-preview--left">
+            <LockKeyhole size={17} />
+            <UserRound size={72} strokeWidth={1.05} />
+          </article>
+
+          <article className="nk-guest-preview nk-guest-preview--right">
+            <LockKeyhole size={17} />
+            <UserRound size={72} strokeWidth={1.05} />
+          </article>
+
+          <article className="nk-guest-preview nk-guest-preview--main">
+            <span className="nk-guest-preview__lock"><LockKeyhole size={17} /></span>
+            <UserRound className="nk-guest-preview__person" size={104} strokeWidth={0.9} />
+            <div className="nk-guest-preview__caption">
+              <span>Apenas membros</span>
+              <strong>Perfil protegido</strong>
+              <small><ShieldCheck size={14} /> Verificação NKATA</small>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export default function DiscoverPage({
+  authenticated,
   profiles,
   loading,
   loadError,
@@ -12,6 +76,7 @@ export default function DiscoverPage({
   onOpenProfile,
   isSaved,
   onToggleSaved,
+  onRequireLogin,
 }) {
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
@@ -60,6 +125,10 @@ export default function DiscoverPage({
       );
     });
   }, [profiles, query, city, objective, minAge, maxAge]);
+
+  if (!authenticated) {
+    return <GuestProfilesExperience onRequireLogin={onRequireLogin} />;
+  }
 
   return (
     <main className="nk-discover">

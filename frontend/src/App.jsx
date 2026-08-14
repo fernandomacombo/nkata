@@ -720,6 +720,7 @@ export default function App() {
 
       {activePage === "discover" && (
         <DiscoverPage
+          authenticated={authenticated}
           profiles={profiles}
           loading={loading}
           usingDemoData={usingDemoData}
@@ -728,6 +729,7 @@ export default function App() {
           onOpenProfile={handleOpenProfile}
           isSaved={isSaved}
           onToggleSaved={toggleSaved}
+          onRequireLogin={() => openLogin("discover")}
         />
       )}
 

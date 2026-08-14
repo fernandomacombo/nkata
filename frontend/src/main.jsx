@@ -53,6 +53,7 @@ import "./feed.css";
 import "./feed-cleanup.css";
 import "./feed-safety.css";
 import "./profile-cards-premium.css";
+import "./guest-profiles.css";
 import "./chat-native-premium.css";
 import "./chat-realtime.css";
 import "./call-webrtc.css";
