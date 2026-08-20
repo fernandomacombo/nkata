@@ -39,6 +39,23 @@ class AccessStatusRateThrottle(_IdentityThrottle):
     data_field = "email"
 
 
+class IdentitySessionRateThrottle(_IdentityThrottle):
+    scope = "identity_session"
+    data_field = "email"
+
+
+class IdentityCaptureRateThrottle(_IdentityThrottle):
+    scope = "identity_capture"
+
+    def get_cache_key(self, request, view):
+        ident = self.get_ident(request)
+        token = view.kwargs.get("token") or ""
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": f"{ident}:{_digest(token)}",
+        }
+
+
 class TokenFlowRateThrottle(_IdentityThrottle):
     scope = "token_flow"
 

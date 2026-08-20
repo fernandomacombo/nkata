@@ -7,6 +7,7 @@ from rest_framework import serializers
 from .call_history_api import serialize_call_message
 from .call_models import ChamadaMatchNKATA
 from .chat_media_models import MensagemAudioMatchNKATA
+from .identity_models import pedido_tem_identidade_verificada
 from .models import MatchPerfil, MensagemMatch, PerfilNKATA
 from .profile_media_api import profile_photo_url
 
@@ -87,7 +88,12 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
 
     def get_verificado(self, obj):
         pedido_status = getattr(obj.pedido, "status", "")
-        return pedido_status == "APROVADO" and obj.status == "ATIVO" and obj.visivel
+        return (
+            pedido_status == "APROVADO"
+            and pedido_tem_identidade_verificada(obj.pedido)
+            and obj.status == "ATIVO"
+            and obj.visivel
+        )
 
 
 class PerfilDetalheSerializer(PerfilResumoSerializer):

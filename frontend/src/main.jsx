@@ -12,6 +12,7 @@ import PublicationSafetyOverlay from "./components/feed/PublicationSafetyOverlay
 import ProfileFollowAction from "./components/profile/ProfileFollowAction.jsx";
 import AccessRequestPage from "./pages/AccessRequestPage.jsx";
 import AccessStatusPage from "./pages/AccessStatusPage.jsx";
+import IdentityCapturePage from "./pages/IdentityCapturePage.jsx";
 import PasswordChangePage from "./pages/PasswordChangePage.jsx";
 import PasswordResetConfirmPage from "./pages/PasswordResetConfirmPage.jsx";
 import PasswordResetPage from "./pages/PasswordResetPage.jsx";
@@ -34,6 +35,7 @@ import "./notifications.css";
 import "./notifications-motion.css";
 import "./access.css";
 import "./access-status.css";
+import "./nkata-id.css";
 import "./global-motion.css";
 import "./login-polish.css";
 import "./mobile-menu.css";
@@ -80,6 +82,10 @@ const normalizedPath = window.location.pathname.endsWith("/")
   : `${window.location.pathname}/`;
 const accessMode = normalizedPath === "/pedir-acesso/";
 const accessStatusMode = normalizedPath === "/acompanhar-pedido/";
+const identityVerificationMatch = normalizedPath.match(
+  /^\/verificar-identidade\/([0-9a-f-]{36})\/$/i,
+);
+const identityVerificationToken = identityVerificationMatch?.[1] || "";
 const passwordChangeMode = normalizedPath === "/alterar-senha/";
 const passwordResetMode = normalizedPath === "/recuperar-senha/";
 const questionnaireMatch = normalizedPath.match(/^\/questionario\/([0-9a-f-]{36})\/$/i);
@@ -94,7 +100,15 @@ function go(path) {
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {accessMode ? (
+    {identityVerificationToken ? (
+      <IdentityCapturePage
+        token={identityVerificationToken}
+        onExit={() => {
+          if (window.opener) window.close();
+          else go("/");
+        }}
+      />
+    ) : accessMode ? (
       <AccessRequestPage
         onBack={() => go("/")}
         onLogin={() => go("/entrar/")}

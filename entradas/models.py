@@ -56,14 +56,17 @@ class PedidoEntrada(models.Model):
     bi_frente = models.ImageField(
         storage=identity_media_storage,
         upload_to="pedidos/documentos/",
+        blank=True,
     )
     bi_verso = models.ImageField(
         storage=identity_media_storage,
         upload_to="pedidos/documentos/",
+        blank=True,
     )
     selfie_com_bi = models.ImageField(
         storage=identity_media_storage,
         upload_to="pedidos/documentos/",
+        blank=True,
     )
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="PENDENTE")
     observacao_admin = models.TextField(blank=True)
@@ -263,3 +266,7 @@ class MensagemMatch(models.Model):
 
     def __str__(self):
         return f"Mensagem em {self.match} - {self.criado_em:%d/%m/%Y %H:%M}"
+
+
+# Mantém o NKATA ID num módulo isolado sem deixar de o registar no app Django.
+from .identity_models import VerificacaoIdentidadeNKATA  # noqa: E402,F401

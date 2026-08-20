@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
+from .identity_models import pedido_tem_identidade_verificada
 from .models import PedidoEntrada, PerfilNKATA
 
 
@@ -25,6 +26,9 @@ def perfil_pronto_para_publicar(perfil):
         return False
 
     if perfil.pedido.status != "APROVADO":
+        return False
+
+    if not pedido_tem_identidade_verificada(perfil.pedido):
         return False
 
     return pedido_tem_questionario(perfil.pedido)

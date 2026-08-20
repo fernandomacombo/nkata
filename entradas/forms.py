@@ -71,6 +71,11 @@ class PedidoEntradaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # O novo frontend entrega estes ficheiros através da sessão NKATA ID.
+        # Permanecem opcionais aqui para compatibilidade com pedidos antigos.
+        for field_name in ("bi_frente", "bi_verso", "selfie_com_bi"):
+            self.fields[field_name].required = False
+
         self.fields["genero"].choices = [
             ("", "Selecione o género")
         ] + list(PedidoEntrada.GENERO_CHOICES)

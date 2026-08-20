@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import AcaoPerfil, PedidoEntrada, PerfilNKATA
+from .identity_models import VerificacaoIdentidadeNKATA
 
 
 ADMIN_MEDIA_FIELDS = {
@@ -18,6 +19,13 @@ ADMIN_MEDIA_FIELDS = {
     "bi_frente",
     "bi_verso",
     "selfie_com_bi",
+}
+
+NKATA_ID_MEDIA_FIELDS = {
+    "bi_frente",
+    "bi_verso",
+    "selfie_ao_vivo",
+    "selfie_desafio",
 }
 
 
@@ -100,6 +108,23 @@ def api_media_pedido_admin(request, pedido_id, field_name):
         return Response({"detail": "Documento não encontrado."}, status=404)
     pedido = PedidoEntrada.objects.filter(id=pedido_id).first()
     field_file = getattr(pedido, field_name, None) if pedido else None
+    if not field_file:
+        return Response({"detail": "Documento não encontrado."}, status=404)
+    return _stream(field_file, private_cache=False) or Response(
+        {"detail": "Documento não encontrado."},
+        status=404,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAdminUser])
+def api_media_nkata_id_admin(request, verification_id, field_name):
+    if field_name not in NKATA_ID_MEDIA_FIELDS:
+        return Response({"detail": "Documento não encontrado."}, status=404)
+    verification = VerificacaoIdentidadeNKATA.objects.filter(
+        id=verification_id
+    ).first()
+    field_file = getattr(verification, field_name, None) if verification else None
     if not field_file:
         return Response({"detail": "Documento não encontrado."}, status=404)
     return _stream(field_file, private_cache=False) or Response(
