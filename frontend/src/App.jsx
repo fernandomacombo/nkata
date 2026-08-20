@@ -113,6 +113,7 @@ export default function App() {
     loading: preferencesLoading,
     saving: preferencesSaving,
     error: preferencesError,
+    previewPreferences,
     savePreferences,
   } = useAppPreferences({ authenticated, identity: sessionIdentity });
 
@@ -863,6 +864,7 @@ export default function App() {
           preferencesLoading={preferencesLoading}
           preferencesSaving={preferencesSaving}
           preferencesError={preferencesError}
+          onPreviewPreferences={previewPreferences}
           onSavePreferences={savePreferences}
         />
       )}

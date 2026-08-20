@@ -31,10 +31,10 @@ import {
 } from "../services/api.js";
 
 const objectiveOptions = [
-  { value: "RELACIONAMENTO_SERIO", label: "Relacionamento sério" },
-  { value: "CONHECER_COM_INTENCAO", label: "Conhecer pessoas com intenção" },
-  { value: "AMIZADE_EVOLUIR", label: "Amizade que pode evoluir" },
-  { value: "CASAMENTO_FUTURO", label: "Casamento no futuro" },
+  { value: "RELACIONAMENTO_SERIO", pt: "Relacionamento sério", en: "Serious relationship" },
+  { value: "CONHECER_COM_INTENCAO", pt: "Conhecer pessoas com intenção", en: "Meet people with intention" },
+  { value: "AMIZADE_EVOLUIR", pt: "Amizade que pode evoluir", en: "Friendship that may grow" },
+  { value: "CASAMENTO_FUTURO", pt: "Casamento no futuro", en: "Marriage in the future" },
 ];
 
 const emptyForm = {
@@ -46,25 +46,26 @@ const emptyForm = {
   o_que_nao_aceita: "",
 };
 
-function formatMemberDate(value) {
+function formatMemberDate(value, language) {
   if (!value) return "";
 
-  return new Intl.DateTimeFormat("pt-MZ", {
+  return new Intl.DateTimeFormat(language === "EN" ? "en-GB" : "pt-MZ", {
     month: "long",
     year: "numeric",
   }).format(new Date(value));
 }
 
-function objectiveLabel(value) {
-  return objectiveOptions.find((option) => option.value === value)?.label || "Relação séria";
+function objectiveLabel(value, language) {
+  const option = objectiveOptions.find((item) => item.value === value);
+  return language === "EN" ? (option?.en || "Serious relationship") : (option?.pt || "Relação séria");
 }
 
-function InterestItem({ profile, onOpen }) {
+function InterestItem({ profile, onOpen, language }) {
   return (
     <button type="button" className="nk-account-interest" onClick={() => onOpen(profile)}>
       <span className="nk-account-interest__photo">
         {profile.foto_url ? (
-          <img src={profile.foto_url} alt={`Foto de ${profile.nome_publico}`} />
+          <img src={profile.foto_url} alt={`${language === "EN" ? "Photo of" : "Foto de"} ${profile.nome_publico}`} />
         ) : (
           <UserRound size={28} />
         )}
@@ -81,7 +82,8 @@ function InterestItem({ profile, onOpen }) {
   );
 }
 
-function ProfilePreview({ account, form, imageUrl, onClose }) {
+function ProfilePreview({ account, form, imageUrl, language, onClose }) {
+  const english = language === "EN";
   return (
     <div
       className="nk-profile-preview"
@@ -98,10 +100,10 @@ function ProfilePreview({ account, form, imageUrl, onClose }) {
       >
         <header>
           <div>
-            <span>Pré-visualização</span>
-            <h2 id="profile-preview-title">Como o seu perfil aparece</h2>
+            <span>{english ? "Preview" : "Pré-visualização"}</span>
+            <h2 id="profile-preview-title">{english ? "How your profile appears" : "Como o seu perfil aparece"}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar pré-visualização">
+          <button type="button" onClick={onClose} aria-label={english ? "Close preview" : "Fechar pré-visualização"}>
             <X size={20} />
           </button>
         </header>
@@ -109,14 +111,14 @@ function ProfilePreview({ account, form, imageUrl, onClose }) {
         <div className="nk-profile-preview__layout">
           <div className="nk-profile-preview__photo">
             {imageUrl ? (
-              <img src={imageUrl} alt={`Pré-visualização de ${form.nome_publico}`} />
+              <img src={imageUrl} alt={`${english ? "Preview of" : "Pré-visualização de"} ${form.nome_publico}`} />
             ) : (
               <UserRound size={70} strokeWidth={1.1} />
             )}
             <div />
-            <span><ShieldCheck size={15} /> Perfil verificado</span>
+            <span><ShieldCheck size={15} /> {english ? "Verified profile" : "Perfil verificado"}</span>
             <section>
-              <small>{objectiveLabel(form.objetivo)}</small>
+              <small>{objectiveLabel(form.objetivo, language)}</small>
               <strong>
                 {form.nome_publico || account.nome_publico}
                 {account.idade ? `, ${account.idade}` : ""}
@@ -127,22 +129,22 @@ function ProfilePreview({ account, form, imageUrl, onClose }) {
 
           <div className="nk-profile-preview__content">
             <span className="nk-eyebrow nk-eyebrow--dark">
-              <ShieldCheck size={15} /> Perfil confirmado
+              <ShieldCheck size={15} /> {english ? "Confirmed profile" : "Perfil confirmado"}
             </span>
             <h3>{form.nome_publico || account.nome_publico}</h3>
-            <p>{objectiveLabel(form.objetivo)}</p>
+            <p>{objectiveLabel(form.objetivo, language)}</p>
 
             <article>
-              <strong>Sobre mim</strong>
-              <p>{form.sobre_si || "A sua apresentação aparecerá aqui."}</p>
+              <strong>{english ? "About me" : "Sobre mim"}</strong>
+              <p>{form.sobre_si || (english ? "Your introduction will appear here." : "A sua apresentação aparecerá aqui.")}</p>
             </article>
             <article>
-              <strong>O que valorizo</strong>
-              <p>{form.o_que_valoriza || "Esta informação ainda não foi preenchida."}</p>
+              <strong>{english ? "What I value" : "O que valorizo"}</strong>
+              <p>{form.o_que_valoriza || (english ? "This information has not been added yet." : "Esta informação ainda não foi preenchida.")}</p>
             </article>
             <article>
-              <strong>O que não aceito</strong>
-              <p>{form.o_que_nao_aceita || "Esta informação ainda não foi preenchida."}</p>
+              <strong>{english ? "What I do not accept" : "O que não aceito"}</strong>
+              <p>{form.o_que_nao_aceita || (english ? "This information has not been added yet." : "Esta informação ainda não foi preenchida.")}</p>
             </article>
           </div>
         </div>
@@ -151,7 +153,8 @@ function ProfilePreview({ account, form, imageUrl, onClose }) {
   );
 }
 
-function ProfileGalleryManager() {
+function ProfileGalleryManager({ language }) {
+  const english = language === "EN";
   const [gallery, setGallery] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
@@ -165,7 +168,7 @@ function ProfileGalleryManager() {
       .then(setGallery)
       .catch((requestError) => {
         if (requestError.name !== "AbortError") {
-          setError(requestError.message || "Não foi possível abrir a galeria.");
+          setError(requestError.message || (english ? "Could not open the gallery." : "Não foi possível abrir a galeria."));
         }
       })
       .finally(() => {
@@ -184,7 +187,7 @@ function ProfileGalleryManager() {
       setMessage(result.message);
       window.setTimeout(() => setMessage(""), 2600);
     } catch (requestError) {
-      setError(requestError.message || "Não foi possível atualizar a capa.");
+      setError(requestError.message || (english ? "Could not update the cover." : "Não foi possível atualizar a capa."));
     } finally {
       setSavingId(null);
     }
@@ -196,8 +199,8 @@ function ProfileGalleryManager() {
         <div>
           <span><Images size={18} /></span>
           <div>
-            <h2>Capa e galeria</h2>
-            <p>Conteúdo aprovado aparece automaticamente.</p>
+            <h2>{english ? "Cover and gallery" : "Capa e galeria"}</h2>
+            <p>{english ? "Approved content appears automatically." : "Conteúdo aprovado aparece automaticamente."}</p>
           </div>
         </div>
         {gallery?.coverPublicationId && (
@@ -206,13 +209,13 @@ function ProfileGalleryManager() {
             onClick={() => changeCover(null)}
             disabled={Boolean(savingId)}
           >
-            Remover capa
+            {english ? "Remove cover" : "Remover capa"}
           </button>
         )}
       </header>
 
       {loading ? (
-        <div className="nk-account-gallery__loading" aria-label="A carregar galeria">
+        <div className="nk-account-gallery__loading" aria-label={english ? "Loading gallery" : "A carregar galeria"}>
           <span /><span /><span />
         </div>
       ) : gallery?.results?.length ? (
@@ -225,18 +228,20 @@ function ProfileGalleryManager() {
                   <span className="nk-account-gallery__video"><Play size={17} fill="currentColor" /></span>
                 </>
               ) : (
-                <img src={item.mediaUrl} alt="Publicação aprovada" loading="lazy" />
+                <img src={item.mediaUrl} alt={english ? "Approved publication" : "Publicação aprovada"} loading="lazy" />
               )}
 
               {item.isCover ? (
-                <strong>Capa</strong>
+                <strong>{english ? "Cover" : "Capa"}</strong>
               ) : item.canBeCover ? (
                 <button
                   type="button"
                   onClick={() => changeCover(item.id)}
                   disabled={Boolean(savingId)}
                 >
-                  {savingId === item.id ? "A guardar…" : "Usar como capa"}
+                  {savingId === item.id
+                    ? (english ? "Saving…" : "A guardar…")
+                    : (english ? "Use as cover" : "Usar como capa")}
                 </button>
               ) : null}
             </article>
@@ -245,7 +250,7 @@ function ProfileGalleryManager() {
       ) : (
         <div className="nk-account-gallery__empty">
           <Images size={22} />
-          <span>As suas publicações aprovadas aparecerão aqui.</span>
+          <span>{english ? "Your approved publications will appear here." : "As suas publicações aprovadas aparecerão aqui."}</span>
         </div>
       )}
 
@@ -272,8 +277,11 @@ export default function AccountPage({
   preferencesLoading,
   preferencesSaving,
   preferencesError,
+  onPreviewPreferences,
   onSavePreferences,
 }) {
+  const language = preferences?.idioma === "EN" ? "EN" : "PT";
+  const english = language === "EN";
   const [form, setForm] = useState(emptyForm);
   const [accountSection, setAccountSection] = useState("summary");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -325,13 +333,13 @@ export default function AccountPage({
     if (!file) return;
 
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setPhotoError("Escolha uma fotografia em JPG, PNG ou WEBP.");
+      setPhotoError(english ? "Choose a JPG, PNG or WEBP photo." : "Escolha uma fotografia em JPG, PNG ou WEBP.");
       event.target.value = "";
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setPhotoError("A fotografia deve ter no máximo 5 MB.");
+      setPhotoError(english ? "The photo must be no larger than 5 MB." : "A fotografia deve ter no máximo 5 MB.");
       event.target.value = "";
       return;
     }
@@ -355,7 +363,7 @@ export default function AccountPage({
       await onReload();
       window.setTimeout(() => setPhotoSuccess(""), 2600);
     } catch (uploadError) {
-      setPhotoError(uploadError.message || "Não foi possível atualizar a fotografia.");
+      setPhotoError(uploadError.message || (english ? "Could not update the photo." : "Não foi possível atualizar a fotografia."));
     } finally {
       setPhotoUploading(false);
     }
@@ -377,10 +385,10 @@ export default function AccountPage({
       <main className="nk-account">
         <div className="nk-shell nk-account__empty">
           <UserRound size={32} />
-          <h1>Não foi possível abrir a sua conta</h1>
-          <p>{error || "Tente novamente dentro de alguns instantes."}</p>
+          <h1>{english ? "Could not open your account" : "Não foi possível abrir a sua conta"}</h1>
+          <p>{error || (english ? "Try again in a few moments." : "Tente novamente dentro de alguns instantes.")}</p>
           <button type="button" className="nk-button nk-button--wine" onClick={onReload}>
-            Tentar novamente
+            {english ? "Try again" : "Tentar novamente"}
           </button>
         </div>
       </main>
@@ -391,13 +399,13 @@ export default function AccountPage({
 
   return (
     <main className="nk-account">
-      <CompactPageHeader title="Conta">
+      <CompactPageHeader title={english ? "Account" : "Conta"}>
         <button type="button" className="nk-account__preview-button" onClick={() => setPreviewOpen(true)}>
-          <Eye size={17} /> Pré-visualizar
+          <Eye size={17} /> {english ? "Preview" : "Pré-visualizar"}
         </button>
         <button type="button" className="nk-account__reload" onClick={onReload} disabled={loading}>
           <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
-          Atualizar
+          {english ? "Refresh" : "Atualizar"}
         </button>
       </CompactPageHeader>
 
@@ -406,7 +414,7 @@ export default function AccountPage({
           <article className="nk-account-card">
             <div className="nk-account-card__photo">
               {displayedPhoto ? (
-                <img src={displayedPhoto} alt={`Foto de ${account.nome_publico}`} />
+                <img src={displayedPhoto} alt={`${english ? "Photo of" : "Foto de"} ${account.nome_publico}`} />
               ) : (
                 <UserRound size={52} strokeWidth={1.25} />
               )}
@@ -415,7 +423,7 @@ export default function AccountPage({
                 type="button"
                 className="nk-account-card__camera"
                 onClick={() => photoInputRef.current?.click()}
-                aria-label="Alterar fotografia"
+                aria-label={english ? "Change photo" : "Alterar fotografia"}
               >
                 <Camera size={16} />
               </button>
@@ -435,18 +443,20 @@ export default function AccountPage({
               onClick={() => photoInputRef.current?.click()}
               disabled={photoUploading}
             >
-              <ImageUp size={16} /> Alterar fotografia
+              <ImageUp size={16} /> {english ? "Change photo" : "Alterar fotografia"}
             </button>
 
             {pendingPhoto && (
               <div className="nk-account-card__photo-confirm">
-                <span>Nova fotografia selecionada</span>
+                <span>{english ? "New photo selected" : "Nova fotografia selecionada"}</span>
                 <div>
                   <button type="button" onClick={clearPendingPhoto} disabled={photoUploading}>
-                    Cancelar
+                    {english ? "Cancel" : "Cancelar"}
                   </button>
                   <button type="button" onClick={handlePhotoUpload} disabled={photoUploading}>
-                    {photoUploading ? "A enviar…" : "Usar esta foto"}
+                    {photoUploading
+                      ? (english ? "Uploading…" : "A enviar…")
+                      : (english ? "Use this photo" : "Usar esta foto")}
                   </button>
                 </div>
               </div>
@@ -458,21 +468,23 @@ export default function AccountPage({
             <h2>{account.nome_publico}</h2>
             <p><MapPin size={14} /> {account.cidade}</p>
             <div className="nk-account-card__facts">
-              <span>{account.idade} anos</span>
-              <span>{account.objetivo_display}</span>
+              <span>{account.idade} {english ? "years" : "anos"}</span>
+              <span>{objectiveLabel(account.objetivo, language)}</span>
             </div>
             <small className="nk-account-card__private-email">
-              <LockKeyhole size={12} /> {account.email} · privado
+              <LockKeyhole size={12} /> {account.email} · {english ? "private" : "privado"}
             </small>
 
             <div className={`nk-account-card__visibility ${account.visivel ? "is-visible" : ""}`}>
               {account.visivel ? <Eye size={16} /> : <EyeOff size={16} />}
               <div>
-                <strong>{account.visivel ? "Perfil visível" : "Perfil oculto"}</strong>
+                <strong>{account.visivel
+                  ? (english ? "Visible profile" : "Perfil visível")
+                  : (english ? "Hidden profile" : "Perfil oculto")}</strong>
                 <span>
                   {account.visivel
-                    ? "Pode aparecer na área de perfis."
-                    : "Não aparece para outros membros."}
+                    ? (english ? "It can appear in the profiles area." : "Pode aparecer na área de perfis.")
+                    : (english ? "It is not shown to other members." : "Não aparece para outros membros.")}
                 </span>
               </div>
             </div>
@@ -484,29 +496,33 @@ export default function AccountPage({
               disabled={saving}
             >
               {account.visivel ? <EyeOff size={17} /> : <Eye size={17} />}
-              {account.visivel ? "Ocultar perfil" : "Mostrar perfil"}
+              {account.visivel
+                ? (english ? "Hide profile" : "Ocultar perfil")
+                : (english ? "Show profile" : "Mostrar perfil")}
             </button>
 
             <div className={`nk-account-card__public-preview ${account.destaque_publico ? "is-active" : ""}`}>
               <div className="nk-account-card__public-preview-heading">
                 <span><Globe2 size={17} /></span>
                 <div>
-                  <strong>Apresentação pública</strong>
+                  <strong>{english ? "Public introduction" : "Apresentação pública"}</strong>
                   <small>
                     {account.destaque_publico
-                      ? "O seu cartão pode aparecer antes do login."
+                      ? (english ? "Your card can appear before sign-in." : "O seu cartão pode aparecer antes do login.")
                       : account.destaque_publico_elegivel
-                        ? "Autorize o seu cartão na página pública."
+                        ? (english ? "Allow your card on the public page." : "Autorize o seu cartão na página pública.")
                         : account.visivel
-                          ? "A fotografia aguarda aprovação."
-                          : "Primeiro torne o perfil visível."}
+                          ? (english ? "The photo is awaiting approval." : "A fotografia aguarda aprovação.")
+                          : (english ? "First make the profile visible." : "Primeiro torne o perfil visível.")}
                   </small>
                 </div>
               </div>
 
               <div className="nk-account-card__public-preview-meta">
-                <span>{account.destaque_publico_exibicoes} aparições</span>
-                <em>{account.destaque_publico ? "Ativo" : "Desligado"}</em>
+                <span>{account.destaque_publico_exibicoes} {english ? "appearances" : "aparições"}</span>
+                <em>{account.destaque_publico
+                  ? (english ? "Active" : "Ativo")
+                  : (english ? "Off" : "Desligado")}</em>
               </div>
 
               <button
@@ -518,7 +534,9 @@ export default function AccountPage({
                 }
                 aria-pressed={account.destaque_publico}
               >
-                {account.destaque_publico ? "Retirar da página pública" : "Permitir apresentação pública"}
+                {account.destaque_publico
+                  ? (english ? "Remove from public page" : "Retirar da página pública")
+                  : (english ? "Allow public introduction" : "Permitir apresentação pública")}
               </button>
 
               {error && <small className="nk-account-card__public-preview-message is-error">{error}</small>}
@@ -533,27 +551,27 @@ export default function AccountPage({
             </article>
             <article>
               <strong>{account.total_interesses_enviados}</strong>
-              <span>Interesses enviados</span>
+              <span>{english ? "Interests sent" : "Interesses enviados"}</span>
             </article>
           </div>
 
           {account.membro_desde && (
             <div className="nk-account__member-since">
               <CalendarDays size={17} />
-              <span>Membro desde {formatMemberDate(account.membro_desde)}</span>
+              <span>{english ? "Member since" : "Membro desde"} {formatMemberDate(account.membro_desde, language)}</span>
             </div>
           )}
         </aside>
 
         <div className="nk-account__main">
-          <nav className="nk-account-tabs" aria-label="Áreas da conta">
+          <nav className="nk-account-tabs" aria-label={english ? "Account areas" : "Áreas da conta"}>
             {[
-              ["summary", "Resumo"],
-              ["profile", "Perfil"],
-              ["plan", "Plano"],
-              ["interests", "Interesses"],
-              ["preferences", "Aparência"],
-              ["security", "Segurança"],
+              ["summary", english ? "Summary" : "Resumo"],
+              ["profile", english ? "Profile" : "Perfil"],
+              ["plan", english ? "Plan" : "Plano"],
+              ["interests", english ? "Interests" : "Interesses"],
+              ["preferences", english ? "Appearance" : "Aparência"],
+              ["security", english ? "Security" : "Segurança"],
             ].map(([section, label]) => (
               <button
                 type="button"
@@ -568,7 +586,7 @@ export default function AccountPage({
           </nav>
 
           {accountSection === "summary" && (
-            <AccountSummaryPanel onOpenSection={setAccountSection} />
+            <AccountSummaryPanel language={language} onOpenSection={setAccountSection} />
           )}
 
           {accountSection === "profile" && (
@@ -576,12 +594,14 @@ export default function AccountPage({
             <form className="nk-account-form" onSubmit={handleSubmit}>
             <div className="nk-account-form__heading">
               <div>
-                <h2>Editar perfil</h2>
-                <p>Estas informações aparecem no seu perfil.</p>
+                <h2>{english ? "Edit profile" : "Editar perfil"}</h2>
+                <p>{english ? "This information appears on your profile." : "Estas informações aparecem no seu perfil."}</p>
               </div>
               <button type="submit" className="nk-button nk-button--wine" disabled={saving}>
                 <Save size={17} />
-                {saving ? "A guardar…" : "Guardar alterações"}
+                {saving
+                  ? (english ? "Saving…" : "A guardar…")
+                  : (english ? "Save changes" : "Guardar alterações")}
               </button>
             </div>
 
@@ -594,7 +614,7 @@ export default function AccountPage({
 
             <div className="nk-account-form__grid">
               <label>
-                <span>Nome apresentado</span>
+                <span>{english ? "Display name" : "Nome apresentado"}</span>
                 <input
                   type="text"
                   value={form.nome_publico}
@@ -605,7 +625,7 @@ export default function AccountPage({
               </label>
 
               <label>
-                <span>Cidade</span>
+                <span>{english ? "City" : "Cidade"}</span>
                 <input
                   type="text"
                   value={form.cidade}
@@ -616,20 +636,20 @@ export default function AccountPage({
               </label>
 
               <label className="nk-account-form__wide">
-                <span>O que procura</span>
+                <span>{english ? "What you are looking for" : "O que procura"}</span>
                 <select
                   value={form.objetivo}
                   onChange={(event) => updateField("objetivo", event.target.value)}
                   required
                 >
                   {objectiveOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
+                    <option key={option.value} value={option.value}>{english ? option.en : option.pt}</option>
                   ))}
                 </select>
               </label>
 
               <label className="nk-account-form__wide">
-                <span>Sobre si</span>
+                <span>{english ? "About you" : "Sobre si"}</span>
                 <textarea
                   value={form.sobre_si}
                   onChange={(event) => updateField("sobre_si", event.target.value)}
@@ -638,11 +658,11 @@ export default function AccountPage({
                   rows={5}
                   required
                 />
-                <small>Mínimo 30 caracteres · {form.sobre_si.length}/1800</small>
+                <small>{english ? "Minimum 30 characters" : "Mínimo 30 caracteres"} · {form.sobre_si.length}/1800</small>
               </label>
 
               <label className="nk-account-form__wide">
-                <span>O que valoriza numa relação</span>
+                <span>{english ? "What you value in a relationship" : "O que valoriza numa relação"}</span>
                 <textarea
                   value={form.o_que_valoriza}
                   onChange={(event) => updateField("o_que_valoriza", event.target.value)}
@@ -651,11 +671,11 @@ export default function AccountPage({
                   rows={4}
                   required
                 />
-                <small>Mínimo 18 caracteres · {form.o_que_valoriza.length}/1800</small>
+                <small>{english ? "Minimum 18 characters" : "Mínimo 18 caracteres"} · {form.o_que_valoriza.length}/1800</small>
               </label>
 
               <label className="nk-account-form__wide">
-                <span>O que não aceita</span>
+                <span>{english ? "What you do not accept" : "O que não aceita"}</span>
                 <textarea
                   value={form.o_que_nao_aceita}
                   onChange={(event) => updateField("o_que_nao_aceita", event.target.value)}
@@ -664,21 +684,21 @@ export default function AccountPage({
                   rows={4}
                   required
                 />
-                <small>Mínimo 12 caracteres · {form.o_que_nao_aceita.length}/1800</small>
+                <small>{english ? "Minimum 12 characters" : "Mínimo 12 caracteres"} · {form.o_que_nao_aceita.length}/1800</small>
               </label>
             </div>
             </form>
-            <ProfileGalleryManager />
+            <ProfileGalleryManager language={language} />
             </>
           )}
 
-          {accountSection === "plan" && <PlanPanel />}
+          {accountSection === "plan" && <PlanPanel language={language} />}
 
           {accountSection === "interests" && (
             <section className="nk-account-interests">
               <div className="nk-account-interests__heading">
                 <div>
-                  <h2>Interesses enviados</h2>
+                  <h2>{english ? "Interests sent" : "Interesses enviados"}</h2>
                 </div>
                 <span>{interests.length}</span>
               </div>
@@ -686,13 +706,13 @@ export default function AccountPage({
               {interests.length ? (
                 <div className="nk-account-interests__list">
                   {interests.map((profile) => (
-                    <InterestItem key={profile.id} profile={profile} onOpen={onOpenProfile} />
+                    <InterestItem key={profile.id} profile={profile} language={language} onOpen={onOpenProfile} />
                   ))}
                 </div>
               ) : (
                 <div className="nk-account-interests__empty">
                   <Heart size={22} />
-                  <span>Nenhum interesse enviado.</span>
+                  <span>{english ? "No interests sent." : "Nenhum interesse enviado."}</span>
                 </div>
               )}
             </section>
@@ -704,6 +724,7 @@ export default function AccountPage({
               loading={preferencesLoading}
               saving={preferencesSaving}
               error={preferencesError}
+              onPreview={onPreviewPreferences}
               onSave={onSavePreferences}
             />
           )}
@@ -713,8 +734,8 @@ export default function AccountPage({
               <div>
                 <span><LockKeyhole size={19} /></span>
                 <div>
-                  <h2>Segurança</h2>
-                  <p>Palavra-passe e documentos são privados.</p>
+                  <h2>{english ? "Security" : "Segurança"}</h2>
+                  <p>{english ? "Your password and documents are private." : "Palavra-passe e documentos são privados."}</p>
                 </div>
               </div>
 
@@ -725,10 +746,10 @@ export default function AccountPage({
                     new URL("/minha-conta/alterar-senha/", API_BASE_URL).toString(),
                   )}
                 >
-                  Alterar palavra-passe
+                  {english ? "Change password" : "Alterar palavra-passe"}
                 </button>
                 <button type="button" className="is-danger" onClick={onSignOut}>
-                  <LogOut size={16} /> Terminar sessão
+                  <LogOut size={16} /> {english ? "Sign out" : "Terminar sessão"}
                 </button>
               </div>
             </section>
@@ -741,6 +762,7 @@ export default function AccountPage({
           account={account}
           form={form}
           imageUrl={displayedPhoto}
+          language={language}
           onClose={() => setPreviewOpen(false)}
         />
       )}

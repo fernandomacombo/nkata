@@ -25,7 +25,12 @@ function applyPreferences(preferences) {
   const root = document.documentElement;
   root.lang = preferences.idioma === "EN" ? "en" : "pt";
   root.dataset.nkataLanguage = preferences.idioma;
+  root.dataset.nkataTheme = preferences.tema_perfil;
   root.dataset.nkataChatBackground = preferences.fundo_conversa;
+
+  window.dispatchEvent(new CustomEvent("nkata:preferences-applied", {
+    detail: preferences,
+  }));
 }
 
 export default function useAppPreferences({ authenticated, identity }) {
@@ -79,11 +84,19 @@ export default function useAppPreferences({ authenticated, identity }) {
     }
   }, []);
 
+  const previewPreferences = useCallback((values) => {
+    const next = normalizePreferences({ ...preferences, ...values });
+    setPreferences(next);
+    applyPreferences(next);
+    return next;
+  }, [preferences]);
+
   return {
     preferences,
     loading,
     saving,
     error,
+    previewPreferences,
     savePreferences,
   };
 }

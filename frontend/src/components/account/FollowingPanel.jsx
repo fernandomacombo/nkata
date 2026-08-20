@@ -13,6 +13,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { fetchFollowingProfiles, toggleFollowProfile } from "../../services/followApi.js";
+import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
 function useAccountTarget() {
   const [target, setTarget] = useState(() => document.querySelector(".nk-account__main"));
@@ -38,14 +39,24 @@ function navigateApp(path) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-function FollowingPerson({ profile, busy, onOpen, onUnfollow }) {
+function translateObjective(label, english) {
+  if (!english) return label;
+  return ({
+    "Relacionamento sério": "Serious relationship",
+    "Conhecer pessoas com intenção": "Meet people with intention",
+    "Amizade que pode evoluir": "Friendship that may grow",
+    "Casamento no futuro": "Marriage in the future",
+  })[label] || label;
+}
+
+function FollowingPerson({ profile, busy, english, onOpen, onUnfollow }) {
   return (
     <article className="nk-following-person">
       <button
         type="button"
         className="nk-following-person__identity"
         onClick={() => onOpen(profile)}
-        aria-label={`Abrir perfil de ${profile.nome_publico}`}
+        aria-label={`${english ? "Open profile of" : "Abrir perfil de"} ${profile.nome_publico}`}
       >
         <span className="nk-following-person__photo">
           {profile.foto_url ? (
@@ -54,7 +65,7 @@ function FollowingPerson({ profile, busy, onOpen, onUnfollow }) {
             <UserRound size={34} strokeWidth={1.35} />
           )}
           {profile.verificado && (
-            <em aria-label="Perfil verificado"><BadgeCheck size={15} /></em>
+            <em aria-label={english ? "Verified profile" : "Perfil verificado"}><BadgeCheck size={15} /></em>
           )}
         </span>
 
@@ -64,7 +75,7 @@ function FollowingPerson({ profile, busy, onOpen, onUnfollow }) {
             {profile.idade ? `, ${profile.idade}` : ""}
           </strong>
           <small><MapPin size={13} /> {profile.cidade}</small>
-          <span>{profile.objetivo_display}</span>
+          <span>{translateObjective(profile.objetivo_display, english)}</span>
         </span>
 
         <ArrowUpRight size={18} />
@@ -77,13 +88,17 @@ function FollowingPerson({ profile, busy, onOpen, onUnfollow }) {
         disabled={busy}
       >
         {busy ? <LoaderCircle size={16} className="is-spinning" /> : <UserMinus size={16} />}
-        {busy ? "A atualizar" : "Deixar de seguir"}
+        {busy
+          ? (english ? "Updating" : "A atualizar")
+          : (english ? "Unfollow" : "Deixar de seguir")}
       </button>
     </article>
   );
 }
 
 export default function FollowingPanel() {
+  const language = useInterfaceLanguage();
+  const english = language === "EN";
   const target = useAccountTarget();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -100,7 +115,7 @@ export default function FollowingPanel() {
       setProfiles(result.results);
     } catch (requestError) {
       if (requestError.name !== "AbortError") {
-        setError(requestError.message || "Não foi possível carregar as pessoas que segue.");
+        setError(requestError.message || (english ? "Could not load the people you follow." : "Não foi possível carregar as pessoas que segue."));
       }
     } finally {
       if (!signal?.aborted) setLoading(false);
@@ -135,7 +150,7 @@ export default function FollowingPanel() {
         setProfiles((current) => current.filter((item) => item.id !== profile.id));
       }
     } catch (requestError) {
-      setError(requestError.message || "Não foi possível atualizar esta ligação.");
+      setError(requestError.message || (english ? "Could not update this connection." : "Não foi possível atualizar esta ligação."));
     } finally {
       setBusyId(null);
     }
@@ -147,16 +162,16 @@ export default function FollowingPanel() {
     <section className="nk-following-panel" aria-labelledby="nk-following-title">
       <header className="nk-following-panel__header">
         <div>
-          <span><UserRound size={16} /> Ligações privadas</span>
-          <h2 id="nk-following-title">A seguir</h2>
-          <p>As pessoas que acompanha aparecem com prioridade nos Momentos.</p>
+          <span><UserRound size={16} /> {english ? "Private connections" : "Ligações privadas"}</span>
+          <h2 id="nk-following-title">{english ? "Following" : "A seguir"}</h2>
+          <p>{english ? "People you follow appear first in Moments." : "As pessoas que acompanha aparecem com prioridade nos Momentos."}</p>
         </div>
 
         <div className="nk-following-panel__header-actions">
           <span className="nk-following-panel__private">
-            <ShieldCheck size={15} /> Só você vê esta lista
+            <ShieldCheck size={15} /> {english ? "Only you can see this list" : "Só você vê esta lista"}
           </span>
-          <button type="button" onClick={() => load()} disabled={loading} aria-label="Atualizar A seguir">
+          <button type="button" onClick={() => load()} disabled={loading} aria-label={english ? "Refresh Following" : "Atualizar A seguir"}>
             <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
           </button>
         </div>
@@ -165,9 +180,9 @@ export default function FollowingPanel() {
       {error && <div className="nk-following-panel__error">{error}</div>}
 
       {loading && !profiles.length ? (
-        <div className="nk-following-panel__loading" aria-label="A carregar">
+        <div className="nk-following-panel__loading" aria-label={english ? "Loading" : "A carregar"}>
           <LoaderCircle size={24} className="is-spinning" />
-          <span>A carregar as suas ligações</span>
+          <span>{english ? "Loading your connections" : "A carregar as suas ligações"}</span>
         </div>
       ) : profiles.length ? (
         <div className="nk-following-panel__people">
@@ -176,6 +191,7 @@ export default function FollowingPanel() {
               key={profile.id}
               profile={profile}
               busy={busyId === profile.id}
+              english={english}
               onOpen={handleOpen}
               onUnfollow={handleUnfollow}
             />
@@ -185,11 +201,11 @@ export default function FollowingPanel() {
         <div className="nk-following-panel__empty">
           <span><UsersRound size={25} /></span>
           <div>
-            <strong>Ainda não segue ninguém</strong>
-            <p>Ao seguir um perfil, ele aparecerá aqui e os Momentos dessa pessoa terão prioridade.</p>
+            <strong>{english ? "You are not following anyone yet" : "Ainda não segue ninguém"}</strong>
+            <p>{english ? "Follow a profile to see it here and prioritise that person's Moments." : "Ao seguir um perfil, ele aparecerá aqui e os Momentos dessa pessoa terão prioridade."}</p>
           </div>
           <button type="button" onClick={() => navigateApp("/perfis/")}>
-            <UserRound size={17} /> Explorar perfis
+            <UserRound size={17} /> {english ? "Explore profiles" : "Explorar perfis"}
           </button>
         </div>
       )}
@@ -200,7 +216,7 @@ export default function FollowingPanel() {
           className="nk-following-panel__moments"
           onClick={() => navigateApp("/momentos/")}
         >
-          <CirclePlay size={18} /> Ver Momentos com prioridade
+          <CirclePlay size={18} /> {english ? "View priority Moments" : "Ver Momentos com prioridade"}
         </button>
       )}
     </section>,

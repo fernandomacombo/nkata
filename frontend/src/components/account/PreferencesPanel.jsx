@@ -2,15 +2,15 @@ import { Check, Languages, MessageCircle, Palette, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const profileThemes = [
-  { value: "CLASSICO", label: "Clássico", className: "is-classic" },
-  { value: "AREIA", label: "Areia", className: "is-sand" },
-  { value: "NOITE", label: "Noite", className: "is-night" },
+  { value: "CLASSICO", pt: "Clássico", en: "Classic", className: "is-classic" },
+  { value: "AREIA", pt: "Areia", en: "Sand", className: "is-sand" },
+  { value: "NOITE", pt: "Noite", en: "Night", className: "is-night" },
 ];
 
 const chatBackgrounds = [
-  { value: "SERENO", label: "Sereno", className: "is-serene" },
-  { value: "BOTANICO", label: "Botânico", className: "is-botanical" },
-  { value: "NOTURNO", label: "Noturno", className: "is-dark" },
+  { value: "SERENO", pt: "Sereno", en: "Serene", className: "is-serene" },
+  { value: "BOTANICO", pt: "Botânico", en: "Botanical", className: "is-botanical" },
+  { value: "NOTURNO", pt: "Noturno", en: "Dark", className: "is-dark" },
 ];
 
 function Choice({ selected, label, previewClass, onSelect }) {
@@ -28,7 +28,7 @@ function Choice({ selected, label, previewClass, onSelect }) {
   );
 }
 
-export default function PreferencesPanel({ preferences, loading, saving, error, onSave }) {
+export default function PreferencesPanel({ preferences, loading, saving, error, onPreview, onSave }) {
   const [form, setForm] = useState(preferences);
   const [message, setMessage] = useState("");
 
@@ -36,7 +36,9 @@ export default function PreferencesPanel({ preferences, loading, saving, error, 
 
   const update = (field, value) => {
     setMessage("");
-    setForm((current) => ({ ...current, [field]: value }));
+    const next = { ...form, [field]: value };
+    setForm(next);
+    onPreview?.(next);
   };
 
   const submit = async (event) => {
@@ -79,7 +81,7 @@ export default function PreferencesPanel({ preferences, loading, saving, error, 
       )}
 
       <section className="nk-preference-section nk-preference-section--language">
-        <div><Languages size={18} /><strong>{english ? "Language" : "Idioma"}</strong></div>
+        <div><Languages size={18} /><strong>{english ? "Interface language" : "Idioma da interface"}</strong></div>
         <div className="nk-language-switch">
           <button type="button" className={form.idioma === "PT" ? "is-selected" : ""} onClick={() => update("idioma", "PT")}>Português</button>
           <button type="button" className={form.idioma === "EN" ? "is-selected" : ""} onClick={() => update("idioma", "EN")}>English</button>
@@ -87,13 +89,13 @@ export default function PreferencesPanel({ preferences, loading, saving, error, 
       </section>
 
       <section className="nk-preference-section">
-        <div><Palette size={18} /><strong>{english ? "Profile theme" : "Tema do perfil"}</strong></div>
+        <div><Palette size={18} /><strong>{english ? "App theme" : "Tema da aplicação"}</strong></div>
         <div className="nk-preference-grid">
           {profileThemes.map((theme) => (
             <Choice
               key={theme.value}
               selected={form.tema_perfil === theme.value}
-              label={theme.label}
+              label={english ? theme.en : theme.pt}
               previewClass={theme.className}
               onSelect={() => update("tema_perfil", theme.value)}
             />
@@ -108,7 +110,7 @@ export default function PreferencesPanel({ preferences, loading, saving, error, 
             <Choice
               key={background.value}
               selected={form.fundo_conversa === background.value}
-              label={background.label}
+              label={english ? background.en : background.pt}
               previewClass={background.className}
               onSelect={() => update("fundo_conversa", background.value)}
             />

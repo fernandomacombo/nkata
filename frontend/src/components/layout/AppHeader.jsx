@@ -35,9 +35,9 @@ export default function AppHeader({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const authenticated = Boolean(session?.authenticated);
-  const memberName = session?.profile?.name || session?.user?.name || "Conta";
   const english = language === "EN";
   const tr = (portuguese, englishText) => (english ? englishText : portuguese);
+  const memberName = session?.profile?.name || session?.user?.name || tr("Conta", "Account");
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -83,7 +83,7 @@ export default function AppHeader({
             type="button"
             className="nk-header__mobile-back"
             onClick={onMobileBack}
-            aria-label="Voltar"
+            aria-label={tr("Voltar", "Back")}
           >
             <ArrowLeft size={19} />
             <span>{tr("Voltar", "Back")}</span>
@@ -94,13 +94,13 @@ export default function AppHeader({
           type="button"
           className="nk-brand"
           onClick={() => navigate("home")}
-          aria-label="Ir para o início"
+          aria-label={tr("Ir para o início", "Go to home")}
         >
           <span className="nk-brand__mark">N</span>
           <span className="nk-brand__word">NKATA</span>
         </button>
 
-        <nav className="nk-desktop-nav" aria-label="Navegação principal">
+        <nav className="nk-desktop-nav" aria-label={tr("Navegação principal", "Main navigation")}>
           <button
             type="button"
             className={activePage === "home" ? "is-active" : ""}
@@ -130,7 +130,7 @@ export default function AppHeader({
               className={activePage === "admin" ? "is-active" : ""}
               onClick={() => navigate("admin")}
             >
-              Painel
+              {tr("Painel", "Admin")}
             </button>
           )}
           {authenticated && (
@@ -173,8 +173,8 @@ export default function AppHeader({
                 onClick={() => navigate("notifications")}
                 aria-label={
                   unreadNotifications
-                    ? `${unreadNotifications} notificações por ler`
-                    : "Abrir notificações"
+                    ? `${unreadNotifications} ${tr("notificações por ler", "unread notifications")}`
+                    : tr("Abrir notificações", "Open notifications")
                 }
               >
                 <Bell size={18} />
@@ -197,8 +197,8 @@ export default function AppHeader({
                 type="button"
                 className="nk-header__logout"
                 onClick={signOut}
-                aria-label="Terminar sessão"
-                title="Sair"
+                aria-label={tr("Terminar sessão", "Sign out")}
+                title={tr("Sair", "Sign out")}
               >
                 <LogOut size={17} />
               </button>
@@ -209,8 +209,8 @@ export default function AppHeader({
               className="nk-header__login"
               onClick={() => navigate("login")}
               disabled={sessionLoading}
-              aria-label="Entrar"
-              title="Entrar"
+              aria-label={tr("Entrar", "Sign in")}
+              title={tr("Entrar", "Sign in")}
             >
               <LogIn size={17} />
               <span>{tr("Entrar", "Sign in")}</span>
@@ -231,7 +231,7 @@ export default function AppHeader({
           <button
             type="button"
             className={`nk-icon-button nk-header__menu ${mobileMenuOpen ? "is-open" : ""}`}
-            aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+            aria-label={mobileMenuOpen ? tr("Fechar menu", "Close menu") : tr("Abrir menu", "Open menu")}
             aria-expanded={mobileMenuOpen}
             aria-controls="nk-mobile-menu"
             onClick={() => setMobileMenuOpen((current) => !current)}
@@ -247,13 +247,13 @@ export default function AppHeader({
             type="button"
             className="nk-mobile-menu__backdrop"
             onClick={() => setMobileMenuOpen(false)}
-            aria-label="Fechar menu"
+            aria-label={tr("Fechar menu", "Close menu")}
           />
 
           <aside
             id="nk-mobile-menu"
             className="nk-mobile-menu"
-            aria-label="Menu principal"
+            aria-label={tr("Menu principal", "Main menu")}
           >
             <header className="nk-mobile-menu__header">
               <div className="nk-mobile-menu__brand">
@@ -266,7 +266,7 @@ export default function AppHeader({
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                aria-label="Fechar menu"
+                aria-label={tr("Fechar menu", "Close menu")}
               >
                 <X size={20} />
               </button>
@@ -283,7 +283,7 @@ export default function AppHeader({
               </div>
             )}
 
-            <nav className="nk-mobile-menu__nav" aria-label="Opções do menu">
+            <nav className="nk-mobile-menu__nav" aria-label={tr("Opções do menu", "Menu options")}>
               <button
                 type="button"
                 className={activePage === "home" ? "is-active" : ""}
@@ -320,7 +320,7 @@ export default function AppHeader({
                   onClick={() => navigate("admin")}
                 >
                   <span><PanelsTopLeft size={19} /></span>
-                  <div><strong>Painel NKATA</strong><small>Administração e moderação</small></div>
+                  <div><strong>{tr("Painel NKATA", "NKATA Admin")}</strong><small>{tr("Administração e moderação", "Administration and moderation")}</small></div>
                 </button>
               )}
 

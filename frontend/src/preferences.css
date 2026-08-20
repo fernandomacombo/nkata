@@ -206,6 +206,199 @@
   color: white;
 }
 
+/* O tema escolhido é aplicado ao NKATA inteiro e muda enquanto se escolhe. */
+html[data-nkata-theme="AREIA"] {
+  color-scheme: light;
+  --nk-ink: #352821;
+  --nk-charcoal: #352821;
+  --nk-wine: #8a3e48;
+  --nk-wine-dark: #672d35;
+  --nk-wine-soft: #ecd9d6;
+  --nk-cream: #eee0ce;
+  --nk-paper: #fff9f0;
+  --nk-sand: #dcc3a6;
+  --nk-muted: #79685d;
+  --nk-line: rgba(83, 61, 48, 0.15);
+  --nk-shadow-sm: 0 14px 45px rgba(83, 56, 39, 0.1);
+  --nk-shadow-md: 0 26px 80px rgba(83, 56, 39, 0.15);
+}
+
+html[data-nkata-theme="NOITE"] {
+  color-scheme: dark;
+  --nk-ink: #f8f0e9;
+  --nk-charcoal: #f2e7df;
+  --nk-wine: #d58a9a;
+  --nk-wine-dark: #efb0be;
+  --nk-wine-soft: rgba(190, 92, 113, 0.2);
+  --nk-cream: #171313;
+  --nk-paper: #251e1d;
+  --nk-sand: #352c29;
+  --nk-muted: #baaaa3;
+  --nk-line: rgba(255, 245, 238, 0.12);
+  --nk-success: #82b39f;
+  --nk-shadow-sm: 0 14px 45px rgba(0, 0, 0, 0.24);
+  --nk-shadow-md: 0 26px 80px rgba(0, 0, 0, 0.34);
+  --nk-shadow-lg: 0 38px 120px rgba(0, 0, 0, 0.45);
+}
+
+html[data-nkata-theme="AREIA"] body {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(138, 62, 72, 0.08), transparent 28rem),
+    radial-gradient(circle at 94% 10%, rgba(139, 95, 61, 0.15), transparent 25rem),
+    var(--nk-cream);
+}
+
+html[data-nkata-theme="NOITE"] body {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(190, 92, 113, 0.14), transparent 30rem),
+    radial-gradient(circle at 94% 10%, rgba(179, 148, 95, 0.08), transparent 26rem),
+    var(--nk-cream);
+}
+
+html[data-nkata-theme="AREIA"] .nk-header {
+  background: rgba(238, 224, 206, 0.9);
+}
+
+html[data-nkata-theme="NOITE"] .nk-header,
+html[data-nkata-theme="NOITE"] .nk-page-header,
+html[data-nkata-theme="NOITE"] .nk-profile-preview__dialog > header {
+  background: rgba(23, 19, 19, 0.9);
+}
+
+html[data-nkata-theme="NOITE"] .nk-desktop-nav button,
+html[data-nkata-theme="NOITE"] .nk-account-form label > span,
+html[data-nkata-theme="NOITE"] .nk-profile-preview__content article strong {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-account-card,
+  .nk-account-form,
+  .nk-account-interests,
+  .nk-account-security,
+  .nk-account__stats article,
+  .nk-account-summary,
+  .nk-preferences-panel,
+  .nk-plan-panel,
+  .nk-following-panel,
+  .nk-account-gallery,
+  .nk-profile-preview__dialog
+) {
+  background: rgba(37, 30, 29, 0.96);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-account-form input,
+  .nk-account-form select,
+  .nk-account-form textarea,
+  .nk-account-interest,
+  .nk-account-summary__metric,
+  .nk-account-summary__heading button,
+  .nk-plan-card,
+  .nk-recharge-panel__packs button,
+  .nk-preference-choice,
+  .nk-page-header__actions > button
+) {
+  background: #2d2523;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-account-summary__completion,
+  .nk-account-summary__signals,
+  .nk-plan-current
+) {
+  background: linear-gradient(135deg, rgba(213, 138, 154, 0.12), #2d2523);
+}
+
+html[data-nkata-theme="NOITE"] .nk-account-summary__ring::before {
+  background: #2d2523;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-account-card__visibility,
+  .nk-account-tabs,
+  .nk-language-switch,
+  .nk-recharge-panel,
+  .nk-following-person,
+  .nk-following-panel__empty,
+  .nk-following-panel__loading
+) {
+  background: #211b1a;
+}
+
+html[data-nkata-theme="NOITE"] .nk-language-switch button.is-selected,
+html[data-nkata-theme="NOITE"] .nk-account-tabs button.is-active,
+html[data-nkata-theme="NOITE"] .nk-following-panel__empty > span {
+  background: #352c29;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-following-panel__header h2,
+  .nk-following-person__copy strong,
+  .nk-following-person__copy small,
+  .nk-following-person__copy > span,
+  .nk-following-panel__header p,
+  .nk-following-panel__private,
+  .nk-plan-card li,
+  .nk-recharge-panel > small
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] .nk-following-panel__header h2,
+html[data-nkata-theme="NOITE"] .nk-following-person__copy strong {
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-following-panel__private,
+html[data-nkata-theme="NOITE"] .nk-following-panel__header-actions > button {
+  border-color: var(--nk-line);
+  background: #2d2523;
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-bottom-nav,
+  .nk-mobile-menu,
+  .nk-header__notifications,
+  .nk-header__member,
+  .nk-header__logout
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] body:has(.nk-header__member) .nk-bottom-nav {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-mobile-menu__member,
+  .nk-mobile-menu__nav > button:hover,
+  .nk-mobile-menu__nav > button.is-active
+) {
+  background: #2d2523;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-mobile-menu__nav strong,
+  .nk-mobile-menu__brand strong,
+  .nk-mobile-menu__member strong
+) {
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-mobile-menu__nav small,
+  .nk-mobile-menu__brand small,
+  .nk-mobile-menu__member small
+) {
+  color: var(--nk-muted);
+}
+
 /* O tema é propriedade do perfil visitado, não do visitante. */
 .nk-profile-detail--theme-areia {
   --nk-profile-accent: #8e6247;

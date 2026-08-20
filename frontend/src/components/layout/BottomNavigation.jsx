@@ -20,8 +20,9 @@ export default function BottomNavigation({
   unreadMatches = 0,
   language = "PT",
 }) {
+  const english = language === "EN";
   return (
-    <nav className="nk-bottom-nav" aria-label="Navegação da aplicação">
+    <nav className="nk-bottom-nav" aria-label={english ? "App navigation" : "Navegação da aplicação"}>
       {items.map((item) => {
         const Icon = item.icon;
         const active = activePage === item.id;

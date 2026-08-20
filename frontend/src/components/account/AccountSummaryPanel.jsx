@@ -14,7 +14,7 @@ import {
 import { fetchMyAccountSummary } from "../../services/api.js";
 
 
-function formatDuration(seconds) {
+function formatDuration(seconds, language) {
   const totalMinutes = Math.floor(Number(seconds || 0) / 60);
   if (totalMinutes < 60) return `${totalMinutes} min`;
   const hours = Math.floor(totalMinutes / 60);
@@ -34,7 +34,8 @@ function Metric({ icon: Icon, value, label }) {
 }
 
 
-export default function AccountSummaryPanel({ onOpenSection }) {
+export default function AccountSummaryPanel({ language = "PT", onOpenSection }) {
+  const english = language === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,12 +47,12 @@ export default function AccountSummaryPanel({ onOpenSection }) {
       setData(await fetchMyAccountSummary({ signal }));
     } catch (requestError) {
       if (requestError.name !== "AbortError") {
-        setError(requestError.message || "Não foi possível atualizar o resumo.");
+        setError(requestError.message || (english ? "Could not refresh the summary." : "Não foi possível atualizar o resumo."));
       }
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [english]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,7 +62,7 @@ export default function AccountSummaryPanel({ onOpenSection }) {
 
   if (loading && !data) {
     return (
-      <section className="nk-account-summary nk-account-summary--loading" aria-label="A carregar resumo">
+      <section className="nk-account-summary nk-account-summary--loading" aria-label={english ? "Loading summary" : "A carregar resumo"}>
         <span /><span /><span /><span />
       </section>
     );
@@ -70,9 +71,9 @@ export default function AccountSummaryPanel({ onOpenSection }) {
   if (!data) {
     return (
       <section className="nk-account-summary nk-account-summary--error">
-        <strong>Resumo indisponível</strong>
+        <strong>{english ? "Summary unavailable" : "Resumo indisponível"}</strong>
         <span>{error}</span>
-        <button type="button" onClick={() => load()}><RefreshCw size={16} /> Atualizar</button>
+        <button type="button" onClick={() => load()}><RefreshCw size={16} /> {english ? "Refresh" : "Atualizar"}</button>
       </section>
     );
   }
@@ -90,12 +91,12 @@ export default function AccountSummaryPanel({ onOpenSection }) {
     <section className="nk-account-summary">
       <header className="nk-account-summary__heading">
         <div>
-          <span>Conta</span>
-          <h2>O seu resumo</h2>
+          <span>{english ? "Account" : "Conta"}</span>
+          <h2>{english ? "Your summary" : "O seu resumo"}</h2>
         </div>
         <div>
           <strong><Crown size={15} /> {plan.label}</strong>
-          <button type="button" onClick={() => load()} disabled={loading} aria-label="Atualizar resumo">
+          <button type="button" onClick={() => load()} disabled={loading} aria-label={english ? "Refresh summary" : "Atualizar resumo"}>
             <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
           </button>
         </div>
@@ -112,9 +113,9 @@ export default function AccountSummaryPanel({ onOpenSection }) {
             <span>{profile.completeness}%</span>
           </div>
           <div>
-            <small>Perfil</small>
-            <strong>{profile.verified ? "Verificado" : profile.status_label}</strong>
-            <span>{profile.visible ? "Visível" : "Oculto"}</span>
+            <small>{english ? "Profile" : "Perfil"}</small>
+            <strong>{profile.verified ? (english ? "Verified" : "Verificado") : profile.status_label}</strong>
+            <span>{profile.visible ? (english ? "Visible" : "Visível") : (english ? "Hidden" : "Oculto")}</span>
           </div>
           <BadgeCheck size={19} />
         </article>
@@ -123,34 +124,34 @@ export default function AccountSummaryPanel({ onOpenSection }) {
           <div>
             <span><Sparkles size={18} /></span>
             <div>
-              <small>Sinais de hoje</small>
-              <strong>{quota.used_today} de {quota.daily_limit}</strong>
+              <small>{english ? "Today's signals" : "Sinais de hoje"}</small>
+              <strong>{quota.used_today} {english ? "of" : "de"} {quota.daily_limit}</strong>
             </div>
           </div>
           <div className="nk-account-summary__bar" aria-hidden="true">
             <span style={{ width: `${signalProgress}%` }} />
           </div>
-          <small>{quota.remaining_today} disponíveis · recarga {quota.recharge_balance}</small>
+          <small>{quota.remaining_today} {english ? "available" : "disponíveis"} · {english ? "top-up" : "recarga"} {quota.recharge_balance}</small>
         </article>
       </div>
 
       <div className="nk-account-summary__metrics">
         <Metric icon={UsersRound} value={performance.active_matches} label="Matches" />
-        <Metric icon={Heart} value={performance.interests_received} label="Interesses" />
-        <Metric icon={UsersRound} value={performance.followers} label="Seguidores" />
-        <Metric icon={Eye} value={performance.public_impressions} label="Aparições" />
+        <Metric icon={Heart} value={performance.interests_received} label={english ? "Interests" : "Interesses"} />
+        <Metric icon={UsersRound} value={performance.followers} label={english ? "Followers" : "Seguidores"} />
+        <Metric icon={Eye} value={performance.public_impressions} label={english ? "Appearances" : "Aparições"} />
       </div>
 
       <div className="nk-account-summary__activity">
-        <Metric icon={Images} value={activity.approved_publications} label="Publicações" />
-        <Metric icon={MessageCircle} value={activity.messages_sent} label="Mensagens" />
-        <Metric icon={Phone} value={activity.calls.total} label="Chamadas" />
-        <Metric icon={Phone} value={formatDuration(activity.calls.duration_seconds)} label="Em chamada" />
+        <Metric icon={Images} value={activity.approved_publications} label={english ? "Posts" : "Publicações"} />
+        <Metric icon={MessageCircle} value={activity.messages_sent} label={english ? "Messages" : "Mensagens"} />
+        <Metric icon={Phone} value={activity.calls.total} label={english ? "Calls" : "Chamadas"} />
+        <Metric icon={Phone} value={formatDuration(activity.calls.duration_seconds, language)} label={english ? "Call time" : "Em chamada"} />
       </div>
 
       <footer className="nk-account-summary__actions">
-        <button type="button" onClick={() => onOpenSection("profile")}>Editar perfil</button>
-        <button type="button" onClick={() => onOpenSection("plan")}>Ver plano</button>
+        <button type="button" onClick={() => onOpenSection("profile")}>{english ? "Edit profile" : "Editar perfil"}</button>
+        <button type="button" onClick={() => onOpenSection("plan")}>{english ? "View plan" : "Ver plano"}</button>
       </footer>
     </section>
   );

@@ -21,9 +21,9 @@
 
 .nk-account-card__camera {
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  z-index: 2;
+  right: -8px;
+  bottom: 8px;
+  z-index: 4;
   display: grid;
   width: 34px;
   height: 34px;
@@ -36,9 +36,18 @@
 }
 
 .nk-account-card__photo > span {
-  top: 2px;
-  right: 2px;
+  top: 8px;
+  right: -8px;
   bottom: auto;
+  z-index: 4;
+}
+
+.nk-account-card__photo {
+  overflow: visible;
+}
+
+.nk-account-card__photo > img {
+  border-radius: 50%;
 }
 
 .nk-account-card__file-input {
