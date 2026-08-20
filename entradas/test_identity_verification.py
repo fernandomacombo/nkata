@@ -10,7 +10,12 @@ from django.test import RequestFactory
 from django.test import TestCase
 
 from .identity_admin import VerificacaoIdentidadeNKATAAdmin
-from .identity_api import identity_email_hash
+from .identity_api import (
+    api_capturar_nkata_id,
+    api_estado_nkata_id,
+    api_qr_nkata_id,
+    identity_email_hash,
+)
 from .identity_models import VerificacaoIdentidadeNKATA
 from .identity_verification_service import (
     finalize_identity_analysis,
@@ -18,6 +23,7 @@ from .identity_verification_service import (
 )
 from .models import PedidoEntrada, PerfilNKATA
 from .serializers import PerfilResumoSerializer
+from .throttles import IdentityCaptureRateThrottle, IdentityStatusRateThrottle
 
 
 def textured_image(name, width=900, height=650):
@@ -96,6 +102,24 @@ class NkataIdApiTests(TestCase):
         self.assertEqual(qr_response["Content-Type"], "image/png")
         forbidden = {"email", "email_hash", "idade_declarada", "pedido"}
         self.assertTrue(forbidden.isdisjoint(status_response.json().keys()))
+
+    def test_status_polling_does_not_consume_capture_rate_limit(self):
+        self.assertIn(
+            IdentityStatusRateThrottle,
+            api_estado_nkata_id.cls.throttle_classes,
+        )
+        self.assertIn(
+            IdentityStatusRateThrottle,
+            api_qr_nkata_id.cls.throttle_classes,
+        )
+        self.assertIn(
+            IdentityCaptureRateThrottle,
+            api_capturar_nkata_id.cls.throttle_classes,
+        )
+        self.assertNotEqual(
+            IdentityStatusRateThrottle.scope,
+            IdentityCaptureRateThrottle.scope,
+        )
 
     @patch("entradas.identity_api.inspect_identity_capture")
     def test_capture_flow_finishes_without_requiring_human_for_quality_checks(self, inspect):

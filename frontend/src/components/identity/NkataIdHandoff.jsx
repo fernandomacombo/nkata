@@ -41,7 +41,7 @@ export default function NkataIdHandoff({ email, age, value, onChange, error }) {
       }
     };
     refresh();
-    const intervalId = window.setInterval(refresh, 2200);
+    const intervalId = window.setInterval(refresh, 5000);
     return () => {
       controller.abort();
       window.clearInterval(intervalId);

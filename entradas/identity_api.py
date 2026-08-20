@@ -27,7 +27,11 @@ from .identity_verification_service import (
     next_capture,
 )
 from .media_validation import sanitized_image_upload
-from .throttles import IdentityCaptureRateThrottle, IdentitySessionRateThrottle
+from .throttles import (
+    IdentityCaptureRateThrottle,
+    IdentitySessionRateThrottle,
+    IdentityStatusRateThrottle,
+)
 
 
 SELFIE_CHALLENGES = (
@@ -133,7 +137,7 @@ def api_criar_sessao_nkata_id(request):
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
-@throttle_classes([IdentityCaptureRateThrottle])
+@throttle_classes([IdentityStatusRateThrottle])
 def api_estado_nkata_id(request, token):
     session = VerificacaoIdentidadeNKATA.objects.filter(token=token).first()
     if not session:
@@ -144,7 +148,7 @@ def api_estado_nkata_id(request, token):
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
-@throttle_classes([IdentityCaptureRateThrottle])
+@throttle_classes([IdentityStatusRateThrottle])
 def api_qr_nkata_id(request, token):
     session = VerificacaoIdentidadeNKATA.objects.filter(token=token).first()
     if not session or _expire_if_needed(session):

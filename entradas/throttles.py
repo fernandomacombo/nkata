@@ -56,6 +56,12 @@ class IdentityCaptureRateThrottle(_IdentityThrottle):
         }
 
 
+class IdentityStatusRateThrottle(IdentityCaptureRateThrottle):
+    """Limite separado para o polling; não consome tentativas de captura."""
+
+    scope = "identity_status"
+
+
 class TokenFlowRateThrottle(_IdentityThrottle):
     scope = "token_flow"
 
