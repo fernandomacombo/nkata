@@ -7,17 +7,18 @@ import {
 } from "lucide-react";
 
 const items = [
-  { id: "home", label: "Início", icon: Home },
-  { id: "discover", label: "Perfis", icon: Search },
-  { id: "moments", label: "Momentos", icon: CirclePlay },
-  { id: "matches", label: "Matches", icon: HeartHandshake },
-  { id: "account", label: "Conta", icon: UserRound },
+  { id: "home", label: { PT: "Início", EN: "Home" }, icon: Home },
+  { id: "discover", label: { PT: "Perfis", EN: "Profiles" }, icon: Search },
+  { id: "moments", label: { PT: "Momentos", EN: "Moments" }, icon: CirclePlay },
+  { id: "matches", label: { PT: "Matches", EN: "Matches" }, icon: HeartHandshake },
+  { id: "account", label: { PT: "Conta", EN: "Account" }, icon: UserRound },
 ];
 
 export default function BottomNavigation({
   activePage,
   onNavigate,
   unreadMatches = 0,
+  language = "PT",
 }) {
   return (
     <nav className="nk-bottom-nav" aria-label="Navegação da aplicação">
@@ -40,7 +41,7 @@ export default function BottomNavigation({
                 <em>{badgeCount > 9 ? "9+" : badgeCount}</em>
               )}
             </span>
-            <span>{item.label}</span>
+            <span>{item.label[language] || item.label.PT}</span>
           </button>
         );
       })}

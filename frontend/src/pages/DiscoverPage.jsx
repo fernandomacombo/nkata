@@ -15,7 +15,8 @@ import { fetchPublicProfilePreviews } from "../services/api.js";
 function GuestPreviewCard({ profile, position, onOpen }) {
   const isMain = position === "main";
   const Tag = isMain && profile ? "button" : "article";
-  const className = `nk-guest-preview nk-guest-preview--${position} ${profile ? "has-profile" : ""}`;
+  const theme = profile?.tema_perfil || "classico";
+  const className = `nk-guest-preview nk-guest-preview--${position} nk-guest-preview--theme-${theme} ${profile ? "has-profile" : ""}`;
 
   return (
     <Tag

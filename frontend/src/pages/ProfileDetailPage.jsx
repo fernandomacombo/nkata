@@ -289,7 +289,7 @@ export default function ProfileDetailPage({
   const limitReached = Boolean(quota?.limit_reached);
 
   return (
-    <main className="nk-profile-detail">
+    <main className={`nk-profile-detail nk-profile-detail--theme-${profile.tema_perfil || "classico"}`}>
       <div className="nk-shell">
         <button type="button" className="nk-profile-detail__back" onClick={onBack}>
           <ArrowLeft size={18} /> Voltar

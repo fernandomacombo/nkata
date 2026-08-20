@@ -166,6 +166,51 @@ class PerfilNKATA(models.Model):
         return self.pedido.foto_perfil
 
 
+class PreferenciasContaNKATA(models.Model):
+    class Idioma(models.TextChoices):
+        PORTUGUES = "PT", "Português"
+        INGLES = "EN", "English"
+
+    class TemaPerfil(models.TextChoices):
+        CLASSICO = "CLASSICO", "Clássico"
+        AREIA = "AREIA", "Areia"
+        NOITE = "NOITE", "Noite"
+
+    class FundoConversa(models.TextChoices):
+        SERENO = "SERENO", "Sereno"
+        BOTANICO = "BOTANICO", "Botânico"
+        NOTURNO = "NOTURNO", "Noturno"
+
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="preferencias_nkata",
+    )
+    idioma = models.CharField(
+        max_length=2,
+        choices=Idioma.choices,
+        default=Idioma.PORTUGUES,
+    )
+    tema_perfil = models.CharField(
+        max_length=20,
+        choices=TemaPerfil.choices,
+        default=TemaPerfil.CLASSICO,
+    )
+    fundo_conversa = models.CharField(
+        max_length=20,
+        choices=FundoConversa.choices,
+        default=FundoConversa.SERENO,
+    )
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Preferências da conta NKATA"
+        verbose_name_plural = "Preferências das contas NKATA"
+
+    def __str__(self):
+        return f"Preferências de {self.usuario.get_username()}"
+
+
 class AcaoPerfil(models.Model):
     TIPO_CHOICES = [
         ("INTERESSE", "Tenho interesse"),

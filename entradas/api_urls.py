@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import (
     access_api,
+    account_preferences_api,
     account_security_api,
     account_summary_api,
     admin_panel_api,
@@ -179,6 +180,11 @@ urlpatterns = [
         "minha-conta/resumo/",
         account_summary_api.api_resumo_da_conta,
         name="resumo_da_conta",
+    ),
+    path(
+        "minha-conta/preferencias/",
+        account_preferences_api.api_preferencias_da_conta,
+        name="preferencias_da_conta",
     ),
     path(
         "minha-conta/plano/",

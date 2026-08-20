@@ -123,7 +123,7 @@
 
 .nk-account-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px;
   border: 1px solid var(--nk-line);
   border-radius: 16px;
@@ -252,10 +252,17 @@
     position: sticky;
     z-index: 15;
     top: calc(var(--nk-mobile-topbar) + 6px);
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
   }
 
+  .nk-account-tabs::-webkit-scrollbar { display: none; }
+
   .nk-account-tabs button {
+    min-width: 86px;
+    flex: 1 0 auto;
     min-height: 40px;
     padding-inline: 2px;
     font-size: 0.66rem;

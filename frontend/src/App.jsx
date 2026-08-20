@@ -3,6 +3,7 @@ import AppHeader from "./components/layout/AppHeader.jsx";
 import BottomNavigation from "./components/layout/BottomNavigation.jsx";
 import { demoProfiles } from "./data/demoProfiles.js";
 import useProfileLibrary from "./hooks/useProfileLibrary.js";
+import useAppPreferences from "./hooks/useAppPreferences.js";
 import useSession from "./hooks/useSession.js";
 import AccountPage from "./pages/AccountPage.jsx";
 import AdminPanelPage from "./pages/AdminPanelPage.jsx";
@@ -106,6 +107,14 @@ export default function App() {
   const sessionIdentity = authenticated
     ? `user:${session?.user?.id || "unknown"}:profile:${session?.profile?.id || "unknown"}`
     : "guest";
+
+  const {
+    preferences,
+    loading: preferencesLoading,
+    saving: preferencesSaving,
+    error: preferencesError,
+    savePreferences,
+  } = useAppPreferences({ authenticated, identity: sessionIdentity });
 
   const loadProfiles = useCallback(async ({ signal } = {}) => {
     setLoading(true);
@@ -720,6 +729,7 @@ export default function App() {
         heroMode={activePage === "home" && !authenticated}
         showMobileBack={Boolean(MOBILE_BACK_DESTINATIONS[activePage])}
         onMobileBack={handleMobileBack}
+        language={preferences.idioma}
       />
 
       {activePage === "home" && (
@@ -849,6 +859,11 @@ export default function App() {
           onTogglePublicPreview={handleTogglePublicPreview}
           onOpenProfile={handleOpenProfile}
           onSignOut={handleSignOut}
+          preferences={preferences}
+          preferencesLoading={preferencesLoading}
+          preferencesSaving={preferencesSaving}
+          preferencesError={preferencesError}
+          onSavePreferences={savePreferences}
         />
       )}
 
@@ -861,6 +876,7 @@ export default function App() {
           activePage={visiblePage}
           onNavigate={handleNavigate}
           unreadMatches={totalUnread}
+          language={preferences.idioma}
         />
       )}
     </div>

@@ -64,6 +64,7 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
     objetivo_display = serializers.CharField(source="get_objetivo_display", read_only=True)
     genero_display = serializers.CharField(source="get_genero_display", read_only=True)
     verificado = serializers.SerializerMethodField()
+    tema_perfil = serializers.SerializerMethodField()
 
     class Meta:
         model = PerfilNKATA
@@ -81,6 +82,7 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
             "verificado",
             "status",
             "visivel",
+            "tema_perfil",
         ]
 
     def get_foto_principal(self, obj):
@@ -89,6 +91,14 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
     def get_verificado(self, obj):
         pedido_status = getattr(obj.pedido, "status", "")
         return pedido_status == "APROVADO" and obj.status == "ATIVO" and obj.visivel
+
+    def get_tema_perfil(self, obj):
+        preferences = getattr(obj.usuario, "preferencias_nkata", None) if obj.usuario else None
+        return (
+            preferences.tema_perfil
+            if preferences
+            else "CLASSICO"
+        )
 
 
 class PerfilDetalheSerializer(PerfilResumoSerializer):

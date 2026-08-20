@@ -64,6 +64,7 @@ function normalizeProfile(profile) {
     interesse_ativo: profile.interesse_ativo ?? false,
     status: profile.status || "",
     visivel: profile.visivel ?? true,
+    tema_perfil: String(profile.tema_perfil || "CLASSICO").toLowerCase(),
     criado_em: profile.criado_em || null,
     cover_url: normalizeAppUrl(profile.cover_url || null),
     gallery,
@@ -339,6 +340,14 @@ export async function fetchMyAccount({ signal } = {}) {
 
 export async function fetchMyAccountSummary({ signal } = {}) {
   return request("/api/minha-conta/resumo/", { signal });
+}
+
+export async function fetchMyAccountPreferences({ signal } = {}) {
+  return request("/api/minha-conta/preferencias/", { signal });
+}
+
+export async function updateMyAccountPreferences(values) {
+  return request("/api/minha-conta/preferencias/", { method: "PATCH", body: values });
 }
 
 export async function updateMyAccount(values) {

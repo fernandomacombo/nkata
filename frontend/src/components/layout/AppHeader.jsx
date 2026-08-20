@@ -31,10 +31,13 @@ export default function AppHeader({
   heroMode = false,
   showMobileBack = false,
   onMobileBack,
+  language = "PT",
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const authenticated = Boolean(session?.authenticated);
   const memberName = session?.profile?.name || session?.user?.name || "Conta";
+  const english = language === "EN";
+  const tr = (portuguese, englishText) => (english ? englishText : portuguese);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -83,7 +86,7 @@ export default function AppHeader({
             aria-label="Voltar"
           >
             <ArrowLeft size={19} />
-            <span>Voltar</span>
+            <span>{tr("Voltar", "Back")}</span>
           </button>
         )}
 
@@ -103,14 +106,14 @@ export default function AppHeader({
             className={activePage === "home" ? "is-active" : ""}
             onClick={() => navigate("home")}
           >
-            Início
+            {tr("Início", "Home")}
           </button>
           <button
             type="button"
             className={activePage === "discover" ? "is-active" : ""}
             onClick={() => navigate("discover")}
           >
-            Perfis
+            {tr("Perfis", "Profiles")}
           </button>
           {authenticated && (
             <button
@@ -118,7 +121,7 @@ export default function AppHeader({
               className={activePage === "moments" ? "is-active" : ""}
               onClick={() => navigate("moments")}
             >
-              Momentos
+              {tr("Momentos", "Moments")}
             </button>
           )}
           {session?.user?.is_staff && (
@@ -136,7 +139,7 @@ export default function AppHeader({
               className={activePage === "saved" ? "is-active" : ""}
               onClick={() => navigate("saved")}
             >
-              Guardados {savedCount > 0 ? `(${savedCount})` : ""}
+              {tr("Guardados", "Saved")} {savedCount > 0 ? `(${savedCount})` : ""}
             </button>
           )}
           {authenticated && (
@@ -148,10 +151,10 @@ export default function AppHeader({
               Matches {unreadMatches > 0 ? `(${unreadMatches})` : ""}
             </button>
           )}
-          <button type="button" onClick={() => navigate("security")}>Segurança</button>
+          <button type="button" onClick={() => navigate("security")}>{tr("Segurança", "Safety")}</button>
           {!authenticated && (
             <button type="button" onClick={() => goTo("/acompanhar-pedido/")}>
-              Acompanhar pedido
+              {tr("Acompanhar pedido", "Track request")}
             </button>
           )}
         </nav>
@@ -159,7 +162,7 @@ export default function AppHeader({
         <div className="nk-header__actions">
           <span className="nk-private-status">
             <LockKeyhole size={14} />
-            {authenticated ? "Sessão iniciada" : "Ligação protegida"}
+            {authenticated ? tr("Sessão iniciada", "Signed in") : tr("Ligação protegida", "Secure connection")}
           </span>
 
           {authenticated ? (
@@ -210,7 +213,7 @@ export default function AppHeader({
               title="Entrar"
             >
               <LogIn size={17} />
-              <span>Entrar</span>
+              <span>{tr("Entrar", "Sign in")}</span>
             </button>
           )}
 
@@ -221,7 +224,7 @@ export default function AppHeader({
               onClick={() => goTo("/pedir-acesso/")}
             >
               <ShieldCheck size={17} />
-              Pedir acesso
+              {tr("Pedir acesso", "Request access")}
             </button>
           )}
 
@@ -257,7 +260,7 @@ export default function AppHeader({
                 <span className="nk-brand__mark">N</span>
                 <div>
                   <strong>NKATA</strong>
-                  <small>{authenticated ? "Área de membros" : "Relações com intenção"}</small>
+                  <small>{authenticated ? tr("Área de membros", "Members area") : tr("Relações com intenção", "Intentional relationships")}</small>
                 </div>
               </div>
               <button
@@ -273,7 +276,7 @@ export default function AppHeader({
               <div className="nk-mobile-menu__member">
                 <span><UserRound size={20} /></span>
                 <div>
-                  <small>Sessão iniciada</small>
+                  <small>{tr("Sessão iniciada", "Signed in")}</small>
                   <strong>{memberName}</strong>
                 </div>
                 <LockKeyhole size={17} />
@@ -287,7 +290,7 @@ export default function AppHeader({
                 onClick={() => navigate("home")}
               >
                 <span><Home size={19} /></span>
-                <div><strong>Início</strong><small>Voltar à página principal</small></div>
+                <div><strong>{tr("Início", "Home")}</strong><small>{tr("Voltar à página principal", "Return to the home page")}</small></div>
               </button>
 
               <button
@@ -296,7 +299,7 @@ export default function AppHeader({
                 onClick={() => navigate("discover")}
               >
                 <span><Search size={19} /></span>
-                <div><strong>Perfis</strong><small>Conhecer pessoas da comunidade</small></div>
+                <div><strong>{tr("Perfis", "Profiles")}</strong><small>{tr("Conhecer pessoas da comunidade", "Meet people in the community")}</small></div>
               </button>
 
               {authenticated && (
@@ -306,7 +309,7 @@ export default function AppHeader({
                   onClick={() => navigate("moments")}
                 >
                   <span><CirclePlay size={19} /></span>
-                  <div><strong>Momentos</strong><small>Histórias que desaparecem em 24 horas</small></div>
+                  <div><strong>{tr("Momentos", "Moments")}</strong><small>{tr("Histórias que desaparecem em 24 horas", "Stories available for 24 hours")}</small></div>
                 </button>
               )}
 
@@ -328,7 +331,7 @@ export default function AppHeader({
                   onClick={() => navigate("saved")}
                 >
                   <span><Bookmark size={19} /></span>
-                  <div><strong>Guardados</strong><small>A sua seleção pessoal</small></div>
+                  <div><strong>{tr("Guardados", "Saved")}</strong><small>{tr("A sua seleção pessoal", "Your personal selection")}</small></div>
                   {savedCount > 0 && <em>{savedCount > 99 ? "99+" : savedCount}</em>}
                 </button>
               )}
@@ -340,7 +343,7 @@ export default function AppHeader({
                   onClick={() => navigate("matches")}
                 >
                   <span><HeartHandshake size={19} /></span>
-                  <div><strong>Matches</strong><small>Conversas e ligações</small></div>
+                  <div><strong>Matches</strong><small>{tr("Conversas e ligações", "Chats and calls")}</small></div>
                   {unreadMatches > 0 && <em>{unreadMatches > 99 ? "99+" : unreadMatches}</em>}
                 </button>
               )}
@@ -352,7 +355,7 @@ export default function AppHeader({
                   onClick={() => navigate("notifications")}
                 >
                   <span><Bell size={19} /></span>
-                  <div><strong>Notificações</strong><small>Novidades importantes</small></div>
+                  <div><strong>{tr("Notificações", "Notifications")}</strong><small>{tr("Novidades importantes", "Important updates")}</small></div>
                   {unreadNotifications > 0 && (
                     <em>{unreadNotifications > 99 ? "99+" : unreadNotifications}</em>
                   )}
@@ -366,19 +369,19 @@ export default function AppHeader({
                   onClick={() => navigate("account")}
                 >
                   <span><UserRound size={19} /></span>
-                  <div><strong>Minha conta</strong><small>Perfil, fotografia e privacidade</small></div>
+                  <div><strong>{tr("Minha conta", "My account")}</strong><small>{tr("Perfil, fotografia e privacidade", "Profile, photo and privacy")}</small></div>
                 </button>
               )}
 
               <button type="button" onClick={() => navigate("security")}>
                 <span><ShieldCheck size={19} /></span>
-                <div><strong>Segurança</strong><small>Como protegemos a comunidade</small></div>
+                <div><strong>{tr("Segurança", "Safety")}</strong><small>{tr("Como protegemos a comunidade", "How we protect the community")}</small></div>
               </button>
 
               {!authenticated && (
                 <button type="button" onClick={() => goTo("/acompanhar-pedido/")}>
                   <span><FileSearch size={19} /></span>
-                  <div><strong>Acompanhar pedido</strong><small>Consultar o estado da análise</small></div>
+                  <div><strong>{tr("Acompanhar pedido", "Track request")}</strong><small>{tr("Consultar o estado da análise", "Check the review status")}</small></div>
                 </button>
               )}
             </nav>
@@ -386,7 +389,7 @@ export default function AppHeader({
             <footer className="nk-mobile-menu__footer">
               {authenticated ? (
                 <button type="button" className="nk-mobile-menu__logout" onClick={signOut}>
-                  <LogOut size={18} /> Terminar sessão
+                  <LogOut size={18} /> {tr("Terminar sessão", "Sign out")}
                 </button>
               ) : (
                 <>
@@ -395,7 +398,7 @@ export default function AppHeader({
                     className="nk-button nk-button--wine"
                     onClick={() => goTo("/pedir-acesso/")}
                   >
-                    <UserPlus size={18} /> Pedir acesso
+                    <UserPlus size={18} /> {tr("Pedir acesso", "Request access")}
                   </button>
                   <button
                     type="button"
@@ -403,11 +406,11 @@ export default function AppHeader({
                     onClick={() => navigate("login")}
                     disabled={sessionLoading}
                   >
-                    <LogIn size={18} /> Entrar
+                    <LogIn size={18} /> {tr("Entrar", "Sign in")}
                   </button>
                 </>
               )}
-              <small><LockKeyhole size={13} /> Ligação protegida</small>
+              <small><LockKeyhole size={13} /> {tr("Ligação protegida", "Secure connection")}</small>
             </footer>
           </aside>
         </div>

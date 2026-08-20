@@ -12,6 +12,7 @@ PUBLIC_PREVIEW_BATCH_SIZE = 9
 
 
 def _preview_payload(perfil):
+    preferences = getattr(perfil.usuario, "preferencias_nkata", None)
     return {
         "id": perfil.id,
         "nome_publico": perfil.nome_publico,
@@ -20,6 +21,7 @@ def _preview_payload(perfil):
         "objetivo_display": perfil.get_objetivo_display(),
         "verificado": True,
         "foto_principal": public_profile_photo_url(perfil),
+        "tema_perfil": preferences.tema_perfil if preferences else "CLASSICO",
     }
 
 
@@ -39,7 +41,7 @@ def api_destaques_publicos(request):
             usuario__is_active=True,
         )
         .exclude(pedido__foto_perfil="")
-        .select_related("pedido", "usuario")
+        .select_related("pedido", "usuario", "usuario__preferencias_nkata")
         .order_by(
             F("destaque_publico_ultima_exibicao_em").asc(nulls_first=True),
             "destaque_publico_exibicoes",

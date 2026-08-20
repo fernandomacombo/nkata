@@ -67,7 +67,7 @@ def api_perfis(request):
     perfis = PerfilNKATA.objects.filter(
         status="ATIVO",
         visivel=True,
-    ).select_related("pedido", "usuario")
+    ).select_related("pedido", "usuario", "usuario__preferencias_nkata")
 
     if request.user.is_authenticated:
         # Regra principal: a pessoa nunca se descobre a si própria.
@@ -102,7 +102,11 @@ def api_perfis(request):
 @permission_classes([permissions.IsAuthenticated])
 def api_perfil_detalhe(request, perfil_id):
     try:
-        perfil = PerfilNKATA.objects.select_related("pedido", "usuario").get(
+        perfil = PerfilNKATA.objects.select_related(
+            "pedido",
+            "usuario",
+            "usuario__preferencias_nkata",
+        ).get(
             id=perfil_id,
             status="ATIVO",
             visivel=True,

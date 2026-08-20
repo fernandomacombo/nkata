@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import PlanPanel from "../components/account/PlanPanel.jsx";
 import AccountSummaryPanel from "../components/account/AccountSummaryPanel.jsx";
+import PreferencesPanel from "../components/account/PreferencesPanel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import {
   API_BASE_URL,
@@ -267,6 +268,11 @@ export default function AccountPage({
   onTogglePublicPreview,
   onOpenProfile,
   onSignOut,
+  preferences,
+  preferencesLoading,
+  preferencesSaving,
+  preferencesError,
+  onSavePreferences,
 }) {
   const [form, setForm] = useState(emptyForm);
   const [accountSection, setAccountSection] = useState("summary");
@@ -546,6 +552,7 @@ export default function AccountPage({
               ["profile", "Perfil"],
               ["plan", "Plano"],
               ["interests", "Interesses"],
+              ["preferences", "Aparência"],
               ["security", "Segurança"],
             ].map(([section, label]) => (
               <button
@@ -689,6 +696,16 @@ export default function AccountPage({
                 </div>
               )}
             </section>
+          )}
+
+          {accountSection === "preferences" && (
+            <PreferencesPanel
+              preferences={preferences}
+              loading={preferencesLoading}
+              saving={preferencesSaving}
+              error={preferencesError}
+              onSave={onSavePreferences}
+            />
           )}
 
           {accountSection === "security" && (

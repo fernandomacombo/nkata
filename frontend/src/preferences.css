@@ -1,0 +1,330 @@
+/* NKATA — preferências pessoais, temas de perfil e fundos de conversa. */
+
+.nk-preferences-panel {
+  display: grid;
+  gap: 20px;
+  border: 1px solid var(--nk-line);
+  border-radius: 30px;
+  background: rgba(255, 253, 249, 0.94);
+  padding: 26px;
+  box-shadow: var(--nk-shadow-sm);
+}
+
+.nk-preferences-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.nk-preferences-panel > header span {
+  color: var(--nk-wine);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.nk-preferences-panel > header h2 {
+  margin: 5px 0 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(1.5rem, 3vw, 1.9rem);
+  font-weight: 600;
+}
+
+.nk-preferences-panel > header button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 14px;
+  background: var(--nk-wine);
+  padding: 0 15px;
+  color: white;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.nk-preferences-panel__message {
+  border-radius: 13px;
+  padding: 11px 13px;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.nk-preferences-panel__message.is-success {
+  background: rgba(63, 105, 89, 0.1);
+  color: var(--nk-success);
+}
+
+.nk-preferences-panel__message.is-error {
+  background: #f8e7e9;
+  color: #8b2b3d;
+}
+
+.nk-preference-section {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--nk-line);
+  padding-top: 18px;
+}
+
+.nk-preference-section > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nk-ink);
+  font-size: 0.78rem;
+}
+
+.nk-preference-section > div:first-child svg { color: var(--nk-wine); }
+
+.nk-preference-section--language {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.nk-language-switch {
+  display: flex;
+  border-radius: 14px;
+  background: #eee7e0;
+  padding: 4px;
+}
+
+.nk-language-switch button {
+  min-height: 36px;
+  border-radius: 11px;
+  background: transparent;
+  padding: 0 14px;
+  color: var(--nk-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.nk-language-switch button.is-selected {
+  background: #fffdfa;
+  color: var(--nk-wine);
+  box-shadow: 0 4px 12px rgba(49, 38, 33, 0.08);
+}
+
+.nk-preference-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.nk-preference-choice {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  border: 1px solid rgba(57, 44, 40, 0.1);
+  border-radius: 18px;
+  background: #fffdfa;
+  padding: 9px;
+  color: var(--nk-ink);
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.nk-preference-choice:hover { transform: translateY(-1px); }
+
+.nk-preference-choice.is-selected {
+  border-color: rgba(125, 38, 56, 0.42);
+  box-shadow: 0 0 0 3px rgba(125, 38, 56, 0.08);
+}
+
+.nk-preference-choice > span {
+  position: relative;
+  display: grid;
+  height: 76px;
+  overflow: hidden;
+  align-content: end;
+  gap: 5px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f4ede6, #dfd0c4);
+  padding: 11px;
+}
+
+.nk-preference-choice > span i {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(125, 38, 56, 0.45);
+}
+
+.nk-preference-choice > span i:nth-child(1) { width: 56%; }
+.nk-preference-choice > span i:nth-child(2) { width: 82%; opacity: 0.62; }
+.nk-preference-choice > span i:nth-child(3) { width: 68%; opacity: 0.4; }
+
+.nk-preference-choice.is-sand > span {
+  background: linear-gradient(145deg, #ead8bd, #b88b69);
+}
+
+.nk-preference-choice.is-night > span,
+.nk-preference-choice.is-dark > span {
+  background: linear-gradient(145deg, #302827, #171313);
+}
+
+.nk-preference-choice.is-night > span i,
+.nk-preference-choice.is-dark > span i {
+  background: rgba(246, 228, 218, 0.68);
+}
+
+.nk-preference-choice.is-botanical > span {
+  background:
+    radial-gradient(ellipse at 15% 80%, rgba(55, 102, 80, 0.5) 0 11%, transparent 12%),
+    radial-gradient(ellipse at 42% 20%, rgba(86, 126, 104, 0.35) 0 13%, transparent 14%),
+    linear-gradient(145deg, #edf2e9, #cbd9c7);
+}
+
+.nk-preference-choice.is-serene > span {
+  background:
+    radial-gradient(circle at 80% 15%, rgba(179, 148, 95, 0.2), transparent 34%),
+    linear-gradient(145deg, #fbf6f0, #e8ddd3);
+}
+
+.nk-preference-choice > strong {
+  overflow: hidden;
+  padding-inline: 3px;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-preference-choice > em {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--nk-wine);
+  color: white;
+}
+
+/* O tema é propriedade do perfil visitado, não do visitante. */
+.nk-profile-detail--theme-areia {
+  --nk-profile-accent: #8e6247;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(142, 98, 71, 0.12), transparent 25rem),
+    radial-gradient(circle at 90% 18%, rgba(183, 139, 96, 0.13), transparent 23rem),
+    #eee0ce;
+}
+
+.nk-profile-detail--theme-areia .nk-profile-detail__heading p,
+.nk-profile-detail--theme-areia .nk-profile-detail__block > span,
+.nk-profile-detail--theme-areia .nk-profile-detail__back {
+  color: var(--nk-profile-accent);
+}
+
+.nk-profile-detail--theme-noite {
+  --nk-profile-night: #201a19;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(153, 72, 91, 0.2), transparent 25rem),
+    radial-gradient(circle at 90% 18%, rgba(179, 148, 95, 0.12), transparent 23rem),
+    #171313;
+  color: #f9f2ec;
+}
+
+.nk-profile-detail--theme-noite .nk-profile-detail__back,
+.nk-profile-detail--theme-noite .nk-profile-detail__heading p,
+.nk-profile-detail--theme-noite .nk-profile-detail__block > span {
+  color: #d7a3af;
+}
+
+.nk-profile-detail--theme-noite .nk-profile-detail__heading,
+.nk-profile-detail--theme-noite .nk-profile-detail__block {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.nk-profile-detail--theme-noite .nk-profile-detail__block {
+  background: rgba(255, 253, 249, 0.065);
+}
+
+.nk-profile-detail--theme-noite .nk-profile-detail__block p,
+.nk-profile-detail--theme-noite .nk-profile-safety > span {
+  color: rgba(249, 242, 236, 0.75);
+}
+
+.nk-guest-preview--theme-areia {
+  border-color: rgba(225, 196, 157, 0.8);
+  box-shadow: 0 28px 70px rgba(105, 74, 50, 0.23);
+}
+
+.nk-guest-preview--theme-noite {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 28px 70px rgba(25, 18, 18, 0.34);
+}
+
+.nk-guest-preview--theme-noite .nk-guest-preview__caption {
+  background: linear-gradient(to top, rgba(16, 12, 12, 0.94), rgba(16, 12, 12, 0.22));
+}
+
+/* Fundos leves: o conteúdo continua legível e as mensagens não mudam de cor. */
+html[data-nkata-chat-background="BOTANICO"] .nk-conversation__body {
+  background:
+    radial-gradient(ellipse at 4% 18%, rgba(63, 105, 89, 0.15) 0 5%, transparent 5.5%),
+    radial-gradient(ellipse at 94% 72%, rgba(63, 105, 89, 0.12) 0 7%, transparent 7.5%),
+    radial-gradient(circle at 70% 14%, rgba(179, 148, 95, 0.09), transparent 24rem),
+    linear-gradient(180deg, #eff3ed, #e9eee7);
+}
+
+html[data-nkata-chat-background="NOTURNO"] .nk-conversation__body {
+  background:
+    radial-gradient(circle at 12% 10%, rgba(125, 38, 56, 0.24), transparent 22rem),
+    radial-gradient(circle at 88% 86%, rgba(179, 148, 95, 0.08), transparent 24rem),
+    #211b1a;
+}
+
+html[data-nkata-chat-background="NOTURNO"] .nk-conversation__opening {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 253, 249, 0.1);
+  color: #f8f1eb;
+}
+
+html[data-nkata-chat-background="NOTURNO"] .nk-conversation__opening p {
+  color: rgba(248, 241, 235, 0.68);
+}
+
+@media (max-width: 699px) {
+  .nk-profile-detail--theme-noite .nk-profile-detail__content {
+    background: var(--nk-profile-night);
+  }
+}
+
+@media (max-width: 620px) {
+  .nk-preferences-panel {
+    gap: 16px;
+    border-radius: 24px;
+    padding: 18px;
+  }
+
+  .nk-preferences-panel > header {
+    align-items: flex-start;
+  }
+
+  .nk-preferences-panel > header button {
+    min-width: 44px;
+    padding-inline: 12px;
+  }
+
+  .nk-preferences-panel > header button svg + * { display: none; }
+
+  .nk-preference-section--language {
+    grid-template-columns: 1fr;
+  }
+
+  .nk-language-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nk-preference-grid { gap: 7px; }
+  .nk-preference-choice { border-radius: 15px; padding: 6px; }
+  .nk-preference-choice > span { height: 64px; border-radius: 10px; padding: 8px; }
+  .nk-preference-choice > em { top: 10px; right: 10px; }
+}
