@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import AutoplayMomentViewer from "../components/moments/AutoplayMomentViewer.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
+import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import { createMoment, deleteMoment, fetchMoments } from "../services/momentsApi.js";
 
 const FALLBACK_CAPTIONS = [
@@ -30,18 +31,27 @@ const FALLBACK_CAPTIONS = [
   { value: "FIM_DE_DIA", label: "A terminar o dia com tranquilidade." },
 ];
 
-function remainingLabel(moment) {
-  if (moment.moderation_status === "PENDENTE") return "Em análise";
-  if (moment.moderation_status === "REJEITADO") return "Não aprovado";
+const EN_CAPTIONS = {
+  SEM_LEGENDA: "No caption",
+  DIA_TRANQUILO: "A peaceful day.",
+  BOAS_ENERGIAS: "Good energy for the day.",
+  APROVEITAR_MOMENTO: "Enjoying a good moment.",
+  CONHECER_COM_CALMA: "Open to meeting someone at a calm pace.",
+  FIM_DE_DIA: "Ending the day peacefully.",
+};
+
+function remainingLabel(moment, english) {
+  if (moment.moderation_status === "PENDENTE") return english ? "Under review" : "Em análise";
+  if (moment.moderation_status === "REJEITADO") return english ? "Not approved" : "Não aprovado";
   if (!moment.expires_at) return "";
 
   const expires = new Date(moment.expires_at);
   const milliseconds = Math.max(0, expires.getTime() - Date.now());
   const minutes = Math.ceil(milliseconds / 60000);
-  if (minutes <= 1) return "Termina em menos de 1 min";
-  if (minutes < 60) return `Termina em ${minutes} min`;
+  if (minutes <= 1) return english ? "Ends in under 1 min" : "Termina em menos de 1 min";
+  if (minutes < 60) return english ? `Ends in ${minutes} min` : `Termina em ${minutes} min`;
   const hours = Math.ceil(minutes / 60);
-  return `Termina em ${hours} h`;
+  return english ? `Ends in ${hours} h` : `Termina em ${hours} h`;
 }
 
 function groupByProfile(moments) {
@@ -81,7 +91,7 @@ function MomentMedia({ moment }) {
   return <div className="nk-moment-viewer__text-only" aria-hidden="true" />;
 }
 
-function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile }) {
+function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile, english }) {
   const [index, setIndex] = useState(initialIndex);
   const moment = moments[index] || moments[0];
 
@@ -113,7 +123,7 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
   if (!moment) return null;
 
   return createPortal(
-    <div className="nk-moment-viewer" role="dialog" aria-modal="true" aria-label={`Momento de ${moment.profile.nome_publico}`}>
+    <div className="nk-moment-viewer" role="dialog" aria-modal="true" aria-label={`${english ? "Moment by" : "Momento de"} ${moment.profile.nome_publico}`}>
       <div className="nk-moment-viewer__frame">
         <div className="nk-moment-viewer__progress" aria-hidden="true">
           {moments.map((item, itemIndex) => (
@@ -127,7 +137,7 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
             className="nk-moment-viewer__person"
             onClick={() => !moment.mine && onOpenProfile?.(moment.profile)}
             disabled={moment.mine}
-            title={moment.mine ? "O seu perfil é gerido em Minha conta" : "Abrir perfil"}
+            title={moment.mine ? (english ? "Manage your profile in Account" : "O seu perfil é gerido em Minha conta") : (english ? "Open profile" : "Abrir perfil")}
           >
             <span>
               {moment.profile.foto_url
@@ -135,18 +145,18 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
                 : <UserRound size={22} />}
             </span>
             <div>
-              <strong>{moment.mine ? "O seu Momento" : moment.profile.nome_publico}</strong>
-              <small><Clock3 size={12} /> {remainingLabel(moment)}</small>
+              <strong>{moment.mine ? (english ? "Your Moment" : "O seu Momento") : moment.profile.nome_publico}</strong>
+              <small><Clock3 size={12} /> {remainingLabel(moment, english)}</small>
             </div>
           </button>
 
           <div className="nk-moment-viewer__header-actions">
             {moment.mine && (
-              <button type="button" onClick={() => onDelete(moment)} aria-label="Remover Momento">
+              <button type="button" onClick={() => onDelete(moment)} aria-label={english ? "Delete Moment" : "Remover Momento"}>
                 <Trash2 size={18} />
               </button>
             )}
-            <button type="button" onClick={onClose} aria-label="Fechar Momento">
+            <button type="button" onClick={onClose} aria-label={english ? "Close Moment" : "Fechar Momento"}>
               <X size={20} />
             </button>
           </div>
@@ -158,7 +168,7 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
           {moment.text && <p>{moment.text}</p>}
           <span className="nk-moment-viewer__privacy">
             {moment.visibility === "MATCHES" ? <LockKeyhole size={14} /> : <UsersRound size={14} />}
-            {moment.visibility_label}
+            {english ? (moment.visibility === "MATCHES" ? "Matches only" : "All members") : moment.visibility_label}
           </span>
         </div>
 
@@ -167,7 +177,7 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
             type="button"
             className="nk-moment-viewer__nav is-prev"
             onClick={() => setIndex((current) => current - 1)}
-            aria-label="Momento anterior"
+            aria-label={english ? "Previous Moment" : "Momento anterior"}
           >
             <ChevronLeft size={24} />
           </button>
@@ -177,7 +187,7 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
             type="button"
             className="nk-moment-viewer__nav is-next"
             onClick={() => setIndex((current) => current + 1)}
-            aria-label="Próximo Momento"
+            aria-label={english ? "Next Moment" : "Próximo Momento"}
           >
             <ChevronRight size={24} />
           </button>
@@ -188,13 +198,13 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile 
   );
 }
 
-function ReviewItem({ moment, onDelete }) {
+function ReviewItem({ moment, onDelete, english }) {
   const pending = moment.moderation_status === "PENDENTE";
   return (
     <article className={`nk-moment-review-item ${pending ? "is-pending" : "is-rejected"}`}>
       <div className="nk-moment-review-item__media">
         {moment.media_type === "IMAGEM" && moment.media_url ? (
-          <img src={moment.media_url} alt="Conteúdo enviado para revisão" />
+          <img src={moment.media_url} alt={english ? "Content submitted for review" : "Conteúdo enviado para revisão"} />
         ) : moment.media_type === "VIDEO" && moment.media_url ? (
           <video src={moment.media_url} muted playsInline preload="metadata" />
         ) : (
@@ -202,14 +212,14 @@ function ReviewItem({ moment, onDelete }) {
         )}
       </div>
       <div>
-        <strong>{pending ? "Em análise" : "Não aprovado"}</strong>
+        <strong>{pending ? (english ? "Under review" : "Em análise") : (english ? "Not approved" : "Não aprovado")}</strong>
         <p>
           {pending
-            ? "Visível apenas para si. As 24 horas começam após aprovação."
-            : (moment.moderation_note || "Este conteúdo não foi aprovado para publicação.")}
+            ? (english ? "Visible only to you. The 24 hours begin after approval." : "Visível apenas para si. As 24 horas começam após aprovação.")
+            : (moment.moderation_note || (english ? "This content was not approved." : "Este conteúdo não foi aprovado para publicação."))}
         </p>
       </div>
-      <button type="button" onClick={() => onDelete(moment)} aria-label="Remover envio">
+      <button type="button" onClick={() => onDelete(moment)} aria-label={english ? "Delete submission" : "Remover envio"}>
         <Trash2 size={17} />
       </button>
     </article>
@@ -217,6 +227,7 @@ function ReviewItem({ moment, onDelete }) {
 }
 
 export default function MomentsPage({ onOpenProfile }) {
+  const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -237,7 +248,7 @@ export default function MomentsPage({ onOpenProfile }) {
       setData(result);
     } catch (requestError) {
       if (requestError.name !== "AbortError") {
-        setError(requestError.message || "Não foi possível carregar os Momentos.");
+        setError(requestError.message || (english ? "Unable to load Moments." : "Não foi possível carregar os Momentos."));
       }
     } finally {
       if (!signal?.aborted) setLoading(false);
@@ -278,7 +289,7 @@ export default function MomentsPage({ onOpenProfile }) {
     if (!file) return;
 
     if (!mediaEnabled) {
-      setError("Fotografias e vídeos nos Momentos exigem NKATA Essencial ou Premium.");
+      setError(english ? "Photos and videos in Moments require NKATA Essential or Premium." : "Fotografias e vídeos nos Momentos exigem NKATA Essencial ou Premium.");
       event.target.value = "";
       return;
     }
@@ -317,10 +328,10 @@ export default function MomentsPage({ onOpenProfile }) {
       setCaption("SEM_LEGENDA");
       clearMedia();
       setComposerOpen(false);
-      setStatus(result.message || "Momento enviado.");
+      setStatus(result.message || (english ? "Moment posted." : "Momento enviado."));
       window.setTimeout(() => setStatus(""), 4200);
     } catch (requestError) {
-      setError(requestError.message || "Não foi possível enviar o Momento.");
+      setError(requestError.message || (english ? "Unable to post the Moment." : "Não foi possível enviar o Momento."));
     } finally {
       setPublishing(false);
     }
@@ -336,16 +347,16 @@ export default function MomentsPage({ onOpenProfile }) {
         review_items: (current?.review_items || []).filter((item) => item.id !== moment.id),
       }));
       setViewerGroup(null);
-      setStatus("Momento removido.");
+      setStatus(english ? "Moment deleted." : "Momento removido.");
       window.setTimeout(() => setStatus(""), 2400);
     } catch (requestError) {
-      setError(requestError.message || "Não foi possível remover o Momento.");
+      setError(requestError.message || (english ? "Unable to delete the Moment." : "Não foi possível remover o Momento."));
     }
   };
 
   return (
     <main className="nk-moments-page">
-      <CompactPageHeader title="Momentos" />
+      <CompactPageHeader title={english ? "Moments" : "Momentos"} />
 
       <section className="nk-shell nk-moments-page__content">
         <form
@@ -359,7 +370,7 @@ export default function MomentsPage({ onOpenProfile }) {
             aria-expanded={composerOpen}
           >
             <span className="nk-moment-composer__plus"><Plus size={20} /></span>
-            <span className="nk-moment-composer__label">Novo Momento</span>
+            <span className="nk-moment-composer__label">{english ? "New Moment" : "Novo Momento"}</span>
             <span className="nk-moment-composer__expand">
               <ChevronDown size={18} />
             </span>
@@ -368,14 +379,14 @@ export default function MomentsPage({ onOpenProfile }) {
           {composerOpen && (
             <div className="nk-moment-composer__body">
               <label className="nk-moment-composer__caption">
-                <span className="sr-only">Frase</span>
+                <span className="sr-only">{english ? "Caption" : "Frase"}</span>
                 <select
                   value={caption}
                   onChange={(event) => setCaption(event.target.value)}
-                  aria-label="Frase do Momento"
+                  aria-label={english ? "Moment caption" : "Frase do Momento"}
                 >
                   {captionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
+                    <option key={option.value} value={option.value}>{english ? (EN_CAPTIONS[option.value] || option.label) : option.label}</option>
                   ))}
                 </select>
               </label>
@@ -384,8 +395,8 @@ export default function MomentsPage({ onOpenProfile }) {
                 <div className="nk-moment-composer__preview">
                   {media?.type?.startsWith("video/")
                     ? <video src={mediaPreview} controls playsInline />
-                    : <img src={mediaPreview} alt="Pré-visualização" />}
-                  <button type="button" onClick={clearMedia} aria-label="Remover ficheiro"><X size={17} /></button>
+                    : <img src={mediaPreview} alt={english ? "Preview" : "Pré-visualização"} />}
+                  <button type="button" onClick={clearMedia} aria-label={english ? "Remove file" : "Remover ficheiro"}><X size={17} /></button>
                 </div>
               )}
 
@@ -402,14 +413,14 @@ export default function MomentsPage({ onOpenProfile }) {
                   className="nk-moment-composer__media"
                   onClick={() => mediaEnabled
                     ? fileRef.current?.click()
-                    : setError("Fotografias e vídeos exigem NKATA Essencial ou Premium.")}
+                    : setError(english ? "Photos and videos require NKATA Essential or Premium." : "Fotografias e vídeos exigem NKATA Essencial ou Premium.")}
                 >
                   {mediaEnabled ? <ImagePlus size={18} /> : <LockKeyhole size={17} />}
-                  Foto ou vídeo
+                  {english ? "Photo or video" : "Foto ou vídeo"}
                 </button>
 
                 <button type="submit" className="nk-button nk-button--wine" disabled={publishing || !canPublish}>
-                  <Send size={17} /> {publishing ? "A publicar…" : "Publicar"}
+                  <Send size={17} /> {publishing ? (english ? "Posting…" : "A publicar…") : (english ? "Post" : "Publicar")}
                 </button>
               </div>
             </div>
@@ -422,28 +433,28 @@ export default function MomentsPage({ onOpenProfile }) {
         {reviewItems.length > 0 && (
           <section className="nk-moment-review">
             <div className="nk-moment-review__heading">
-              <h2>Em análise</h2>
+              <h2>{english ? "Under review" : "Em análise"}</h2>
               <span>{reviewItems.length}</span>
             </div>
             <div className="nk-moment-review__list">
               {reviewItems.map((moment) => (
-                <ReviewItem key={moment.id} moment={moment} onDelete={handleDelete} />
+                <ReviewItem key={moment.id} moment={moment} onDelete={handleDelete} english={english} />
               ))}
             </div>
           </section>
         )}
 
         <div className="nk-moments-page__heading">
-          <h2>Recentes</h2>
+          <h2>{english ? "Recent" : "Recentes"}</h2>
           <button type="button" onClick={() => load()} disabled={loading}>
-            <RefreshCw size={16} className={loading ? "is-spinning" : ""} /> Atualizar
+            <RefreshCw size={16} className={loading ? "is-spinning" : ""} /> {english ? "Refresh" : "Atualizar"}
           </button>
         </div>
 
         {loading && !data ? (
           <div className="nk-moment-rail nk-moment-rail--loading"><span /><span /><span /><span /></div>
         ) : groups.length ? (
-          <div className="nk-moment-rail" aria-label="Pessoas com Momentos">
+          <div className="nk-moment-rail" aria-label={english ? "People with Moments" : "Pessoas com Momentos"}>
             {groups.map((group) => (
               <button type="button" key={group.profile.id} onClick={() => setViewerGroup(group)}>
                 <span className="nk-moment-rail__ring">
@@ -456,16 +467,16 @@ export default function MomentsPage({ onOpenProfile }) {
                     )}
                   </span>
                 </span>
-                <strong>{group.mine ? "O seu" : group.profile.nome_publico}</strong>
-                <small>{group.moments.length} {group.moments.length === 1 ? "Momento" : "Momentos"}</small>
+                <strong>{group.mine ? (english ? "Yours" : "O seu") : group.profile.nome_publico}</strong>
+                <small>{group.moments.length} {english ? (group.moments.length === 1 ? "Moment" : "Moments") : (group.moments.length === 1 ? "Momento" : "Momentos")}</small>
               </button>
             ))}
           </div>
         ) : (
           <div className="nk-moments-page__empty">
             <Clock3 size={27} />
-            <h2>Nenhum Momento ativo</h2>
-            <p>Publique o primeiro.</p>
+            <h2>{english ? "No active Moments" : "Nenhum Momento ativo"}</h2>
+            <p>{english ? "Post the first one." : "Publique o primeiro."}</p>
           </div>
         )}
       </section>

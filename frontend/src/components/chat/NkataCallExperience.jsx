@@ -17,6 +17,7 @@ import {
   startMatchCall,
   updateMatchCall,
 } from "../../services/callApi.js";
+import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
 const CALL_POLL_MS = 1000;
 const TERMINAL_STATES = new Set(["RECUSADA", "TERMINADA", "PERDIDA", "FALHOU"]);
@@ -27,16 +28,16 @@ function formatDuration(totalSeconds) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function mediaErrorMessage(error, type) {
+function mediaErrorMessage(error, type, english) {
   if (!window.isSecureContext) {
-    return "Para chamadas no telemóvel, abra o NKATA por HTTPS para permitir microfone e câmara.";
+    return english ? "For mobile calls, open NKATA over HTTPS to allow microphone and camera access." : "Para chamadas no telemóvel, abra o NKATA por HTTPS para permitir microfone e câmara.";
   }
   if (["NotAllowedError", "PermissionDeniedError"].includes(error?.name)) {
     return type === "VIDEO"
-      ? "Permita o acesso ao microfone e à câmara para iniciar a videochamada."
-      : "Permita o acesso ao microfone para iniciar a chamada.";
+      ? (english ? "Allow microphone and camera access to start the video call." : "Permita o acesso ao microfone e à câmara para iniciar a videochamada.")
+      : (english ? "Allow microphone access to start the call." : "Permita o acesso ao microfone para iniciar a chamada.");
   }
-  return "Não foi possível preparar o dispositivo para a chamada.";
+  return english ? "Unable to prepare this device for the call." : "Não foi possível preparar o dispositivo para a chamada.";
 }
 
 export default function NkataCallExperience({
@@ -46,6 +47,7 @@ export default function NkataCallExperience({
   videoEnabled,
   onNotice,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   const [call, setCall] = useState(null);
   const [iceServers, setIceServers] = useState([]);
   const [phase, setPhase] = useState("idle");
@@ -211,7 +213,7 @@ export default function NkataCallExperience({
         updateMatchCall(match.id, activeCall.id, "active").catch(() => {});
       } else if (peer.connectionState === "failed") {
         updateMatchCall(match.id, activeCall.id, "failed").catch(() => {});
-        resetCall({ notice: "A chamada não conseguiu estabelecer ligação." });
+        resetCall({ notice: english ? "The call could not connect." : "A chamada não conseguiu estabelecer ligação." });
       }
     });
 
@@ -254,7 +256,7 @@ export default function NkataCallExperience({
           }
         }
       } catch {
-        setError("Houve um problema ao negociar a ligação da chamada.");
+        setError(english ? "There was a problem establishing the call connection." : "Houve um problema ao negociar a ligação da chamada.");
       }
     }
   };
@@ -270,7 +272,7 @@ export default function NkataCallExperience({
 
       const current = callRef.current;
       if (!result.call) {
-        if (current) resetCall({ notice: "A chamada terminou." });
+        if (current) resetCall({ notice: english ? "The call ended." : "A chamada terminou." });
         return;
       }
 
@@ -297,7 +299,7 @@ export default function NkataCallExperience({
       }
     } catch (requestError) {
       if (requestError.status === 503) {
-        setError("As chamadas ainda precisam de ser preparadas neste ambiente.");
+        setError(english ? "Calls still need to be configured in this environment." : "As chamadas ainda precisam de ser preparadas neste ambiente.");
       }
     } finally {
       pollingBusyRef.current = false;
@@ -327,7 +329,7 @@ export default function NkataCallExperience({
     setError("");
     const permitted = type === "VIDEO" ? videoEnabled : audioEnabled;
     if (!permitted) {
-      onNotice?.("Chamadas estão disponíveis no NKATA Essencial e Premium.");
+      onNotice?.(english ? "Calls are available on NKATA Essential and Premium." : "Chamadas estão disponíveis no NKATA Essencial e Premium.");
       return;
     }
 
@@ -355,10 +357,10 @@ export default function NkataCallExperience({
       setError(
         requestError?.message && requestError.name !== "NotAllowedError"
           ? requestError.message
-          : mediaErrorMessage(requestError, type),
+          : mediaErrorMessage(requestError, type, english),
       );
       if (requestError?.message === "WEBRTC_UNAVAILABLE") {
-        setError("Este navegador não suporta chamadas WebRTC.");
+        setError(english ? "This browser does not support WebRTC calls." : "Este navegador não suporta chamadas WebRTC.");
       }
     }
   };
@@ -387,7 +389,7 @@ export default function NkataCallExperience({
       await processSignals(allSignals, activeCall);
     } catch (requestError) {
       stopMedia();
-      setError(mediaErrorMessage(requestError, activeCall.tipo));
+      setError(mediaErrorMessage(requestError, activeCall.tipo, english));
     }
   };
 
@@ -399,7 +401,7 @@ export default function NkataCallExperience({
     } catch {
       // A UI deve fechar mesmo que a resposta chegue depois do timeout.
     }
-    resetCall({ notice: "Chamada recusada." });
+    resetCall({ notice: english ? "Call declined." : "Chamada recusada." });
   };
 
   const endCall = async () => {
@@ -411,7 +413,7 @@ export default function NkataCallExperience({
         // O media local deve ser sempre libertado.
       }
     }
-    resetCall({ notice: "Chamada terminada." });
+    resetCall({ notice: english ? "Call ended." : "Chamada terminada." });
   };
 
   const toggleMic = () => {
@@ -436,13 +438,13 @@ export default function NkataCallExperience({
 
   return (
     <>
-      <div className="nk-call-launchers" aria-label="Chamadas">
+      <div className="nk-call-launchers" aria-label={english ? "Calls" : "Chamadas"}>
         <button
           type="button"
           className={`nk-call-launcher ${audioEnabled ? "" : "is-locked"}`}
           onClick={() => startCall("AUDIO")}
-          aria-label="Iniciar chamada de áudio"
-          title={audioEnabled ? "Chamada de áudio" : "NKATA Essencial ou Premium"}
+          aria-label={english ? "Start audio call" : "Iniciar chamada de áudio"}
+          title={audioEnabled ? (english ? "Audio call" : "Chamada de áudio") : "NKATA Essential or Premium"}
         >
           <Phone size={18} />
           {!audioEnabled && <LockKeyhole size={10} className="nk-call-launcher__lock" />}
@@ -451,8 +453,8 @@ export default function NkataCallExperience({
           type="button"
           className={`nk-call-launcher ${videoEnabled ? "" : "is-locked"}`}
           onClick={() => startCall("VIDEO")}
-          aria-label="Iniciar videochamada"
-          title={videoEnabled ? "Videochamada" : "NKATA Essencial ou Premium"}
+          aria-label={english ? "Start video call" : "Iniciar videochamada"}
+          title={videoEnabled ? (english ? "Video call" : "Videochamada") : "NKATA Essential or Premium"}
         >
           <Video size={19} />
           {!videoEnabled && <LockKeyhole size={10} className="nk-call-launcher__lock" />}
@@ -477,7 +479,7 @@ export default function NkataCallExperience({
           <div className="nk-call-screen__backdrop" />
 
           <div className="nk-call-screen__top">
-            <span>{isVideoCall ? "Videochamada NKATA" : "Chamada NKATA"}</span>
+            <span>{isVideoCall ? (english ? "NKATA video call" : "Videochamada NKATA") : (english ? "NKATA call" : "Chamada NKATA")}</span>
             {phase === "active" && <strong>{formatDuration(elapsed)}</strong>}
           </div>
 
@@ -485,7 +487,7 @@ export default function NkataCallExperience({
             {!isVideoCall && (
               <div className="nk-call-screen__portrait">
                 {profile?.foto_url ? (
-                  <img src={profile.foto_url} alt={`Foto de ${profile.nome_publico}`} />
+                  <img src={profile.foto_url} alt={`${english ? "Photo of" : "Foto de"} ${profile.nome_publico}`} />
                 ) : (
                   <div className="nk-call-screen__portrait-fallback">
                     <Camera size={34} />
@@ -493,17 +495,17 @@ export default function NkataCallExperience({
                 )}
               </div>
             )}
-            <h2>{profile?.nome_publico || "Membro NKATA"}</h2>
+            <h2>{profile?.nome_publico || (english ? "NKATA member" : "Membro NKATA")}</h2>
             <p>
               {incoming
-                ? (isVideoCall ? "Videochamada recebida" : "Chamada de áudio recebida")
+                ? (isVideoCall ? (english ? "Incoming video call" : "Videochamada recebida") : (english ? "Incoming audio call" : "Chamada de áudio recebida"))
                 : phase === "calling"
-                  ? "A chamar…"
+                  ? (english ? "Calling…" : "A chamar…")
                   : phase === "connecting"
-                    ? "A conectar…"
+                    ? (english ? "Connecting…" : "A conectar…")
                     : phase === "active"
-                      ? "Ligação segura entre os dispositivos"
-                      : "A preparar chamada…"}
+                      ? (english ? "Secure device-to-device connection" : "Ligação segura entre os dispositivos")
+                      : (english ? "Preparing call…" : "A preparar chamada…")}
             </p>
             {error && <div className="nk-call-screen__error" role="status">{error}</div>}
           </div>
@@ -523,32 +525,32 @@ export default function NkataCallExperience({
               <>
                 <button type="button" className="nk-call-control is-decline" onClick={declineCall}>
                   <PhoneOff size={22} />
-                  <span>Recusar</span>
+                  <span>{english ? "Decline" : "Recusar"}</span>
                 </button>
                 <button type="button" className="nk-call-control is-accept" onClick={acceptCall}>
                   {isVideoCall ? <Video size={23} /> : <Phone size={22} />}
-                  <span>Atender</span>
+                  <span>{english ? "Answer" : "Atender"}</span>
                 </button>
               </>
             ) : (
               <>
                 <button type="button" className={`nk-call-control ${muted ? "is-active" : ""}`} onClick={toggleMic}>
                   {muted ? <MicOff size={21} /> : <Mic size={21} />}
-                  <span>{muted ? "Ativar" : "Microfone"}</span>
+                  <span>{muted ? (english ? "Unmute" : "Ativar") : (english ? "Microphone" : "Microfone")}</span>
                 </button>
                 {isVideoCall && (
                   <button type="button" className={`nk-call-control ${cameraOff ? "is-active" : ""}`} onClick={toggleCamera}>
                     {cameraOff ? <VideoOff size={21} /> : <Video size={21} />}
-                    <span>{cameraOff ? "Câmara" : "Vídeo"}</span>
+                    <span>{cameraOff ? (english ? "Camera" : "Câmara") : (english ? "Video" : "Vídeo")}</span>
                   </button>
                 )}
                 <button type="button" className={`nk-call-control ${speakerOff ? "is-active" : ""}`} onClick={toggleSpeaker}>
                   {speakerOff ? <VolumeX size={21} /> : <Volume2 size={21} />}
-                  <span>{speakerOff ? "Sem som" : "Som"}</span>
+                  <span>{speakerOff ? (english ? "Muted" : "Sem som") : (english ? "Sound" : "Som")}</span>
                 </button>
                 <button type="button" className="nk-call-control is-end" onClick={endCall}>
                   <PhoneOff size={22} />
-                  <span>Terminar</span>
+                  <span>{english ? "End" : "Terminar"}</span>
                 </button>
               </>
             )}

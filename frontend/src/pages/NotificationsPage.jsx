@@ -12,6 +12,7 @@ import {
   UserRound,
 } from "lucide-react";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
+import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 
 const iconByType = {
   INTERESSE: Heart,
@@ -23,20 +24,30 @@ const iconByType = {
   EQUIPA: ShieldCheck,
 };
 
-function formatActivityDate(value) {
+const typeLabels = {
+  INTERESSE: "New interest",
+  SINAL: "New signal",
+  MOMENTO: "Moment reaction",
+  PUBLICACAO: "Post reaction",
+  MATCH: "New match",
+  MENSAGEM: "New message",
+  EQUIPA: "Team notice",
+};
+
+function formatActivityDate(value, english) {
   if (!value) return "";
 
   const date = new Date(value);
   const now = new Date();
   const minutes = Math.max(0, Math.floor((now - date) / 60000));
 
-  if (minutes < 1) return "Agora";
-  if (minutes < 60) return `Há ${minutes} min`;
+  if (minutes < 1) return english ? "Now" : "Agora";
+  if (minutes < 60) return english ? `${minutes} min ago` : `Há ${minutes} min`;
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Há ${hours} h`;
+  if (hours < 24) return english ? `${hours} h ago` : `Há ${hours} h`;
 
-  return new Intl.DateTimeFormat("pt-MZ", {
+  return new Intl.DateTimeFormat(english ? "en-GB" : "pt-MZ", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -44,7 +55,7 @@ function formatActivityDate(value) {
   }).format(date);
 }
 
-function NotificationItem({ notification, index, onOpen }) {
+function NotificationItem({ notification, index, onOpen, english }) {
   const Icon = iconByType[notification.type] || Bell;
 
   return (
@@ -62,24 +73,24 @@ function NotificationItem({ notification, index, onOpen }) {
       <span className="nk-notification__content">
         <span className="nk-notification__topline">
           <strong>{notification.title}</strong>
-          <time>{formatActivityDate(notification.updatedAt)}</time>
+          <time>{formatActivityDate(notification.updatedAt, english)}</time>
         </span>
         <span className="nk-notification__text">{notification.text}</span>
-        <small>{notification.typeLabel}</small>
+        <small>{english ? (typeLabels[notification.type] || notification.typeLabel) : notification.typeLabel}</small>
       </span>
 
       <span className="nk-notification__person">
         {notification.profile?.foto_url ? (
           <img
             src={notification.profile.foto_url}
-            alt={`Foto de ${notification.profile.nome_publico}`}
+            alt={`${english ? "Photo of" : "Foto de"} ${notification.profile.nome_publico}`}
           />
         ) : (
           <UserRound size={22} />
         )}
       </span>
 
-      {!notification.read && <span className="nk-notification__dot" aria-label="Não lida" />}
+      {!notification.read && <span className="nk-notification__dot" aria-label={english ? "Unread" : "Não lida"} />}
     </button>
   );
 }
@@ -93,6 +104,7 @@ export default function NotificationsPage({
   onMarkAll,
   onOpen,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   const [filter, setFilter] = useState("all");
 
   const visibleNotifications = useMemo(() => (
@@ -103,15 +115,15 @@ export default function NotificationsPage({
 
   return (
     <main className="nk-notifications-page">
-      <CompactPageHeader title="Notificações">
+      <CompactPageHeader title={english ? "Notifications" : "Notificações"}>
         {unread > 0 && (
           <button type="button" onClick={onMarkAll}>
-            <CheckCheck size={17} /> Marcar como lidas
+            <CheckCheck size={17} /> {english ? "Mark all as read" : "Marcar como lidas"}
           </button>
         )}
         <button type="button" onClick={onReload} disabled={loading}>
           <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
-          Atualizar
+          {english ? "Refresh" : "Atualizar"}
         </button>
       </CompactPageHeader>
 
@@ -123,14 +135,14 @@ export default function NotificationsPage({
               className={filter === "all" ? "is-active" : ""}
               onClick={() => setFilter("all")}
             >
-              Todas <span>{notifications.length}</span>
+              {english ? "All" : "Todas"} <span>{notifications.length}</span>
             </button>
             <button
               type="button"
               className={filter === "unread" ? "is-active" : ""}
               onClick={() => setFilter("unread")}
             >
-              Por ver <span>{unread}</span>
+              {english ? "Unread" : "Por ver"} <span>{unread}</span>
             </button>
           </div>
         </div>
@@ -139,12 +151,12 @@ export default function NotificationsPage({
           <div className="nk-notifications-page__error">
             <Bell size={18} />
             <span>{error}</span>
-            <button type="button" onClick={onReload}>Tentar novamente</button>
+            <button type="button" onClick={onReload}>{english ? "Try again" : "Tentar novamente"}</button>
           </div>
         )}
 
         {loading && !notifications.length ? (
-          <div className="nk-notifications-page__loading" aria-label="A carregar notificações">
+          <div className="nk-notifications-page__loading" aria-label={english ? "Loading notifications" : "A carregar notificações"}>
             <span />
             <span />
             <span />
@@ -157,17 +169,18 @@ export default function NotificationsPage({
                 notification={notification}
                 index={index}
                 onOpen={onOpen}
+                english={english}
               />
             ))}
           </div>
         ) : (
           <div className="nk-notifications-page__empty">
             <span><Bell size={28} /></span>
-            <h2>{filter === "unread" ? "Tudo visto" : "Nenhuma notificação"}</h2>
+            <h2>{filter === "unread" ? (english ? "All caught up" : "Tudo visto") : (english ? "No notifications" : "Nenhuma notificação")}</h2>
             <p>
               {filter === "unread"
-                ? "Não há notificações por ler."
-                : "As novidades aparecerão aqui."}
+                ? (english ? "There are no unread notifications." : "Não há notificações por ler.")
+                : (english ? "Updates will appear here." : "As novidades aparecerão aqui.")}
             </p>
           </div>
         )}

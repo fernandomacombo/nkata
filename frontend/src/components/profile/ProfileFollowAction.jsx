@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { LoaderCircle, UserCheck, UserMinus, UserPlus } from "lucide-react";
 import { fetchFollowState, toggleFollowProfile } from "../../services/followApi.js";
+import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
 function currentProfileId() {
   const match = window.location.pathname.match(/^\/perfis\/(\d+)\/?$/);
@@ -43,6 +44,7 @@ function useProfilePortalContext(selector) {
 }
 
 export default function ProfileFollowAction() {
+  const english = useInterfaceLanguage() === "EN";
   const { target, profileId } = useProfilePortalContext(".nk-profile-detail__quick-actions");
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -78,7 +80,7 @@ export default function ProfileFollowAction() {
           setRequiresLogin(true);
           return;
         }
-        setMessage(error.message || "Não foi possível consultar esta ligação.");
+        setMessage(error.message || (english ? "Unable to check this connection." : "Não foi possível consultar esta ligação."));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -100,14 +102,14 @@ export default function ProfileFollowAction() {
     try {
       const result = await toggleFollowProfile(validProfileId);
       setActive(Boolean(result.active));
-      setMessage(result.message || "Ligação atualizada.");
+      setMessage(result.message || (english ? "Connection updated." : "Ligação atualizada."));
       window.setTimeout(() => setMessage(""), 2400);
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         setRequiresLogin(true);
-        setMessage("Entre na sua conta para seguir este perfil.");
+        setMessage(english ? "Sign in to follow this profile." : "Entre na sua conta para seguir este perfil.");
       } else {
-        setMessage(error.message || "Não foi possível atualizar esta ligação.");
+        setMessage(error.message || (english ? "Unable to update this connection." : "Não foi possível atualizar esta ligação."));
       }
     } finally {
       setBusy(false);
@@ -130,19 +132,19 @@ export default function ProfileFollowAction() {
         onClick={handleToggle}
         disabled={loading || busy}
         aria-pressed={active}
-        title={active ? "Deixar de seguir" : "Seguir perfil"}
+        title={active ? (english ? "Unfollow" : "Deixar de seguir") : (english ? "Follow profile" : "Seguir perfil")}
       >
         <Icon size={18} className={loading || busy ? "is-spinning" : ""} />
         <span>
           {loading
-            ? "A confirmar…"
+            ? (english ? "Checking…" : "A confirmar…")
             : busy
-              ? "A atualizar…"
+              ? (english ? "Updating…" : "A atualizar…")
               : requiresLogin
-                ? "Entrar para seguir"
+                ? (english ? "Sign in to follow" : "Entrar para seguir")
                 : active
-                  ? "A seguir"
-                  : "Seguir"}
+                  ? (english ? "Following" : "A seguir")
+                  : (english ? "Follow" : "Seguir")}
         </span>
         {active && !loading && !busy && <UserMinus size={14} className="nk-profile-follow__remove" />}
       </button>

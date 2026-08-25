@@ -1,5 +1,13 @@
 import { useState } from "react";
 import { Heart, MapPin, ShieldCheck, UserRound } from "lucide-react";
+import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
+
+const translateObjective = (value, english) => english ? ({
+  "Relacionamento sério": "Serious relationship",
+  "Conhecer com intenção": "Meet with intention",
+  "Casamento no futuro": "Marriage in the future",
+  "Amizade que pode evoluir": "Friendship that may grow",
+})[value] || value : value;
 
 export default function ProfileCard({
   profile,
@@ -8,6 +16,7 @@ export default function ProfileCard({
   saved = false,
   onToggleSaved,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   const [imageFailed, setImageFailed] = useState(false);
   const hasImage = Boolean(profile.foto_url) && !imageFailed;
   const displayName = `${profile.nome_publico}${profile.idade ? `, ${profile.idade}` : ""}`;
@@ -23,20 +32,20 @@ export default function ProfileCard({
         type="button"
         className="nk-profile-card__open"
         onClick={() => onOpen?.(profile)}
-        aria-label={`Abrir perfil de ${displayName}`}
+        aria-label={`${english ? "Open profile of" : "Abrir perfil de"} ${displayName}`}
       >
         <div className="nk-profile-card__media">
           {hasImage ? (
             <img
               src={profile.foto_url}
-              alt={`Foto de ${profile.nome_publico}`}
+              alt={`${english ? "Photo of" : "Foto de"} ${profile.nome_publico}`}
               loading="lazy"
               onError={() => setImageFailed(true)}
             />
           ) : (
-            <div className="nk-profile-card__fallback" aria-label="Foto não disponível">
+            <div className="nk-profile-card__fallback" aria-label={english ? "Photo unavailable" : "Foto não disponível"}>
               <UserRound size={52} strokeWidth={1.2} />
-              <span>Fotografia indisponível</span>
+              <span>{english ? "Photo unavailable" : "Fotografia indisponível"}</span>
             </div>
           )}
 
@@ -49,8 +58,8 @@ export default function ProfileCard({
                 {profile.verificado && (
                   <span
                     className="nk-profile-card__verified"
-                    aria-label="Perfil verificado"
-                    title="Perfil verificado"
+                    aria-label={english ? "Verified profile" : "Perfil verificado"}
+                    title={english ? "Verified profile" : "Perfil verificado"}
                   >
                     <ShieldCheck size={16} strokeWidth={2.1} />
                   </span>
@@ -63,7 +72,7 @@ export default function ProfileCard({
             </div>
 
             <span className="nk-profile-card__intention">
-              {profile.objetivo_display || "Conhecer com intenção"}
+              {translateObjective(profile.objetivo_display, english) || (english ? "Meet with intention" : "Conhecer com intenção")}
             </span>
           </div>
         </div>
@@ -72,7 +81,7 @@ export default function ProfileCard({
       <button
         type="button"
         className={`nk-profile-card__save ${saved ? "is-saved" : ""}`}
-        aria-label={saved ? "Remover dos guardados" : "Guardar perfil"}
+        aria-label={saved ? (english ? "Remove from saved" : "Remover dos guardados") : (english ? "Save profile" : "Guardar perfil")}
         aria-pressed={saved}
         onClick={handleSave}
       >

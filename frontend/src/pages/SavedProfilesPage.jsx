@@ -3,6 +3,7 @@ import { Bookmark, Trash2 } from "lucide-react";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import { fetchSavedProfiles } from "../services/api.js";
+import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 
 function ProfileSection({ title, description, profiles, onOpenProfile, isSaved, onToggleSaved }) {
   if (!profiles.length) return null;
@@ -40,6 +41,7 @@ export default function SavedProfilesPage({
   onClearRecent,
   onDiscover,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   useEffect(() => {
     fetchSavedProfiles().catch((error) => {
       if (error.status === 401 || error.status === 403) {
@@ -51,12 +53,12 @@ export default function SavedProfilesPage({
 
   return (
     <main className="nk-library">
-      <CompactPageHeader title="Guardados" />
+      <CompactPageHeader title={english ? "Saved" : "Guardados"} />
 
       <div className="nk-shell nk-library__content">
         {savedProfiles.length ? (
           <ProfileSection
-            title={`${savedProfiles.length} ${savedProfiles.length === 1 ? "perfil" : "perfis"}`}
+            title={`${savedProfiles.length} ${english ? (savedProfiles.length === 1 ? "profile" : "profiles") : (savedProfiles.length === 1 ? "perfil" : "perfis")}`}
             profiles={savedProfiles}
             onOpenProfile={onOpenProfile}
             isSaved={isSaved}
@@ -65,10 +67,10 @@ export default function SavedProfilesPage({
         ) : (
           <section className="nk-library__empty">
             <span><Bookmark size={27} /></span>
-            <h2>Nenhum perfil guardado</h2>
-            <p>Guarde um perfil para encontrá-lo aqui.</p>
+            <h2>{english ? "No saved profiles" : "Nenhum perfil guardado"}</h2>
+            <p>{english ? "Save a profile to find it here." : "Guarde um perfil para encontrá-lo aqui."}</p>
             <button type="button" className="nk-button nk-button--wine" onClick={onDiscover}>
-              Ver perfis
+              {english ? "View profiles" : "Ver perfis"}
             </button>
           </section>
         )}
@@ -77,10 +79,10 @@ export default function SavedProfilesPage({
           <section className="nk-library__section nk-library__recent">
             <div className="nk-section-heading">
               <div>
-                <h2>Vistos recentemente</h2>
+                <h2>{english ? "Recently viewed" : "Vistos recentemente"}</h2>
               </div>
               <button type="button" className="nk-library__clear" onClick={onClearRecent}>
-                <Trash2 size={16} /> Limpar histórico
+                <Trash2 size={16} /> {english ? "Clear history" : "Limpar histórico"}
               </button>
             </div>
 

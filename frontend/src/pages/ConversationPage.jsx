@@ -33,14 +33,15 @@ import {
   updateMatchTyping,
 } from "../services/api.js";
 import { fetchMyPlan } from "../services/planApi.js";
+import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 
 const LIVE_POLL_INTERVAL_MS = 2500;
 const TYPING_HEARTBEAT_MS = 2000;
 
-function formatMessageTime(value) {
+function formatMessageTime(value, english) {
   if (!value) return "";
 
-  return new Intl.DateTimeFormat("pt-MZ", {
+  return new Intl.DateTimeFormat(english ? "en-GB" : "pt-MZ", {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
@@ -62,7 +63,7 @@ function messageIdentity(message) {
   return `text:${message?.id}`;
 }
 
-function ProfileAvatar({ profile }) {
+function ProfileAvatar({ profile, english }) {
   const [failed, setFailed] = useState(false);
   const src = profile?.foto_url || "";
 
@@ -75,13 +76,13 @@ function ProfileAvatar({ profile }) {
   return (
     <img
       src={src}
-      alt={`Foto de ${profile?.nome_publico || "membro NKATA"}`}
+      alt={`${english ? "Photo of" : "Foto de"} ${profile?.nome_publico || (english ? "NKATA member" : "membro NKATA")}`}
       onError={() => setFailed(true)}
     />
   );
 }
 
-function VoiceNote({ message }) {
+function VoiceNote({ message, english }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -128,7 +129,7 @@ function VoiceNote({ message }) {
 
       <button type="button" className="nk-voice-note__play" onClick={togglePlayback}>
         {playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}
-        <span className="sr-only">{playing ? "Pausar nota de voz" : "Reproduzir nota de voz"}</span>
+        <span className="sr-only">{playing ? (english ? "Pause voice note" : "Pausar nota de voz") : (english ? "Play voice note" : "Reproduzir nota de voz")}</span>
       </button>
 
       <div className="nk-voice-note__track" aria-hidden="true">
@@ -140,11 +141,21 @@ function VoiceNote({ message }) {
   );
 }
 
-function CallEvent({ message }) {
+const callStatusLabel = (status, english) => english ? ({
+  "Chamada não atendida": "Unanswered call",
+  "Chamada perdida": "Missed call",
+  "Chamada recusada": "Declined call",
+  "Chamada cancelada": "Cancelled call",
+  "Chamada terminada": "Call ended",
+  "Videochamada": "Video call",
+  "Chamada de áudio": "Audio call",
+})[status] || status : status;
+
+function CallEvent({ message, english }) {
   const outgoing = message.callDirection === "OUTGOING" || message.mine;
   const isVideo = message.callType === "VIDEO";
   const duration = Math.max(0, Number(message.durationSeconds || 0));
-  const status = message.callLabel || (isVideo ? "Videochamada" : "Chamada de áudio");
+  const status = callStatusLabel(message.callLabel || (isVideo ? "Videochamada" : "Chamada de áudio"), english);
 
   return (
     <div className={`nk-call-history ${message.callMissed ? "is-missed" : ""}`}>
@@ -152,34 +163,34 @@ function CallEvent({ message }) {
         {isVideo ? <Video size={19} /> : <Phone size={18} />}
       </div>
       <div className="nk-call-history__content">
-        <strong>{isVideo ? "Videochamada" : "Chamada de áudio"}</strong>
+        <strong>{isVideo ? (english ? "Video call" : "Videochamada") : (english ? "Audio call" : "Chamada de áudio")}</strong>
         <span className="nk-call-history__status">
           {outgoing ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}
           {status}
         </span>
       </div>
       <div className="nk-call-history__meta">
-        {duration > 0 && <strong>Duração {formatDuration(duration)}</strong>}
-        <small>{formatMessageTime(message.createdAt)}</small>
+        {duration > 0 && <strong>{english ? "Duration" : "Duração"} {formatDuration(duration)}</strong>}
+        <small>{formatMessageTime(message.createdAt, english)}</small>
       </div>
     </div>
   );
 }
 
-function MessageBubble({ message }) {
-  if (message.type === "call") return <CallEvent message={message} />;
+function MessageBubble({ message, english }) {
+  if (message.type === "call") return <CallEvent message={message} english={english} />;
 
   return (
     <div className={`nk-message-row ${message.mine ? "is-mine" : ""}`}>
       <div className={`nk-message-bubble ${message.type === "audio" ? "is-audio" : ""}`}>
         {message.type === "audio" ? (
-          <VoiceNote message={message} />
+          <VoiceNote message={message} english={english} />
         ) : (
           <p>{message.text}</p>
         )}
         <span>
-          {formatMessageTime(message.createdAt)}
-          {message.mine && <small>{message.read ? "Lida" : "Enviada"}</small>}
+          {formatMessageTime(message.createdAt, english)}
+          {message.mine && <small>{message.read ? (english ? "Read" : "Lida") : (english ? "Sent" : "Enviada")}</small>}
         </span>
       </div>
     </div>
@@ -195,6 +206,7 @@ export default function ConversationPage({
   onBack,
   onSend,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [safetyMode, setSafetyMode] = useState("");
@@ -429,11 +441,11 @@ export default function ConversationPage({
     setAudioNotice("");
 
     if (!audioEnabled) {
-      setAudioNotice("Notas de voz estão disponíveis no NKATA Essencial e Premium.");
+      setAudioNotice(english ? "Voice notes are available on NKATA Essential and Premium." : "Notas de voz estão disponíveis no NKATA Essencial e Premium.");
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setAudioNotice("Este dispositivo ou navegador não permite gravar notas de voz.");
+      setAudioNotice(english ? "This device or browser cannot record voice notes." : "Este dispositivo ou navegador não permite gravar notas de voz.");
       return;
     }
 
@@ -485,7 +497,7 @@ export default function ConversationPage({
       }, 500);
     } catch {
       releaseRecordingResources();
-      setAudioNotice("Não foi possível aceder ao microfone. Confirme a permissão do navegador.");
+      setAudioNotice(english ? "Unable to access the microphone. Check your browser permission." : "Não foi possível aceder ao microfone. Confirme a permissão do navegador.");
     }
   };
 
@@ -516,7 +528,7 @@ export default function ConversationPage({
       setLocalAudioMessages((current) => [...current, message]);
       clearRecordedAudio();
     } catch (requestError) {
-      setAudioNotice(requestError.message || "Não foi possível enviar a nota de voz.");
+      setAudioNotice(requestError.message || (english ? "Unable to send the voice note." : "Não foi possível enviar a nota de voz."));
     } finally {
       setSendingAudio(false);
     }
@@ -561,7 +573,7 @@ export default function ConversationPage({
       }
 
       setSafetyMode("");
-      setSafetyStatus(result?.message || "A ação foi concluída.");
+      setSafetyStatus(result?.message || (english ? "Action completed." : "A ação foi concluída."));
 
       if (["block", "close"].includes(currentMode)) {
         window.setTimeout(() => window.location.assign("/matches/"), 1000);
@@ -569,7 +581,7 @@ export default function ConversationPage({
         window.setTimeout(() => setSafetyStatus(""), 3200);
       }
     } catch (requestError) {
-      setSafetyError(requestError.message || "Não foi possível concluir esta ação.");
+      setSafetyError(requestError.message || (english ? "Unable to complete this action." : "Não foi possível concluir esta ação."));
     } finally {
       setSafetyLoading(false);
     }
@@ -580,10 +592,10 @@ export default function ConversationPage({
       <main className="nk-conversation nk-conversation--empty">
         <div className="nk-shell nk-conversation__empty-card">
           <MessageCircle size={30} />
-          <h1>Conversa não disponível</h1>
-          <p>Volte aos matches e escolha uma conversa.</p>
+          <h1>{english ? "Conversation unavailable" : "Conversa não disponível"}</h1>
+          <p>{english ? "Go back to Matches and choose a conversation." : "Volte aos matches e escolha uma conversa."}</p>
           <button type="button" className="nk-button nk-button--wine" onClick={onBack}>
-            Voltar aos matches
+            {english ? "Back to matches" : "Voltar aos matches"}
           </button>
         </div>
       </main>
@@ -601,15 +613,15 @@ export default function ConversationPage({
 
           <div className="nk-conversation__person">
             <span className="nk-conversation__avatar">
-              <ProfileAvatar profile={profile} />
+              <ProfileAvatar profile={profile} english={english} />
             </span>
             <div>
-              <strong>{profile?.nome_publico || "Membro NKATA"}</strong>
+              <strong>{profile?.nome_publico || (english ? "NKATA member" : "Membro NKATA")}</strong>
               <small className={remoteTyping ? "is-typing" : remoteActive ? "is-active" : ""}>
                 {remoteTyping ? (
-                  <><PenLine size={12} /> A escrever…</>
+                  <><PenLine size={12} /> {english ? "Typing…" : "A escrever…"}</>
                 ) : remoteActive ? (
-                  <><Activity size={12} /> Ativo agora</>
+                  <><Activity size={12} /> {english ? "Active now" : "Ativo agora"}</>
                 ) : (
                   <><MapPin size={12} /> {profile?.cidade || "Moçambique"}</>
                 )}
@@ -620,13 +632,13 @@ export default function ConversationPage({
           <div className="nk-conversation__options">
             <span className="nk-conversation__secure">
               <ShieldCheck size={16} />
-              Privada
+              {english ? "Private" : "Privada"}
             </span>
             <button
               type="button"
               className="nk-conversation__options-trigger"
               onClick={() => setMenuOpen((current) => !current)}
-              aria-label="Opções da conversa"
+              aria-label={english ? "Conversation options" : "Opções da conversa"}
               aria-expanded={menuOpen}
             >
               <MoreHorizontal size={20} />
@@ -635,17 +647,17 @@ export default function ConversationPage({
             {menuOpen && (
               <div className="nk-conversation__safety-menu">
                 <button type="button" onClick={() => openSafetyAction("report")}>
-                  <Flag size={16} /> Denunciar perfil
+                  <Flag size={16} /> {english ? "Report profile" : "Denunciar perfil"}
                 </button>
                 <button type="button" onClick={() => openSafetyAction("close")}>
-                  <Link2Off size={16} /> Encerrar ligação
+                  <Link2Off size={16} /> {english ? "End connection" : "Encerrar ligação"}
                 </button>
                 <button
                   type="button"
                   className="is-danger"
                   onClick={() => openSafetyAction("block")}
                 >
-                  <Ban size={16} /> Bloquear pessoa
+                  <Ban size={16} /> {english ? "Block person" : "Bloquear pessoa"}
                 </button>
               </div>
             )}
@@ -656,8 +668,8 @@ export default function ConversationPage({
           <div className="nk-conversation__opening">
             <span><LockKeyhole size={17} /></span>
             <div>
-              <strong>É um match</strong>
-              <p>Conversem com respeito. Os contactos pessoais não precisam de ser partilhados logo no início.</p>
+              <strong>{english ? "It's a match" : "É um match"}</strong>
+              <p>{english ? "Talk with respect. Personal contact details do not need to be shared straight away." : "Conversem com respeito. Os contactos pessoais não precisam de ser partilhados logo no início."}</p>
             </div>
           </div>
 
@@ -682,10 +694,10 @@ export default function ConversationPage({
           ) : timeline.length ? (
             <div className="nk-message-list">
               {timeline.map((message) => (
-                <MessageBubble key={messageIdentity(message)} message={message} />
+                <MessageBubble key={messageIdentity(message)} message={message} english={english} />
               ))}
               {remoteTyping && (
-                <div className="nk-typing-row" aria-label={`${profile?.nome_publico || "A outra pessoa"} está a escrever`}>
+                <div className="nk-typing-row" aria-label={`${profile?.nome_publico || (english ? "The other person" : "A outra pessoa")} ${english ? "is typing" : "está a escrever"}`}>
                   <div className="nk-typing-indicator">
                     <PenLine size={14} />
                     <span aria-hidden="true" />
@@ -699,13 +711,13 @@ export default function ConversationPage({
           ) : (
             <div className="nk-conversation__first-message">
               <MessageCircle size={28} />
-              <h2>Comece a conversa</h2>
-              <p>Uma mensagem simples e respeitosa é suficiente.</p>
+              <h2>{english ? "Start the conversation" : "Comece a conversa"}</h2>
+              <p>{english ? "A simple, respectful message is enough." : "Uma mensagem simples e respeitosa é suficiente."}</p>
               <button
                 type="button"
-                onClick={() => setDraft("Olá, gostei de conhecer o seu perfil. Como está?")}
+                onClick={() => setDraft(english ? "Hello, I enjoyed reading your profile. How are you?" : "Olá, gostei de conhecer o seu perfil. Como está?")}
               >
-                Usar uma sugestão
+                {english ? "Use a suggestion" : "Usar uma sugestão"}
               </button>
             </div>
           )}
@@ -722,15 +734,15 @@ export default function ConversationPage({
 
           {recording ? (
             <div className="nk-recorder-bar">
-              <button type="button" className="nk-recorder-bar__cancel" onClick={cancelRecording} aria-label="Cancelar gravação">
+              <button type="button" className="nk-recorder-bar__cancel" onClick={cancelRecording} aria-label={english ? "Cancel recording" : "Cancelar gravação"}>
                 <Trash2 size={19} />
               </button>
               <div className="nk-recorder-bar__status">
                 <span className="nk-recorder-bar__dot" />
                 <strong>{formatDuration(recordingSeconds)}</strong>
-                <small>A gravar</small>
+                <small>{english ? "Recording" : "A gravar"}</small>
               </div>
-              <button type="button" className="nk-recorder-bar__stop" onClick={stopRecording} aria-label="Terminar gravação">
+              <button type="button" className="nk-recorder-bar__stop" onClick={stopRecording} aria-label={english ? "Stop recording" : "Terminar gravação"}>
                 <Square size={17} fill="currentColor" />
               </button>
             </div>
@@ -743,14 +755,14 @@ export default function ConversationPage({
                 onPause={() => setPreviewPlaying(false)}
                 onEnded={() => setPreviewPlaying(false)}
               />
-              <button type="button" className="nk-recorder-preview__delete" onClick={clearRecordedAudio} aria-label="Apagar gravação">
+              <button type="button" className="nk-recorder-preview__delete" onClick={clearRecordedAudio} aria-label={english ? "Delete recording" : "Apagar gravação"}>
                 <Trash2 size={19} />
               </button>
-              <button type="button" className="nk-recorder-preview__play" onClick={togglePreview} aria-label={previewPlaying ? "Pausar gravação" : "Ouvir gravação"}>
+              <button type="button" className="nk-recorder-preview__play" onClick={togglePreview} aria-label={previewPlaying ? (english ? "Pause recording" : "Pausar gravação") : (english ? "Play recording" : "Ouvir gravação")}>
                 {previewPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
               </button>
               <div className="nk-recorder-preview__meta">
-                <strong>Nota de voz</strong>
+                <strong>{english ? "Voice note" : "Nota de voz"}</strong>
                 <small>{formatDuration(recordedDuration)}</small>
               </div>
               <button
@@ -758,7 +770,7 @@ export default function ConversationPage({
                 className="nk-recorder-preview__send"
                 onClick={sendRecordedAudio}
                 disabled={sendingAudio}
-                aria-label="Enviar nota de voz"
+                aria-label={english ? "Send voice note" : "Enviar nota de voz"}
               >
                 <Send size={18} />
               </button>
@@ -769,20 +781,20 @@ export default function ConversationPage({
                 type="button"
                 className={`nk-composer__mic ${audioEnabled ? "" : "is-locked"}`}
                 onClick={startRecording}
-                aria-label={audioEnabled ? "Gravar nota de voz" : "Notas de voz exigem plano pago"}
-                title={audioEnabled ? "Gravar nota de voz" : "NKATA Essencial ou Premium"}
+                aria-label={audioEnabled ? (english ? "Record voice note" : "Gravar nota de voz") : (english ? "Voice notes require a paid plan" : "Notas de voz exigem plano pago")}
+                title={audioEnabled ? (english ? "Record voice note" : "Gravar nota de voz") : "NKATA Essential or Premium"}
               >
                 <Mic size={20} />
                 {!audioEnabled && <LockKeyhole className="nk-composer__mic-lock" size={10} />}
               </button>
 
               <label>
-                <span className="sr-only">Mensagem</span>
+                <span className="sr-only">{english ? "Message" : "Mensagem"}</span>
                 <textarea
                   ref={composerTextareaRef}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value.slice(0, 1200))}
-                  placeholder="Mensagem…"
+                  placeholder={english ? "Message…" : "Mensagem…"}
                   rows={1}
                   disabled={sending}
                   onKeyDown={(event) => {
@@ -800,10 +812,10 @@ export default function ConversationPage({
                 type="submit"
                 className="nk-composer__send"
                 disabled={!draft.trim() || sending}
-                aria-label="Enviar mensagem"
+                aria-label={english ? "Send message" : "Enviar mensagem"}
               >
                 <Send size={19} />
-                <span>{sending ? "A enviar…" : "Enviar"}</span>
+                <span>{sending ? (english ? "Sending…" : "A enviar…") : (english ? "Send" : "Enviar")}</span>
               </button>
             </form>
           )}

@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
+import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import {
   createPublication,
   deletePublication,
@@ -44,19 +45,32 @@ const REACTION_ICONS = {
   APRECIAR: Sparkles,
 };
 
-function formatDate(value) {
+const EN_CAPTIONS = {
+  SEM_LEGENDA: "No caption",
+  UM_POUCO_DE_MIM: "A little about me.",
+  BOM_MOMENTO: "A good moment to remember.",
+  DIA_ESPECIAL: "A special day.",
+  VIDA_COM_CALMA: "Living with calm and intention.",
+  CONHECER_COM_RESPEITO: "Open to meeting someone with respect.",
+};
+
+const visibilityLabel = (publication, english) => english
+  ? (publication.visibility === "MATCHES" ? "Matches only" : "All members")
+  : publication.visibility_label;
+
+function formatDate(value, english) {
   if (!value) return "";
   const date = new Date(value);
   const now = new Date();
   const minutes = Math.max(0, Math.floor((now - date) / 60000));
-  if (minutes < 1) return "Agora";
-  if (minutes < 60) return `Há ${minutes} min`;
+  if (minutes < 1) return english ? "Now" : "Agora";
+  if (minutes < 60) return english ? `${minutes} min ago` : `Há ${minutes} min`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Há ${hours} h`;
-  return new Intl.DateTimeFormat("pt-MZ", { day: "2-digit", month: "short" }).format(date);
+  if (hours < 24) return english ? `${hours} h ago` : `Há ${hours} h`;
+  return new Intl.DateTimeFormat(english ? "en-GB" : "pt-MZ", { day: "2-digit", month: "short" }).format(date);
 }
 
-function PublicationMedia({ publication }) {
+function PublicationMedia({ publication, english }) {
   if (publication.media_type === "VIDEO") {
     return (
       <video
@@ -72,13 +86,13 @@ function PublicationMedia({ publication }) {
     <img
       className="nk-feed-card__media"
       src={publication.media_url}
-      alt={`Publicação de ${publication.profile.nome_publico}`}
+      alt={`${english ? "Post by" : "Publicação de"} ${publication.profile.nome_publico}`}
       loading="lazy"
     />
   );
 }
 
-function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted }) {
+function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted, english }) {
   const [following, setFollowing] = useState(Boolean(publication.following));
   const [followBusy, setFollowBusy] = useState(false);
   const [interestActive, setInterestActive] = useState(Boolean(publication.interest_active));
@@ -110,7 +124,7 @@ function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted }) {
       setInterestMessage(result.message || "");
       window.setTimeout(() => setInterestMessage(""), 3200);
     } catch (error) {
-      setInterestMessage(error.message || "Não foi possível atualizar o interesse.");
+      setInterestMessage(error.message || (english ? "Unable to update your interest." : "Não foi possível atualizar o interesse."));
     } finally {
       setInterestBusy(false);
     }
@@ -156,13 +170,13 @@ function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted }) {
           </span>
           <span>
             <strong>
-              {publication.mine ? "A sua publicação" : publication.profile.nome_publico}
+              {publication.mine ? (english ? "Your post" : "A sua publicação") : publication.profile.nome_publico}
               {publication.profile.verificado && <BadgeCheck size={15} />}
             </strong>
             <small>
               <MapPin size={12} /> {publication.profile.cidade}
               <span>·</span>
-              {formatDate(publication.created_at)}
+              {formatDate(publication.created_at, english)}
             </small>
           </span>
         </button>
@@ -181,7 +195,7 @@ function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted }) {
             ) : (
               <UserPlus size={16} />
             )}
-            {following ? "A seguir" : "Seguir"}
+            {following ? (english ? "Following" : "A seguir") : (english ? "Follow" : "Seguir")}
           </button>
         ) : (
           <button
@@ -189,7 +203,7 @@ function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted }) {
             className="nk-feed-card__delete"
             onClick={remove}
             disabled={deleting}
-            aria-label="Remover publicação"
+            aria-label={english ? "Delete post" : "Remover publicação"}
           >
             {deleting ? <LoaderCircle size={17} className="is-spinning" /> : <Trash2 size={17} />}
           </button>
@@ -197,17 +211,17 @@ function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted }) {
       </header>
 
       <div className="nk-feed-card__media-wrap">
-        <PublicationMedia publication={publication} />
+        <PublicationMedia publication={publication} english={english} />
         <span className="nk-feed-card__privacy">
           {publication.visibility === "MATCHES" ? <LockKeyhole size={13} /> : <UsersRound size={13} />}
-          {publication.visibility_label}
+          {visibilityLabel(publication, english)}
         </span>
       </div>
 
       <div className="nk-feed-card__body">
         {publication.caption && <p className="nk-feed-card__caption">{publication.caption}</p>}
 
-        <div className="nk-feed-card__reactions" aria-label="Reações à publicação">
+        <div className="nk-feed-card__reactions" aria-label={english ? "Post reactions" : "Reações à publicação"}>
           {(reactions?.options || []).map((option) => {
             const Icon = REACTION_ICONS[option.value] || Sparkles;
             const active = reactions?.mine === option.value;
@@ -244,10 +258,10 @@ function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted }) {
               ) : (
                 <HeartHandshake size={17} />
               )}
-              {interestActive ? "Interesse enviado" : "Tenho interesse"}
+              {interestActive ? (english ? "Interest sent" : "Interesse enviado") : (english ? "I'm interested" : "Tenho interesse")}
             </button>
             <button type="button" onClick={() => onOpenProfile?.(publication.profile)}>
-              <UserRound size={17} /> Ver perfil
+              <UserRound size={17} /> {english ? "View profile" : "Ver perfil"}
             </button>
           </div>
         )}
@@ -260,7 +274,7 @@ function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted }) {
   );
 }
 
-function ReviewPublication({ publication, onDeleted }) {
+function ReviewPublication({ publication, onDeleted, english }) {
   const [deleting, setDeleting] = useState(false);
   const pending = publication.moderation_status === "PENDENTE";
 
@@ -285,14 +299,14 @@ function ReviewPublication({ publication, onDeleted }) {
         )}
       </span>
       <span>
-        <strong>{pending ? "Em análise" : "Não aprovada"}</strong>
+        <strong>{pending ? (english ? "Under review" : "Em análise") : (english ? "Not approved" : "Não aprovada")}</strong>
         <small>
           {pending
-            ? "Só você e a equipa NKATA conseguem ver este conteúdo."
-            : (publication.moderation_note || "Esta publicação não foi aprovada.")}
+            ? (english ? "Only you and the NKATA team can see this content." : "Só você e a equipa NKATA conseguem ver este conteúdo.")
+            : (publication.moderation_note || (english ? "This post was not approved." : "Esta publicação não foi aprovada."))}
         </small>
       </span>
-      <button type="button" onClick={remove} disabled={deleting} aria-label="Remover envio">
+      <button type="button" onClick={remove} disabled={deleting} aria-label={english ? "Delete submission" : "Remover envio"}>
         {deleting ? <LoaderCircle size={16} className="is-spinning" /> : <X size={17} />}
       </button>
     </article>
@@ -300,6 +314,7 @@ function ReviewPublication({ publication, onDeleted }) {
 }
 
 export default function MemberHomePage({ onNavigate, onOpenProfile }) {
+  const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -325,7 +340,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
       setData(result);
     } catch (requestError) {
       if (requestError.name !== "AbortError") {
-        setError(requestError.message || "Não foi possível carregar o feed.");
+        setError(requestError.message || (english ? "Unable to load the feed." : "Não foi possível carregar o feed."));
       }
     } finally {
       if (!signal?.aborted && !silent) setLoading(false);
@@ -354,7 +369,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
     setError("");
     if (!file) return;
     if (!canPublish) {
-      setError("Publicar fotografias e vídeos exige NKATA Essencial ou Premium.");
+      setError(english ? "Posting photos and videos requires NKATA Essential or Premium." : "Publicar fotografias e vídeos exige NKATA Essencial ou Premium.");
       event.target.value = "";
       return;
     }
@@ -380,10 +395,10 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
       clearMedia();
       setCaption("SEM_LEGENDA");
       setComposerOpen(false);
-      setStatus(result.message || "Publicação enviada para análise.");
+      setStatus(result.message || (english ? "Post submitted for review." : "Publicação enviada para análise."));
       window.setTimeout(() => setStatus(""), 4200);
     } catch (requestError) {
-      setError(requestError.message || "Não foi possível enviar a publicação.");
+      setError(requestError.message || (english ? "Unable to submit the post." : "Não foi possível enviar a publicação."));
     } finally {
       setPublishing(false);
     }
@@ -399,10 +414,10 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
   return (
     <main className="nk-member-home">
-      <CompactPageHeader title="Início">
-        <button type="button" onClick={() => load()} disabled={loading} aria-label="Atualizar feed">
+      <CompactPageHeader title={english ? "Home" : "Início"}>
+        <button type="button" onClick={() => load()} disabled={loading} aria-label={english ? "Refresh feed" : "Atualizar feed"}>
           <RefreshCw size={19} className={loading ? "is-spinning" : ""} />
-          Atualizar
+          {english ? "Refresh" : "Atualizar"}
         </button>
       </CompactPageHeader>
 
@@ -415,7 +430,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
             <header>
               <span><ImagePlus size={20} /></span>
               <div>
-                <strong>Nova publicação</strong>
+                <strong>{english ? "New post" : "Nova publicação"}</strong>
               </div>
               {!canPublish && <LockKeyhole size={18} />}
               {canPublish && (
@@ -424,7 +439,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   className="nk-feed-composer__toggle"
                   onClick={() => setComposerOpen((current) => !current)}
                   aria-expanded={composerOpen}
-                  aria-label={composerOpen ? "Fechar criação de publicação" : "Criar publicação"}
+                  aria-label={composerOpen ? (english ? "Close post composer" : "Fechar criação de publicação") : (english ? "Create post" : "Criar publicação")}
                 >
                   <ChevronDown size={18} />
                 </button>
@@ -438,9 +453,9 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                     {media?.type?.startsWith("video/") ? (
                       <video src={previewUrl} controls playsInline />
                     ) : (
-                      <img src={previewUrl} alt="Pré-visualização" />
+                      <img src={previewUrl} alt={english ? "Preview" : "Pré-visualização"} />
                     )}
-                    <button type="button" onClick={clearMedia} aria-label="Remover ficheiro">
+                    <button type="button" onClick={clearMedia} aria-label={english ? "Remove file" : "Remover ficheiro"}>
                       <X size={18} />
                     </button>
                   </div>
@@ -452,7 +467,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   >
                     <ImagePlus size={22} />
                     <span>
-                      <strong>Foto ou vídeo</strong>
+                      <strong>{english ? "Photo or video" : "Foto ou vídeo"}</strong>
                     </span>
                   </button>
                 )}
@@ -467,10 +482,10 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
                 <div className="nk-feed-composer__options">
                   <label>
-                    <span className="sr-only">Frase</span>
+                    <span className="sr-only">{english ? "Caption" : "Frase"}</span>
                     <select value={caption} onChange={(event) => setCaption(event.target.value)}>
                       {captionOptions.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
+                        <option key={option.value} value={option.value}>{english ? (EN_CAPTIONS[option.value] || option.label) : option.label}</option>
                       ))}
                     </select>
                   </label>
@@ -482,17 +497,17 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   disabled={!media || publishing}
                 >
                   {publishing ? <LoaderCircle size={18} className="is-spinning" /> : <Send size={18} />}
-                  {publishing ? "A publicar" : "Publicar"}
+                  {publishing ? (english ? "Posting" : "A publicar") : (english ? "Post" : "Publicar")}
                 </button>
               </div>
             ) : (
               <div className="nk-feed-composer__locked-copy">
                 <LockKeyhole size={22} />
                 <div>
-                  <strong>Publicar exige um plano pago.</strong>
-                  <p>Essencial e Premium permitem fotos e vídeos.</p>
+                  <strong>{english ? "Posting requires a paid plan." : "Publicar exige um plano pago."}</strong>
+                  <p>{english ? "Essential and Premium include photos and videos." : "Essencial e Premium permitem fotos e vídeos."}</p>
                 </div>
-                <button type="button" onClick={() => onNavigate("account")}>Ver planos</button>
+                <button type="button" onClick={() => onNavigate("account")}>{english ? "View plans" : "Ver planos"}</button>
               </div>
             )}
           </form>
@@ -503,7 +518,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           {reviewItems.length > 0 && (
             <section className="nk-feed-review-list">
               <header>
-                <strong>Em análise</strong>
+                <strong>{english ? "Under review" : "Em análise"}</strong>
               </header>
               <div>
                 {reviewItems.map((publication) => (
@@ -511,6 +526,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                     key={publication.id}
                     publication={publication}
                     onDeleted={removeFromState}
+                    english={english}
                   />
                 ))}
               </div>
@@ -519,12 +535,12 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
           <div className="nk-member-home__feed-heading">
             <div>
-              <h2>Publicações</h2>
+              <h2>{english ? "Posts" : "Publicações"}</h2>
             </div>
           </div>
 
           {loading && !publications.length ? (
-            <div className="nk-feed-loading" aria-label="A carregar feed">
+            <div className="nk-feed-loading" aria-label={english ? "Loading feed" : "A carregar feed"}>
               <span />
               <span />
               <span />
@@ -538,16 +554,17 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   onOpenProfile={onOpenProfile}
                   onChanged={() => load({ silent: true })}
                   onDeleted={removeFromState}
+                  english={english}
                 />
               ))}
             </div>
           ) : (
             <div className="nk-feed-empty">
               <span><ImagePlus size={28} /></span>
-              <h2>Nenhuma publicação</h2>
-              <p>Novas publicações aparecerão aqui após aprovação.</p>
+              <h2>{english ? "No posts" : "Nenhuma publicação"}</h2>
+              <p>{english ? "New posts will appear here after approval." : "Novas publicações aparecerão aqui após aprovação."}</p>
               <button type="button" onClick={() => onNavigate("discover")}>
-                <UserRound size={17} /> Explorar perfis
+                <UserRound size={17} /> {english ? "Explore profiles" : "Explorar perfis"}
               </button>
             </div>
           )}

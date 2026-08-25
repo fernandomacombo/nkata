@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
+import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import { blockProfile, reportProfile } from "../services/api.js";
 import { fetchProfileSignals, sendProfileSignal } from "../services/signalApi.js";
 
@@ -33,6 +34,19 @@ const SIGNAL_ICONS = {
   OLA: Hand,
 };
 
+const objectiveLabel = (value, english) => english ? ({
+  "Relacionamento sério": "Serious relationship",
+  "Conhecer com intenção": "Meet with intention",
+  "Casamento no futuro": "Marriage in the future",
+  "Amizade que pode evoluir": "Friendship that may grow",
+})[value] || value : value;
+
+const signalLabels = {
+  FLOR: ["Flower", "A flower to show that this profile caught your attention."],
+  BEIJINHO: ["Kiss", "A warm gesture without opening a private conversation."],
+  OLA: ["Hello", "Hello, I liked your profile and would like to know you better."],
+};
+
 function DetailBlock({ title, children }) {
   return (
     <section className="nk-profile-detail__block">
@@ -42,7 +56,7 @@ function DetailBlock({ title, children }) {
   );
 }
 
-function ProfileGallery({ items, personName }) {
+function ProfileGallery({ items, personName, english }) {
   const [selected, setSelected] = useState(null);
   if (!items?.length) return null;
 
@@ -51,8 +65,8 @@ function ProfileGallery({ items, personName }) {
       <header>
         <span><Images size={17} /></span>
         <div>
-          <h2>Galeria</h2>
-          <p>{items.length} {items.length === 1 ? "publicação" : "publicações"}</p>
+          <h2>{english ? "Gallery" : "Galeria"}</h2>
+          <p>{items.length} {english ? (items.length === 1 ? "post" : "posts") : (items.length === 1 ? "publicação" : "publicações")}</p>
         </div>
       </header>
 
@@ -62,7 +76,7 @@ function ProfileGallery({ items, personName }) {
             type="button"
             key={item.id}
             onClick={() => setSelected(item)}
-            aria-label={`Abrir publicação de ${personName}`}
+            aria-label={`${english ? "Open post by" : "Abrir publicação de"} ${personName}`}
           >
             {item.mediaType === "VIDEO" ? (
               <>
@@ -84,14 +98,14 @@ function ProfileGallery({ items, personName }) {
             if (event.target === event.currentTarget) setSelected(null);
           }}
         >
-          <section role="dialog" aria-modal="true" aria-label={`Publicação de ${personName}`}>
-            <button type="button" onClick={() => setSelected(null)} aria-label="Fechar publicação">
+          <section role="dialog" aria-modal="true" aria-label={`${english ? "Post by" : "Publicação de"} ${personName}`}>
+            <button type="button" onClick={() => setSelected(null)} aria-label={english ? "Close post" : "Fechar publicação"}>
               <X size={21} />
             </button>
             {selected.mediaType === "VIDEO" ? (
               <video src={selected.mediaUrl} controls autoPlay playsInline />
             ) : (
-              <img src={selected.mediaUrl} alt={`Publicação de ${personName}`} />
+              <img src={selected.mediaUrl} alt={`${english ? "Post by" : "Publicação de"} ${personName}`} />
             )}
           </section>
         </div>
@@ -114,6 +128,7 @@ export default function ProfileDetailPage({
   onRequireLogin,
   onBack,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   const [imageFailed, setImageFailed] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [safetyMode, setSafetyMode] = useState("");
@@ -147,7 +162,7 @@ export default function ProfileDetailPage({
       .then((payload) => setSignalData(payload))
       .catch((requestError) => {
         if (requestError.name !== "AbortError") {
-          setSignalError(requestError.message || "Não foi possível consultar os sinais disponíveis.");
+          setSignalError(requestError.message || (english ? "Unable to load available signals." : "Não foi possível consultar os sinais disponíveis."));
         }
       })
       .finally(() => {
@@ -162,21 +177,21 @@ export default function ProfileDetailPage({
 
     const shareUrl = profileUrl || window.location.href;
     const shareData = {
-      title: `${profile.nome_publico} no NKATA`,
-      text: `Veja o perfil de ${profile.nome_publico} no NKATA.`,
+      title: `${profile.nome_publico} ${english ? "on" : "no"} NKATA`,
+      text: `${english ? "View the profile of" : "Veja o perfil de"} ${profile.nome_publico} ${english ? "on" : "no"} NKATA.`,
       url: shareUrl,
     };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
-        setShareStatus("Partilhado");
+        setShareStatus(english ? "Shared" : "Partilhado");
       } else {
         await navigator.clipboard.writeText(shareUrl);
-        setShareStatus("Link copiado");
+        setShareStatus(english ? "Link copied" : "Link copiado");
       }
     } catch (shareError) {
-      if (shareError.name !== "AbortError") setShareStatus("Não foi possível partilhar");
+      if (shareError.name !== "AbortError") setShareStatus(english ? "Unable to share" : "Não foi possível partilhar");
     }
 
     window.setTimeout(() => setShareStatus(""), 2200);
@@ -206,7 +221,7 @@ export default function ProfileDetailPage({
         : await blockProfile(profile.id);
 
       setSafetyMode("");
-      setSafetyStatus(result?.message || "A ação foi concluída.");
+      setSafetyStatus(result?.message || (english ? "Action completed." : "A ação foi concluída."));
 
       if (currentMode === "block") {
         window.setTimeout(() => window.location.assign("/perfis/"), 1000);
@@ -214,7 +229,7 @@ export default function ProfileDetailPage({
         window.setTimeout(() => setSafetyStatus(""), 3200);
       }
     } catch (requestError) {
-      setSafetyError(requestError.message || "Não foi possível concluir esta ação.");
+      setSafetyError(requestError.message || (english ? "Unable to complete this action." : "Não foi possível concluir esta ação."));
     } finally {
       setSafetyLoading(false);
     }
@@ -234,7 +249,7 @@ export default function ProfileDetailPage({
     try {
       const result = await sendProfileSignal(profile.id, type);
       setSignalData({ quota: result.quota, signals: result.signals });
-      setSignalStatus(result.message || "Sinal enviado.");
+      setSignalStatus(result.message || (english ? "Signal sent." : "Sinal enviado."));
       window.setTimeout(() => setSignalStatus(""), 3200);
     } catch (requestError) {
       if (requestError.payload?.quota) {
@@ -244,7 +259,7 @@ export default function ProfileDetailPage({
           signals: requestError.payload.signals || current?.signals || DEFAULT_SIGNALS,
         }));
       }
-      setSignalError(requestError.message || "Não foi possível enviar este sinal.");
+      setSignalError(requestError.message || (english ? "Unable to send this signal." : "Não foi possível enviar este sinal."));
     } finally {
       setSignalSending("");
     }
@@ -266,10 +281,10 @@ export default function ProfileDetailPage({
       <main className="nk-profile-detail nk-profile-detail--empty">
         <div className="nk-shell nk-profile-detail__empty-card">
           <ShieldCheck size={30} />
-          <h1>Perfil não disponível</h1>
-          <p>{error || "Não foi possível abrir este perfil agora."}</p>
+          <h1>{english ? "Profile unavailable" : "Perfil não disponível"}</h1>
+          <p>{error || (english ? "Unable to open this profile right now." : "Não foi possível abrir este perfil agora.")}</p>
           <button type="button" className="nk-button nk-button--wine" onClick={onBack}>
-            Voltar aos perfis
+            {english ? "Back to profiles" : "Voltar aos perfis"}
           </button>
         </div>
       </main>
@@ -292,7 +307,7 @@ export default function ProfileDetailPage({
     <main className={`nk-profile-detail nk-profile-detail--theme-${profile.tema_perfil || "classico"}`}>
       <div className="nk-shell">
         <button type="button" className="nk-profile-detail__back" onClick={onBack}>
-          <ArrowLeft size={18} /> Voltar
+          <ArrowLeft size={18} /> {english ? "Back" : "Voltar"}
         </button>
 
         {profile.cover_url && (
@@ -311,23 +326,23 @@ export default function ProfileDetailPage({
             {hasImage ? (
               <img
                 src={profile.foto_url}
-                alt={`Foto de ${profile.nome_publico}`}
+                alt={`${english ? "Photo of" : "Foto de"} ${profile.nome_publico}`}
                 onError={() => setImageFailed(true)}
               />
             ) : (
               <div className="nk-profile-detail__fallback">
                 <UserRound size={64} strokeWidth={1.15} />
-                <span>Sem fotografia</span>
+                <span>{english ? "No photo" : "Sem fotografia"}</span>
               </div>
             )}
 
             <div className="nk-profile-detail__media-shade" />
             <span className="nk-profile-detail__verified">
               <BadgeCheck size={16} />
-              {profile.verificado ? "Perfil verificado" : "Em análise"}
+              {profile.verificado ? (english ? "Verified profile" : "Perfil verificado") : (english ? "Under review" : "Em análise")}
             </span>
             <div className="nk-profile-detail__media-copy">
-              <span>{profile.objetivo_display}</span>
+              <span>{objectiveLabel(profile.objetivo_display, english)}</span>
               <strong>{profile.nome_publico}{profile.idade ? `, ${profile.idade}` : ""}</strong>
               <small><MapPin size={14} /> {profile.cidade}</small>
             </div>
@@ -337,10 +352,10 @@ export default function ProfileDetailPage({
             <div className="nk-profile-detail__heading">
               <div>
                 <span className="nk-eyebrow nk-eyebrow--dark">
-                  <ShieldCheck size={15} /> Perfil verificado
+                  <ShieldCheck size={15} /> {english ? "Verified profile" : "Perfil verificado"}
                 </span>
                 <h1>{profile.nome_publico}{profile.idade ? `, ${profile.idade}` : ""}</h1>
-                <p>{profile.objetivo_display}</p>
+                <p>{objectiveLabel(profile.objetivo_display, english)}</p>
               </div>
 
               <div className="nk-profile-detail__quick-actions">
@@ -351,54 +366,54 @@ export default function ProfileDetailPage({
                   aria-pressed={saved}
                 >
                   <Heart size={19} fill={saved ? "currentColor" : "none"} />
-                  {saved ? "Guardado" : "Guardar"}
+                  {saved ? (english ? "Saved" : "Guardado") : (english ? "Save" : "Guardar")}
                 </button>
                 <button type="button" className="nk-profile-detail__share" onClick={handleShare}>
-                  <Share2 size={18} /> {shareStatus || "Partilhar"}
+                  <Share2 size={18} /> {shareStatus || (english ? "Share" : "Partilhar")}
                 </button>
               </div>
             </div>
 
-            {error && <div className="nk-profile-detail__notice">Alguns dados deste perfil não foram atualizados.</div>}
+            {error && <div className="nk-profile-detail__notice">{english ? "Some profile details could not be refreshed." : "Alguns dados deste perfil não foram atualizados."}</div>}
             {safetyStatus && <div className="nk-interest-message is-active" role="status">{safetyStatus}</div>}
 
             <div className="nk-profile-detail__blocks">
-              <DetailBlock title="Sobre mim">
-                {profile.sobre_si || "Esta pessoa ainda não acrescentou uma apresentação."}
+              <DetailBlock title={english ? "About me" : "Sobre mim"}>
+                {profile.sobre_si || (english ? "This person has not added an introduction yet." : "Esta pessoa ainda não acrescentou uma apresentação.")}
               </DetailBlock>
-              <DetailBlock title="O que valorizo">
-                {profile.o_que_valoriza || "Ainda não foi preenchido."}
+              <DetailBlock title={english ? "What I value" : "O que valorizo"}>
+                {profile.o_que_valoriza || (english ? "Not filled in yet." : "Ainda não foi preenchido.")}
               </DetailBlock>
-              <DetailBlock title="O que não aceito">
-                {profile.o_que_nao_aceita || "Ainda não foi preenchido."}
+              <DetailBlock title={english ? "What I don't accept" : "O que não aceito"}>
+                {profile.o_que_nao_aceita || (english ? "Not filled in yet." : "Ainda não foi preenchido.")}
               </DetailBlock>
             </div>
 
-            <ProfileGallery items={profile.gallery} personName={profile.nome_publico} />
+            <ProfileGallery items={profile.gallery} personName={profile.nome_publico} english={english} />
 
             <div className="nk-profile-detail__assurance">
               <span><LockKeyhole size={18} /></span>
               <div>
-                <strong>Telefone, email e documentos não são mostrados</strong>
-                <p>Os contactos exigem autorização dos dois lados.</p>
+                <strong>{english ? "Phone, email and documents are not shown" : "Telefone, email e documentos não são mostrados"}</strong>
+                <p>{english ? "Contact details require consent from both people." : "Os contactos exigem autorização dos dois lados."}</p>
               </div>
             </div>
 
             <section className={`nk-profile-signals ${limitReached ? "is-locked" : ""}`}>
               <div className="nk-profile-signals__heading">
                 <div>
-                  <span>Sinais NKATA</span>
-                  <h2>Enviar um sinal</h2>
+                  <span>{english ? "NKATA signals" : "Sinais NKATA"}</span>
+                  <h2>{english ? "Send a signal" : "Enviar um sinal"}</h2>
                   <p>
                     {authenticated && quota
-                      ? `${quota.daily_limit} sinais diários no plano ${quota.plan_label}.`
-                      : "Mostre interesse sem iniciar uma conversa."}
+                      ? (english ? `${quota.daily_limit} daily signals on your ${quota.plan_label} plan.` : `${quota.daily_limit} sinais diários no plano ${quota.plan_label}.`)
+                      : (english ? "Show interest without starting a conversation." : "Mostre interesse sem iniciar uma conversa.")}
                   </p>
                 </div>
                 {authenticated && quota && (
                   <strong className="nk-profile-signals__quota">
-                    {quota.used_today} de {quota.daily_limit} no plano
-                    {quota.recharge_balance > 0 ? ` · +${quota.recharge_balance} recarga` : ""}
+                    {quota.used_today} {english ? "of" : "de"} {quota.daily_limit} {english ? "used" : "no plano"}
+                    {quota.recharge_balance > 0 ? ` · +${quota.recharge_balance} ${english ? "top-up" : "recarga"}` : ""}
                   </strong>
                 )}
               </div>
@@ -415,6 +430,7 @@ export default function ProfileDetailPage({
                     || limitReached
                     || String(profile.id).startsWith("demo-")
                   );
+                  const translatedSignal = signalLabels[signal.type];
 
                   return (
                     <button
@@ -423,24 +439,24 @@ export default function ProfileDetailPage({
                       className={sent ? "is-sent" : ""}
                       onClick={() => handleSignal(signal.type)}
                       disabled={authenticated ? disabled : false}
-                      title={signal.message}
+                      title={english ? (translatedSignal?.[1] || signal.message) : signal.message}
                     >
                       <span className="nk-profile-signals__icon" aria-hidden="true">
                         <SignalIcon size={27} strokeWidth={1.55} />
                       </span>
-                      <strong>{signal.label}</strong>
+                      <strong>{english ? (translatedSignal?.[0] || signal.label) : signal.label}</strong>
                       <small>
                         {!authenticated
-                          ? "Entrar para enviar"
+                          ? (english ? "Sign in to send" : "Entrar para enviar")
                           : busy
-                            ? "A enviar…"
+                            ? (english ? "Sending…" : "A enviar…")
                             : sent
-                              ? "Enviado hoje"
+                              ? (english ? "Sent today" : "Enviado hoje")
                               : limitReached
-                                ? "Limite atingido"
+                                ? (english ? "Limit reached" : "Limite atingido")
                                 : quota?.next_source === "RECHARGE"
-                                  ? "Usar recarga"
-                                  : "Enviar sinal"}
+                                  ? (english ? "Use top-up" : "Usar recarga")
+                                  : (english ? "Send signal" : "Enviar sinal")}
                       </small>
                     </button>
                   );
@@ -449,12 +465,12 @@ export default function ProfileDetailPage({
 
               {!authenticated && (
                 <button type="button" className="nk-profile-signals__login" onClick={onRequireLogin}>
-                  Entrar para usar os sinais do seu plano
+                  {english ? "Sign in to use your plan's signals" : "Entrar para usar os sinais do seu plano"}
                 </button>
               )}
 
               {signalLoading && authenticated && (
-                <small className="nk-profile-signals__loading">A confirmar o seu plano e os sinais de hoje…</small>
+                <small className="nk-profile-signals__loading">{english ? "Checking your plan and today's signals…" : "A confirmar o seu plano e os sinais de hoje…"}</small>
               )}
               {signalStatus && <div className="nk-profile-signals__message is-success">{signalStatus}</div>}
               {signalError && <div className="nk-profile-signals__message is-error">{signalError}</div>}
@@ -463,25 +479,25 @@ export default function ProfileDetailPage({
                 <div className="nk-profile-signals__limit">
                   <LockKeyhole size={18} />
                   <div>
-                    <strong>O limite do {quota.plan_label} foi usado hoje.</strong>
-                    <span>Não existe saldo de recarga. Novos sinais ficam disponíveis no próximo dia ou com uma futura recarga.</span>
+                    <strong>{english ? `Today's ${quota.plan_label} limit has been used.` : `O limite do ${quota.plan_label} foi usado hoje.`}</strong>
+                    <span>{english ? "There is no top-up balance. New signals become available tomorrow or after a future top-up." : "Não existe saldo de recarga. Novos sinais ficam disponíveis no próximo dia ou com uma futura recarga."}</span>
                   </div>
                 </div>
               )}
             </section>
 
             <div className="nk-profile-safety">
-              <span>Algo não parece certo? A equipa pode ajudar.</span>
+              <span>{english ? "Something doesn't feel right? Our team can help." : "Algo não parece certo? A equipa pode ajudar."}</span>
               <div className="nk-profile-safety__actions">
                 <button type="button" onClick={() => openSafetyAction("report")}>
-                  <Flag size={15} /> Denunciar
+                  <Flag size={15} /> {english ? "Report" : "Denunciar"}
                 </button>
                 <button
                   type="button"
                   className="is-danger"
                   onClick={() => openSafetyAction("block")}
                 >
-                  <Ban size={15} /> Bloquear
+                  <Ban size={15} /> {english ? "Block" : "Bloquear"}
                 </button>
               </div>
             </div>
@@ -501,19 +517,19 @@ export default function ProfileDetailPage({
               >
                 <Sparkles size={18} />
                 {interestLoading
-                  ? "A guardar…"
+                  ? (english ? "Saving…" : "A guardar…")
                   : !authenticated
-                    ? "Entrar para demonstrar interesse"
+                    ? (english ? "Sign in to show interest" : "Entrar para demonstrar interesse")
                     : interestActive
-                      ? "Interesse enviado"
-                      : "Tenho interesse"}
+                      ? (english ? "Interest sent" : "Interesse enviado")
+                      : (english ? "I'm interested" : "Tenho interesse")}
               </button>
               <button type="button" className="nk-button nk-button--quiet" onClick={onBack}>
-                Ver outros perfis
+                {english ? "View other profiles" : "Ver outros perfis"}
               </button>
             </div>
 
-            {loading && <span className="nk-profile-detail__updating">A atualizar o perfil…</span>}
+            {loading && <span className="nk-profile-detail__updating">{english ? "Refreshing profile…" : "A atualizar o perfil…"}</span>}
           </section>
         </div>
       </div>

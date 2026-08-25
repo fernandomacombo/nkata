@@ -17,6 +17,7 @@ import {
   fetchMomentReactions,
   toggleMomentReaction,
 } from "../../services/momentsApi.js";
+import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
 const STILL_DURATION_MS = 6000;
 const REACTION_ICONS = {
@@ -25,15 +26,15 @@ const REACTION_ICONS = {
   APLAUSO: Sparkles,
 };
 
-function remainingLabel(moment) {
+function remainingLabel(moment, english) {
   if (!moment?.expires_at) return "";
 
   const expires = new Date(moment.expires_at);
   const milliseconds = Math.max(0, expires.getTime() - Date.now());
   const minutes = Math.ceil(milliseconds / 60000);
-  if (minutes <= 1) return "Termina em menos de 1 min";
-  if (minutes < 60) return `Termina em ${minutes} min`;
-  return `Termina em ${Math.ceil(minutes / 60)} h`;
+  if (minutes <= 1) return english ? "Ends in under 1 min" : "Termina em menos de 1 min";
+  if (minutes < 60) return english ? `Ends in ${minutes} min` : `Termina em ${minutes} min`;
+  return english ? `Ends in ${Math.ceil(minutes / 60)} h` : `Termina em ${Math.ceil(minutes / 60)} h`;
 }
 
 function MomentMedia({ moment, onVideoProgress, onVideoEnded }) {
@@ -68,9 +69,9 @@ function ReactionIcon({ type, size = 20 }) {
   return <Icon size={size} strokeWidth={1.7} aria-hidden="true" />;
 }
 
-function ReactionTray({ moment, reactions, loading, busy, error, onReact }) {
+function ReactionTray({ moment, reactions, loading, busy, error, onReact, english }) {
   if (loading && !reactions) {
-    return <div className="nk-moment-reactions is-loading" aria-label="A carregar reações" />;
+    return <div className="nk-moment-reactions is-loading" aria-label={english ? "Loading reactions" : "A carregar reações"} />;
   }
 
   if (!reactions || reactions.setup_required) return null;
@@ -84,13 +85,13 @@ function ReactionTray({ moment, reactions, loading, busy, error, onReact }) {
       .filter((item) => item.count > 0);
 
     return (
-      <div className="nk-moment-reactions is-own" aria-label="Reações recebidas">
+      <div className="nk-moment-reactions is-own" aria-label={english ? "Reactions received" : "Reações recebidas"}>
         {activeCounts.length ? activeCounts.map((item) => (
           <span key={item.value} title={item.label}>
             <b><ReactionIcon type={item.value} size={18} /></b>
             <em>{item.count}</em>
           </span>
-        )) : <small>Ainda sem reações</small>}
+        )) : <small>{english ? "No reactions yet" : "Ainda sem reações"}</small>}
       </div>
     );
   }
@@ -98,7 +99,7 @@ function ReactionTray({ moment, reactions, loading, busy, error, onReact }) {
   if (!reactions.enabled) return null;
 
   return (
-    <div className="nk-moment-reactions" aria-label="Reagir ao Momento">
+    <div className="nk-moment-reactions" aria-label={english ? "React to Moment" : "Reagir ao Momento"}>
       <div className="nk-moment-reactions__buttons">
         {(reactions.options || []).map((option) => {
           const active = reactions.mine === option.value;
@@ -110,8 +111,8 @@ function ReactionTray({ moment, reactions, loading, busy, error, onReact }) {
               className={active ? "is-active" : ""}
               disabled={Boolean(busy)}
               aria-pressed={active}
-              aria-label={active ? `Remover ${option.label}` : option.label}
-              title={active ? `Remover ${option.label}` : option.label}
+              aria-label={active ? `${english ? "Remove" : "Remover"} ${option.label}` : option.label}
+              title={active ? `${english ? "Remove" : "Remover"} ${option.label}` : option.label}
               onClick={() => onReact(option.value)}
             >
               <span><ReactionIcon type={option.value} /></span>
@@ -132,6 +133,7 @@ export default function AutoplayMomentViewer({
   onDelete,
   onOpenProfile,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   const safeInitialGroup = Math.max(0, Math.min(initialGroupIndex, Math.max(0, groups.length - 1)));
   const [groupIndex, setGroupIndex] = useState(safeInitialGroup);
   const [momentIndex, setMomentIndex] = useState(0);
@@ -225,7 +227,7 @@ export default function AutoplayMomentViewer({
       .then((result) => setReactions(result))
       .catch((requestError) => {
         if (requestError.name !== "AbortError") {
-          setReactionError(requestError.message || "Reações indisponíveis.");
+          setReactionError(requestError.message || (english ? "Reactions unavailable." : "Reações indisponíveis."));
         }
       })
       .finally(() => {
@@ -267,7 +269,7 @@ export default function AutoplayMomentViewer({
       }
     } catch (requestError) {
       if (currentMomentIdRef.current === reactionMomentId) {
-        setReactionError(requestError.message || "Não foi possível reagir.");
+        setReactionError(requestError.message || (english ? "Unable to react." : "Não foi possível reagir."));
       }
     } finally {
       if (currentMomentIdRef.current === reactionMomentId) {
@@ -283,7 +285,7 @@ export default function AutoplayMomentViewer({
       className="nk-moment-viewer nk-moment-viewer--autoplay"
       role="dialog"
       aria-modal="true"
-      aria-label={`Momento de ${moment.profile.nome_publico}`}
+      aria-label={`${english ? "Moment by" : "Momento de"} ${moment.profile.nome_publico}`}
     >
       <div className="nk-moment-viewer__frame">
         <div className="nk-moment-viewer__progress" aria-hidden="true">
@@ -307,7 +309,7 @@ export default function AutoplayMomentViewer({
             className="nk-moment-viewer__person"
             onClick={() => !moment.mine && onOpenProfile?.(moment.profile)}
             disabled={moment.mine}
-            title={moment.mine ? "O seu perfil é gerido em Minha conta" : "Abrir perfil"}
+            title={moment.mine ? (english ? "Manage your profile in Account" : "O seu perfil é gerido em Minha conta") : (english ? "Open profile" : "Abrir perfil")}
           >
             <span>
               {moment.profile.foto_url
@@ -315,18 +317,18 @@ export default function AutoplayMomentViewer({
                 : <UserRound size={22} />}
             </span>
             <div>
-              <strong>{moment.mine ? "O seu Momento" : moment.profile.nome_publico}</strong>
-              <small><Clock3 size={12} /> {remainingLabel(moment)}</small>
+              <strong>{moment.mine ? (english ? "Your Moment" : "O seu Momento") : moment.profile.nome_publico}</strong>
+              <small><Clock3 size={12} /> {remainingLabel(moment, english)}</small>
             </div>
           </button>
 
           <div className="nk-moment-viewer__header-actions">
             {moment.mine && (
-              <button type="button" onClick={() => onDelete(moment)} aria-label="Remover Momento">
+              <button type="button" onClick={() => onDelete(moment)} aria-label={english ? "Delete Moment" : "Remover Momento"}>
                 <Trash2 size={18} />
               </button>
             )}
-            <button type="button" onClick={onClose} aria-label="Fechar Momento">
+            <button type="button" onClick={onClose} aria-label={english ? "Close Moment" : "Fechar Momento"}>
               <X size={20} />
             </button>
           </div>
@@ -348,11 +350,12 @@ export default function AutoplayMomentViewer({
             busy={reactionBusy}
             error={reactionError}
             onReact={handleReaction}
+            english={english}
           />
 
           <span className="nk-moment-viewer__privacy">
             {moment.visibility === "MATCHES" ? <LockKeyhole size={14} /> : <UsersRound size={14} />}
-            {moment.visibility_label}
+            {english ? (moment.visibility === "MATCHES" ? "Matches only" : "All members") : moment.visibility_label}
           </span>
         </div>
 
@@ -361,7 +364,7 @@ export default function AutoplayMomentViewer({
             type="button"
             className="nk-moment-viewer__nav is-prev"
             onClick={goPrevious}
-            aria-label="Momento anterior"
+            aria-label={english ? "Previous Moment" : "Momento anterior"}
           >
             <ChevronLeft size={24} />
           </button>
@@ -372,7 +375,7 @@ export default function AutoplayMomentViewer({
             type="button"
             className="nk-moment-viewer__nav is-next"
             onClick={goNext}
-            aria-label="Próximo Momento"
+            aria-label={english ? "Next Moment" : "Próximo Momento"}
           >
             <ChevronRight size={24} />
           </button>

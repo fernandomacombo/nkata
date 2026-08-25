@@ -1,4 +1,5 @@
 import { Search, SlidersHorizontal } from "lucide-react";
+import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
 export default function ProfileFilters({
   query,
@@ -15,15 +16,16 @@ export default function ProfileFilters({
   onToggleAdvanced,
   onClear,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   return (
-    <section className="nk-filters" aria-label="Filtros de perfis">
+    <section className="nk-filters" aria-label={english ? "Profile filters" : "Filtros de perfis"}>
       <label className="nk-search-field">
         <Search size={18} />
         <input
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Nome, cidade ou intenção"
+          placeholder={english ? "Name, city or intention" : "Nome, cidade ou intenção"}
         />
       </label>
 
@@ -34,15 +36,15 @@ export default function ProfileFilters({
         aria-expanded={showAdvanced}
       >
         <SlidersHorizontal size={17} />
-        Filtros
+        {english ? "Filters" : "Filtros"}
       </button>
 
       {showAdvanced && (
         <div className="nk-filters__advanced">
           <label>
-            <span>Cidade</span>
+            <span>{english ? "City" : "Cidade"}</span>
             <select value={city} onChange={(event) => onCityChange(event.target.value)}>
-              <option value="">Todas as cidades</option>
+              <option value="">{english ? "All cities" : "Todas as cidades"}</option>
               <option value="Maputo">Maputo</option>
               <option value="Matola">Matola</option>
               <option value="Beira">Beira</option>
@@ -51,18 +53,18 @@ export default function ProfileFilters({
           </label>
 
           <label>
-            <span>O que procura</span>
+            <span>{english ? "Looking for" : "O que procura"}</span>
             <select value={objective} onChange={(event) => onObjectiveChange(event.target.value)}>
-              <option value="">Qualquer intenção</option>
-              <option value="Relacionamento sério">Relacionamento sério</option>
-              <option value="Conhecer com intenção">Conhecer com intenção</option>
-              <option value="Casamento no futuro">Casamento no futuro</option>
-              <option value="Amizade que pode evoluir">Amizade que pode evoluir</option>
+              <option value="">{english ? "Any intention" : "Qualquer intenção"}</option>
+              <option value="Relacionamento sério">{english ? "Serious relationship" : "Relacionamento sério"}</option>
+              <option value="Conhecer com intenção">{english ? "Meet with intention" : "Conhecer com intenção"}</option>
+              <option value="Casamento no futuro">{english ? "Marriage in the future" : "Casamento no futuro"}</option>
+              <option value="Amizade que pode evoluir">{english ? "Friendship that may grow" : "Amizade que pode evoluir"}</option>
             </select>
           </label>
 
           <label>
-            <span>Idade mínima</span>
+            <span>{english ? "Minimum age" : "Idade mínima"}</span>
             <input
               type="number"
               min="18"
@@ -74,7 +76,7 @@ export default function ProfileFilters({
           </label>
 
           <label>
-            <span>Idade máxima</span>
+            <span>{english ? "Maximum age" : "Idade máxima"}</span>
             <input
               type="number"
               min="18"
@@ -86,7 +88,7 @@ export default function ProfileFilters({
           </label>
 
           <button type="button" className="nk-filters__clear" onClick={onClear}>
-            Limpar filtros
+            {english ? "Clear filters" : "Limpar filtros"}
           </button>
         </div>
       )}

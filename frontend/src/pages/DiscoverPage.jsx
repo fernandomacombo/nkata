@@ -10,9 +10,20 @@ import {
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
 import ProfileFilters from "../components/profiles/ProfileFilters.jsx";
+import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import { fetchPublicProfilePreviews } from "../services/api.js";
 
-function GuestPreviewCard({ profile, position, onOpen }) {
+const translateObjective = (value, english) => {
+  if (!english) return value;
+  return ({
+    "Relacionamento sério": "Serious relationship",
+    "Conhecer com intenção": "Meet with intention",
+    "Casamento no futuro": "Marriage in the future",
+    "Amizade que pode evoluir": "Friendship that may grow",
+  })[value] || value;
+};
+
+function GuestPreviewCard({ profile, position, onOpen, english }) {
   const isMain = position === "main";
   const Tag = isMain && profile ? "button" : "article";
   const theme = profile?.tema_perfil || "classico";
@@ -25,7 +36,7 @@ function GuestPreviewCard({ profile, position, onOpen }) {
         ? {
             type: "button",
             onClick: onOpen,
-            "aria-label": `Entrar para conhecer ${profile.nome_publico}`,
+            "aria-label": `${english ? "Sign in to meet" : "Entrar para conhecer"} ${profile.nome_publico}`,
           }
         : { "aria-hidden": true })}
     >
@@ -49,15 +60,15 @@ function GuestPreviewCard({ profile, position, onOpen }) {
         <>
           <span className="nk-guest-preview__lock"><LockKeyhole size={17} /></span>
           <div className="nk-guest-preview__caption">
-            <span>{profile?.objetivo_display || "Apenas membros"}</span>
+            <span>{translateObjective(profile?.objetivo_display, english) || (english ? "Members only" : "Apenas membros")}</span>
             <strong>
               {profile
                 ? `${profile.nome_publico}${profile.idade ? `, ${profile.idade}` : ""}`
-                : "Perfil protegido"}
+                : (english ? "Protected profile" : "Perfil protegido")}
             </strong>
             <small>
               {profile ? <MapPin size={14} /> : <ShieldCheck size={14} />}
-              {profile?.cidade || "Verificação NKATA"}
+              {profile?.cidade || (english ? "NKATA verified" : "Verificação NKATA")}
               {profile && <ShieldCheck className="nk-guest-preview__verified" size={14} />}
             </small>
           </div>
@@ -70,6 +81,8 @@ function GuestPreviewCard({ profile, position, onOpen }) {
 }
 
 function GuestProfilesExperience({ onRequireLogin }) {
+  const language = useInterfaceLanguage();
+  const english = language === "EN";
   const [profiles, setProfiles] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [rotationSeconds, setRotationSeconds] = useState(7);
@@ -106,42 +119,43 @@ function GuestProfilesExperience({ onRequireLogin }) {
 
   return (
     <main className="nk-discover nk-guest-profiles">
-      <CompactPageHeader title="Perfis" />
+      <CompactPageHeader title={english ? "Profiles" : "Perfis"} />
 
       <section className="nk-shell nk-guest-profiles__stage">
         <div className="nk-guest-profiles__copy">
           <span className="nk-guest-profiles__eyebrow">
             <ShieldCheck size={15} />
-            Área de membros
+            {english ? "Members area" : "Área de membros"}
           </span>
 
-          <h1>Perfis reais.<br />Acesso reservado.</h1>
-          <p>Entre para conhecer membros aprovados do NKATA.</p>
+          <h1>{english ? <>Real profiles.<br />Private access.</> : <>Perfis reais.<br />Acesso reservado.</>}</h1>
+          <p>{english ? "Sign in to meet verified NKATA members." : "Entre para conhecer membros aprovados do NKATA."}</p>
 
           <div className="nk-guest-profiles__actions">
             <button type="button" onClick={onRequireLogin}>
-              Entrar para ver perfis
+              {english ? "Sign in to view profiles" : "Entrar para ver perfis"}
               <ArrowRight size={18} />
             </button>
-            <a href="/pedir-acesso/">Pedir acesso</a>
+            <a href="/pedir-acesso/">{english ? "Request access" : "Pedir acesso"}</a>
           </div>
 
           <span className="nk-guest-profiles__privacy">
             <LockKeyhole size={15} />
-            Apenas perfis que autorizaram aparecem aqui
+            {english ? "Only profiles that opted in appear here" : "Apenas perfis que autorizaram aparecem aqui"}
           </span>
         </div>
 
         <div className="nk-guest-profiles__visual">
           <div className="nk-guest-profiles__halo" />
 
-          <GuestPreviewCard profile={leftProfile} position="left" />
-          <GuestPreviewCard profile={rightProfile} position="right" />
+          <GuestPreviewCard profile={leftProfile} position="left" english={english} />
+          <GuestPreviewCard profile={rightProfile} position="right" english={english} />
           <GuestPreviewCard
             key={mainProfile?.id || "protected"}
             profile={mainProfile}
             position="main"
             onOpen={onRequireLogin}
+            english={english}
           />
         </div>
       </section>
@@ -160,6 +174,8 @@ export default function DiscoverPage({
   onToggleSaved,
   onRequireLogin,
 }) {
+  const language = useInterfaceLanguage();
+  const english = language === "EN";
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
   const [objective, setObjective] = useState("");
@@ -214,7 +230,7 @@ export default function DiscoverPage({
 
   return (
     <main className="nk-discover">
-      <CompactPageHeader title="Perfis" />
+      <CompactPageHeader title={english ? "Profiles" : "Perfis"} />
 
       <section className="nk-shell nk-discover__content">
         <ProfileFilters
@@ -236,21 +252,21 @@ export default function DiscoverPage({
         {loadError && (
           <div className="nk-api-notice" role="status">
             <div>
-              <strong>Não foi possível atualizar os perfis</strong>
-              <span>Tente novamente.</span>
+              <strong>{english ? "Unable to refresh profiles" : "Não foi possível atualizar os perfis"}</strong>
+              <span>{english ? "Please try again." : "Tente novamente."}</span>
             </div>
           </div>
         )}
 
         <div className="nk-results-heading">
-          <strong>{filteredProfiles.length} {filteredProfiles.length === 1 ? "perfil" : "perfis"}</strong>
-          <button type="button" onClick={onReload} disabled={loading} aria-label="Atualizar perfis">
+          <strong>{filteredProfiles.length} {english ? (filteredProfiles.length === 1 ? "profile" : "profiles") : (filteredProfiles.length === 1 ? "perfil" : "perfis")}</strong>
+          <button type="button" onClick={onReload} disabled={loading} aria-label={english ? "Refresh profiles" : "Atualizar perfis"}>
             <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
           </button>
         </div>
 
         {loading ? (
-          <div className="nk-profile-grid" aria-label="A carregar perfis">
+          <div className="nk-profile-grid" aria-label={english ? "Loading profiles" : "A carregar perfis"}>
             {[1, 2, 3].map((item) => (
               <div key={item} className="nk-profile-skeleton">
                 <div />
@@ -274,23 +290,23 @@ export default function DiscoverPage({
         ) : !hasProfiles ? (
           <div className="nk-empty-state nk-empty-state--community">
             <ShieldCheck size={28} />
-            <h2>Ainda não há perfis</h2>
-            <p>Novos membros aparecerão aqui após aprovação.</p>
+            <h2>{english ? "No profiles yet" : "Ainda não há perfis"}</h2>
+            <p>{english ? "New members will appear here after approval." : "Novos membros aparecerão aqui após aprovação."}</p>
             <button type="button" onClick={() => window.location.assign("/pedir-acesso/")}>
-              Pedir acesso
+              {english ? "Request access" : "Pedir acesso"}
             </button>
           </div>
         ) : (
           <div className="nk-empty-state">
             <ShieldCheck size={28} />
-            <h2>Nenhum resultado</h2>
+            <h2>{english ? "No results" : "Nenhum resultado"}</h2>
             <p>
               {hasActiveFilters
-                ? "Altere ou limpe os filtros."
-                : "Atualize para tentar novamente."}
+                ? (english ? "Change or clear the filters." : "Altere ou limpe os filtros.")
+                : (english ? "Refresh to try again." : "Atualize para tentar novamente.")}
             </p>
             <button type="button" onClick={hasActiveFilters ? clearFilters : onReload}>
-              {hasActiveFilters ? "Limpar filtros" : "Atualizar perfis"}
+              {hasActiveFilters ? (english ? "Clear filters" : "Limpar filtros") : (english ? "Refresh profiles" : "Atualizar perfis")}
             </button>
           </div>
         )}

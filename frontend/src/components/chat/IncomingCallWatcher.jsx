@@ -6,6 +6,7 @@ import {
   startIncomingCallAttention,
   stopIncomingCallAttention,
 } from "../../services/callAttention.js";
+import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
 const INCOMING_POLL_MS = 2000;
 
@@ -21,6 +22,7 @@ function hasAuthenticatedMemberShell() {
 }
 
 export default function IncomingCallWatcher() {
+  const english = useInterfaceLanguage() === "EN";
   const [call, setCall] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -94,28 +96,28 @@ export default function IncomingCallWatcher() {
   };
 
   return (
-    <div className="nk-incoming-call" role="dialog" aria-modal="true" aria-label="Chamada recebida">
+    <div className="nk-incoming-call" role="dialog" aria-modal="true" aria-label={english ? "Incoming call" : "Chamada recebida"}>
       <div className="nk-incoming-call__photo">
         {caller.foto_url ? (
-          <img src={caller.foto_url} alt={`Foto de ${caller.nome_publico || "membro NKATA"}`} />
+          <img src={caller.foto_url} alt={`${english ? "Photo of" : "Foto de"} ${caller.nome_publico || (english ? "NKATA member" : "membro NKATA")}`} />
         ) : (
           isVideo ? <Video size={28} /> : <Phone size={27} />
         )}
       </div>
 
       <div className="nk-incoming-call__body">
-        <span>{isVideo ? "Videochamada recebida" : "Chamada recebida"}</span>
-        <strong>{caller.nome_publico || "Membro NKATA"}</strong>
+        <span>{isVideo ? (english ? "Incoming video call" : "Videochamada recebida") : (english ? "Incoming call" : "Chamada recebida")}</span>
+        <strong>{caller.nome_publico || (english ? "NKATA member" : "Membro NKATA")}</strong>
         <small><MapPin size={12} /> {caller.cidade || "Moçambique"}</small>
       </div>
 
       <div className="nk-incoming-call__actions">
-        <button type="button" className="is-decline" onClick={decline} disabled={busy} aria-label="Recusar chamada">
+        <button type="button" className="is-decline" onClick={decline} disabled={busy} aria-label={english ? "Decline call" : "Recusar chamada"}>
           <PhoneOff size={20} />
         </button>
-        <button type="button" className="is-open" onClick={openConversation} aria-label="Abrir chamada">
+        <button type="button" className="is-open" onClick={openConversation} aria-label={english ? "Open call" : "Abrir chamada"}>
           {isVideo ? <Video size={21} /> : <Phone size={20} />}
-          <span>Abrir</span>
+          <span>{english ? "Open" : "Abrir"}</span>
         </button>
       </div>
     </div>

@@ -1,12 +1,13 @@
 import { AlertTriangle, Ban, Flag, Link2Off, ShieldCheck, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
 const reportReasons = [
-  { value: "PERFIL_FALSO", label: "Suspeito que o perfil seja falso" },
-  { value: "FOTO_SUSPEITA", label: "A fotografia parece suspeita" },
-  { value: "COMPORTAMENTO_INADEQUADO", label: "Comportamento inadequado" },
-  { value: "DADOS_FALSOS", label: "As informações parecem falsas" },
-  { value: "OUTRO", label: "Outro motivo" },
+  { value: "PERFIL_FALSO", pt: "Suspeito que o perfil seja falso", en: "I suspect this profile is fake" },
+  { value: "FOTO_SUSPEITA", pt: "A fotografia parece suspeita", en: "The photo looks suspicious" },
+  { value: "COMPORTAMENTO_INADEQUADO", pt: "Comportamento inadequado", en: "Inappropriate behaviour" },
+  { value: "DADOS_FALSOS", pt: "As informações parecem falsas", en: "The information appears false" },
+  { value: "OUTRO", pt: "Outro motivo", en: "Another reason" },
 ];
 
 const modeContent = {
@@ -44,9 +45,15 @@ export default function SafetyDialog({
   onClose,
   onConfirm,
 }) {
+  const english = useInterfaceLanguage() === "EN";
   const [reason, setReason] = useState("COMPORTAMENTO_INADEQUADO");
   const [details, setDetails] = useState("");
   const content = modeContent[mode] || modeContent.report;
+  const translatedContent = english ? ({
+    report: ["Send report", "Tell us what happened.", "The other person will not be told who reported them.", "Send report"],
+    block: ["Block profile", "Block this person?", "This profile will no longer appear to you. Existing interests, match and conversation will be removed.", "Block profile"],
+    close: ["End connection", "End this connection?", "The conversation will become unavailable to both people. This does not send a report.", "End connection"],
+  })[mode] || [content.eyebrow, content.title, content.description, content.action] : null;
   const Icon = content.icon;
 
   useEffect(() => {
@@ -97,7 +104,7 @@ export default function SafetyDialog({
           className="nk-safety-dialog__close"
           onClick={onClose}
           disabled={loading}
-          aria-label="Fechar"
+          aria-label={english ? "Close" : "Fechar"}
         >
           <X size={19} />
         </button>
@@ -105,35 +112,35 @@ export default function SafetyDialog({
         <span className={`nk-safety-dialog__icon is-${mode}`}>
           <Icon size={24} />
         </span>
-        <span className="nk-safety-dialog__eyebrow">{content.eyebrow}</span>
-        <h2 id="nk-safety-dialog-title">{content.title}</h2>
+        <span className="nk-safety-dialog__eyebrow">{english ? translatedContent[0] : content.eyebrow}</span>
+        <h2 id="nk-safety-dialog-title">{english ? translatedContent[1] : content.title}</h2>
         <p>
           {personName ? `${personName}: ` : ""}
-          {content.description}
+          {english ? translatedContent[2] : content.description}
         </p>
 
         <form onSubmit={handleSubmit}>
           {mode === "report" && (
             <div className="nk-safety-dialog__fields">
               <label>
-                <span>Motivo</span>
+                <span>{english ? "Reason" : "Motivo"}</span>
                 <select
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   disabled={loading}
                 >
                   {reportReasons.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
+                    <option key={item.value} value={item.value}>{english ? item.en : item.pt}</option>
                   ))}
                 </select>
               </label>
 
               <label>
-                <span>Detalhes {reason === "OUTRO" ? "(obrigatório)" : "(opcional)"}</span>
+                <span>{english ? "Details" : "Detalhes"} {reason === "OUTRO" ? (english ? "(required)" : "(obrigatório)") : (english ? "(optional)" : "(opcional)")}</span>
                 <textarea
                   value={details}
                   onChange={(event) => setDetails(event.target.value.slice(0, 1000))}
-                  placeholder="Explique apenas o necessário para a equipa compreender a situação."
+                  placeholder={english ? "Share only what our team needs to understand the situation." : "Explique apenas o necessário para a equipa compreender a situação."}
                   rows={4}
                   disabled={loading}
                 />
@@ -145,7 +152,7 @@ export default function SafetyDialog({
           {mode !== "report" && (
             <div className="nk-safety-dialog__notice">
               <AlertTriangle size={18} />
-              <span>Confirme apenas quando tiver certeza.</span>
+              <span>{english ? "Confirm only when you are sure." : "Confirme apenas quando tiver certeza."}</span>
             </div>
           )}
 
@@ -153,7 +160,7 @@ export default function SafetyDialog({
 
           <div className="nk-safety-dialog__actions">
             <button type="button" onClick={onClose} disabled={loading}>
-              Cancelar
+              {english ? "Cancel" : "Cancelar"}
             </button>
             <button
               type="submit"
@@ -163,14 +170,14 @@ export default function SafetyDialog({
                 || (mode === "report" && reason === "OUTRO" && details.trim().length < 10)
               }
             >
-              {loading ? "A processar…" : content.action}
+              {loading ? (english ? "Processing…" : "A processar…") : (english ? translatedContent[3] : content.action)}
             </button>
           </div>
         </form>
 
         <footer>
           <ShieldCheck size={15} />
-          <span>Estas ações são tratadas de forma privada pela equipa NKATA.</span>
+          <span>{english ? "These actions are handled privately by the NKATA team." : "Estas ações são tratadas de forma privada pela equipa NKATA."}</span>
         </footer>
       </section>
     </div>
