@@ -10,6 +10,7 @@ import ConversationCallBridge from "./components/chat/ConversationCallBridge.jsx
 import IncomingCallWatcher from "./components/chat/IncomingCallWatcher.jsx";
 import PublicationSafetyOverlay from "./components/feed/PublicationSafetyOverlay.jsx";
 import ProfileFollowAction from "./components/profile/ProfileFollowAction.jsx";
+import PwaInstallPrompt from "./components/pwa/PwaInstallPrompt.jsx";
 import AccessRequestPage from "./pages/AccessRequestPage.jsx";
 import AccessStatusPage from "./pages/AccessStatusPage.jsx";
 import PasswordChangePage from "./pages/PasswordChangePage.jsx";
@@ -69,6 +70,9 @@ import "./scrollbar.css";
 import "./mobile-session-actions.css";
 import "./compact-pages.css";
 import "./mobile-app-contract.css";
+import "./pwa.css";
+import "./appearance-polish.css";
+import { registerServiceWorker } from "./services/pwa.js";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
 
@@ -79,6 +83,7 @@ function syncAppMode(event = appModeMedia) {
 }
 
 syncAppMode();
+registerServiceWorker();
 if (typeof appModeMedia.addEventListener === "function") {
   appModeMedia.addEventListener("change", syncAppMode);
 } else {
@@ -149,6 +154,7 @@ createRoot(document.getElementById("root")).render(
         <PublicationSafetyOverlay />
         <ConversationCallBridge />
         <IncomingCallWatcher />
+        <PwaInstallPrompt />
       </>
     )}
   </React.StrictMode>

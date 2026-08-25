@@ -1,0 +1,332 @@
+/* NKATA — revisão final de contraste, recorte de imagens e comportamento mobile. */
+
+.nk-security-page {
+  min-height: calc(100dvh - 76px);
+  background: var(--nk-cream);
+}
+
+.nk-security-page__content .nk-security {
+  min-height: calc(100dvh - 154px);
+}
+
+/* A fotografia mantém sempre um recorte quadrado; o selo permanece fora do círculo. */
+.nk-following-person__photo {
+  width: 56px;
+  min-width: 56px;
+  height: auto;
+  aspect-ratio: 1;
+  flex: 0 0 56px;
+  isolation: isolate;
+}
+
+.nk-following-person__photo img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 24%;
+}
+
+.nk-following-person__photo em {
+  z-index: 2;
+}
+
+html[data-nkata-theme="NOITE"],
+html[data-nkata-theme="NOITE"] body,
+html[data-nkata-theme="NOITE"] body.nk-app-mode {
+  background-color: var(--nk-cream);
+  color: var(--nk-ink);
+}
+
+/* O tema Noite passa a controlar também os ecrãs carregados depois das preferências. */
+html[data-nkata-theme="NOITE"] :is(
+  .nk-member-home,
+  .nk-notifications-page,
+  .nk-moments-page,
+  .nk-library,
+  .nk-matches,
+  .nk-discover,
+  .nk-account,
+  .nk-security-page
+) {
+  background: var(--nk-cream);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-page-header {
+  border-bottom-color: var(--nk-line);
+  background: rgba(23, 19, 19, 0.92);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-page-header h1,
+  .nk-notification__topline strong,
+  .nk-feed-composer strong,
+  .nk-feed-card strong,
+  .nk-moment-composer strong,
+  .nk-match-card strong,
+  .nk-library h1,
+  .nk-library h2,
+  .nk-results-heading strong
+) {
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-notifications-list,
+  .nk-notifications-page__toolbar > div,
+  .nk-feed-composer,
+  .nk-feed-card,
+  .nk-feed-review-list,
+  .nk-feed-empty,
+  .nk-moment-composer,
+  .nk-moments-feed__empty,
+  .nk-match-card,
+  .nk-matches__empty,
+  .nk-filters,
+  .nk-library__empty
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+  color: var(--nk-ink);
+  box-shadow: var(--nk-shadow-sm);
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification {
+  border-bottom-color: var(--nk-line);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification:hover {
+  background: #302725;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification.is-unread {
+  background: linear-gradient(90deg, rgba(213, 138, 154, 0.14), rgba(37, 30, 29, 0.96) 64%);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-notification__text,
+  .nk-notification__topline time,
+  .nk-notification__content small,
+  .nk-feed-composer small,
+  .nk-feed-card p,
+  .nk-match-card p,
+  .nk-match-card small
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-notification__icon,
+  .nk-feed-composer__pick,
+  .nk-feed-composer__policy,
+  .nk-feed-composer__toggle,
+  .nk-search-field,
+  .nk-select-field,
+  .nk-filters__advanced input,
+  .nk-filters__advanced select,
+  .nk-feed-composer__options select
+) {
+  border-color: var(--nk-line);
+  background: #302725;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification__icon.is-interesse {
+  background: rgba(213, 138, 154, 0.16);
+  color: #efb0be;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification__icon.is-match {
+  background: rgba(215, 187, 137, 0.14);
+  color: #d7bb89;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification__icon.is-mensagem {
+  background: rgba(130, 179, 159, 0.14);
+  color: #9fcdbb;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification__person {
+  border-color: #403432;
+  background: #302725;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notifications-page__toolbar button.is-active {
+  background: var(--nk-wine);
+  color: #171313;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-notifications-page__empty,
+  .nk-notifications-page__error,
+  .nk-notifications-page__loading
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-member-home__status,
+  .nk-member-home__error
+) {
+  border-color: var(--nk-line);
+}
+
+html[data-nkata-theme="NOITE"] .nk-following-person__photo em {
+  border-color: #211b1a;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-following-person__remove,
+  .nk-account-card button,
+  .nk-account-summary button,
+  .nk-account-gallery button,
+  .nk-profile-preview__dialog button
+) {
+  border-color: var(--nk-line);
+}
+
+html[data-nkata-theme="NOITE"] .nk-following-person__remove {
+  color: #efb0be;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-account-summary,
+  .nk-account-gallery,
+  .nk-account-gallery__item,
+  .nk-profile-preview__dialog,
+  .nk-account__stats article
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-account-summary p,
+  .nk-account-summary small,
+  .nk-account-gallery p,
+  .nk-account-gallery small
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(input, textarea)::placeholder {
+  color: #8f7e77;
+}
+
+/* Hero público: altura previsível e ações sempre visíveis em telefones. */
+@media (max-width: 820px) {
+  .nk-hero.nk-hero--cover {
+    min-height: max(620px, 100svh);
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .nk-hero__cover-content {
+    display: flex;
+    min-height: max(620px, 100svh);
+    box-sizing: border-box;
+    align-items: flex-end;
+    padding-top: calc(82px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-hero--cover .nk-hero__copy {
+    align-self: flex-end;
+    width: min(100%, 560px);
+    padding: 0;
+  }
+
+  .nk-hero--cover .nk-hero__copy h1 {
+    margin-top: 15px;
+    font-size: clamp(2.55rem, 11.8vw, 4rem);
+    line-height: 0.93;
+  }
+
+  .nk-hero--cover .nk-hero__copy > p {
+    margin-top: 14px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .nk-hero--cover .nk-hero__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 17px;
+  }
+
+  .nk-hero--cover .nk-hero__actions .nk-button {
+    min-height: 48px;
+    padding-inline: 13px;
+    font-size: 0.74rem;
+  }
+
+  .nk-hero--cover .nk-hero__trust {
+    margin-top: 13px;
+  }
+
+  .nk-security-page__content .nk-security {
+    min-height: calc(100dvh - 126px);
+    padding: 48px 0 calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 390px), (max-height: 680px) and (max-width: 820px) {
+  .nk-hero__cover-content {
+    min-height: max(568px, 100svh);
+    padding-top: calc(70px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-hero--cover .nk-eyebrow--hero {
+    min-height: 32px;
+    font-size: 0.58rem;
+  }
+
+  .nk-hero--cover .nk-hero__copy h1 {
+    font-size: clamp(2.25rem, 12.2vw, 3rem);
+  }
+
+  .nk-hero--cover .nk-hero__copy > p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .nk-hero--cover .nk-hero__actions {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .nk-hero--cover .nk-hero__trust {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .nk-page-header__inner {
+    min-height: 62px;
+  }
+
+  .nk-page-header h1 {
+    font-size: 1.35rem;
+  }
+
+  .nk-following-person__identity {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+  }
+
+  .nk-following-person__photo {
+    width: 52px;
+    min-width: 52px;
+    flex-basis: 52px;
+  }
+}

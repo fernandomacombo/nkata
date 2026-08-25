@@ -151,7 +151,13 @@ export default function AppHeader({
               Matches {unreadMatches > 0 ? `(${unreadMatches})` : ""}
             </button>
           )}
-          <button type="button" onClick={() => navigate("security")}>{tr("Segurança", "Safety")}</button>
+          <button
+            type="button"
+            className={activePage === "security" ? "is-active" : ""}
+            onClick={() => navigate("security")}
+          >
+            {tr("Segurança", "Safety")}
+          </button>
           {!authenticated && (
             <button type="button" onClick={() => goTo("/acompanhar-pedido/")}>
               {tr("Acompanhar pedido", "Track request")}
@@ -373,7 +379,11 @@ export default function AppHeader({
                 </button>
               )}
 
-              <button type="button" onClick={() => navigate("security")}>
+              <button
+                type="button"
+                className={activePage === "security" ? "is-active" : ""}
+                onClick={() => navigate("security")}
+              >
                 <span><ShieldCheck size={19} /></span>
                 <div><strong>{tr("Segurança", "Safety")}</strong><small>{tr("Como protegemos a comunidade", "How we protect the community")}</small></div>
               </button>

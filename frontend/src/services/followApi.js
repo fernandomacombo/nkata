@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./api.js";
+import { normalizeAppUrl } from "./url.js";
 
 export class FollowApiError extends Error {
   constructor(message, status, payload = null) {
@@ -55,7 +56,7 @@ function normalizeFollowProfile(profile) {
     idade: profile.idade || null,
     cidade: profile.cidade || "Moçambique",
     objetivo_display: profile.objetivo_display || profile.objetivo || "Conhecer com intenção",
-    foto_url: profile.foto_principal || null,
+    foto_url: normalizeAppUrl(profile.foto_principal || profile.foto_url || null),
     verificado: Boolean(profile.verificado),
   };
 }

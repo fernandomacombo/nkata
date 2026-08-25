@@ -491,6 +491,24 @@ export async function markMatchNotificationsRead(matchId) {
   return request(`/api/minha-conta/matches/${matchId}/notificacoes/lidas/`, { method: "POST" });
 }
 
+export async function fetchPushConfiguration({ signal } = {}) {
+  return request("/api/minha-conta/push/", { signal });
+}
+
+export async function savePushSubscription(subscription) {
+  return request("/api/minha-conta/push/", {
+    method: "POST",
+    body: subscription,
+  });
+}
+
+export async function removePushSubscription(endpoint) {
+  return request("/api/minha-conta/push/", {
+    method: "DELETE",
+    body: { endpoint },
+  });
+}
+
 export {
   API_BASE_URL,
   normalizeAccount,

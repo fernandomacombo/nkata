@@ -68,3 +68,33 @@ class NotificacaoNKATA(models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} para {self.destinatario}"
+
+
+class PushSubscriptionNKATA(models.Model):
+    destinatario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="push_subscriptions_nkata",
+    )
+    endpoint = models.TextField(unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    user_agent = models.CharField(max_length=320, blank=True)
+    ativa = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-atualizado_em"]
+        verbose_name = "Subscrição Push NKATA"
+        verbose_name_plural = "Subscrições Push NKATA"
+        indexes = [
+            models.Index(
+                fields=["destinatario", "ativa"],
+                name="nkata_push_user_active_idx",
+            )
+        ]
+
+    def __str__(self):
+        state = "ativa" if self.ativa else "inativa"
+        return f"Push {state} de {self.destinatario}"

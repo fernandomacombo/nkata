@@ -116,3 +116,29 @@ cd frontend && npm ci && npm run build && npm audit --audit-level=high
 
 Mantenha backup diário do banco e política de retenção do bucket. Teste a
 restauração antes do lançamento público.
+
+## 7. Aplicação instalável e notificações Push
+
+O frontend já inclui manifesto, ícones, service worker, modo standalone e a
+interface de instalação. Em produção, a aplicação precisa ser servida no
+mesmo domínio por HTTPS para a instalação e o Push funcionarem.
+
+Gere um único par VAPID no servidor:
+
+```sh
+python manage.py generate_vapid_keys
+```
+
+Copie o resultado para o ambiente de produção, acrescente o contacto do
+responsável e reinicie o backend:
+
+```dotenv
+NKATA_WEBPUSH_PUBLIC_KEY=...
+NKATA_WEBPUSH_PRIVATE_KEY=...
+NKATA_WEBPUSH_SUBJECT=mailto:suporte@nkata.online
+NKATA_WEBPUSH_TTL=300
+```
+
+Nunca envie a chave privada ao frontend nem a guarde no Git. Depois de iniciar
+sessão, cada membro pode ativar ou desativar o Push na página Notificações.
+O centro de notificações continua funcional mesmo sem as chaves VAPID.

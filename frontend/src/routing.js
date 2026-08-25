@@ -7,6 +7,7 @@ const STATIC_PATHS = {
   saved: "/guardados/",
   matches: "/matches/",
   notifications: "/notificacoes/",
+  security: "/seguranca/",
   account: "/conta/",
   admin: "/painel/",
   login: "/entrar/",

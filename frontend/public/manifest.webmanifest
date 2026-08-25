@@ -1,0 +1,55 @@
+{
+  "id": "/",
+  "name": "NKATA — Relações sérias",
+  "short_name": "NKATA",
+  "description": "Conheça pessoas adultas com intenções claras, privacidade e respeito.",
+  "lang": "pt-MZ",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f7f2ec",
+  "theme_color": "#7d2638",
+  "categories": ["social", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/nkata-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/nkata-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/nkata-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/nkata-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Perfis",
+      "short_name": "Perfis",
+      "url": "/perfis/",
+      "icons": [{ "src": "/icons/nkata-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Notificações",
+      "short_name": "Avisos",
+      "url": "/notificacoes/",
+      "icons": [{ "src": "/icons/nkata-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

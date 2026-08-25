@@ -8,6 +8,7 @@ class EntradasConfig(AppConfig):
         from . import access_email_notifications  # noqa: F401
         from . import account_lifecycle  # noqa: F401
         from . import notification_signals  # noqa: F401
+        from . import push_notifications  # noqa: F401
         from .admin_workflow import aplicar_fluxo_de_aprovacao_admin
 
         # Compatibilidade do Django Admin:

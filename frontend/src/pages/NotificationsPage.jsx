@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   Bell,
+  BellOff,
+  BellRing,
   CheckCheck,
   CirclePlay,
   Heart,
@@ -13,6 +15,7 @@ import {
 } from "lucide-react";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
+import usePushNotifications from "../hooks/usePushNotifications.js";
 
 const iconByType = {
   INTERESSE: Heart,
@@ -106,6 +109,7 @@ export default function NotificationsPage({
 }) {
   const english = useInterfaceLanguage() === "EN";
   const [filter, setFilter] = useState("all");
+  const push = usePushNotifications();
 
   const visibleNotifications = useMemo(() => (
     filter === "unread"
@@ -116,6 +120,15 @@ export default function NotificationsPage({
   return (
     <main className="nk-notifications-page">
       <CompactPageHeader title={english ? "Notifications" : "Notificações"}>
+        {push.status === "enabled" ? (
+          <button type="button" onClick={push.disable} disabled={push.loading}>
+            <BellOff size={17} /> {english ? "Disable push" : "Desativar push"}
+          </button>
+        ) : ["disabled", "error"].includes(push.status) ? (
+          <button type="button" onClick={push.enable} disabled={push.loading}>
+            <BellRing size={17} /> {english ? "Enable push" : "Ativar push"}
+          </button>
+        ) : null}
         {unread > 0 && (
           <button type="button" onClick={onMarkAll}>
             <CheckCheck size={17} /> {english ? "Mark all as read" : "Marcar como lidas"}
@@ -128,6 +141,23 @@ export default function NotificationsPage({
       </CompactPageHeader>
 
       <section className="nk-shell nk-notifications-page__content">
+        {push.status === "unconfigured" && (
+          <div className="nk-push-status is-setup">
+            <BellRing size={18} />
+            <span>{english ? "Push is ready in the app and only needs the server VAPID keys." : "O push está preparado na aplicação e só precisa das chaves VAPID no servidor."}</span>
+          </div>
+        )}
+        {push.status === "denied" && (
+          <div className="nk-push-status is-warning">
+            <BellOff size={18} />
+            <span>{english ? "Notifications are blocked in this browser's settings." : "As notificações estão bloqueadas nas definições deste navegador."}</span>
+          </div>
+        )}
+        {push.status === "error" && push.message && (
+          <div className="nk-push-status is-warning">
+            <BellOff size={18} /><span>{push.message}</span>
+          </div>
+        )}
         <div className="nk-notifications-page__toolbar">
           <div>
             <button

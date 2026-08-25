@@ -10,3 +10,4 @@ gunicorn>=23.0,<24.0
 whitenoise>=6.8,<7.0
 django-storages[s3]>=1.14,<2.0
 django-redis>=6.0,<7.0
+pywebpush>=2.0,<3.0

@@ -17,6 +17,7 @@ import MomentsPage from "./pages/MomentsPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
 import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
+import SecurityPage from "./pages/SecurityPage.jsx";
 import useAppRoute from "./routing.js";
 import {
   fetchMatchConversation,
@@ -381,14 +382,6 @@ export default function App() {
   };
 
   const handleNavigate = (page) => {
-    if (page === "security") {
-      setActivePage("home");
-      window.setTimeout(() => {
-        document.getElementById("seguranca")?.scrollIntoView({ behavior: "smooth" });
-      }, 50);
-      return;
-    }
-
     if (page === "login") {
       openLogin(activePage);
       return;
@@ -779,6 +772,10 @@ export default function App() {
           onClearRecent={clearRecent}
           onDiscover={() => handleNavigate("discover")}
         />
+      )}
+
+      {activePage === "security" && (
+        <SecurityPage authenticated={authenticated} onNavigate={handleNavigate} />
       )}
 
       {activePage === "login" && (

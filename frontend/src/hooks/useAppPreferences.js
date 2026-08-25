@@ -28,6 +28,16 @@ function applyPreferences(preferences) {
   root.dataset.nkataTheme = preferences.tema_perfil;
   root.dataset.nkataChatBackground = preferences.fundo_conversa;
 
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) {
+    themeMeta.setAttribute(
+      "content",
+      preferences.tema_perfil === "NOITE"
+        ? "#171313"
+        : preferences.tema_perfil === "AREIA" ? "#8a3e48" : "#7d2638",
+    );
+  }
+
   window.dispatchEvent(new CustomEvent("nkata:preferences-applied", {
     detail: preferences,
   }));

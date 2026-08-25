@@ -74,6 +74,17 @@ NKATA_WEBRTC_TURN_CREDENTIAL_TTL = int(
     os.getenv("NKATA_WEBRTC_TURN_CREDENTIAL_TTL", "3600")
 )
 
+# Web Push/PWA. As chaves VAPID ficam exclusivamente no ambiente do servidor.
+# Sem estas variáveis o centro de notificações continua operacional, mas o
+# frontend apresenta o push como ainda não configurado.
+NKATA_WEBPUSH_PUBLIC_KEY = os.getenv("NKATA_WEBPUSH_PUBLIC_KEY", "").strip()
+NKATA_WEBPUSH_PRIVATE_KEY = os.getenv("NKATA_WEBPUSH_PRIVATE_KEY", "").strip()
+NKATA_WEBPUSH_SUBJECT = os.getenv(
+    "NKATA_WEBPUSH_SUBJECT",
+    "mailto:suporte@nkata.online",
+).strip()
+NKATA_WEBPUSH_TTL = int(os.getenv("NKATA_WEBPUSH_TTL", "300"))
+
 allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", "").strip()
 if allowed_hosts_env:
     ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]

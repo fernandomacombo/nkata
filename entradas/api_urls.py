@@ -23,6 +23,7 @@ from . import (
     profile_api,
     profile_gallery_api,
     profile_media_api,
+    push_views,
     public_profile_api,
     questionnaire_api,
     saved_views,
@@ -225,6 +226,11 @@ urlpatterns = [
         "minha-conta/notificacoes/",
         notification_views.api_notificacoes,
         name="notificacoes",
+    ),
+    path(
+        "minha-conta/push/",
+        push_views.api_push_subscription,
+        name="push_subscription",
     ),
     path(
         "minha-conta/notificacoes/marcar-todas-lidas/",
