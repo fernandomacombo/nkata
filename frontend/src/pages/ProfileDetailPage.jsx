@@ -34,6 +34,13 @@ const SIGNAL_ICONS = {
   OLA: Hand,
 };
 
+const PROFILE_THEMES = new Set(["classico", "areia", "noite"]);
+
+function normalizeProfileTheme(value) {
+  const theme = String(value || "classico").trim().toLowerCase();
+  return PROFILE_THEMES.has(theme) ? theme : "classico";
+}
+
 const objectiveLabel = (value, english) => english ? ({
   "Relacionamento sério": "Serious relationship",
   "Conhecer com intenção": "Meet with intention",
@@ -142,6 +149,7 @@ export default function ProfileDetailPage({
   const [signalStatus, setSignalStatus] = useState("");
 
   const hasImage = Boolean(profile?.foto_url) && !imageFailed;
+  const profileTheme = normalizeProfileTheme(profile?.tema_perfil);
   const profileUrl = useMemo(() => {
     if (!profile?.id || String(profile.id).startsWith("demo-")) return null;
     return new URL(`/perfis/${profile.id}/`, window.location.origin).toString();
@@ -304,7 +312,7 @@ export default function ProfileDetailPage({
   const limitReached = Boolean(quota?.limit_reached);
 
   return (
-    <main className={`nk-profile-detail nk-profile-detail--theme-${profile.tema_perfil || "classico"}`}>
+    <main className={`nk-profile-detail nk-profile-detail--theme-${profileTheme}`}>
       <div className="nk-shell">
         <button type="button" className="nk-profile-detail__back" onClick={onBack}>
           <ArrowLeft size={18} /> {english ? "Back" : "Voltar"}

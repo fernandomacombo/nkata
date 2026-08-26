@@ -262,8 +262,12 @@ html[data-nkata-theme="NOITE"] .nk-conversation__loading span {
   background: #302725;
 }
 
-/* O tema do perfil pertence ao seu dono e não deve herdar cores incompatíveis do visitante. */
-.nk-profile-detail--theme-classico {
+/*
+ * O tema do perfil pertence ao seu dono e não deve herdar cores incompatíveis
+ * do visitante. O clássico é também a base segura durante a troca de perfil,
+ * antes de os dados detalhados chegarem da API.
+ */
+.nk-profile-detail {
   --nk-ink: #241b18;
   --nk-charcoal: #241b18;
   --nk-wine: #7d2638;
@@ -273,6 +277,7 @@ html[data-nkata-theme="NOITE"] .nk-conversation__loading span {
   --nk-cream: #f7f2ec;
   --nk-muted: #756b65;
   --nk-line: rgba(57, 44, 40, 0.12);
+  color-scheme: light;
   color: var(--nk-ink);
 }
 
@@ -299,15 +304,53 @@ html[data-nkata-theme="NOITE"] .nk-conversation__loading span {
   --nk-cream: #171313;
   --nk-muted: #baaaa3;
   --nk-line: rgba(255, 245, 238, 0.12);
+  color-scheme: dark;
   color: var(--nk-ink);
+}
+
+.nk-profile-detail .nk-profile-detail__heading h1,
+.nk-profile-detail .nk-profile-gallery h2,
+.nk-profile-detail .nk-profile-signals__heading h2,
+.nk-profile-detail .nk-profile-signals__grid > button > strong {
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail .nk-profile-detail__block p,
+.nk-profile-detail .nk-profile-signals__heading p,
+.nk-profile-detail .nk-profile-signals__grid > button > small {
+  color: var(--nk-muted);
+}
+
+.nk-profile-detail--theme-classico .nk-profile-detail__content {
+  background-color: transparent;
+}
+
+.nk-profile-detail--theme-areia .nk-profile-detail__content {
+  background-color: transparent;
+}
+
+.nk-profile-detail--theme-noite .nk-profile-detail__content {
+  background-color: transparent;
 }
 
 .nk-profile-detail--theme-noite :is(
   .nk-profile-gallery,
-  .nk-profile-detail__assurance
+  .nk-profile-detail__assurance,
+  .nk-profile-signals
 ) {
   border-color: var(--nk-line);
   background: rgba(255, 253, 249, 0.065);
+}
+
+.nk-profile-detail--theme-noite .nk-profile-signals__grid > button {
+  border-color: var(--nk-line);
+  background: rgba(255, 253, 249, 0.055);
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail--theme-noite .nk-profile-signals__grid > button:hover:not(:disabled) {
+  border-color: rgba(213, 138, 154, 0.35);
+  background: rgba(255, 253, 249, 0.09);
 }
 
 .nk-profile-detail--theme-noite :is(
