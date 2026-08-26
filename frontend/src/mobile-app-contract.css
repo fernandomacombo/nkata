@@ -34,8 +34,9 @@
     isolation: isolate;
   }
 
-  /* Em mobile o NKATA não usa rodapé tradicional de website. */
-  footer,
+  /* Em mobile o NKATA não usa o rodapé institucional do website.
+     Rodapés semânticos internos continuam visíveis: vários cartões usam
+     <footer> para ações essenciais, como Cancelar e Continuar. */
   .nk-footer {
     display: none !important;
   }

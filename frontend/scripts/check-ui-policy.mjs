@@ -108,6 +108,12 @@ function checkMobileContract(errors) {
       errors.push(`Contrato mobile incompleto: falta "${token}".`);
     }
   }
+
+  if (/(?:^|,)\s*footer\s*(?:,|\{)/m.test(contract)) {
+    errors.push(
+      "O contrato mobile não pode ocultar <footer> genericamente; use a classe específica do rodapé institucional.",
+    );
+  }
 }
 
 const errors = [];

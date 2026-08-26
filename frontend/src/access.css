@@ -603,7 +603,7 @@
 
 @media (max-width: 700px) {
   .nk-access-page {
-    padding-bottom: 94px;
+    padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px));
   }
 
   .nk-access-intro {
@@ -685,11 +685,13 @@
 
   .nk-access-actions {
     position: sticky;
-    bottom: 72px;
+    bottom: env(safe-area-inset-bottom, 0px);
     z-index: 12;
-    padding: 14px 18px;
+    padding: 14px 18px calc(14px + env(safe-area-inset-bottom, 0px));
     background: rgba(255, 253, 249, 0.94);
+    box-shadow: 0 -14px 30px rgba(48, 31, 27, 0.08);
     backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
 
   .nk-access-error {
@@ -725,6 +727,7 @@
   }
 
   .nk-access-actions .nk-button {
+    min-width: 0;
     width: 100%;
     padding-inline: 12px;
   }
