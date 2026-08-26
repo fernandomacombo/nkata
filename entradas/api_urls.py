@@ -13,6 +13,7 @@ from . import (
     chat_realtime_api,
     follow_views,
     interest_views,
+    identity_api,
     moment_reactions_api,
     moments_api,
     notification_views,
@@ -68,6 +69,26 @@ urlpatterns = [
     ),
     path("pedir-acesso/", access_api.api_pedir_acesso, name="pedir_acesso"),
     path(
+        "nkata-id/sessoes/",
+        identity_api.api_criar_sessao_nkata_id,
+        name="nkata_id_create",
+    ),
+    path(
+        "nkata-id/sessoes/<uuid:token>/",
+        identity_api.api_estado_nkata_id,
+        name="nkata_id_status",
+    ),
+    path(
+        "nkata-id/sessoes/<uuid:token>/qr/",
+        identity_api.api_qr_nkata_id,
+        name="nkata_id_qr",
+    ),
+    path(
+        "nkata-id/sessoes/<uuid:token>/capturas/<str:capture_type>/",
+        identity_api.api_capturar_nkata_id,
+        name="nkata_id_capture",
+    ),
+    path(
         "acompanhar-pedido/",
         access_api.api_acompanhar_pedido,
         name="acompanhar_pedido",
@@ -103,6 +124,11 @@ urlpatterns = [
         "admin/pedidos/<int:pedido_id>/media/<str:field_name>/",
         profile_media_api.api_media_pedido_admin,
         name="pedido_media_admin",
+    ),
+    path(
+        "admin/nkata-id/<int:verification_id>/media/<str:field_name>/",
+        profile_media_api.api_media_nkata_id_admin,
+        name="nkata_id_media_admin",
     ),
     path(
         "perfis/<int:perfil_id>/interesse/",

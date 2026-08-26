@@ -1,6 +1,9 @@
+import hashlib
+import os
 import uuid
 
 from PIL import Image, UnidentifiedImageError
+from django.core.files.base import ContentFile
 from rest_framework import permissions
 from rest_framework.decorators import (
     api_view,
@@ -11,6 +14,7 @@ from rest_framework.decorators import (
 from rest_framework.response import Response
 
 from .forms import PedidoEntradaForm
+from .identity_models import VerificacaoIdentidadeNKATA
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .models import PedidoEntrada, PerfilNKATA
 from .throttles import AccessRequestRateThrottle, AccessStatusRateThrottle
@@ -18,15 +22,18 @@ from .throttles import AccessRequestRateThrottle, AccessStatusRateThrottle
 
 MAX_ACCESS_IMAGE_SIZE = 6 * 1024 * 1024
 ALLOWED_ACCESS_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
-IMAGE_FIELDS = [
+PROFILE_IMAGE_FIELDS = [
     "foto_perfil",
     "foto_extra_1",
     "foto_extra_2",
     "foto_extra_3",
+]
+LEGACY_IDENTITY_IMAGE_FIELDS = [
     "bi_frente",
     "bi_verso",
     "selfie_com_bi",
 ]
+IMAGE_FIELDS = PROFILE_IMAGE_FIELDS + LEGACY_IDENTITY_IMAGE_FIELDS
 
 STATUS_CONTENT = {
     "PENDENTE": {
@@ -112,6 +119,44 @@ def _validar_imagem(upload):
     return None
 
 
+def _identity_email_hash(email):
+    return hashlib.sha256(str(email or "").strip().lower().encode("utf-8")).hexdigest()
+
+
+def _resolve_identity_session(raw_token, email):
+    if not raw_token:
+        return None, None
+    try:
+        token = uuid.UUID(str(raw_token).strip())
+    except (ValueError, TypeError, AttributeError):
+        return None, "A sessão NKATA ID não é válida. Inicie novamente a verificação."
+
+    session = VerificacaoIdentidadeNKATA.objects.filter(token=token).first()
+    if (
+        not session
+        or session.expirada
+        or session.pedido_id
+        or session.email_hash != _identity_email_hash(email)
+        or not session.pode_anexar_ao_pedido
+    ):
+        return None, "A sessão NKATA ID não está concluída ou já expirou."
+    return session, None
+
+
+def _copy_verified_profile_photo(pedido, verification):
+    if not verification.usar_foto_verificada or not verification.selfie_ao_vivo:
+        return
+    with verification.selfie_ao_vivo.open("rb") as handle:
+        content = ContentFile(handle.read())
+    extension = os.path.splitext(verification.selfie_ao_vivo.name)[1] or ".jpg"
+    pedido.foto_perfil.save(
+        f"foto-verificada-{verification.token}{extension}",
+        content,
+        save=False,
+    )
+    pedido.save(update_fields=["foto_perfil", "atualizado_em"])
+
+
 def _status_payload(pedido):
     content = STATUS_CONTENT.get(
         pedido.status,
@@ -160,9 +205,22 @@ def _status_payload(pedido):
 @permission_classes([permissions.AllowAny])
 @throttle_classes([AccessRequestRateThrottle])
 def api_pedir_acesso(request):
+    email = str(request.data.get("email", "")).strip().lower()
+    identity_session, identity_error = _resolve_identity_session(
+        request.data.get("nkata_id_token"),
+        email,
+    )
+    uses_legacy_identity = not request.data.get("nkata_id_token")
+    if identity_error:
+        return Response({
+            "detail": identity_error,
+            "errors": {"nkata_id_token": [identity_error]},
+        }, status=400)
+
     image_errors = {}
     safe_files = request.FILES.copy()
-    for field in IMAGE_FIELDS:
+    fields_to_validate = IMAGE_FIELDS if uses_legacy_identity else PROFILE_IMAGE_FIELDS
+    for field in fields_to_validate:
         upload = request.FILES.get(field)
         error = _validar_imagem(upload)
         if error:
@@ -178,7 +236,6 @@ def api_pedir_acesso(request):
             "errors": image_errors,
         }, status=400)
 
-    email = str(request.data.get("email", "")).strip().lower()
     if email and PedidoEntrada.objects.filter(email__iexact=email).exists():
         return Response({
             "detail": "Já recebemos um pedido com este email.",
@@ -199,6 +256,10 @@ def api_pedir_acesso(request):
         }, status=400)
 
     pedido = form.save()
+    if identity_session:
+        identity_session.pedido = pedido
+        identity_session.save(update_fields=["pedido", "atualizado_em"])
+        _copy_verified_profile_photo(pedido, identity_session)
     codigo = str(pedido.token)
 
     return Response({
@@ -206,6 +267,7 @@ def api_pedir_acesso(request):
         "pedido_id": pedido.id,
         "codigo": codigo,
         "email": pedido.email,
+        "nkata_id_status": identity_session.status if identity_session else "LEGADO",
         "message": (
             "Recebemos o seu pedido. Guarde este código privado para acompanhar "
             f"a análise: {codigo}"

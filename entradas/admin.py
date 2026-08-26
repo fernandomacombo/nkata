@@ -239,7 +239,23 @@ class PedidoEntradaAdmin(admin.ModelAdmin):
 
     @admin.action(description="Aprovar pedidos selecionados")
     def marcar_como_aprovado(self, request, queryset):
-        queryset.update(status="APROVADO")
+        legacy_ids = []
+        verified_ids = []
+        for pedido in queryset.select_related("verificacao_identidade"):
+            verification = getattr(pedido, "verificacao_identidade", None)
+            if verification is None:
+                legacy_ids.append(pedido.pk)
+            elif verification.status == "APROVADA":
+                verified_ids.append(pedido.pk)
+        allowed_ids = legacy_ids + verified_ids
+        PedidoEntrada.objects.filter(pk__in=allowed_ids).update(status="APROVADO")
+        blocked = queryset.count() - len(allowed_ids)
+        if blocked:
+            self.message_user(
+                request,
+                f"{blocked} pedido(s) não foram aprovados porque o NKATA ID ainda não foi aprovado.",
+                level="warning",
+            )
 
     @admin.action(description="Marcar como precisa corrigir")
     def marcar_como_precisa_corrigir(self, request, queryset):

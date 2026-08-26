@@ -253,7 +253,7 @@ export async function logoutUser() {
   return request("/api/auth/logout/", { method: "POST" });
 }
 
-export async function submitAccessRequest(values, files) {
+export async function submitAccessRequest(values, files, identityToken = "") {
   const form = new FormData();
   Object.entries(values).forEach(([key, value]) => {
     if (typeof value === "boolean") {
@@ -265,7 +265,43 @@ export async function submitAccessRequest(values, files) {
   Object.entries(files).forEach(([key, file]) => {
     if (file) form.append(key, file);
   });
+  if (identityToken) form.append("nkata_id_token", identityToken);
   return request("/api/pedir-acesso/", { method: "POST", body: form });
+}
+
+export async function createNkataIdSession({ email, age }) {
+  return request("/api/nkata-id/sessoes/", {
+    method: "POST",
+    body: {
+      email: String(email || "").trim().toLowerCase(),
+      idade: Number(age || 0),
+      aceita_biometria: true,
+    },
+  });
+}
+
+export async function fetchNkataIdSession(token, { signal } = {}) {
+  return request(`/api/nkata-id/sessoes/${token}/`, { signal });
+}
+
+export async function uploadNkataIdCapture(
+  token,
+  captureType,
+  file,
+  { useAsProfilePhoto = false } = {},
+) {
+  const form = new FormData();
+  form.append("imagem", file, file?.name || `${captureType}.jpg`);
+  if (useAsProfilePhoto) form.append("usar_foto_verificada", "true");
+  return request(`/api/nkata-id/sessoes/${token}/capturas/${captureType}/`, {
+    method: "POST",
+    body: form,
+  });
+}
+
+export function nkataIdQrUrl(token) {
+  const origin = encodeURIComponent(window.location.origin);
+  return `${API_BASE_URL}/api/nkata-id/sessoes/${token}/qr/?app_origin=${origin}`;
 }
 
 export async function fetchAccessRequestStatus({ email, code }) {

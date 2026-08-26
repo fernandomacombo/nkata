@@ -186,6 +186,16 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 PASSWORD_RESET_TIMEOUT = int(os.getenv("DJANGO_PASSWORD_RESET_TIMEOUT", "3600"))
+NKATA_ID_SESSION_MINUTES = int(os.getenv("NKATA_ID_SESSION_MINUTES", "30"))
+NKATA_ID_FACE_MATCH_THRESHOLD = float(
+    os.getenv("NKATA_ID_FACE_MATCH_THRESHOLD", "90")
+)
+NKATA_ID_AWS_REKOGNITION_ENABLED = env_bool(
+    "NKATA_ID_AWS_REKOGNITION_ENABLED",
+    False,
+)
+NKATA_ID_AWS_REGION = os.getenv("NKATA_ID_AWS_REGION", "").strip()
+NKATA_PUBLIC_APP_URL = os.getenv("NKATA_PUBLIC_APP_URL", "").strip().rstrip("/")
 
 LANGUAGE_CODE = "pt-mz"
 TIME_ZONE = "Africa/Maputo"
@@ -309,6 +319,9 @@ REST_FRAMEWORK = {
         "password_reset": os.getenv("NKATA_THROTTLE_PASSWORD_RESET", "5/hour"),
         "access_request": os.getenv("NKATA_THROTTLE_ACCESS_REQUEST", "3/hour"),
         "access_status": os.getenv("NKATA_THROTTLE_ACCESS_STATUS", "30/hour"),
+        "identity_session": os.getenv("NKATA_THROTTLE_IDENTITY_SESSION", "6/hour"),
+        "identity_status": os.getenv("NKATA_THROTTLE_IDENTITY_STATUS", "1200/hour"),
+        "identity_capture": os.getenv("NKATA_THROTTLE_IDENTITY_CAPTURE", "90/hour"),
         "token_flow": os.getenv("NKATA_THROTTLE_TOKEN_FLOW", "60/hour"),
     },
     "DEFAULT_RENDERER_CLASSES": [

@@ -10,6 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .content_moderation_queue import queue_content_media_analysis
+from .identity_models import pedido_tem_identidade_verificada
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .models import AcaoPerfil, MatchPerfil, PerfilNKATA
 from .plan_service import plan_for_user
@@ -50,7 +51,7 @@ def _profile_payload(request, perfil):
         "idade": perfil.idade,
         "objetivo_display": perfil.get_objetivo_display(),
         "foto_url": profile_photo_url(perfil),
-        "verificado": perfil.pedido.status == "APROVADO",
+        "verificado": pedido_tem_identidade_verificada(perfil.pedido),
     }
 
 

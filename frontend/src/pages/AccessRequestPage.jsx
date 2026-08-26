@@ -13,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { submitAccessRequest } from "../services/api.js";
+import NkataIdHandoff from "../components/identity/NkataIdHandoff.jsx";
 
 const steps = [
   { id: "details", label: "Sobre si", icon: UserRound },
@@ -37,9 +38,6 @@ const initialFiles = {
   foto_extra_1: null,
   foto_extra_2: null,
   foto_extra_3: null,
-  bi_frente: null,
-  bi_verso: null,
-  selfie_com_bi: null,
 };
 
 const photoFields = [
@@ -47,12 +45,6 @@ const photoFields = [
   { name: "foto_extra_1", title: "Fotografia 2", text: "Escolha uma fotografia diferente da principal." },
   { name: "foto_extra_2", title: "Fotografia 3", text: "Pode ser uma fotografia de corpo inteiro ou num ambiente natural." },
   { name: "foto_extra_3", title: "Fotografia 4", text: "Evite filtros fortes, óculos escuros e imagens desfocadas." },
-];
-
-const identityFields = [
-  { name: "bi_frente", title: "BI — frente", text: "A informação deve estar legível." },
-  { name: "bi_verso", title: "BI — verso", text: "Fotografe o documento inteiro." },
-  { name: "selfie_com_bi", title: "Selfie com o BI", text: "Segure o documento junto ao rosto, com boa iluminação." },
 ];
 
 function fieldError(errors, name) {
@@ -127,6 +119,7 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
   const [requestError, setRequestError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
+  const [identitySession, setIdentitySession] = useState(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -157,7 +150,7 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
       if (!values.objetivo) nextErrors.objetivo = "Escolha o que procura.";
     }
 
-    const fieldsToCheck = step === 1 ? photoFields : step === 2 ? identityFields : [];
+    const fieldsToCheck = step === 1 ? photoFields : [];
     fieldsToCheck.forEach(({ name }) => {
       const file = files[name];
       if (!file) {
@@ -168,6 +161,10 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
         nextErrors[name] = "Use JPG, PNG ou WEBP.";
       }
     });
+
+    if (step === 2 && !identitySession?.can_submit) {
+      nextErrors.nkata_id_token = "Conclua as capturas do NKATA ID antes de continuar.";
+    }
 
     if (step === 3 && !values.aceita_verificacao) {
       nextErrors.aceita_verificacao = "Confirme que aceita a verificação para enviar o pedido.";
@@ -199,7 +196,7 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
     setRequestError("");
 
     try {
-      const result = await submitAccessRequest(values, files);
+      const result = await submitAccessRequest(values, files, identitySession?.token);
       setSuccess(result?.message || "Recebemos o seu pedido.");
     } catch (error) {
       const payloadErrors = error.payload?.errors || {};
@@ -209,7 +206,7 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
       const detailFields = Object.keys(payloadErrors);
       if (detailFields.some((name) => Object.hasOwn(initialValues, name))) setStep(0);
       else if (detailFields.some((name) => photoFields.some((field) => field.name === name))) setStep(1);
-      else if (detailFields.some((name) => identityFields.some((field) => field.name === name))) setStep(2);
+      else if (detailFields.includes("nkata_id_token")) setStep(2);
     } finally {
       setSubmitting(false);
     }
@@ -343,14 +340,19 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
               <div className="nk-access-step nk-soft-enter">
                 <header>
                   <small>Passo 3 de 4</small>
-                  <h2>Confirme a sua identidade.</h2>
-                  <p>Estas imagens ficam restritas à equipa responsável pela análise.</p>
+                  <h2>Confirme com o NKATA ID.</h2>
+                  <p>Comece aqui e continue no telemóvel para obter fotografias mais nítidas.</p>
                 </header>
-                <div className="nk-access-uploads nk-access-uploads--identity">
-                  {identityFields.map((field) => (
-                    <FileCard key={field.name} field={field} file={files[field.name]} error={fieldError(errors, field.name)} onChange={updateFile} privateFile />
-                  ))}
-                </div>
+                <NkataIdHandoff
+                  email={values.email}
+                  age={values.idade}
+                  value={identitySession}
+                  onChange={(nextSession) => {
+                    setIdentitySession(nextSession);
+                    setErrors((current) => ({ ...current, nkata_id_token: undefined }));
+                  }}
+                  error={fieldError(errors, "nkata_id_token")}
+                />
               </div>
             )}
 
@@ -368,7 +370,7 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
                   <article><span>Telefone</span><strong>{values.telefone}</strong></article>
                   <article><span>Cidade</span><strong>{values.cidade}</strong></article>
                   <article><span>Idade</span><strong>{values.idade} anos</strong></article>
-                  <article><span>Imagens</span><strong>7 selecionadas</strong></article>
+                  <article><span>Imagens</span><strong>4 fotografias + NKATA ID</strong></article>
                 </div>
 
                 <label className={`nk-access-consent ${fieldError(errors, "aceita_verificacao") ? "has-error" : ""}`}>

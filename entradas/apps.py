@@ -46,5 +46,6 @@ class EntradasConfig(AppConfig):
         from . import posts_admin  # noqa: F401
         from . import post_safety_admin  # noqa: F401
         from . import content_moderation_queue_admin  # noqa: F401
+        from . import identity_admin  # noqa: F401
 
         aplicar_fluxo_de_aprovacao_admin()
