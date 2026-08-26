@@ -155,6 +155,170 @@ html[data-nkata-theme="NOITE"] .nk-moment-composer__controls > .nk-button:disabl
   opacity: 1;
 }
 
+/* Conversa: a moldura da aplicação acompanha o tema; o fundo escolhido do chat permanece independente. */
+html[data-nkata-theme="NOITE"] .nk-conversation {
+  background:
+    radial-gradient(circle at 10% 8%, rgba(213, 138, 154, 0.08), transparent 25rem),
+    radial-gradient(circle at 92% 86%, rgba(130, 179, 159, 0.055), transparent 24rem),
+    var(--nk-cream);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__shell {
+  border-color: var(--nk-line);
+  background: #211b1a;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-conversation__header,
+  .nk-chat-dock
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-conversation__person strong,
+  .nk-conversation__options-trigger,
+  .nk-call-launcher,
+  .nk-conversation__first-message h2,
+  .nk-call-history__content > strong
+) {
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-conversation__back,
+  .nk-conversation__person small,
+  .nk-composer__count,
+  .nk-call-history__meta,
+  .nk-call-history__status
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-conversation__options-trigger,
+  .nk-call-launcher,
+  .nk-composer__mic,
+  .nk-message-bubble,
+  .nk-call-history,
+  .nk-conversation__safety-menu
+) {
+  border-color: var(--nk-line);
+  background: #302725;
+}
+
+html[data-nkata-theme="NOITE"] .nk-message-bubble > span {
+  color: #ad9e97;
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__safety-menu {
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.34);
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__safety-menu button {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__safety-menu button:hover {
+  background: #3a302e;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__safety-menu button.is-danger {
+  color: #ef9aac;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-composer textarea,
+  .nk-composer textarea:focus
+) {
+  border-color: var(--nk-line);
+  background: #302725;
+  color: var(--nk-ink);
+  box-shadow: none;
+}
+
+html[data-nkata-theme="NOITE"] .nk-composer__mic-lock {
+  background: #302725;
+  box-shadow: 0 0 0 3px #302725;
+}
+
+html[data-nkata-theme="NOITE"] .nk-chat-dock__notice {
+  border-color: rgba(213, 138, 154, 0.16);
+  background: rgba(213, 138, 154, 0.1);
+  color: #efb0be;
+}
+
+html[data-nkata-theme="NOITE"] .nk-composer__send:disabled {
+  background: rgba(213, 138, 154, 0.42);
+  color: rgba(248, 240, 233, 0.72);
+  opacity: 1;
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__loading span {
+  background: #302725;
+}
+
+/* O tema do perfil pertence ao seu dono e não deve herdar cores incompatíveis do visitante. */
+.nk-profile-detail--theme-classico {
+  --nk-ink: #241b18;
+  --nk-charcoal: #241b18;
+  --nk-wine: #7d2638;
+  --nk-wine-dark: #681f30;
+  --nk-wine-soft: #f1e0e4;
+  --nk-paper: #fffdfa;
+  --nk-cream: #f7f2ec;
+  --nk-muted: #756b65;
+  --nk-line: rgba(57, 44, 40, 0.12);
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail--theme-areia {
+  --nk-ink: #352821;
+  --nk-charcoal: #352821;
+  --nk-wine: #8a3e48;
+  --nk-wine-dark: #672d35;
+  --nk-wine-soft: #ecd9d6;
+  --nk-paper: #fff9f0;
+  --nk-cream: #eee0ce;
+  --nk-muted: #79685d;
+  --nk-line: rgba(83, 61, 48, 0.15);
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail--theme-noite {
+  --nk-ink: #f8f0e9;
+  --nk-charcoal: #f2e7df;
+  --nk-wine: #d58a9a;
+  --nk-wine-dark: #efb0be;
+  --nk-wine-soft: rgba(190, 92, 113, 0.2);
+  --nk-paper: #2d2523;
+  --nk-cream: #171313;
+  --nk-muted: #baaaa3;
+  --nk-line: rgba(255, 245, 238, 0.12);
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail--theme-noite :is(
+  .nk-profile-gallery,
+  .nk-profile-detail__assurance
+) {
+  border-color: var(--nk-line);
+  background: rgba(255, 253, 249, 0.065);
+}
+
+.nk-profile-detail--theme-noite :is(
+  .nk-profile-follow,
+  .nk-profile-follow__message
+) {
+  border-color: var(--nk-line);
+  background: #2d2523;
+  color: var(--nk-ink);
+}
+
 html[data-nkata-theme="NOITE"] .nk-notification {
   border-bottom-color: var(--nk-line);
   color: var(--nk-ink);
