@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -120,6 +120,11 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
   const [identitySession, setIdentitySession] = useState(null);
+
+  const handleIdentitySessionChange = useCallback((nextSession) => {
+    setIdentitySession(nextSession);
+    setErrors((current) => ({ ...current, nkata_id_token: undefined }));
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -347,10 +352,7 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
                   email={values.email}
                   age={values.idade}
                   value={identitySession}
-                  onChange={(nextSession) => {
-                    setIdentitySession(nextSession);
-                    setErrors((current) => ({ ...current, nkata_id_token: undefined }));
-                  }}
+                  onChange={handleIdentitySessionChange}
                   error={fieldError(errors, "nkata_id_token")}
                 />
               </div>

@@ -1,9 +1,17 @@
 import { normalizeAppUrl } from "./url.js";
+import {
+  isPhoneReachableNkataIdOrigin,
+  normalizeNkataIdAppOrigin,
+} from "./nkataIdRuntime.js";
 
 const browserApiBase = window.location.protocol === "https:"
   ? window.location.origin
   : `${window.location.protocol}//${window.location.hostname}:8000`;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || browserApiBase).replace(/\/$/, "");
+const NKATA_ID_APP_ORIGIN = normalizeNkataIdAppOrigin(
+  import.meta.env.VITE_PUBLIC_APP_ORIGIN,
+  window.location.origin,
+);
 
 export class ApiError extends Error {
   constructor(message, status, payload = null) {
@@ -284,6 +292,14 @@ export async function fetchNkataIdSession(token, { signal } = {}) {
   return request(`/api/nkata-id/sessoes/${token}/`, { signal });
 }
 
+export function nkataIdCaptureUrl(token) {
+  return `${NKATA_ID_APP_ORIGIN}/verificar-identidade/${token}/`;
+}
+
+export function canOpenNkataIdOnPhone() {
+  return isPhoneReachableNkataIdOrigin(NKATA_ID_APP_ORIGIN);
+}
+
 export async function uploadNkataIdCapture(
   token,
   captureType,
@@ -300,7 +316,7 @@ export async function uploadNkataIdCapture(
 }
 
 export function nkataIdQrUrl(token) {
-  const origin = encodeURIComponent(window.location.origin);
+  const origin = encodeURIComponent(NKATA_ID_APP_ORIGIN);
   return `${API_BASE_URL}/api/nkata-id/sessoes/${token}/qr/?app_origin=${origin}`;
 }
 

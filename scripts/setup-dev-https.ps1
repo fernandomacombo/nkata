@@ -158,6 +158,7 @@ $envContent = @"
 # Gerado automaticamente por scripts/setup-dev-https.ps1
 # Nao deve ser enviado ao Git.
 VITE_API_BASE_URL=https://${IpAddress}:5173
+VITE_PUBLIC_APP_ORIGIN=https://${IpAddress}:5173
 NKATA_DEV_API_TARGET=http://127.0.0.1:8000
 "@
 Set-Content -Path $frontendHttpsEnv -Value $envContent -Encoding utf8

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -11,45 +11,53 @@ import {
   Smartphone,
 } from "lucide-react";
 import {
+  canOpenNkataIdOnPhone,
   createNkataIdSession,
   fetchNkataIdSession,
+  nkataIdCaptureUrl,
   nkataIdQrUrl,
 } from "../../services/api.js";
-
-function phoneCaptureUrl(token) {
-  return `${window.location.origin}/verificar-identidade/${token}/`;
-}
+import { createNkataIdStatusPoller } from "../../services/nkataIdRuntime.js";
 
 export default function NkataIdHandoff({ email, age, value, onChange, error }) {
   const [accepted, setAccepted] = useState(Boolean(value?.token));
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
+  const onChangeRef = useRef(onChange);
   const token = value?.token || "";
-  const captureUrl = useMemo(() => (token ? phoneCaptureUrl(token) : ""), [token]);
+  const captureUrl = useMemo(() => (token ? nkataIdCaptureUrl(token) : ""), [token]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     if (!token || value?.can_submit || value?.expired) return undefined;
-    const controller = new AbortController();
-    const refresh = async () => {
-      try {
-        const result = await fetchNkataIdSession(token, { signal: controller.signal });
-        onChange?.(result);
-      } catch (requestError) {
-        if (requestError.name !== "AbortError") {
-          setLocalError(requestError.message || "Não foi possível atualizar o NKATA ID.");
-        }
-      }
-    };
-    refresh();
-    const intervalId = window.setInterval(refresh, 5000);
-    return () => {
-      controller.abort();
-      window.clearInterval(intervalId);
-    };
-  }, [onChange, token, value?.can_submit, value?.expired]);
+    return createNkataIdStatusPoller({
+      load: ({ signal }) => fetchNkataIdSession(token, { signal }),
+      onStatus: (result) => {
+        setLocalError("");
+        onChangeRef.current?.(result);
+      },
+      onError: (requestError) => {
+        setLocalError(
+          Number(requestError?.status) === 429
+            ? "A sincronização está a aguardar alguns segundos para continuar."
+            : requestError.message || "Não foi possível atualizar o NKATA ID.",
+        );
+      },
+    });
+  }, [token]);
 
   const begin = async () => {
     if (!accepted || loading) return;
+    if (!canOpenNkataIdOnPhone()) {
+      setLocalError(
+        "Este endereço ainda não está pronto para usar a câmara do telemóvel. "
+        + "No desenvolvimento, execute o modo HTTPS e abra o endereço Network apresentado pelo Vite.",
+      );
+      return;
+    }
     setLoading(true);
     setLocalError("");
     try {
