@@ -131,7 +131,7 @@ export default function HomePage({
           </div>
         </section>
 
-        <section className="nk-section nk-featured" id="destaques">
+        <section className={`nk-section nk-featured ${featured.length ? "" : "nk-featured--empty"}`} id="destaques">
           <div className="nk-shell">
             {featured.length ? (
               <>
@@ -160,14 +160,13 @@ export default function HomePage({
               </>
             ) : (
               <div className="nk-community-empty">
-                <span className="nk-community-empty__icon"><ShieldCheck size={26} /></span>
-                <div>
-                  <span className="nk-eyebrow nk-eyebrow--dark">Comunidade em preparação</span>
-                  <h2>Os perfis aparecem depois da aprovação.</h2>
-                  <p>
-                    Não mostramos pessoas fictícias para preencher espaço. Assim que existirem
-                    perfis aprovados e visíveis, serão apresentados aqui.
-                  </p>
+                <div className="nk-community-empty__content">
+                  <span className="nk-community-empty__icon"><ShieldCheck size={23} /></span>
+                  <div>
+                    <span className="nk-eyebrow nk-eyebrow--dark">Convites abertos</span>
+                    <h2>Entre desde o início.</h2>
+                    <p>Peça acesso e faça parte dos primeiros perfis aprovados do NKATA.</p>
+                  </div>
                 </div>
                 <button
                   type="button"

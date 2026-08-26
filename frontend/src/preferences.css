@@ -17,7 +17,7 @@
   gap: 18px;
 }
 
-.nk-preferences-panel > header span {
+.nk-preferences-panel > header > div > span {
   color: var(--nk-wine);
   font-size: 0.64rem;
   font-weight: 800;
@@ -32,18 +32,30 @@
   font-weight: 600;
 }
 
-.nk-preferences-panel > header button {
+.nk-preferences-panel__autosave {
   display: inline-flex;
   min-height: 42px;
   align-items: center;
   justify-content: center;
   gap: 7px;
+  border: 1px solid rgba(63, 105, 89, 0.16);
   border-radius: 14px;
-  background: var(--nk-wine);
-  padding: 0 15px;
-  color: white;
+  background: rgba(63, 105, 89, 0.09);
+  padding: 0 13px;
+  color: var(--nk-success);
   font-size: 0.74rem;
   font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.nk-preferences-panel__autosave.is-saving svg {
+  animation: nk-preferences-spin 800ms linear infinite;
+}
+
+@keyframes nk-preferences-spin {
+  to { transform: rotate(360deg); }
 }
 
 .nk-preferences-panel__message {
@@ -129,6 +141,12 @@
 }
 
 .nk-preference-choice:hover { transform: translateY(-1px); }
+
+.nk-preference-choice:disabled,
+.nk-language-switch button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
 
 .nk-preference-choice.is-selected {
   border-color: rgba(125, 38, 56, 0.42);
@@ -500,12 +518,11 @@ html[data-nkata-chat-background="NOTURNO"] .nk-conversation__opening p {
     align-items: flex-start;
   }
 
-  .nk-preferences-panel > header button {
-    min-width: 44px;
-    padding-inline: 12px;
+  .nk-preferences-panel__autosave {
+    min-width: 42px;
+    min-height: 38px;
+    padding-inline: 11px;
   }
-
-  .nk-preferences-panel > header button svg + * { display: none; }
 
   .nk-preference-section--language {
     grid-template-columns: 1fr;

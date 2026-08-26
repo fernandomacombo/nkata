@@ -1,5 +1,5 @@
-import { Check, Languages, MessageCircle, Palette, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, Languages, LoaderCircle, MessageCircle, Palette } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 const profileThemes = [
   { value: "CLASSICO", pt: "Clássico", en: "Classic", className: "is-classic" },
@@ -13,13 +13,14 @@ const chatBackgrounds = [
   { value: "NOTURNO", pt: "Noturno", en: "Dark", className: "is-dark" },
 ];
 
-function Choice({ selected, label, previewClass, onSelect }) {
+function Choice({ selected, label, previewClass, onSelect, disabled }) {
   return (
     <button
       type="button"
       className={`nk-preference-choice ${previewClass} ${selected ? "is-selected" : ""}`}
       onClick={onSelect}
       aria-pressed={selected}
+      disabled={disabled}
     >
       <span aria-hidden="true"><i /><i /><i /></span>
       <strong>{label}</strong>
@@ -31,28 +32,30 @@ function Choice({ selected, label, previewClass, onSelect }) {
 export default function PreferencesPanel({ preferences, loading, saving, error, onPreview, onSave }) {
   const [form, setForm] = useState(preferences);
   const [message, setMessage] = useState("");
+  const messageTimer = useRef(null);
 
   useEffect(() => setForm(preferences), [preferences]);
 
-  const update = (field, value) => {
+  useEffect(() => () => window.clearTimeout(messageTimer.current), []);
+
+  const update = async (field, value) => {
+    if (saving || form[field] === value) return;
+
+    const previous = form;
     setMessage("");
     const next = { ...form, [field]: value };
     setForm(next);
     onPreview?.(next);
-  };
 
-  const submit = async (event) => {
-    event.preventDefault();
     try {
-      await onSave({
-        idioma: form.idioma,
-        tema_perfil: form.tema_perfil,
-        fundo_conversa: form.fundo_conversa,
-      });
-      setMessage(form.idioma === "EN" ? "Preferences saved." : "Preferências guardadas.");
-      window.setTimeout(() => setMessage(""), 2600);
+      const saved = await onSave({ [field]: value });
+      setForm(saved);
+      setMessage(saved.idioma === "EN" ? "Saved automatically." : "Guardado automaticamente.");
+      window.clearTimeout(messageTimer.current);
+      messageTimer.current = window.setTimeout(() => setMessage(""), 2200);
     } catch {
-      // O erro detalhado é apresentado pelo estado partilhado da aplicação.
+      setForm(previous);
+      onPreview?.(previous);
     }
   };
 
@@ -63,15 +66,16 @@ export default function PreferencesPanel({ preferences, loading, saving, error, 
   const english = form?.idioma === "EN";
 
   return (
-    <form className="nk-preferences-panel" onSubmit={submit}>
+    <section className="nk-preferences-panel">
       <header>
         <div>
           <span>{english ? "Personalisation" : "Personalização"}</span>
           <h2>{english ? "Make NKATA yours" : "Deixe o NKATA com o seu estilo"}</h2>
         </div>
-        <button type="submit" disabled={saving}>
-          <Save size={16} /> {saving ? (english ? "Saving…" : "A guardar…") : (english ? "Save" : "Guardar")}
-        </button>
+        <span className={`nk-preferences-panel__autosave ${saving ? "is-saving" : ""}`} role="status">
+          {saving ? <LoaderCircle size={15} /> : <Check size={15} />}
+          {saving ? (english ? "Saving…" : "A guardar…") : (english ? "Auto-save" : "Automático")}
+        </span>
       </header>
 
       {(error || message) && (
@@ -83,8 +87,8 @@ export default function PreferencesPanel({ preferences, loading, saving, error, 
       <section className="nk-preference-section nk-preference-section--language">
         <div><Languages size={18} /><strong>{english ? "Interface language" : "Idioma da interface"}</strong></div>
         <div className="nk-language-switch">
-          <button type="button" className={form.idioma === "PT" ? "is-selected" : ""} onClick={() => update("idioma", "PT")}>Português</button>
-          <button type="button" className={form.idioma === "EN" ? "is-selected" : ""} onClick={() => update("idioma", "EN")}>English</button>
+          <button type="button" disabled={saving} className={form.idioma === "PT" ? "is-selected" : ""} onClick={() => update("idioma", "PT")}>Português</button>
+          <button type="button" disabled={saving} className={form.idioma === "EN" ? "is-selected" : ""} onClick={() => update("idioma", "EN")}>English</button>
         </div>
       </section>
 
@@ -98,6 +102,7 @@ export default function PreferencesPanel({ preferences, loading, saving, error, 
               label={english ? theme.en : theme.pt}
               previewClass={theme.className}
               onSelect={() => update("tema_perfil", theme.value)}
+              disabled={saving}
             />
           ))}
         </div>
@@ -113,10 +118,11 @@ export default function PreferencesPanel({ preferences, loading, saving, error, 
               label={english ? background.en : background.pt}
               previewClass={background.className}
               onSelect={() => update("fundo_conversa", background.value)}
+              disabled={saving}
             />
           ))}
         </div>
       </section>
-    </form>
+    </section>
   );
 }

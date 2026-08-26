@@ -11,6 +11,32 @@ export const DEFAULT_APP_PREFERENCES = {
   opcoes: {},
 };
 
+const PREFERENCES_CACHE_PREFIX = "nkata:app-preferences:";
+
+function readCachedPreferences(identity) {
+  if (!identity || identity === "guest") return null;
+
+  try {
+    const cached = window.localStorage.getItem(`${PREFERENCES_CACHE_PREFIX}${identity}`);
+    return cached ? normalizePreferences(JSON.parse(cached)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cachePreferences(identity, preferences) {
+  if (!identity || identity === "guest") return;
+
+  try {
+    window.localStorage.setItem(
+      `${PREFERENCES_CACHE_PREFIX}${identity}`,
+      JSON.stringify(normalizePreferences(preferences)),
+    );
+  } catch {
+    // A preferência continua guardada no servidor quando o armazenamento local não está disponível.
+  }
+}
+
 function normalizePreferences(payload) {
   return {
     ...DEFAULT_APP_PREFERENCES,
@@ -57,6 +83,13 @@ export default function useAppPreferences({ authenticated, identity }) {
     }
 
     const controller = new AbortController();
+    const cached = readCachedPreferences(identity);
+
+    if (cached) {
+      setPreferences(cached);
+      applyPreferences(cached);
+    }
+
     setLoading(true);
     setError("");
 
@@ -65,6 +98,7 @@ export default function useAppPreferences({ authenticated, identity }) {
         const next = normalizePreferences(payload);
         setPreferences(next);
         applyPreferences(next);
+        cachePreferences(identity, next);
       })
       .catch((requestError) => {
         if (requestError.name !== "AbortError") {
@@ -85,6 +119,7 @@ export default function useAppPreferences({ authenticated, identity }) {
       const next = normalizePreferences(await updateMyAccountPreferences(values));
       setPreferences(next);
       applyPreferences(next);
+      cachePreferences(identity, next);
       return next;
     } catch (requestError) {
       setError(requestError.message || "Não foi possível guardar as preferências.");
@@ -92,7 +127,7 @@ export default function useAppPreferences({ authenticated, identity }) {
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [identity]);
 
   const previewPreferences = useCallback((values) => {
     const next = normalizePreferences({ ...preferences, ...values });

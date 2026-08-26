@@ -69,9 +69,9 @@ import "./admin-panel.css";
 import "./scrollbar.css";
 import "./mobile-session-actions.css";
 import "./compact-pages.css";
-import "./mobile-app-contract.css";
 import "./pwa.css";
 import "./appearance-polish.css";
+import "./mobile-app-contract.css";
 import { registerServiceWorker } from "./services/pwa.js";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
