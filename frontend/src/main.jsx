@@ -70,6 +70,7 @@ import "./scrollbar.css";
 import "./mobile-session-actions.css";
 import "./compact-pages.css";
 import "./pwa.css";
+import "./device-experience.css";
 import "./appearance-polish.css";
 import "./mobile-app-contract.css";
 import { registerServiceWorker } from "./services/pwa.js";

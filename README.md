@@ -56,6 +56,22 @@ Use `http://localhost:5173/` no computador. O modo HTTPS local com certificado
 As tabelas de notificações, publicações, momentos e chamadas agora são criadas
 por `python manage.py migrate`; não é necessário executar comandos `setup_nkata_*`.
 
+## Aplicação instalável e notificações push
+
+O manifesto, os ícones e o service worker já fazem parte do frontend. Em produção,
+a instalação no computador ou telemóvel exige HTTPS. Para ativar notificações push
+no Windows, execute a partir da pasta do projeto:
+
+```bat
+cd /d D:\nkata
+call venv\Scripts\activate
+python manage.py generate_vapid_keys
+```
+
+Copie as duas chaves apresentadas para `D:\nkata\.env`, reinicie o Django e ative
+os alertas em **Conta → Segurança → Aplicação e dispositivo**. A chave privada
+VAPID nunca deve ser enviada para o frontend nem publicada no Git.
+
 ## Produção
 
 O projeto inclui `Dockerfile`, `Procfile`, workflow de CI e um comando de arranque

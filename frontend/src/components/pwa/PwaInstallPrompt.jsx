@@ -1,58 +1,40 @@
 import { useEffect, useState } from "react";
 import { Download, Share2, X } from "lucide-react";
 import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
+import usePwaInstall from "../../hooks/usePwaInstall.js";
 
 const DISMISSED_KEY = "nkata:pwa-install-dismissed";
 
-function isIos() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
-function isStandalone() {
-  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-}
-
 export default function PwaInstallPrompt() {
   const english = useInterfaceLanguage() === "EN";
-  const [installEvent, setInstallEvent] = useState(null);
+  const pwa = usePwaInstall();
   const [showIosHint, setShowIosHint] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (isStandalone() || sessionStorage.getItem(DISMISSED_KEY)) return undefined;
-
-    const handleInstallable = (event) => {
-      event.preventDefault();
-      setInstallEvent(event);
-      setVisible(true);
-    };
-    const handleInstalled = () => {
+    if (pwa.installed) {
       setVisible(false);
-      setInstallEvent(null);
-    };
+      return undefined;
+    }
+    if (sessionStorage.getItem(DISMISSED_KEY)) return undefined;
 
-    window.addEventListener("beforeinstallprompt", handleInstallable);
-    window.addEventListener("appinstalled", handleInstalled);
+    if (pwa.canInstall) {
+      setVisible(true);
+      return undefined;
+    }
 
-    if (isIos()) {
+    if (pwa.ios) {
       const timer = window.setTimeout(() => {
         setShowIosHint(true);
         setVisible(true);
       }, 1800);
-      return () => {
-        window.clearTimeout(timer);
-        window.removeEventListener("beforeinstallprompt", handleInstallable);
-        window.removeEventListener("appinstalled", handleInstalled);
-      };
+      return () => window.clearTimeout(timer);
     }
 
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleInstallable);
-      window.removeEventListener("appinstalled", handleInstalled);
-    };
-  }, []);
+    return undefined;
+  }, [pwa.canInstall, pwa.installed, pwa.ios]);
 
-  if (!visible || (!installEvent && !showIosHint)) return null;
+  if (!visible || (!pwa.canInstall && !showIosHint)) return null;
 
   const dismiss = () => {
     sessionStorage.setItem(DISMISSED_KEY, "1");
@@ -60,27 +42,24 @@ export default function PwaInstallPrompt() {
   };
 
   const install = async () => {
-    if (!installEvent) return;
-    await installEvent.prompt();
-    const choice = await installEvent.userChoice;
+    const choice = await pwa.install();
     if (choice.outcome === "accepted") setVisible(false);
-    setInstallEvent(null);
   };
 
   return (
     <aside className="nk-pwa-prompt" aria-live="polite">
       <span className="nk-pwa-prompt__icon">
-        {showIosHint && !installEvent ? <Share2 size={20} /> : <Download size={20} />}
+        {showIosHint && !pwa.canInstall ? <Share2 size={20} /> : <Download size={20} />}
       </span>
       <div>
         <strong>{english ? "Install NKATA" : "Instalar NKATA"}</strong>
         <small>
-          {showIosHint && !installEvent
+          {showIosHint && !pwa.canInstall
             ? (english ? "Tap Share and then Add to Home Screen." : "Toque em Partilhar e depois em Adicionar ao ecrã principal.")
             : (english ? "Use NKATA like an app on this device." : "Use o NKATA como uma aplicação neste dispositivo.")}
         </small>
       </div>
-      {installEvent && (
+      {pwa.canInstall && (
         <button type="button" className="nk-pwa-prompt__install" onClick={install}>
           {english ? "Install" : "Instalar"}
         </button>

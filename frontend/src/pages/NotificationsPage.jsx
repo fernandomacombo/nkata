@@ -9,6 +9,7 @@ import {
   Images,
   MessageCircle,
   RefreshCw,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -124,9 +125,14 @@ export default function NotificationsPage({
           <button type="button" onClick={push.disable} disabled={push.loading}>
             <BellOff size={17} /> {english ? "Disable push" : "Desativar push"}
           </button>
-        ) : ["disabled", "error"].includes(push.status) ? (
+        ) : push.status === "disabled" ? (
           <button type="button" onClick={push.enable} disabled={push.loading}>
             <BellRing size={17} /> {english ? "Enable push" : "Ativar push"}
+          </button>
+        ) : push.status === "error" ? (
+          <button type="button" onClick={() => push.refresh()} disabled={push.loading}>
+            <RefreshCw size={17} className={push.loading ? "is-spinning" : ""} />
+            {english ? "Check push" : "Verificar push"}
           </button>
         ) : null}
         {unread > 0 && (
@@ -151,6 +157,12 @@ export default function NotificationsPage({
           <div className="nk-push-status is-warning">
             <BellOff size={18} />
             <span>{english ? "Notifications are blocked in this browser's settings." : "As notificações estão bloqueadas nas definições deste navegador."}</span>
+          </div>
+        )}
+        {push.status === "unsupported" && (
+          <div className="nk-push-status is-warning">
+            <ShieldAlert size={18} />
+            <span>{english ? "Secure notifications are not supported by this browser or connection." : "Este navegador ou ligação não suporta notificações seguras."}</span>
           </div>
         )}
         {push.status === "error" && push.message && (

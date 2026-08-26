@@ -22,6 +22,7 @@ import {
 import PlanPanel from "../components/account/PlanPanel.jsx";
 import AccountSummaryPanel from "../components/account/AccountSummaryPanel.jsx";
 import PreferencesPanel from "../components/account/PreferencesPanel.jsx";
+import DeviceExperiencePanel from "../components/account/DeviceExperiencePanel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import {
   API_BASE_URL,
@@ -730,29 +731,33 @@ export default function AccountPage({
           )}
 
           {accountSection === "security" && (
-            <section className="nk-account-security">
-              <div>
-                <span><LockKeyhole size={19} /></span>
+            <div className="nk-account-security-stack">
+              <section className="nk-account-security">
                 <div>
-                  <h2>{english ? "Security" : "Segurança"}</h2>
-                  <p>{english ? "Your password and documents are private." : "Palavra-passe e documentos são privados."}</p>
+                  <span><LockKeyhole size={19} /></span>
+                  <div>
+                    <h2>{english ? "Security" : "Segurança"}</h2>
+                    <p>{english ? "Your password and documents are private." : "Palavra-passe e documentos são privados."}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="nk-account-security__actions">
-                <button
-                  type="button"
-                  onClick={() => window.location.assign(
-                    new URL("/minha-conta/alterar-senha/", API_BASE_URL).toString(),
-                  )}
-                >
-                  {english ? "Change password" : "Alterar palavra-passe"}
-                </button>
-                <button type="button" className="is-danger" onClick={onSignOut}>
-                  <LogOut size={16} /> {english ? "Sign out" : "Terminar sessão"}
-                </button>
-              </div>
-            </section>
+                <div className="nk-account-security__actions">
+                  <button
+                    type="button"
+                    onClick={() => window.location.assign(
+                      new URL("/minha-conta/alterar-senha/", API_BASE_URL).toString(),
+                    )}
+                  >
+                    {english ? "Change password" : "Alterar palavra-passe"}
+                  </button>
+                  <button type="button" className="is-danger" onClick={onSignOut}>
+                    <LogOut size={16} /> {english ? "Sign out" : "Terminar sessão"}
+                  </button>
+                </div>
+              </section>
+
+              <DeviceExperiencePanel language={language} />
+            </div>
           )}
         </div>
       </section>
