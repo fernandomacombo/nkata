@@ -9,8 +9,15 @@ $frontendDir = Join-Path $repoDir "frontend"
 $certDir = Join-Path $repoDir ".dev-certs"
 $certPath = Join-Path $certDir "nkata-dev-cert.pem"
 $keyPath = Join-Path $certDir "nkata-dev-key.pem"
-$cerPath = Join-Path $certDir "nkata-dev-cert.cer"
-$configPath = Join-Path $certDir "openssl-nkata.cnf"
+$requestPath = Join-Path $certDir "nkata-dev-cert.csr"
+$caCertPath = Join-Path $certDir "nkata-dev-ca-cert.pem"
+$caKeyPath = Join-Path $certDir "nkata-dev-ca-key.pem"
+$caCerPath = Join-Path $certDir "nkata-dev-ca-cert.cer"
+$caSerialPath = Join-Path $certDir "nkata-dev-ca-cert.srl"
+$caConfigPath = Join-Path $certDir "openssl-nkata-ca.cnf"
+$serverConfigPath = Join-Path $certDir "openssl-nkata-server.cnf"
+$legacyCerPath = Join-Path $certDir "nkata-dev-cert.cer"
+$legacyConfigPath = Join-Path $certDir "openssl-nkata.cnf"
 $frontendHttpsEnv = Join-Path $frontendDir ".env.https"
 
 if ([string]::IsNullOrWhiteSpace($IpAddress)) {
@@ -100,20 +107,37 @@ if (-not $opensslPath) {
 Write-Host "OpenSSL encontrado em: $opensslPath" -ForegroundColor DarkGray
 
 New-Item -ItemType Directory -Force -Path $certDir | Out-Null
+Remove-Item -Path $legacyCerPath, $legacyConfigPath -Force -ErrorAction SilentlyContinue
 
-$opensslConfig = @"
+$caConfig = @"
 [req]
 distinguished_name = dn
-x509_extensions = v3_req
+x509_extensions = v3_ca
 prompt = no
 
 [dn]
-CN = NKATA Local Development
+CN = NKATA Local Development CA
+
+[v3_ca]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, keyCertSign, cRLSign
+"@
+
+$serverConfig = @"
+[req]
+distinguished_name = dn
+req_extensions = v3_req
+prompt = no
+
+[dn]
+CN = $IpAddress
 
 [v3_req]
 subjectAltName = @alt_names
-basicConstraints = CA:FALSE
-keyUsage = digitalSignature, keyEncipherment
+basicConstraints = critical, CA:FALSE
+keyUsage = critical, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 
 [alt_names]
@@ -122,33 +146,69 @@ IP.1 = 127.0.0.1
 IP.2 = $IpAddress
 "@
 
-Set-Content -Path $configPath -Value $opensslConfig -Encoding ascii
+Set-Content -Path $caConfigPath -Value $caConfig -Encoding ascii
+Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ascii
+
+if ((-not (Test-Path $caCertPath)) -or (-not (Test-Path $caKeyPath))) {
+    & $opensslPath req `
+        -x509 `
+        -newkey rsa:3072 `
+        -sha256 `
+        -nodes `
+        -days 3650 `
+        -keyout $caKeyPath `
+        -out $caCertPath `
+        -config $caConfigPath
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "OpenSSL nao conseguiu gerar a autoridade local do NKATA."
+    }
+}
 
 & $opensslPath req `
-    -x509 `
+    -new `
     -newkey rsa:2048 `
     -sha256 `
     -nodes `
-    -days 825 `
     -keyout $keyPath `
-    -out $certPath `
-    -config $configPath
+    -out $requestPath `
+    -config $serverConfigPath
 
 if ($LASTEXITCODE -ne 0) {
-    throw "OpenSSL nao conseguiu gerar o certificado HTTPS."
+    throw "OpenSSL nao conseguiu gerar o pedido do certificado HTTPS."
 }
 
-& $opensslPath x509 -in $certPath -outform der -out $cerPath
+& $opensslPath x509 `
+    -req `
+    -in $requestPath `
+    -CA $caCertPath `
+    -CAkey $caKeyPath `
+    -CAcreateserial `
+    -CAserial $caSerialPath `
+    -out $certPath `
+    -days 825 `
+    -sha256 `
+    -extfile $serverConfigPath `
+    -extensions v3_req
+
 if ($LASTEXITCODE -ne 0) {
-    throw "Nao foi possivel gerar a copia .cer para instalacao no telemovel."
+    throw "OpenSSL nao conseguiu assinar o certificado HTTPS do NKATA."
+}
+
+& $opensslPath x509 -in $caCertPath -outform der -out $caCerPath
+if ($LASTEXITCODE -ne 0) {
+    throw "Nao foi possivel gerar a autoridade .cer para instalacao."
 }
 
 try {
     Get-ChildItem Cert:\CurrentUser\Root |
-        Where-Object { $_.Subject -eq "CN=NKATA Local Development" } |
+        Where-Object {
+            $_.Subject -eq "CN=NKATA Local Development" -or
+            $_.Subject -eq "CN=NKATA Local Development CA"
+        } |
         Remove-Item -Force -ErrorAction SilentlyContinue
 
-    Import-Certificate -FilePath $cerPath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
+    Import-Certificate -FilePath $caCerPath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
     $trustedOnWindows = $true
 } catch {
     $trustedOnWindows = $false
@@ -167,15 +227,16 @@ Write-Host ""
 Write-Host "NKATA HTTPS de desenvolvimento preparado." -ForegroundColor Green
 Write-Host "IP local: $IpAddress"
 Write-Host "Frontend: https://${IpAddress}:5173"
-Write-Host "Certificado para o telemovel: $cerPath"
+Write-Host "Autoridade para instalar no telemovel: $caCerPath"
 if ($trustedOnWindows) {
-    Write-Host "Certificado confiado no utilizador atual do Windows." -ForegroundColor Green
+    Write-Host "Autoridade local confiada no utilizador atual do Windows." -ForegroundColor Green
 } else {
-    Write-Host "Nao foi possivel adicionar automaticamente o certificado a confianca do Windows." -ForegroundColor Yellow
+    Write-Host "Nao foi possivel adicionar automaticamente a autoridade local ao Windows." -ForegroundColor Yellow
 }
 Write-Host ""
 Write-Host "Proximo comando:"
 Write-Host "  cd frontend"
 Write-Host "  npm run dev:https"
 Write-Host ""
-Write-Host "No telemovel, instale nkata-dev-cert.cer como certificado confiavel antes de testar microfone/camara." -ForegroundColor Yellow
+Write-Host "Feche totalmente e reabra o navegador depois de instalar a autoridade." -ForegroundColor Yellow
+Write-Host "No telemovel, instale nkata-dev-ca-cert.cer como certificado CA confiavel antes de testar a camara." -ForegroundColor Yellow
