@@ -487,17 +487,51 @@
 }
 
 .nk-id-camera.is-selfie .nk-id-camera__guide {
-  inset: 24px 17%;
-  border-radius: 48% 48% 44% 44%;
+  inset: 10px 13% 17px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.nk-id-selfie-outline {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+  transition: stroke 180ms ease, filter 180ms ease;
+}
+
+.nk-id-selfie-outline path {
+  vector-effect: non-scaling-stroke;
 }
 
 .nk-id-camera.has-detection .nk-id-camera__guide {
   border-color: #f1c56d;
 }
 
+.nk-id-camera.has-detection .nk-id-selfie-outline {
+  filter: drop-shadow(0 0 7px rgba(241, 197, 109, 0.38));
+  stroke: #f1c56d;
+}
+
 .nk-id-camera.is-ready .nk-id-camera__guide {
   border-color: #78d3a4;
   box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.08), 0 0 0 4px rgba(120, 211, 164, 0.2);
+}
+
+.nk-id-camera.is-selfie.is-ready .nk-id-camera__guide {
+  border: 0;
+  box-shadow: none;
+}
+
+.nk-id-camera.is-ready .nk-id-selfie-outline {
+  filter: drop-shadow(0 0 8px rgba(120, 211, 164, 0.42));
+  stroke: #78d3a4;
 }
 
 .nk-id-camera__status {
@@ -731,5 +765,9 @@
 
   .nk-id-scanner {
     animation: none;
+  }
+
+  .nk-id-selfie-outline {
+    transition: none;
   }
 }

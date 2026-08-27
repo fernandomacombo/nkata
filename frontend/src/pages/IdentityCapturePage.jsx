@@ -402,7 +402,18 @@ export default function IdentityCapturePage({ token, onExit }) {
             <small>Permita o acesso para obter a melhor qualidade.</small>
           </div>
         )}
-        <div className="nk-id-camera__guide" aria-hidden="true"><span /></div>
+        <div className="nk-id-camera__guide" aria-hidden="true">
+          {config.facingMode === "user" && (
+            <svg
+              className="nk-id-selfie-outline"
+              viewBox="0 0 260 320"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path d="M130 27C85 27 55 62 55 108C55 157 87 190 130 190C173 190 205 157 205 108C205 62 175 27 130 27Z" />
+              <path d="M27 298C29 239 70 205 130 205C190 205 231 239 233 298" />
+            </svg>
+          )}
+        </div>
         {cameraReady && (
           <div className="nk-id-camera__status" role="status" aria-live="polite">
             <span />
