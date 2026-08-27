@@ -89,6 +89,11 @@ urlpatterns = [
         name="nkata_id_capture",
     ),
     path(
+        "nkata-id/sessoes/<uuid:token>/previsualizacao/<str:capture_type>/",
+        identity_api.api_previsualizar_nkata_id,
+        name="nkata_id_preview",
+    ),
+    path(
         "acompanhar-pedido/",
         access_api.api_acompanhar_pedido,
         name="acompanhar_pedido",

@@ -2,11 +2,38 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  advanceNkataIdDetectionStability,
   createNkataIdStatusPoller,
   fitNkataIdCaptureDimensions,
   isPhoneReachableNkataIdOrigin,
   normalizeNkataIdAppOrigin,
 } from "../src/services/nkataIdRuntime.js";
+
+test("captura apenas depois de duas deteções estáveis consecutivas", () => {
+  let state = advanceNkataIdDetectionStability(
+    null,
+    { ready: true },
+    "selfie_ao_vivo",
+  );
+  assert.equal(state.count, 1);
+  assert.equal(state.shouldCapture, false);
+
+  state = advanceNkataIdDetectionStability(
+    state,
+    { ready: true },
+    "selfie_ao_vivo",
+  );
+  assert.equal(state.count, 2);
+  assert.equal(state.shouldCapture, true);
+
+  state = advanceNkataIdDetectionStability(
+    state,
+    { ready: false },
+    "selfie_ao_vivo",
+  );
+  assert.equal(state.count, 0);
+  assert.equal(state.shouldCapture, false);
+});
 
 test("limita a captura a 1280 px sem deformar a imagem", () => {
   assert.deepEqual(fitNkataIdCaptureDimensions(3024, 4032), {

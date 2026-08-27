@@ -11,8 +11,10 @@ from django.test import TestCase, override_settings
 
 from .identity_admin import VerificacaoIdentidadeNKATAAdmin
 from .identity_api import (
+    _live_capture_proof,
     api_capturar_nkata_id,
     api_estado_nkata_id,
+    api_previsualizar_nkata_id,
     api_qr_nkata_id,
     identity_email_hash,
 )
@@ -20,10 +22,15 @@ from .identity_models import VerificacaoIdentidadeNKATA
 from .identity_verification_service import (
     finalize_identity_analysis,
     inspect_identity_capture,
+    inspect_identity_preview,
 )
 from .models import PedidoEntrada, PerfilNKATA
 from .serializers import PerfilResumoSerializer
-from .throttles import IdentityCaptureRateThrottle, IdentityStatusRateThrottle
+from .throttles import (
+    IdentityCaptureRateThrottle,
+    IdentityPreviewRateThrottle,
+    IdentityStatusRateThrottle,
+)
 
 
 def textured_image(name, width=900, height=650):
@@ -80,6 +87,16 @@ class NkataIdApiTests(TestCase):
         self.assertEqual(response.status_code, 201, response.json())
         return response.json()
 
+    def capture(self, token, capture_type, image=None):
+        session = VerificacaoIdentidadeNKATA.objects.get(token=token)
+        return self.client.post(
+            f"/api/nkata-id/sessoes/{token}/capturas/{capture_type}/",
+            data={
+                "imagem": image or textured_image(f"{capture_type}.jpg"),
+                "live_capture_proof": _live_capture_proof(session, capture_type),
+            },
+        )
+
     def test_session_requires_adult_age_and_explicit_consent(self):
         response = self.client.post(
             "/api/nkata-id/sessoes/",
@@ -116,10 +133,49 @@ class NkataIdApiTests(TestCase):
             IdentityCaptureRateThrottle,
             api_capturar_nkata_id.cls.throttle_classes,
         )
+        self.assertIn(
+            IdentityPreviewRateThrottle,
+            api_previsualizar_nkata_id.cls.throttle_classes,
+        )
         self.assertNotEqual(
             IdentityStatusRateThrottle.scope,
             IdentityCaptureRateThrottle.scope,
         )
+        self.assertNotEqual(
+            IdentityPreviewRateThrottle.scope,
+            IdentityCaptureRateThrottle.scope,
+        )
+
+    @patch("entradas.identity_api.inspect_identity_preview")
+    def test_preview_is_not_saved_and_issues_short_live_capture_proof(self, inspect):
+        inspect.return_value = {
+            "kind": "document",
+            "detected": True,
+            "ready": True,
+            "message": "BI detetado.",
+            "metrics": {},
+        }
+        payload = self.create_session()
+        token = payload["token"]
+
+        response = self.client.post(
+            f"/api/nkata-id/sessoes/{token}/previsualizacao/bi_frente/",
+            data={"imagem": textured_image("preview.jpg", 480, 320)},
+        )
+
+        self.assertEqual(response.status_code, 200, response.json())
+        self.assertTrue(response.json()["live_capture_proof"])
+        session = VerificacaoIdentidadeNKATA.objects.get(token=token)
+        self.assertFalse(bool(session.bi_frente))
+
+    def test_final_capture_rejects_file_without_live_camera_proof(self):
+        payload = self.create_session()
+        response = self.client.post(
+            f"/api/nkata-id/sessoes/{payload['token']}/capturas/bi_frente/",
+            data={"imagem": textured_image("ficheiro-externo.jpg")},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("ao vivo", response.json()["detail"])
 
     @patch("entradas.identity_api.inspect_identity_capture")
     def test_capture_flow_finishes_without_requiring_human_for_quality_checks(self, inspect):
@@ -133,10 +189,7 @@ class NkataIdApiTests(TestCase):
             "selfie_ao_vivo",
             "selfie_desafio",
         ):
-            response = self.client.post(
-                f"/api/nkata-id/sessoes/{token}/capturas/{capture_type}/",
-                data={"imagem": textured_image(f"{capture_type}.jpg")},
-            )
+            response = self.capture(token, capture_type)
             self.assertEqual(response.status_code, 200, response.json())
 
         result = response.json()
@@ -157,6 +210,41 @@ class NkataIdApiTests(TestCase):
         self.assertTrue(result["messages"])
         self.assertFalse(result["checks"]["resolution"])
 
+    def test_document_preview_detects_centered_id_shape(self):
+        stream = BytesIO()
+        image = Image.new("RGB", (640, 480), color=(45, 48, 50))
+        draw = ImageDraw.Draw(image)
+        draw.rounded_rectangle(
+            (85, 105, 555, 375),
+            radius=16,
+            fill=(226, 218, 196),
+            outline=(250, 250, 250),
+            width=8,
+        )
+        draw.rectangle((125, 150, 245, 315), fill=(92, 68, 70))
+        for y in range(155, 325, 28):
+            draw.line((275, y, 510, y), fill=(55, 55, 55), width=5)
+        image.save(stream, format="JPEG", quality=90)
+        stream.seek(0)
+
+        result = inspect_identity_preview(
+            SimpleUploadedFile("bi-preview.jpg", stream.read(), content_type="image/jpeg"),
+            "bi_frente",
+        )
+
+        self.assertTrue(result["detected"], result)
+        self.assertTrue(result["ready"], result)
+
+    @patch("entradas.identity_verification_service._face_boxes")
+    def test_face_preview_requires_one_centered_stable_face(self, faces):
+        faces.return_value = [(190, 105, 260, 260)]
+        result = inspect_identity_preview(
+            textured_image("face-preview.jpg", 640, 480),
+            "selfie_ao_vivo",
+        )
+        self.assertTrue(result["detected"], result)
+        self.assertTrue(result["ready"], result)
+
     @patch("entradas.identity_api.inspect_identity_capture")
     @override_settings(FILE_UPLOAD_MAX_MEMORY_SIZE=1)
     def test_completed_nkata_id_can_replace_legacy_document_uploads(self, inspect):
@@ -164,10 +252,7 @@ class NkataIdApiTests(TestCase):
         payload = self.create_session(email="novo-fluxo@example.com")
         token = payload["token"]
         for capture_type in VerificacaoIdentidadeNKATA.CAPTURE_FIELDS:
-            self.client.post(
-                f"/api/nkata-id/sessoes/{token}/capturas/{capture_type}/",
-                data={"imagem": textured_image(f"{capture_type}.jpg")},
-            )
+            self.capture(token, capture_type)
 
         response = self.client.post(
             "/api/pedir-acesso/",
@@ -274,9 +359,10 @@ class NkataIdApiTests(TestCase):
         self.assertFalse(verification.capturas_completas)
 
         for capture_type in VerificacaoIdentidadeNKATA.CAPTURE_FIELDS:
-            response = self.client.post(
-                f"/api/nkata-id/sessoes/{verification.token}/capturas/{capture_type}/",
-                data={"imagem": textured_image(f"nova-{capture_type}.jpg")},
+            response = self.capture(
+                verification.token,
+                capture_type,
+                textured_image(f"nova-{capture_type}.jpg"),
             )
             self.assertEqual(response.status_code, 200, response.json())
 

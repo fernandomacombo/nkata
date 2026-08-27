@@ -62,6 +62,12 @@ class IdentityStatusRateThrottle(IdentityCaptureRateThrottle):
     scope = "identity_status"
 
 
+class IdentityPreviewRateThrottle(IdentityCaptureRateThrottle):
+    """Frames leves e não guardadas usadas na captura automática."""
+
+    scope = "identity_preview"
+
+
 class TokenFlowRateThrottle(_IdentityThrottle):
     scope = "token_flow"
 

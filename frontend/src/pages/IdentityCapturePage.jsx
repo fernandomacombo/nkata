@@ -7,7 +7,6 @@ import {
   FileImage,
   LoaderCircle,
   LockKeyhole,
-  RefreshCw,
   ShieldCheck,
   Smartphone,
   Sun,
@@ -15,13 +14,19 @@ import {
 } from "lucide-react";
 import {
   fetchNkataIdSession,
+  previewNkataIdCapture,
   uploadNkataIdCapture,
 } from "../services/api.js";
-import { fitNkataIdCaptureDimensions } from "../services/nkataIdRuntime.js";
+import {
+  advanceNkataIdDetectionStability,
+  fitNkataIdCaptureDimensions,
+} from "../services/nkataIdRuntime.js";
 
-const CAPTURE_COUNTDOWN_SECONDS = 3;
 const MAX_CAPTURE_SIDE = 1280;
 const CAPTURE_JPEG_QUALITY = 0.84;
+const PREVIEW_MAX_SIDE = 480;
+const PREVIEW_JPEG_QUALITY = 0.62;
+const PREVIEW_INTERVAL_MS = 850;
 
 const CAPTURES = {
   bi_frente: {
@@ -58,20 +63,58 @@ function stopStream(stream) {
   stream?.getTracks?.().forEach((track) => track.stop());
 }
 
+function frameFile(video, canvas, captureType, { maxSide, quality, suffix = "" }) {
+  if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
+    return Promise.resolve(null);
+  }
+  const dimensions = fitNkataIdCaptureDimensions(
+    video.videoWidth,
+    video.videoHeight,
+    maxSide,
+  );
+  canvas.width = dimensions.width;
+  canvas.height = dimensions.height;
+  const context = canvas.getContext("2d", { alpha: false });
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        resolve(null);
+        return;
+      }
+      resolve(new File(
+        [blob],
+        `${captureType}${suffix}.jpg`,
+        { type: "image/jpeg" },
+      ));
+    }, "image/jpeg", quality);
+  });
+}
+
 export default function IdentityCapturePage({ token, onExit }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  const countdownTimerRef = useRef(null);
+  const activeFacingModeRef = useRef("");
+  const cameraStartingRef = useRef(false);
+  const previewTimerRef = useRef(null);
+  const previewControllerRef = useRef(null);
+  const detectionStabilityRef = useRef({ captureType: "", count: 0 });
+  const automaticCaptureRef = useRef(false);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cameraStarting, setCameraStarting] = useState(false);
+  const [cameraActivated, setCameraActivated] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [qualityMessages, setQualityMessages] = useState([]);
   const [useAsProfilePhoto, setUseAsProfilePhoto] = useState(false);
-  const [captureCountdown, setCaptureCountdown] = useState(null);
+  const [detection, setDetection] = useState({
+    detected: false,
+    ready: false,
+    message: "Aguardando a câmara ao vivo.",
+  });
 
   const captureType = session?.current_capture || "";
   const config = CAPTURES[captureType];
@@ -94,115 +137,195 @@ export default function IdentityCapturePage({ token, onExit }) {
     return () => controller.abort();
   }, [token]);
 
-  const clearCaptureCountdown = () => {
-    if (countdownTimerRef.current !== null) {
-      window.clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
+  const stopPreviewAnalysis = () => {
+    if (previewTimerRef.current !== null) {
+      window.clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
     }
-    setCaptureCountdown(null);
+    previewControllerRef.current?.abort?.();
+    previewControllerRef.current = null;
   };
 
   useEffect(() => () => {
+    stopPreviewAnalysis();
     stopStream(streamRef.current);
-    if (countdownTimerRef.current !== null) {
-      window.clearInterval(countdownTimerRef.current);
-    }
   }, []);
 
   useEffect(() => {
-    stopStream(streamRef.current);
-    streamRef.current = null;
-    setCameraReady(false);
+    detectionStabilityRef.current = { captureType, count: 0 };
+    automaticCaptureRef.current = false;
     setQualityMessages([]);
-    clearCaptureCountdown();
+    setDetection({
+      detected: false,
+      ready: false,
+      message: captureType.startsWith("selfie")
+        ? "A procurar um rosto na câmara…"
+        : "A procurar o BI na câmara…",
+    });
   }, [captureType]);
 
-  const startCamera = async () => {
-    if (!config || cameraStarting) return;
+  const startCamera = async (requestedFacingMode = config?.facingMode) => {
+    if (!requestedFacingMode || cameraStartingRef.current) return;
+    const currentTrack = streamRef.current?.getVideoTracks?.()[0];
+    if (
+      currentTrack?.readyState === "live"
+      && activeFacingModeRef.current === requestedFacingMode
+    ) {
+      if (videoRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        await videoRef.current.play();
+      }
+      setCameraReady(true);
+      return;
+    }
+    cameraStartingRef.current = true;
     setCameraStarting(true);
+    setCameraReady(false);
     setError("");
     setQualityMessages([]);
     try {
+      stopPreviewAnalysis();
       stopStream(streamRef.current);
+      streamRef.current = null;
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: config.facingMode },
+          facingMode: { ideal: requestedFacingMode },
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
         audio: false,
       });
       streamRef.current = stream;
+      activeFacingModeRef.current = requestedFacingMode;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+      setCameraActivated(true);
       setCameraReady(true);
     } catch (_cameraError) {
-      setError("Não foi possível abrir a câmara. Use o botão para escolher ou tirar uma fotografia.");
+      setError("Não foi possível abrir a câmara ao vivo. Confirme a permissão da câmara e tente novamente.");
     } finally {
+      cameraStartingRef.current = false;
       setCameraStarting(false);
     }
   };
 
-  const uploadCapture = async (file) => {
-    if (!file || uploading || !captureType) return;
+  useEffect(() => {
+    if (!cameraActivated || !config || complete) return;
+    startCamera(config.facingMode);
+  }, [captureType, cameraActivated, complete, config?.facingMode]);
+
+  const uploadCapture = async (file, requestedCaptureType, liveCaptureProof) => {
+    if (!file || uploading || !requestedCaptureType || !liveCaptureProof) return;
     setUploading(true);
+    stopPreviewAnalysis();
     setError("");
     setQualityMessages([]);
+    setDetection((current) => ({
+      ...current,
+      ready: true,
+      message: "A verificar e guardar a captura ao vivo…",
+    }));
     try {
-      const result = await uploadNkataIdCapture(token, captureType, file, {
-        useAsProfilePhoto: captureType === "selfie_ao_vivo" && useAsProfilePhoto,
+      const result = await uploadNkataIdCapture(token, requestedCaptureType, file, {
+        useAsProfilePhoto: requestedCaptureType === "selfie_ao_vivo" && useAsProfilePhoto,
+        liveCaptureProof,
       });
       setSession(result);
-      clearCaptureCountdown();
-      stopStream(streamRef.current);
-      streamRef.current = null;
-      setCameraReady(false);
+      if (result.capture_complete) {
+        stopStream(streamRef.current);
+        streamRef.current = null;
+        activeFacingModeRef.current = "";
+        setCameraReady(false);
+      }
     } catch (requestError) {
       const messages = requestError.payload?.quality?.messages || [];
       setQualityMessages(messages);
       setError(requestError.message || "Não foi possível analisar esta fotografia.");
+      automaticCaptureRef.current = false;
+      detectionStabilityRef.current = { captureType: requestedCaptureType, count: 0 };
     } finally {
       setUploading(false);
     }
   };
 
-  const captureFrame = () => {
+  const captureFrame = async (requestedCaptureType, liveCaptureProof) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || !video.videoWidth || uploading) return;
-    const dimensions = fitNkataIdCaptureDimensions(
-      video.videoWidth,
-      video.videoHeight,
-      MAX_CAPTURE_SIDE,
-    );
-    canvas.width = dimensions.width;
-    canvas.height = dimensions.height;
-    const context = canvas.getContext("2d", { alpha: false });
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      uploadCapture(new File([blob], `${captureType}.jpg`, { type: "image/jpeg" }));
-    }, "image/jpeg", CAPTURE_JPEG_QUALITY);
+    const file = await frameFile(video, canvas, requestedCaptureType, {
+      maxSide: MAX_CAPTURE_SIDE,
+      quality: CAPTURE_JPEG_QUALITY,
+    });
+    await uploadCapture(file, requestedCaptureType, liveCaptureProof);
   };
 
-  const beginTimedCapture = () => {
-    if (!cameraReady || uploading || captureCountdown !== null) return;
-    let remaining = CAPTURE_COUNTDOWN_SECONDS;
-    setCaptureCountdown(remaining);
-    countdownTimerRef.current = window.setInterval(() => {
-      remaining -= 1;
-      if (remaining <= 0) {
-        window.clearInterval(countdownTimerRef.current);
-        countdownTimerRef.current = null;
-        setCaptureCountdown(null);
-        captureFrame();
+  useEffect(() => {
+    if (!cameraReady || uploading || complete || !captureType) return undefined;
+    let stopped = false;
+
+    const schedule = (delay = PREVIEW_INTERVAL_MS) => {
+      if (stopped || automaticCaptureRef.current) return;
+      previewTimerRef.current = window.setTimeout(analyseFrame, delay);
+    };
+
+    const analyseFrame = async () => {
+      if (stopped || automaticCaptureRef.current) return;
+      const file = await frameFile(videoRef.current, canvasRef.current, captureType, {
+        maxSide: PREVIEW_MAX_SIDE,
+        quality: PREVIEW_JPEG_QUALITY,
+        suffix: "-preview",
+      });
+      if (!file || stopped) {
+        schedule(500);
         return;
       }
-      setCaptureCountdown(remaining);
-    }, 1000);
-  };
+
+      const controller = new AbortController();
+      previewControllerRef.current = controller;
+      try {
+        const result = await previewNkataIdCapture(token, captureType, file, {
+          signal: controller.signal,
+        });
+        if (stopped) return;
+        setDetection(result);
+        const stability = advanceNkataIdDetectionStability(
+          detectionStabilityRef.current,
+          result,
+          captureType,
+        );
+        detectionStabilityRef.current = stability;
+        if (stability.shouldCapture && result.live_capture_proof) {
+          automaticCaptureRef.current = true;
+          setDetection({ ...result, message: "Enquadramento confirmado. A capturar…" });
+          await captureFrame(captureType, result.live_capture_proof);
+          return;
+        }
+        schedule();
+      } catch (requestError) {
+        if (stopped || requestError.name === "AbortError") return;
+        setDetection((current) => ({
+          ...current,
+          ready: false,
+          message: requestError.status === 429
+            ? "A deteção vai retomar dentro de instantes."
+            : "A confirmar o enquadramento…",
+        }));
+        schedule(requestError.status === 429 ? 4000 : 1400);
+      } finally {
+        if (previewControllerRef.current === controller) {
+          previewControllerRef.current = null;
+        }
+      }
+    };
+
+    schedule(450);
+    return () => {
+      stopped = true;
+      stopPreviewAnalysis();
+    };
+  }, [cameraReady, captureType, uploading, complete, token]);
 
   if (loading) {
     return (
@@ -270,7 +393,7 @@ export default function IdentityCapturePage({ token, onExit }) {
         <p>{selfieChallenge || config.help}</p>
       </section>
 
-      <section className={`nk-id-camera ${config.facingMode === "user" ? "is-selfie" : "is-document"}`}>
+      <section className={`nk-id-camera ${config.facingMode === "user" ? "is-selfie" : "is-document"} ${detection.detected ? "has-detection" : ""} ${detection.ready ? "is-ready" : ""}`}>
         <video ref={videoRef} autoPlay muted playsInline />
         {!cameraReady && (
           <div className="nk-id-camera__empty">
@@ -280,10 +403,10 @@ export default function IdentityCapturePage({ token, onExit }) {
           </div>
         )}
         <div className="nk-id-camera__guide" aria-hidden="true"><span /></div>
-        {captureCountdown !== null && (
-          <div className="nk-id-camera__countdown" role="status" aria-live="assertive">
-            <strong>{captureCountdown}</strong>
-            <span>Mantenha o telefone firme</span>
+        {cameraReady && (
+          <div className="nk-id-camera__status" role="status" aria-live="polite">
+            <span />
+            {detection.message}
           </div>
         )}
       </section>
@@ -318,36 +441,19 @@ export default function IdentityCapturePage({ token, onExit }) {
 
       <footer className="nk-id-mobile__actions">
         {!cameraReady ? (
-          <button type="button" className="nk-button nk-button--wine" onClick={startCamera} disabled={cameraStarting}>
+          <button type="button" className="nk-button nk-button--wine" onClick={() => startCamera(config.facingMode)} disabled={cameraStarting}>
             {cameraStarting ? <LoaderCircle className="is-spinning" size={18} /> : <Camera size={18} />}
-            {cameraStarting ? "A abrir…" : "Abrir câmara"}
+            {cameraStarting ? "A abrir…" : cameraActivated ? "Retomar câmara" : "Ativar câmara ao vivo"}
           </button>
         ) : (
-          <button
-            type="button"
-            className="nk-button nk-button--wine"
-            onClick={beginTimedCapture}
-            disabled={uploading || captureCountdown !== null}
-          >
-            {uploading ? <LoaderCircle className="is-spinning" size={18} /> : <Camera size={18} />}
-            {uploading
-              ? "A verificar qualidade…"
-              : captureCountdown !== null
-                ? `A capturar em ${captureCountdown}…`
-                : "Capturar em 3 segundos"}
-          </button>
+          <div className={`nk-id-auto-status ${detection.ready ? "is-ready" : ""}`}>
+            <LoaderCircle className={uploading ? "is-spinning" : "nk-id-scanner"} size={20} />
+            <span>
+              <strong>{uploading ? "A guardar captura" : "Deteção automática ativa"}</strong>
+              <small>{detection.message}</small>
+            </span>
+          </div>
         )}
-
-        <label className="nk-id-file-fallback">
-          <RefreshCw size={16} /> Outra forma
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            capture={config.facingMode === "user" ? "user" : "environment"}
-            disabled={uploading || captureCountdown !== null}
-            onChange={(event) => uploadCapture(event.target.files?.[0])}
-          />
-        </label>
       </footer>
     </main>
   );

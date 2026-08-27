@@ -12,6 +12,21 @@ export function fitNkataIdCaptureDimensions(width, height, maxSide = 1280) {
   };
 }
 
+export function advanceNkataIdDetectionStability(
+  previous,
+  result,
+  captureType,
+  requiredReadings = 2,
+) {
+  const sameCapture = previous?.captureType === captureType;
+  const count = result?.ready ? (sameCapture ? Number(previous?.count || 0) : 0) + 1 : 0;
+  return {
+    captureType,
+    count,
+    shouldCapture: count >= Math.max(1, Number(requiredReadings) || 2),
+  };
+}
+
 export function normalizeNkataIdAppOrigin(configuredOrigin, browserOrigin) {
   const candidate = String(configuredOrigin || browserOrigin || "").trim();
   if (!candidate) return "";

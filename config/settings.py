@@ -321,6 +321,7 @@ REST_FRAMEWORK = {
         "access_status": os.getenv("NKATA_THROTTLE_ACCESS_STATUS", "30/hour"),
         "identity_session": os.getenv("NKATA_THROTTLE_IDENTITY_SESSION", "6/hour"),
         "identity_status": os.getenv("NKATA_THROTTLE_IDENTITY_STATUS", "1200/hour"),
+        "identity_preview": os.getenv("NKATA_THROTTLE_IDENTITY_PREVIEW", "180/min"),
         "identity_capture": os.getenv("NKATA_THROTTLE_IDENTITY_CAPTURE", "90/hour"),
         "token_flow": os.getenv("NKATA_THROTTLE_TOKEN_FLOW", "60/hour"),
     },

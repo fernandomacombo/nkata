@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import qrcode
 from PIL import Image, UnidentifiedImageError
 from django.conf import settings
+from django.core import signing
 from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import permissions
@@ -24,11 +25,13 @@ from .identity_verification_service import (
     CAPTURE_ORDER,
     finalize_identity_analysis,
     inspect_identity_capture,
+    inspect_identity_preview,
     next_capture,
 )
 from .media_validation import sanitized_image_upload
 from .throttles import (
     IdentityCaptureRateThrottle,
+    IdentityPreviewRateThrottle,
     IdentitySessionRateThrottle,
     IdentityStatusRateThrottle,
 )
@@ -39,6 +42,8 @@ SELFIE_CHALLENGES = (
     "Aproxime um pouco o rosto e olhe para a câmara.",
     "Levante um pouco o queixo e olhe para a câmara.",
 )
+LIVE_CAPTURE_PROOF_SALT = "nkata.identity.live-capture"
+LIVE_CAPTURE_PROOF_MAX_AGE = 30
 
 
 def identity_email_hash(email):
@@ -99,6 +104,31 @@ def _capture_url(request, token):
         if parsed.scheme in {"http", "https"} and parsed.hostname == request_host:
             base = requested_origin
     return f"{base}/verificar-identidade/{token}/"
+
+
+def _live_capture_proof(session, capture_type):
+    return signing.dumps(
+        {"token": str(session.token), "capture_type": capture_type},
+        salt=LIVE_CAPTURE_PROOF_SALT,
+        compress=True,
+    )
+
+
+def _valid_live_capture_proof(raw_proof, session, capture_type):
+    if not raw_proof:
+        return False
+    try:
+        payload = signing.loads(
+            str(raw_proof),
+            salt=LIVE_CAPTURE_PROOF_SALT,
+            max_age=LIVE_CAPTURE_PROOF_MAX_AGE,
+        )
+    except signing.BadSignature:
+        return False
+    return (
+        payload.get("token") == str(session.token)
+        and payload.get("capture_type") == capture_type
+    )
 
 
 @api_view(["POST"])
@@ -168,6 +198,36 @@ def api_qr_nkata_id(request, token):
 @api_view(["POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([IdentityPreviewRateThrottle])
+def api_previsualizar_nkata_id(request, token, capture_type):
+    if capture_type not in CAPTURE_ORDER:
+        return Response({"detail": "Tipo de captura inválido."}, status=404)
+    session = VerificacaoIdentidadeNKATA.objects.filter(token=token).first()
+    if not session:
+        return Response({"detail": "Sessão NKATA ID não encontrada."}, status=404)
+    if _expire_if_needed(session):
+        return Response({"detail": "Esta sessão expirou. Inicie uma nova verificação."}, status=410)
+    if next_capture(session) != capture_type:
+        return Response({"detail": "Esta etapa de captura já mudou."}, status=409)
+
+    upload = request.FILES.get("imagem")
+    error = _validar_imagem(upload)
+    if error:
+        return Response({"detail": error}, status=400)
+    try:
+        result = inspect_identity_preview(upload, capture_type)
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
+        return Response({"detail": "Não foi possível analisar a imagem da câmara."}, status=400)
+
+    # A frame de pré-visualização é apenas analisada em memória e nunca é salva.
+    if result["ready"]:
+        result["live_capture_proof"] = _live_capture_proof(session, capture_type)
+    return Response(result)
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
 @throttle_classes([IdentityCaptureRateThrottle])
 def api_capturar_nkata_id(request, token, capture_type):
     if capture_type not in CAPTURE_ORDER:
@@ -184,6 +244,16 @@ def api_capturar_nkata_id(request, token, capture_type):
         session.pedido_id and not bound_session_can_recapture
     ):
         return Response({"detail": "Esta verificação já foi concluída."}, status=409)
+    if next_capture(session) != capture_type:
+        return Response({"detail": "Esta etapa de captura já mudou."}, status=409)
+    if not _valid_live_capture_proof(
+        request.data.get("live_capture_proof"),
+        session,
+        capture_type,
+    ):
+        return Response({
+            "detail": "A fotografia deve ser feita ao vivo pela câmara do NKATA ID."
+        }, status=400)
 
     upload = request.FILES.get("imagem")
     error = _validar_imagem(upload)

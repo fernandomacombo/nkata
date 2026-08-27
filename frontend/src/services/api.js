@@ -304,14 +304,25 @@ export async function uploadNkataIdCapture(
   token,
   captureType,
   file,
-  { useAsProfilePhoto = false } = {},
+  { useAsProfilePhoto = false, liveCaptureProof = "" } = {},
 ) {
   const form = new FormData();
   form.append("imagem", file, file?.name || `${captureType}.jpg`);
+  form.append("live_capture_proof", liveCaptureProof);
   if (useAsProfilePhoto) form.append("usar_foto_verificada", "true");
   return request(`/api/nkata-id/sessoes/${token}/capturas/${captureType}/`, {
     method: "POST",
     body: form,
+  });
+}
+
+export async function previewNkataIdCapture(token, captureType, file, { signal } = {}) {
+  const form = new FormData();
+  form.append("imagem", file, file?.name || `${captureType}-preview.jpg`);
+  return request(`/api/nkata-id/sessoes/${token}/previsualizacao/${captureType}/`, {
+    method: "POST",
+    body: form,
+    signal,
   });
 }
 
