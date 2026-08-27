@@ -244,7 +244,12 @@ def api_pedir_acesso(request):
             },
         }, status=409)
 
-    data = request.data.copy()
+    # Em pedidos multipart, ``request.data`` junta os campos de texto aos
+    # UploadedFile. QueryDict.copy() tenta fazer deepcopy desses ficheiros e
+    # falha quando o Django os guardou temporariamente no disco (BufferedRandom,
+    # comum em fotografias maiores no Python 3.14). O formulário já recebe os
+    # ficheiros separadamente em ``safe_files``, por isso copiamos apenas POST.
+    data = request.POST.copy() if request.FILES else request.data.copy()
     if email:
         data["email"] = email
 

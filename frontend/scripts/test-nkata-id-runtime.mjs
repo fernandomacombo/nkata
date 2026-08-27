@@ -3,9 +3,25 @@ import test from "node:test";
 
 import {
   createNkataIdStatusPoller,
+  fitNkataIdCaptureDimensions,
   isPhoneReachableNkataIdOrigin,
   normalizeNkataIdAppOrigin,
 } from "../src/services/nkataIdRuntime.js";
+
+test("limita a captura a 1280 px sem deformar a imagem", () => {
+  assert.deepEqual(fitNkataIdCaptureDimensions(3024, 4032), {
+    width: 960,
+    height: 1280,
+  });
+  assert.deepEqual(fitNkataIdCaptureDimensions(1280, 720), {
+    width: 1280,
+    height: 720,
+  });
+  assert.deepEqual(fitNkataIdCaptureDimensions(640, 480), {
+    width: 640,
+    height: 480,
+  });
+});
 
 function manualScheduler() {
   const jobs = [];

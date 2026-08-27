@@ -7,7 +7,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from .identity_admin import VerificacaoIdentidadeNKATAAdmin
 from .identity_api import (
@@ -158,6 +158,7 @@ class NkataIdApiTests(TestCase):
         self.assertFalse(result["checks"]["resolution"])
 
     @patch("entradas.identity_api.inspect_identity_capture")
+    @override_settings(FILE_UPLOAD_MAX_MEMORY_SIZE=1)
     def test_completed_nkata_id_can_replace_legacy_document_uploads(self, inspect):
         inspect.side_effect = lambda _upload, capture_type: accepted_result(capture_type)
         payload = self.create_session(email="novo-fluxo@example.com")

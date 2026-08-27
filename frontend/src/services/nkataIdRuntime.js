@@ -1,5 +1,17 @@
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
+export function fitNkataIdCaptureDimensions(width, height, maxSide = 1280) {
+  const sourceWidth = Math.max(1, Number(width) || 1);
+  const sourceHeight = Math.max(1, Number(height) || 1);
+  const limit = Math.max(1, Number(maxSide) || 1280);
+  const scale = Math.min(1, limit / Math.max(sourceWidth, sourceHeight));
+
+  return {
+    width: Math.max(1, Math.round(sourceWidth * scale)),
+    height: Math.max(1, Math.round(sourceHeight * scale)),
+  };
+}
+
 export function normalizeNkataIdAppOrigin(configuredOrigin, browserOrigin) {
   const candidate = String(configuredOrigin || browserOrigin || "").trim();
   if (!candidate) return "";
