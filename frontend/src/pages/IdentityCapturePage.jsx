@@ -21,6 +21,7 @@ import {
   advanceNkataIdDetectionStability,
   fitNkataIdCaptureDimensions,
 } from "../services/nkataIdRuntime.js";
+import NkataLogo from "../components/brand/NkataLogo.jsx";
 
 const MAX_CAPTURE_SIDE = 1280;
 const CAPTURE_JPEG_QUALITY = 0.84;
@@ -149,6 +150,12 @@ export default function IdentityCapturePage({ token, onExit }) {
   useEffect(() => () => {
     stopPreviewAnalysis();
     stopStream(streamRef.current);
+  }, []);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
   }, []);
 
   useEffect(() => {
@@ -339,7 +346,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   if (!session || session.expired || error && !config && !complete) {
     return (
       <main className="nk-id-mobile nk-id-mobile--center">
-        <span className="nk-id-mobile__brand">NK <strong>NKATA ID</strong></span>
+        <span className="nk-id-mobile__brand"><NkataLogo /> <strong>NKATA ID</strong></span>
         <ShieldCheck size={42} />
         <h1>Sessão indisponível</h1>
         <p>{error || "Esta verificação expirou. Volte ao computador e crie uma nova sessão."}</p>
@@ -351,7 +358,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   if (complete) {
     return (
       <main className="nk-id-mobile nk-id-mobile--center nk-id-mobile--success">
-        <span className="nk-id-mobile__brand">NK <strong>NKATA ID</strong></span>
+        <span className="nk-id-mobile__brand"><NkataLogo /> <strong>NKATA ID</strong></span>
         <span className="nk-id-success-icon"><CheckCircle2 size={42} /></span>
         <small>IDENTIDADE RECEBIDA</small>
         <h1>Capturas concluídas</h1>
@@ -376,10 +383,10 @@ export default function IdentityCapturePage({ token, onExit }) {
   const selfieChallenge = captureType === "selfie_desafio" ? session.selfie_challenge : "";
 
   return (
-    <main className="nk-id-mobile">
+    <main className="nk-id-mobile nk-id-mobile--capture">
       <header className="nk-id-mobile__header">
         <button type="button" onClick={onExit} aria-label="Voltar"><ArrowLeft size={20} /></button>
-        <span className="nk-id-mobile__brand">NK <strong>NKATA ID</strong></span>
+        <span className="nk-id-mobile__brand"><NkataLogo /> <strong>NKATA ID</strong></span>
         <span><LockKeyhole size={16} /> Privado</span>
       </header>
 
@@ -402,18 +409,7 @@ export default function IdentityCapturePage({ token, onExit }) {
             <small>Permita o acesso para obter a melhor qualidade.</small>
           </div>
         )}
-        <div className="nk-id-camera__guide" aria-hidden="true">
-          {config.facingMode === "user" && (
-            <svg
-              className="nk-id-selfie-outline"
-              viewBox="0 0 260 320"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <path d="M130 27C85 27 55 62 55 108C55 157 87 190 130 190C173 190 205 157 205 108C205 62 175 27 130 27Z" />
-              <path d="M27 298C29 239 70 205 130 205C190 205 231 239 233 298" />
-            </svg>
-          )}
-        </div>
+        <div className="nk-id-camera__guide" aria-hidden="true" />
         {cameraReady && (
           <div className="nk-id-camera__status" role="status" aria-live="polite">
             <span />

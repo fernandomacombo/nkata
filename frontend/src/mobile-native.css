@@ -101,6 +101,8 @@
     font-size: 0.92rem;
   }
 
+  .nk-brand__logo { width: 39px; height: 28px; }
+
   .nk-brand__word {
     font-size: 0.78rem;
     letter-spacing: 0.18em;

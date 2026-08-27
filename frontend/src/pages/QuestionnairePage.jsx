@@ -17,6 +17,7 @@ import {
   fetchQuestionnaire,
   submitQuestionnaire,
 } from "../services/questionnaireApi.js";
+import NkataLogo from "../components/brand/NkataLogo.jsx";
 
 const emptyValues = {
   disponibilidade: "",
@@ -183,7 +184,7 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
     <main className="nk-questionnaire-shell">
       <header className="nk-questionnaire-topbar">
         <button type="button" className="nk-questionnaire-brand" onClick={onBack}>
-          <span>N</span><strong>NKATA</strong>
+          <NkataLogo /><strong>NKATA</strong>
         </button>
         <span className="nk-questionnaire-secure"><LockKeyhole size={14} /> Ligação protegida</span>
       </header>

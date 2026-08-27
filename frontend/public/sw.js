@@ -1,8 +1,9 @@
-const CACHE_VERSION = "nkata-shell-v2";
+const CACHE_VERSION = "nkata-shell-v3";
 const DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
+  "/icons/nkata-source.svg",
   "/icons/nkata-192.png",
   "/icons/nkata-512.png"
 ];

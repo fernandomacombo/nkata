@@ -365,11 +365,15 @@
 }
 
 .nk-id-mobile__brand {
+  display: inline-flex;
+  align-items: center;
   color: var(--nk-wine);
   font-size: 1.05rem;
   font-weight: 900;
   letter-spacing: -0.06em;
 }
+
+.nk-id-mobile__brand > svg { width: 42px; height: 29px; flex: 0 0 auto; }
 
 .nk-id-mobile__brand strong {
   margin-left: 7px;
@@ -487,37 +491,28 @@
 }
 
 .nk-id-camera.is-selfie .nk-id-camera__guide {
-  inset: 10px 13% 17px;
+  top: 22%; right: 15%; bottom: 24%; left: 15%;
   border: 0;
   border-radius: 0;
+  background:
+    linear-gradient(currentColor, currentColor) left top / 42px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) left top / 2px 42px no-repeat,
+    linear-gradient(currentColor, currentColor) right top / 42px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) right top / 2px 42px no-repeat,
+    linear-gradient(currentColor, currentColor) left bottom / 42px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) left bottom / 2px 42px no-repeat,
+    linear-gradient(currentColor, currentColor) right bottom / 42px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) right bottom / 2px 42px no-repeat;
   box-shadow: none;
-}
-
-.nk-id-selfie-outline {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  fill: none;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
-  stroke: rgba(255, 255, 255, 0.92);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 5;
-  transition: stroke 180ms ease, filter 180ms ease;
-}
-
-.nk-id-selfie-outline path {
-  vector-effect: non-scaling-stroke;
+  color: rgba(255, 255, 255, 0.78);
+  transition: color 180ms ease;
 }
 
 .nk-id-camera.has-detection .nk-id-camera__guide {
   border-color: #f1c56d;
 }
 
-.nk-id-camera.has-detection .nk-id-selfie-outline {
-  filter: drop-shadow(0 0 7px rgba(241, 197, 109, 0.38));
-  stroke: #f1c56d;
-}
+.nk-id-camera.is-selfie.has-detection .nk-id-camera__guide { color: #f1c56d; }
 
 .nk-id-camera.is-ready .nk-id-camera__guide {
   border-color: #78d3a4;
@@ -527,11 +522,7 @@
 .nk-id-camera.is-selfie.is-ready .nk-id-camera__guide {
   border: 0;
   box-shadow: none;
-}
-
-.nk-id-camera.is-ready .nk-id-selfie-outline {
-  filter: drop-shadow(0 0 8px rgba(120, 211, 164, 0.42));
-  stroke: #78d3a4;
+  color: #78d3a4;
 }
 
 .nk-id-camera__status {
@@ -659,6 +650,76 @@
   animation: nk-spin 2.4s linear infinite;
 }
 
+.nk-id-mobile--capture {
+  position: fixed; z-index: 1000; inset: 0; min-height: 100dvh;
+  overflow: hidden; background: #0d0b0a; padding: 0; color: #fff;
+}
+.nk-id-mobile--capture .nk-id-camera {
+  position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%;
+  max-height: none; margin: 0; border-radius: 0; box-shadow: none;
+}
+.nk-id-mobile--capture .nk-id-mobile__header {
+  position: absolute; z-index: 20; top: 0; right: 0; left: 0;
+  min-height: calc(70px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 18px 0;
+  background: linear-gradient(180deg, rgba(8, 7, 6, 0.82), rgba(8, 7, 6, 0));
+}
+.nk-id-mobile--capture .nk-id-mobile__header button {
+  border-color: rgba(255, 255, 255, 0.24); background: rgba(20, 17, 16, 0.46);
+  color: #fff; backdrop-filter: blur(10px);
+}
+.nk-id-mobile--capture .nk-id-mobile__brand {
+  width: max-content; justify-self: center; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88); padding: 4px 10px 4px 7px;
+  backdrop-filter: blur(10px);
+}
+.nk-id-mobile--capture .nk-id-mobile__header > span:last-child { color: #dff7eb; text-shadow: 0 1px 8px rgba(0,0,0,.55); }
+.nk-id-mobile--capture .nk-id-mobile__progress {
+  position: absolute; z-index: 21; top: calc(70px + env(safe-area-inset-top));
+  right: 18px; left: 18px; background: rgba(255,255,255,.28);
+}
+.nk-id-mobile--capture .nk-id-mobile__progress span { background: #f8d7df; }
+.nk-id-mobile--capture .nk-id-mobile__copy {
+  position: absolute; z-index: 10; top: calc(86px + env(safe-area-inset-top));
+  right: 18px; left: 18px; padding: 0; color: #fff;
+  text-shadow: 0 2px 16px rgba(0,0,0,.78);
+}
+.nk-id-mobile--capture .nk-id-mobile__copy small { color: #f5d4dc; }
+.nk-id-mobile--capture .nk-id-mobile__copy h1 { margin-top: 6px; font-family: inherit; font-size: clamp(1.45rem, 6vw, 2.2rem); font-weight: 800; letter-spacing: -.035em; }
+.nk-id-mobile--capture .nk-id-mobile__copy p { margin-top: 6px; color: rgba(255,255,255,.9); font-size: .74rem; }
+.nk-id-mobile--capture .nk-id-camera.is-document .nk-id-camera__guide {
+  top: 50%; right: auto; bottom: auto; left: 50%; width: min(88vw, 680px);
+  height: auto; aspect-ratio: 1.586 / 1; transform: translate(-50%, -50%); border-radius: 18px;
+}
+.nk-id-mobile--capture .nk-id-camera.is-selfie .nk-id-camera__guide { top: 25%; right: 13%; bottom: 27%; left: 13%; }
+.nk-id-mobile--capture .nk-id-camera__status {
+  right: 18px; bottom: calc(184px + env(safe-area-inset-bottom)); left: 18px;
+  min-height: 42px; background: rgba(13,11,10,.58);
+}
+.nk-id-mobile--capture .nk-id-camera.is-selfie .nk-id-camera__status { bottom: calc(220px + env(safe-area-inset-bottom)); }
+.nk-id-mobile--capture .nk-id-quality-hints {
+  position: absolute; z-index: 12; right: 12px; bottom: calc(112px + env(safe-area-inset-bottom)); left: 12px; margin: 0;
+}
+.nk-id-mobile--capture .nk-id-quality-hints span { border-color: rgba(255,255,255,.22); background: rgba(15,13,12,.55); color: #fff; backdrop-filter: blur(9px); }
+.nk-id-mobile--capture .nk-id-photo-choice {
+  position: absolute; z-index: 13; right: 18px; bottom: calc(159px + env(safe-area-inset-bottom)); left: 18px;
+  display: flex; width: auto; align-items: center; margin: 0; border-color: rgba(255,255,255,.2);
+  background: rgba(15,13,12,.64); padding: 10px 13px; color: #fff; backdrop-filter: blur(10px);
+}
+.nk-id-mobile--capture .nk-id-photo-choice small { display: none; }
+.nk-id-mobile--capture .nk-id-capture-error {
+  position: absolute; z-index: 30; right: 18px; bottom: calc(184px + env(safe-area-inset-bottom)); left: 18px;
+  width: auto; margin: 0; background: rgba(79,13,28,.86); color: #fff; backdrop-filter: blur(10px);
+}
+.nk-id-mobile--capture .nk-id-mobile__actions {
+  position: absolute; z-index: 30; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); left: 12px; max-width: none; margin: 0;
+}
+.nk-id-mobile--capture .nk-id-auto-status {
+  min-height: 74px; border-color: rgba(255,255,255,.2); background: rgba(15,13,12,.72); color: #fff; backdrop-filter: blur(12px);
+}
+.nk-id-mobile--capture .nk-id-auto-status.is-ready { border-color: rgba(120,211,164,.55); color: #9ce4be; }
+.nk-id-mobile--capture .nk-id-auto-status small { color: rgba(255,255,255,.78); }
+
 .nk-id-success-icon {
   display: grid;
   width: 76px;
@@ -711,11 +772,11 @@
     padding: 22px 17px;
   }
 
-  .nk-id-mobile:not(.nk-id-mobile--center) {
+  .nk-id-mobile:not(.nk-id-mobile--center):not(.nk-id-mobile--capture) {
     padding-bottom: calc(92px + env(safe-area-inset-bottom));
   }
 
-  .nk-id-mobile__actions {
+  .nk-id-mobile:not(.nk-id-mobile--capture) .nk-id-mobile__actions {
     position: fixed;
     z-index: 40;
     right: 12px;
@@ -746,12 +807,12 @@
     font-size: clamp(1.9rem, 9vw, 2.55rem);
   }
 
-  .nk-id-camera {
+  .nk-id-mobile:not(.nk-id-mobile--capture) .nk-id-camera {
     height: clamp(240px, 40svh, 310px);
     max-height: 310px;
   }
 
-  .nk-id-mobile__actions {
+  .nk-id-mobile:not(.nk-id-mobile--capture) .nk-id-mobile__actions {
     right: 8px;
     left: 8px;
     grid-template-columns: minmax(0, 1fr);
@@ -767,7 +828,7 @@
     animation: none;
   }
 
-  .nk-id-selfie-outline {
+  .nk-id-camera.is-selfie .nk-id-camera__guide {
     transition: none;
   }
 }

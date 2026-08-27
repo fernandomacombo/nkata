@@ -99,6 +99,11 @@ urlpatterns = [
         name="acompanhar_pedido",
     ),
     path(
+        "recuperar-codigo-pedido/",
+        access_api.api_recuperar_codigo_pedido,
+        name="recuperar_codigo_pedido",
+    ),
+    path(
         "questionario/<uuid:token>/",
         questionnaire_api.api_questionario,
         name="questionario",

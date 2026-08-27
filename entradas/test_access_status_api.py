@@ -2,8 +2,9 @@ from io import BytesIO
 
 from PIL import Image
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 
@@ -72,6 +73,35 @@ class AccessStatusApiTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_novo_pedido_envia_codigo_por_email(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            pedido = self.create_request(email="recibo@example.com")
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [pedido.email])
+        self.assertIn(str(pedido.token), mail.outbox[0].body)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_recuperacao_reenvia_codigo_sem_expor_se_email_existe(self):
+        pedido = self.create_request(email="recuperar@example.com")
+        known = self.client.post(
+            "/api/recuperar-codigo-pedido/",
+            data={"email": pedido.email},
+            content_type="application/json",
+        )
+        unknown = self.client.post(
+            "/api/recuperar-codigo-pedido/",
+            data={"email": "desconhecido@example.com"},
+            content_type="application/json",
+        )
+        self.assertEqual(known.status_code, 200)
+        self.assertEqual(unknown.status_code, 200)
+        self.assertEqual(known.json()["message"], unknown.json()["message"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [pedido.email])
+        self.assertIn(str(pedido.token), mail.outbox[0].body)
 
     def test_email_ou_codigo_errado_nao_revela_o_pedido(self):
         pedido = self.create_request()

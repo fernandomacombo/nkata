@@ -77,11 +77,45 @@ def build_access_status_email(pedido):
     return None, None
 
 
+def build_access_receipt_email(pedido):
+    """Constrói o recibo privado usado no envio inicial e na recuperação."""
+    primeiro_nome = _primeiro_nome(pedido.nome_completo)
+    frontend = settings.NKATA_FRONTEND_URL.rstrip("/")
+    acompanhamento_url = f"{frontend}/acompanhar-pedido/"
+    subject = "Código privado do seu pedido NKATA"
+    body = (
+        f"Olá {primeiro_nome},\n\n"
+        "Recebemos o seu pedido de entrada no NKATA.\n\n"
+        "Este é o seu código privado de acompanhamento:\n"
+        f"{pedido.token}\n\n"
+        "Guarde o código e não o partilhe. Para consultar o andamento, use o "
+        "mesmo email informado no pedido.\n\n"
+        f"Acompanhar o pedido:\n{acompanhamento_url}\n\n"
+        "Se não fez este pedido, ignore esta mensagem.\n\n"
+        "NKATA\nRelações sérias começam com intenções claras."
+    )
+    return subject, body
+
+
 def _send_status_email(pedido):
     subject, body = build_access_status_email(pedido)
     if not subject or not body or not pedido.email:
         return
 
+    send_mail(
+        subject=subject,
+        message=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[pedido.email],
+        fail_silently=True,
+    )
+
+
+def send_access_receipt_email(pedido):
+    """Envia o código sem propagar falhas do fornecedor de email à API."""
+    if not pedido.email:
+        return
+    subject, body = build_access_receipt_email(pedido)
     send_mail(
         subject=subject,
         message=body,
@@ -104,6 +138,7 @@ def remember_previous_access_status(sender, instance, **kwargs):
 @receiver(post_save, sender=PedidoEntrada)
 def notify_access_status_change(sender, instance, created, **kwargs):
     if created:
+        transaction.on_commit(lambda: send_access_receipt_email(instance))
         return
 
     previous = getattr(instance, "_nkata_previous_status", None)

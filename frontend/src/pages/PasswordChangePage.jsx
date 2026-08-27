@@ -18,6 +18,7 @@ import {
   fetchAccountSessions,
   terminateOtherSessions,
 } from "../services/accountSecurityApi.js";
+import NkataLogo from "../components/brand/NkataLogo.jsx";
 
 function firstError(errors, name) {
   const value = errors?.[name];
@@ -211,7 +212,7 @@ export default function PasswordChangePage({ onBack, onLogin }) {
       <main className="nk-password-change">
         <header className="nk-password-change-topbar">
           <button type="button" onClick={onBack} className="nk-password-change-brand">
-            <span>N</span><strong>NKATA</strong>
+            <NkataLogo /><strong>NKATA</strong>
           </button>
           <span><ShieldCheck size={14} /> Conta protegida</span>
         </header>
@@ -233,7 +234,7 @@ export default function PasswordChangePage({ onBack, onLogin }) {
     <main className="nk-password-change">
       <header className="nk-password-change-topbar">
         <button type="button" onClick={onBack} className="nk-password-change-brand">
-          <span>N</span><strong>NKATA</strong>
+          <NkataLogo /><strong>NKATA</strong>
         </button>
         <span><ShieldCheck size={14} /> Conta protegida</span>
       </header>

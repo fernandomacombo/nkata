@@ -18,6 +18,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import NkataLogo from "../brand/NkataLogo.jsx";
 
 export default function AppHeader({
   activePage,
@@ -96,7 +97,7 @@ export default function AppHeader({
           onClick={() => navigate("home")}
           aria-label={tr("Ir para o início", "Go to home")}
         >
-          <span className="nk-brand__mark">N</span>
+          <NkataLogo className="nk-brand__logo" />
           <span className="nk-brand__word">NKATA</span>
         </button>
 
@@ -263,7 +264,7 @@ export default function AppHeader({
           >
             <header className="nk-mobile-menu__header">
               <div className="nk-mobile-menu__brand">
-                <span className="nk-brand__mark">N</span>
+                <NkataLogo className="nk-brand__logo" />
                 <div>
                   <strong>NKATA</strong>
                   <small>{authenticated ? tr("Área de membros", "Members area") : tr("Relações com intenção", "Intentional relationships")}</small>

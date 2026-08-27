@@ -5,10 +5,12 @@ import {
   BadgeCheck,
   Camera,
   Check,
+  ClipboardCopy,
   FileCheck2,
   ImagePlus,
   LoaderCircle,
   LockKeyhole,
+  MailCheck,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -111,14 +113,15 @@ function Progress({ current }) {
   );
 }
 
-export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
+export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
   const [step, setStep] = useState(0);
   const [values, setValues] = useState(initialValues);
   const [files, setFiles] = useState(initialFiles);
   const [errors, setErrors] = useState({});
   const [requestError, setRequestError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState("");
+  const [receipt, setReceipt] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [identitySession, setIdentitySession] = useState(null);
 
   const handleIdentitySessionChange = useCallback((nextSession) => {
@@ -202,7 +205,10 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
 
     try {
       const result = await submitAccessRequest(values, files, identitySession?.token);
-      setSuccess(result?.message || "Recebemos o seu pedido.");
+      setReceipt({
+        codigo: result?.codigo || "",
+        email: result?.email || values.email,
+      });
     } catch (error) {
       const payloadErrors = error.payload?.errors || {};
       setErrors(payloadErrors);
@@ -217,20 +223,44 @@ export default function AccessRequestPage({ onBack, onLogin, onFinish }) {
     }
   };
 
-  if (success) {
+  const copyReceiptCode = async () => {
+    try {
+      await navigator.clipboard.writeText(receipt?.codigo || "");
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  if (receipt) {
     return (
       <main className="nk-access-success">
         <section>
-          <span><BadgeCheck size={34} /></span>
+          <span className="nk-access-success__icon"><BadgeCheck size={34} /></span>
           <small>Pedido recebido</small>
           <h1>Agora é com a equipa NKATA.</h1>
-          <p>{success}</p>
-          <div>
-            <button type="button" className="nk-button nk-button--wine" onClick={onFinish}>
-              Voltar ao início
+          <p>Use este código privado para acompanhar a análise.</p>
+          <div className="nk-access-success__receipt">
+            <span>Código do pedido</span>
+            <strong>{receipt.codigo}</strong>
+            <button type="button" onClick={copyReceiptCode}>
+              <ClipboardCopy size={17} /> {copied ? "Copiado" : "Copiar código"}
             </button>
-            <button type="button" className="nk-button nk-button--quiet" onClick={onLogin}>
-              Já tenho conta
+          </div>
+          <p className="nk-access-success__email">
+            <MailCheck size={19} />
+            <span>
+              Também enviámos o código para <strong>{receipt.email}</strong>. Se perder esta página,
+              poderá reenviá-lo em “Acompanhar pedido”.
+            </span>
+          </p>
+          <div className="nk-access-success__actions">
+            <button type="button" className="nk-button nk-button--wine" onClick={onTrack}>
+              Acompanhar pedido
+            </button>
+            <button type="button" className="nk-button nk-button--quiet" onClick={onFinish}>
+              Voltar ao início
             </button>
           </div>
         </section>

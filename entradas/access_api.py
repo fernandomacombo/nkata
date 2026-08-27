@@ -4,6 +4,8 @@ import uuid
 
 from PIL import Image, UnidentifiedImageError
 from django.core.files.base import ContentFile
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from rest_framework import permissions
 from rest_framework.decorators import (
     api_view,
@@ -14,10 +16,15 @@ from rest_framework.decorators import (
 from rest_framework.response import Response
 
 from .forms import PedidoEntradaForm
+from .access_email_notifications import send_access_receipt_email
 from .identity_models import VerificacaoIdentidadeNKATA
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .models import PedidoEntrada, PerfilNKATA
-from .throttles import AccessRequestRateThrottle, AccessStatusRateThrottle
+from .throttles import (
+    AccessCodeRecoveryRateThrottle,
+    AccessRequestRateThrottle,
+    AccessStatusRateThrottle,
+)
 
 
 MAX_ACCESS_IMAGE_SIZE = 6 * 1024 * 1024
@@ -310,3 +317,32 @@ def api_acompanhar_pedido(request):
         )
 
     return Response(_status_payload(pedido))
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([AccessCodeRecoveryRateThrottle])
+def api_recuperar_codigo_pedido(request):
+    email = str(request.data.get("email", "")).strip().lower()
+    try:
+        validate_email(email)
+    except ValidationError:
+        return Response({"detail": "Informe o email usado no pedido."}, status=400)
+
+    pedido = (
+        PedidoEntrada.objects
+        .filter(email__iexact=email)
+        .order_by("-criado_em")
+        .first()
+    )
+    if pedido:
+        send_access_receipt_email(pedido)
+
+    return Response({
+        "ok": True,
+        "message": (
+            "Se existir um pedido associado a este email, enviámos o código "
+            "privado. Verifique também a pasta de spam."
+        ),
+    })

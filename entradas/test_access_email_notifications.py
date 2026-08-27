@@ -3,7 +3,7 @@ from uuid import UUID
 
 from django.test import SimpleTestCase, override_settings
 
-from .access_email_notifications import build_access_status_email
+from .access_email_notifications import build_access_receipt_email, build_access_status_email
 
 
 @override_settings(NKATA_FRONTEND_URL="http://localhost:5173")
@@ -47,3 +47,11 @@ class AccessEmailNotificationsTests(SimpleTestCase):
 
         self.assertIsNone(subject)
         self.assertIsNone(body)
+
+    def test_recibo_inclui_codigo_e_link_de_acompanhamento(self):
+        subject, body = build_access_receipt_email(self.pedido("PENDENTE"))
+
+        self.assertIn("código", subject.lower())
+        self.assertIn("12345678-1234-5678-1234-567812345678", body)
+        self.assertIn("http://localhost:5173/acompanhar-pedido/", body)
+        self.assertNotIn("NOTA INTERNA", body)

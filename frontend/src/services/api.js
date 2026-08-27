@@ -341,6 +341,13 @@ export async function fetchAccessRequestStatus({ email, code }) {
   });
 }
 
+export async function requestAccessCodeRecovery(email) {
+  return request("/api/recuperar-codigo-pedido/", {
+    method: "POST",
+    body: { email: String(email || "").trim().toLowerCase() },
+  });
+}
+
 export async function fetchProfiles({ signal } = {}) {
   const payload = await request("/api/perfis/", { signal });
   const results = Array.isArray(payload) ? payload : payload?.results || [];

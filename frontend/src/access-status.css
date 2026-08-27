@@ -191,6 +191,10 @@
   text-underline-offset: 4px;
 }
 
+.nk-request-status__recover { display: inline-flex; width: max-content; align-items: center; gap: 8px; margin-top: -9px; border: 0; background: transparent; padding: 0; color: #7d2638; font-weight: 800; text-align: left; }
+.nk-request-status__recover:disabled { cursor: wait; opacity: 0.65; }
+.nk-request-status__recovery-message { margin-top: -8px; border: 1px solid rgba(63, 105, 89, 0.18); border-radius: 13px; background: #edf5f1; padding: 12px 14px; color: #315e4d; font-size: 0.86rem; line-height: 1.5; }
+
 .nk-request-status__error {
   padding: 13px 15px;
   border: 1px solid rgba(155, 41, 67, 0.18);

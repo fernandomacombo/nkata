@@ -8,6 +8,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { requestPasswordReset } from "../services/passwordResetApi.js";
+import NkataLogo from "../components/brand/NkataLogo.jsx";
 
 export default function PasswordResetPage({ onBack, onLogin }) {
   const [email, setEmail] = useState("");
@@ -35,7 +36,7 @@ export default function PasswordResetPage({ onBack, onLogin }) {
     <main className="nk-password-page">
       <header className="nk-password-topbar">
         <button type="button" className="nk-password-brand" onClick={onBack}>
-          <span>N</span><strong>NKATA</strong>
+          <NkataLogo /><strong>NKATA</strong>
         </button>
         <span><LockKeyhole size={14} /> Ligação protegida</span>
       </header>

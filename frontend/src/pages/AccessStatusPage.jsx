@@ -9,12 +9,13 @@ import {
   LoaderCircle,
   LockKeyhole,
   Mail,
+  MailCheck,
   RefreshCw,
   SearchCheck,
   ShieldCheck,
   TriangleAlert,
 } from "lucide-react";
-import { fetchAccessRequestStatus } from "../services/api.js";
+import { fetchAccessRequestStatus, requestAccessCodeRecovery } from "../services/api.js";
 
 const LOOKUP_KEY = "nkata_access_request_lookup";
 
@@ -50,6 +51,8 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
 
   const lookup = async (values = { email, code }) => {
     const normalizedEmail = String(values.email || "").trim().toLowerCase();
@@ -106,6 +109,26 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
   const handleSubmit = (event) => {
     event.preventDefault();
     lookup();
+  };
+
+  const recoverCode = async () => {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      setError("Informe primeiro o email usado no pedido.");
+      return;
+    }
+    setRecovering(true);
+    setError("");
+    setRecoveryMessage("");
+    try {
+      const payload = await requestAccessCodeRecovery(normalizedEmail);
+      setEmail(normalizedEmail);
+      setRecoveryMessage(payload?.message || "Se existir um pedido, o código será enviado por email.");
+    } catch (requestError) {
+      setError(requestError.message || "Não foi possível enviar o código agora.");
+    } finally {
+      setRecovering(false);
+    }
   };
 
   const copyCode = async () => {
@@ -178,12 +201,29 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
                     onChange={(event) => {
                       setEmail(event.target.value);
                       setError("");
+                      setRecoveryMessage("");
                     }}
                     autoComplete="email"
                     placeholder="nome@exemplo.com"
                   />
                 </div>
               </label>
+
+              <button
+                type="button"
+                className="nk-request-status__recover"
+                onClick={recoverCode}
+                disabled={recovering}
+              >
+                {recovering ? <LoaderCircle size={17} className="is-spinning" /> : <MailCheck size={17} />}
+                {recovering ? "A enviar…" : "Perdeu o código? Reenviar por email"}
+              </button>
+
+              {recoveryMessage && (
+                <div className="nk-request-status__recovery-message" role="status">
+                  {recoveryMessage}
+                </div>
+              )}
 
               <label>
                 <span>Código privado</span>
@@ -218,8 +258,8 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
               <span><ShieldCheck size={24} /></span>
               <h3>Onde encontro o código?</h3>
               <p>
-                O código aparece no ecrã depois do envio. Guarde-o num local privado,
-                juntamente com o email usado no formulário.
+                O código aparece no ecrã e é enviado ao email depois do pedido. Se fechar
+                a página, pode reenviá-lo usando o mesmo endereço.
               </p>
               <div>
                 <Check size={16} />

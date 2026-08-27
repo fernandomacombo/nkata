@@ -319,6 +319,7 @@ REST_FRAMEWORK = {
         "password_reset": os.getenv("NKATA_THROTTLE_PASSWORD_RESET", "5/hour"),
         "access_request": os.getenv("NKATA_THROTTLE_ACCESS_REQUEST", "3/hour"),
         "access_status": os.getenv("NKATA_THROTTLE_ACCESS_STATUS", "30/hour"),
+        "access_code_recovery": os.getenv("NKATA_THROTTLE_ACCESS_CODE_RECOVERY", "5/hour"),
         "identity_session": os.getenv("NKATA_THROTTLE_IDENTITY_SESSION", "6/hour"),
         "identity_status": os.getenv("NKATA_THROTTLE_IDENTITY_STATUS", "1200/hour"),
         "identity_preview": os.getenv("NKATA_THROTTLE_IDENTITY_PREVIEW", "180/min"),

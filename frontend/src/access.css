@@ -525,7 +525,7 @@
   animation: nk-access-success-in 500ms cubic-bezier(.2, .8, .2, 1) both;
 }
 
-.nk-access-success section > span {
+.nk-access-success__icon {
   display: grid;
   width: 72px;
   height: 72px;
@@ -562,7 +562,23 @@
   line-height: 1.7;
 }
 
-.nk-access-success section > div {
+.nk-access-success__receipt {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+  border: 1px solid rgba(125, 38, 56, 0.16);
+  border-radius: 18px;
+  background: #f9f3f1;
+  padding: 18px;
+}
+
+.nk-access-success__receipt > span { color: var(--nk-muted); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.nk-access-success__receipt > strong { color: var(--nk-wine); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: clamp(0.82rem, 2.7vw, 1rem); overflow-wrap: anywhere; }
+.nk-access-success__receipt > button { display: inline-flex; width: max-content; align-items: center; justify-self: center; gap: 7px; margin-top: 3px; border: 0; background: transparent; color: var(--nk-wine); font-weight: 800; }
+.nk-access-success .nk-access-success__email { display: flex; align-items: flex-start; gap: 10px; max-width: 560px; border-radius: 15px; background: rgba(63, 105, 89, 0.08); padding: 14px 16px; color: #4f5e58; font-size: 0.88rem; text-align: left; }
+.nk-access-success__email svg { flex: 0 0 auto; margin-top: 3px; color: var(--nk-success); }
+
+.nk-access-success__actions {
   display: flex;
   justify-content: center;
   gap: 10px;
@@ -703,7 +719,7 @@
     padding: 38px 22px;
   }
 
-  .nk-access-success section > div {
+  .nk-access-success__actions {
     flex-direction: column;
   }
 }

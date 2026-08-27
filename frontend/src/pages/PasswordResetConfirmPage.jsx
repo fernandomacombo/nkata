@@ -12,6 +12,7 @@ import {
   confirmPasswordReset,
   validatePasswordReset,
 } from "../services/passwordResetApi.js";
+import NkataLogo from "../components/brand/NkataLogo.jsx";
 
 function firstError(errors, name) {
   const value = errors?.[name];
@@ -70,7 +71,7 @@ export default function PasswordResetConfirmPage({ uid, token, onBack, onLogin, 
     <main className="nk-password-page">
       <header className="nk-password-topbar">
         <button type="button" className="nk-password-brand" onClick={onBack}>
-          <span>N</span><strong>NKATA</strong>
+          <NkataLogo /><strong>NKATA</strong>
         </button>
         <span><LockKeyhole size={14} /> Ligação protegida</span>
       </header>

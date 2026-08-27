@@ -39,6 +39,11 @@ class AccessStatusRateThrottle(_IdentityThrottle):
     data_field = "email"
 
 
+class AccessCodeRecoveryRateThrottle(_IdentityThrottle):
+    scope = "access_code_recovery"
+    data_field = "email"
+
+
 class IdentitySessionRateThrottle(_IdentityThrottle):
     scope = "identity_session"
     data_field = "email"
