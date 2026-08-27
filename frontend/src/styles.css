@@ -144,7 +144,9 @@ img {
   font-weight: 700;
 }
 
-.nk-brand__logo { display: block; width: 48px; height: 34px; flex: 0 0 auto; }
+.nk-logo-asset { position: relative; display: block; overflow: hidden; flex: 0 0 auto; }
+.nk-logo-asset > img { position: absolute; top: -44.4%; left: -18.7%; width: 133.2%; max-width: none; height: auto; user-select: none; }
+.nk-brand__logo { width: 48px; height: 34px; }
 
 .nk-brand__word {
   font-size: 1.05rem;

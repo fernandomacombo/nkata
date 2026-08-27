@@ -14,34 +14,10 @@
   "categories": ["social", "lifestyle"],
   "icons": [
     {
-      "src": "/icons/nkata-source.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/nkata-192.png",
-      "sizes": "192x192",
+      "src": "/images/nkata-logo-original.png",
+      "sizes": "1254x1254",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/nkata-maskable-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icons/nkata-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/nkata-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -49,13 +25,13 @@
       "name": "Perfis",
       "short_name": "Perfis",
       "url": "/perfis/",
-      "icons": [{ "src": "/icons/nkata-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/images/nkata-logo-original.png", "sizes": "1254x1254" }]
     },
     {
       "name": "Notificações",
       "short_name": "Avisos",
       "url": "/notificacoes/",
-      "icons": [{ "src": "/icons/nkata-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/images/nkata-logo-original.png", "sizes": "1254x1254" }]
     }
   ]
 }

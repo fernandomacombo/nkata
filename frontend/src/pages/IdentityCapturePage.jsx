@@ -119,6 +119,7 @@ export default function IdentityCapturePage({ token, onExit }) {
 
   const captureType = session?.current_capture || "";
   const config = CAPTURES[captureType];
+  const isSelfieCapture = config?.facingMode === "user";
   const complete = Boolean(session?.capture_complete && session?.can_submit);
   const progress = useMemo(() => {
     const count = session?.completed_captures?.length || 0;
@@ -153,10 +154,11 @@ export default function IdentityCapturePage({ token, onExit }) {
   }, []);
 
   useEffect(() => {
+    if (!isSelfieCapture) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previousOverflow; };
-  }, []);
+  }, [isSelfieCapture]);
 
   useEffect(() => {
     detectionStabilityRef.current = { captureType, count: 0 };
@@ -383,7 +385,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   const selfieChallenge = captureType === "selfie_desafio" ? session.selfie_challenge : "";
 
   return (
-    <main className="nk-id-mobile nk-id-mobile--capture">
+    <main className={`nk-id-mobile ${isSelfieCapture ? "nk-id-mobile--capture" : ""}`}>
       <header className="nk-id-mobile__header">
         <button type="button" onClick={onExit} aria-label="Voltar"><ArrowLeft size={20} /></button>
         <span className="nk-id-mobile__brand"><NkataLogo /> <strong>NKATA ID</strong></span>
@@ -419,11 +421,13 @@ export default function IdentityCapturePage({ token, onExit }) {
       </section>
       <canvas ref={canvasRef} hidden />
 
-      <div className="nk-id-quality-hints">
-        <span><Sun size={15} /> Boa iluminação</span>
-        <span><Smartphone size={15} /> Telefone firme</span>
-        <span><Check size={15} /> Sem reflexos</span>
-      </div>
+      {!isSelfieCapture && (
+        <div className="nk-id-quality-hints">
+          <span><Sun size={15} /> Boa iluminação</span>
+          <span><Smartphone size={15} /> Telefone firme</span>
+          <span><Check size={15} /> Sem reflexos</span>
+        </div>
+      )}
 
       {captureType === "selfie_ao_vivo" && (
         <label className="nk-id-photo-choice">

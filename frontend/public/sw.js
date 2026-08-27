@@ -1,11 +1,9 @@
-const CACHE_VERSION = "nkata-shell-v3";
+const CACHE_VERSION = "nkata-shell-v4";
 const DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
-  "/icons/nkata-source.svg",
-  "/icons/nkata-192.png",
-  "/icons/nkata-512.png"
+  "/images/nkata-logo-original.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -69,7 +67,7 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "NKATA";
   const options = {
     body: payload.body || "Tem uma novidade no NKATA.",
-    icon: payload.icon || "/icons/nkata-192.png",
+    icon: payload.icon || "/images/nkata-logo-original.png",
     badge: "/icons/nkata-badge-96.png",
     image: payload.image || undefined,
     tag: payload.tag || "nkata-notification",

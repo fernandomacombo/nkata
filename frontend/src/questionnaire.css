@@ -39,7 +39,7 @@
   font-weight: 700;
 }
 
-.nk-questionnaire-brand > svg { width: 46px; height: 32px; flex: 0 0 auto; }
+.nk-questionnaire-brand > .nk-logo-asset { width: 46px; height: 32px; }
 
 .nk-questionnaire-brand strong {
   font-size: 0.96rem;
