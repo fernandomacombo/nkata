@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "dev:https": "vite --mode https --host 0.0.0.0 --port 5173",
+    "test:api-runtime": "node --test scripts/test-api-runtime.mjs",
     "test:nkata-id": "node --test scripts/test-nkata-id-runtime.mjs",
     "check:ui": "node scripts/check-ui-policy.mjs",
     "build": "npm run check:ui && vite build",

@@ -1,86 +1,84 @@
-# Publicação do NKATA
+# Publicação segura do NKATA
 
-Este projeto está preparado para executar o frontend React e a API Django no
-mesmo domínio. A publicação real ainda depende de serviços externos: domínio,
-PostgreSQL, armazenamento privado, email e TURN.
+O NKATA está preparado para servir React e Django no mesmo endereço HTTPS.
+Enquanto o domínio ainda não foi comprado, a primeira publicação deve usar o
+subdomínio HTTPS atribuído pela hospedagem, por exemplo
+`https://nome-do-projecto.provedor.app`.
 
-## 1. Domínio
+## Domínio futuro
 
-`nkata.online` é curto e adequado ao produto. Antes de comprar, confirme a
-disponibilidade e conflitos de marca. Uma estrutura simples é:
+`www.nkata.co.mz` fica reservado como endereço futuro. Escrever esse nome no
+código não regista o domínio nem cria DNS ou certificado. Só depois da compra e
+da confirmação de controlo do DNS devem ser acrescentados:
 
-- aplicação: `https://nkata.online`;
-- administração: `https://nkata.online/admin/`;
-- TURN próprio, se usado: `turn.nkata.online`.
+- `www.nkata.co.mz` em `DJANGO_ALLOWED_HOSTS`;
+- `https://www.nkata.co.mz` nas URLs públicas e origens confiáveis;
+- os registos DNS indicados pela hospedagem;
+- o certificado HTTPS emitido para esse domínio.
 
-Não publique documentos, relatórios internos ou painéis de BI em rotas públicas.
+Até esse momento, não use `www.nkata.co.mz` em links enviados aos utilizadores.
 
-## 2. Infraestrutura mínima
+## Infraestrutura mínima
 
-- um serviço web que execute o `Dockerfile`;
-- PostgreSQL gerido com cópias de segurança e TLS;
-- Redis gerido para limites de requisições compartilhados entre processos;
-- bucket S3 compatível, privado, para fotografias, documentos, publicações,
-  momentos e áudio;
-- SMTP transacional;
-- servidor/fornecedor TURN com UDP e TCP/TLS;
-- um segundo processo com `NKATA_PROCESS_TYPE=worker` se a moderação automática
+- serviço web que construa o `Dockerfile` e ofereça HTTPS;
+- PostgreSQL gerido, com TLS e cópias de segurança;
+- Redis privado para rate limiting partilhado entre processos;
+- bucket S3 compatível e privado para fotografias e documentos de identidade;
+- SMTP transacional para entrada e recuperação de palavra-passe;
+- TURN para chamadas entre redes móveis/NATs restritivos;
+- segundo processo com `NKATA_PROCESS_TYPE=worker` quando a moderação automática
   de media estiver ativa.
 
-O SQLite e o disco efémero não são adequados para produção.
+SQLite, cache local e disco efémero não são aceites pela configuração de
+produção. Num servidor próprio, o armazenamento local só pode ser assumido com
+`NKATA_ALLOW_LOCAL_MEDIA_IN_PRODUCTION=True` e volumes persistentes, cifrados e
+incluídos nos backups.
 
-## 3. Variáveis obrigatórias
+## Variáveis da primeira publicação
 
-Copie `.env.example` para o painel seguro do provedor e não envie o ficheiro
-`.env` ao GitHub. Para produção, configure pelo menos:
+Substitua `nome-do-projecto.provedor.app` pelo endereço realmente entregue pela
+hospedagem. Guarde os segredos apenas no painel seguro do provedor.
 
 ```dotenv
 DJANGO_DEBUG=False
-DJANGO_SECRET_KEY=<chave longa e aleatória>
-DJANGO_ALLOWED_HOSTS=nkata.online,www.nkata.online
-NKATA_FRONTEND_URL=https://nkata.online
+DJANGO_SECRET_KEY=<chave longa, aleatória e exclusiva>
+DJANGO_ALLOWED_HOSTS=nome-do-projecto.provedor.app
+NKATA_FRONTEND_URL=https://nome-do-projecto.provedor.app
+NKATA_PUBLIC_APP_URL=https://nome-do-projecto.provedor.app
+
 DATABASE_URL=postgresql://...
+DJANGO_DB_SSL_REQUIRED=True
 REDIS_URL=rediss://...
+
 CORS_ALLOW_ALL_ORIGINS=False
-CORS_ALLOWED_ORIGINS=https://nkata.online
-CSRF_TRUSTED_ORIGINS=https://nkata.online
+CORS_ALLOWED_ORIGINS=https://nome-do-projecto.provedor.app
+CSRF_TRUSTED_ORIGINS=https://nome-do-projecto.provedor.app
+
 SESSION_COOKIE_SECURE=True
 CSRF_COOKIE_SECURE=True
 SECURE_SSL_REDIRECT=True
+DJANGO_SECURE_HSTS_SECONDS=3600
+DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS=False
+DJANGO_SECURE_HSTS_PRELOAD=False
 NKATA_TRUST_PROXY_HEADERS=True
 ```
 
-`NKATA_TRUST_PROXY_HEADERS=True` só deve ser usado quando o proxy do provedor
-substitui e controla `X-Forwarded-Proto`.
+Use `NKATA_TRUST_PROXY_HEADERS=True` somente se o proxy da hospedagem substituir
+e controlar `X-Forwarded-Proto`. Depois de confirmar HTTPS estável, aumente HSTS
+gradualmente. Não ative `includeSubDomains` ou preload num domínio que não
+controla.
 
-Configure também as variáveis `NKATA_STORAGE_*` e `DJANGO_EMAIL_*` descritas em
-`.env.example`. O bucket deve permanecer privado; a aplicação entrega os
-ficheiros somente depois de verificar sessão, perfil, match ou permissão de
-administrador.
+Configure também:
 
-## 4. TURN/WebRTC
+- `NKATA_STORAGE_*` para bucket privado;
+- `DJANGO_EMAIL_*` para SMTP real;
+- `NKATA_WEBRTC_TURN_*` para TURN;
+- `NKATA_WEBPUSH_*` para Push, quando necessário.
 
-STUN sozinho não garante chamadas em redes móveis, CGNAT ou firewalls. Configure
-`NKATA_WEBRTC_TURN_URLS` e uma destas formas de autenticação:
+O frontend não precisa de `VITE_API_BASE_URL` em produção: `/api` usa a mesma
+origem HTTPS da aplicação, mantendo cookies de sessão e CSRF no mesmo domínio.
 
-1. recomendada para coturn: `NKATA_WEBRTC_TURN_SHARED_SECRET`; o backend gera
-   credenciais HMAC temporárias para cada membro;
-2. compatibilidade: `NKATA_WEBRTC_TURN_USERNAME` e
-   `NKATA_WEBRTC_TURN_CREDENTIAL` estáticos.
-
-Exemplo de URLs:
-
-```dotenv
-NKATA_WEBRTC_TURN_URLS=turn:turn.nkata.online:3478?transport=udp,turn:turn.nkata.online:3478?transport=tcp,turns:turn.nkata.online:5349?transport=tcp
-NKATA_WEBRTC_TURN_SHARED_SECRET=<mesmo segredo configurado no coturn>
-NKATA_WEBRTC_TURN_CREDENTIAL_TTL=3600
-```
-
-Abra no firewall 3478 TCP/UDP, 5349 TCP e a faixa UDP de relay definida no
-servidor TURN. Teste entre duas redes diferentes, por exemplo Wi‑Fi e dados
-móveis; testar dois separadores no mesmo computador não comprova o relay.
-
-## 5. Implantação
+## Arranque
 
 O container executa automaticamente:
 
@@ -90,55 +88,46 @@ python manage.py collectstatic --noinput
 gunicorn config.wsgi:application
 ```
 
-Não execute `makemigrations` no servidor. As migrações versionadas no repositório
-são a fonte de verdade.
+Não use `python manage.py runserver` em produção e não execute `makemigrations`
+no servidor. As migrações versionadas são a fonte de verdade.
 
-Antes de direcionar o domínio, valide numa implantação de teste:
+## Validação antes de publicar
+
+Execute com as variáveis reais de produção carregadas:
 
 ```sh
 python manage.py check --deploy
 python manage.py test
-cd frontend && npm ci && npm run build && npm audit --audit-level=high
+python -m pip check
+cd frontend
+npm ci
+npm run test:api-runtime
+npm run test:nkata-id
+npm run build
+npm audit --audit-level=high
 ```
 
-## 6. Verificação após publicar
+Não publique se algum comando falhar. Uma auditoria sem falhas reduz riscos,
+mas não garante segurança absoluta; o ambiente publicado também precisa ser
+testado.
 
-- `GET /api/status/` responde `status: online` e confirma acesso ao banco;
-- criar pedido, preencher questionário, aprovar e entrar;
-- fotografias aparecem no computador e no telemóvel, sem URL `/media/` pública;
-- uma conta não consegue abrir documentos de identidade;
-- interesse mútuo cria match e a conversa envia/recebe mensagens;
-- chamada recusada, perdida e concluída aparece no histórico, com duração;
-- áudio e vídeo funcionam entre redes distintas e o painel técnico confirma TURN;
-- recuperação de senha chega por email;
-- reiniciar web/worker não elimina media nem dados;
-- logs não contêm senhas, tokens, documentos ou credenciais TURN.
+## Verificação após a implantação de teste
 
-Mantenha backup diário do banco e política de retenção do bucket. Teste a
-restauração antes do lançamento público.
+- `GET /api/status/` responde `status: online`;
+- o login cria sessão sem CORS, CSRF ou `Failed to fetch`;
+- host desconhecido é recusado;
+- HTTP redireciona para HTTPS e cookies têm `Secure`, `HttpOnly` e `SameSite`;
+- respostas incluem CSP, `X-Content-Type-Options`, política de referência e
+  proteção contra frames;
+- uma conta não abre BI, selfie ou media privada de outra conta;
+- rate limiting continua igual com mais de um processo web;
+- recuperação de palavra-passe chega por SMTP sem revelar se o email existe;
+- reiniciar web/worker não elimina dados nem media;
+- logs não contêm palavras-passe, tokens, BI, selfies ou credenciais TURN;
+- restauração de backup do PostgreSQL e do bucket é testada.
 
-## 7. Aplicação instalável e notificações Push
+## Mudança futura para `www.nkata.co.mz`
 
-O frontend já inclui manifesto, ícones, service worker, modo standalone e a
-interface de instalação. Em produção, a aplicação precisa ser servida no
-mesmo domínio por HTTPS para a instalação e o Push funcionarem.
-
-Gere um único par VAPID no servidor:
-
-```sh
-python manage.py generate_vapid_keys
-```
-
-Copie o resultado para o ambiente de produção, acrescente o contacto do
-responsável e reinicie o backend:
-
-```dotenv
-NKATA_WEBPUSH_PUBLIC_KEY=...
-NKATA_WEBPUSH_PRIVATE_KEY=...
-NKATA_WEBPUSH_SUBJECT=mailto:suporte@nkata.online
-NKATA_WEBPUSH_TTL=300
-```
-
-Nunca envie a chave privada ao frontend nem a guarde no Git. Depois de iniciar
-sessão, cada membro pode ativar ou desativar o Push na página Notificações.
-O centro de notificações continua funcional mesmo sem as chaves VAPID.
+Depois da compra e do DNS ativo, altere apenas as variáveis de origem/host para
+o domínio real, mantenha o endereço temporário durante a transição e execute
+novamente todos os testes. O código da aplicação não precisa ser reescrito.

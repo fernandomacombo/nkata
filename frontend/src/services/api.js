@@ -1,13 +1,11 @@
 import { normalizeAppUrl } from "./url.js";
+import { resolveApiBaseUrl } from "./apiRuntime.js";
 import {
   isPhoneReachableNkataIdOrigin,
   normalizeNkataIdAppOrigin,
 } from "./nkataIdRuntime.js";
 
-const browserApiBase = window.location.protocol === "https:"
-  ? window.location.origin
-  : `${window.location.protocol}//${window.location.hostname}:8000`;
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || browserApiBase).replace(/\/$/, "");
+const API_BASE_URL = resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL, window.location);
 const NKATA_ID_APP_ORIGIN = normalizeNkataIdAppOrigin(
   import.meta.env.VITE_PUBLIC_APP_ORIGIN,
   window.location.origin,

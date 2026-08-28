@@ -251,10 +251,10 @@ def api_session(request):
     return Response(_dados_da_sessao(request))
 
 
-@csrf_protect
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([LoginRateThrottle])
+@csrf_protect
 def api_login(request):
     email = str(request.data.get("email", "")).strip()
     password = str(request.data.get("password", ""))

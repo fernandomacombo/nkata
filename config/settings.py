@@ -1,6 +1,7 @@
 import os
 import json
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
@@ -28,6 +29,27 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-placeholder-change-in-productio
 if not DEBUG and SECRET_KEY == "dev-placeholder-change-in-production":
     raise ImproperlyConfigured("DJANGO_SECRET_KEY é obrigatória em produção.")
 NKATA_FRONTEND_URL = os.getenv("NKATA_FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
+
+def validate_public_https_origin(name: str, value: str) -> None:
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+        or parsed.hostname.lower() in {"localhost", "127.0.0.1", "::1"}
+    ):
+        raise ImproperlyConfigured(
+            f"{name} deve conter uma origem HTTPS pública, sem caminho nem credenciais."
+        )
+
+
+if not DEBUG:
+    validate_public_https_origin("NKATA_FRONTEND_URL", NKATA_FRONTEND_URL)
 
 # Em desenvolvimento HTTPS, o Vite termina TLS e encaminha /api para
 # o runserver Django. Confiamos apenas no indicador de protocolo enviado por
@@ -81,7 +103,7 @@ NKATA_WEBPUSH_PUBLIC_KEY = os.getenv("NKATA_WEBPUSH_PUBLIC_KEY", "").strip()
 NKATA_WEBPUSH_PRIVATE_KEY = os.getenv("NKATA_WEBPUSH_PRIVATE_KEY", "").strip()
 NKATA_WEBPUSH_SUBJECT = os.getenv(
     "NKATA_WEBPUSH_SUBJECT",
-    "mailto:suporte@nkata.online",
+    "mailto:suporte@nkata.local",
 ).strip()
 NKATA_WEBPUSH_TTL = int(os.getenv("NKATA_WEBPUSH_TTL", "300"))
 
@@ -96,6 +118,8 @@ else:
 
 if not DEBUG and not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS é obrigatório em produção.")
+if not DEBUG and "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS não pode usar '*' em produção.")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -143,6 +167,10 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 database_url = os.getenv("DATABASE_URL", "").strip()
+if not DEBUG and not database_url:
+    raise ImproperlyConfigured("DATABASE_URL PostgreSQL é obrigatória em produção.")
+if not DEBUG and urlsplit(database_url).scheme not in {"postgres", "postgresql"}:
+    raise ImproperlyConfigured("DATABASE_URL deve apontar para PostgreSQL em produção.")
 if database_url:
     DATABASES = {
         "default": dj_database_url.parse(
@@ -161,6 +189,12 @@ else:
     }
 
 redis_url = os.getenv("REDIS_URL", "").strip()
+if not DEBUG and not redis_url:
+    raise ImproperlyConfigured(
+        "REDIS_URL é obrigatória em produção para limites partilhados entre processos."
+    )
+if not DEBUG and urlsplit(redis_url).scheme not in {"redis", "rediss"}:
+    raise ImproperlyConfigured("REDIS_URL deve usar redis:// ou rediss:// em produção.")
 if redis_url:
     CACHES = {
         "default": {
@@ -196,6 +230,8 @@ NKATA_ID_AWS_REKOGNITION_ENABLED = env_bool(
 )
 NKATA_ID_AWS_REGION = os.getenv("NKATA_ID_AWS_REGION", "").strip()
 NKATA_PUBLIC_APP_URL = os.getenv("NKATA_PUBLIC_APP_URL", "").strip().rstrip("/")
+if not DEBUG and NKATA_PUBLIC_APP_URL:
+    validate_public_https_origin("NKATA_PUBLIC_APP_URL", NKATA_PUBLIC_APP_URL)
 
 LANGUAGE_CODE = "pt-mz"
 TIME_ZONE = "Africa/Maputo"
@@ -228,6 +264,16 @@ def env_json(name: str, default=None):
 
 
 storage_bucket = os.getenv("NKATA_STORAGE_BUCKET", "").strip()
+allow_local_media_in_production = env_bool(
+    "NKATA_ALLOW_LOCAL_MEDIA_IN_PRODUCTION",
+    False,
+)
+if not DEBUG and not storage_bucket and not allow_local_media_in_production:
+    raise ImproperlyConfigured(
+        "NKATA_STORAGE_BUCKET é obrigatório em produção. Para um servidor próprio "
+        "com volume persistente e protegido, confirme explicitamente com "
+        "NKATA_ALLOW_LOCAL_MEDIA_IN_PRODUCTION=True."
+    )
 if storage_bucket:
     storage_base_options = {
         "bucket_name": storage_bucket,
@@ -302,6 +348,16 @@ EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("DJANGO_EMAIL_USE_TLS", True)
 EMAIL_USE_SSL = env_bool("DJANGO_EMAIL_USE_SSL", False)
 EMAIL_TIMEOUT = int(os.getenv("DJANGO_EMAIL_TIMEOUT", "15"))
+if not DEBUG and EMAIL_BACKEND == "django.core.mail.backends.console.EmailBackend":
+    raise ImproperlyConfigured(
+        "DJANGO_EMAIL_BACKEND não pode usar o terminal em produção."
+    )
+if not DEBUG and EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
+    if not EMAIL_HOST or not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
+        raise ImproperlyConfigured(
+            "DJANGO_EMAIL_HOST, DJANGO_EMAIL_HOST_USER e "
+            "DJANGO_EMAIL_HOST_PASSWORD são obrigatórios para SMTP em produção."
+        )
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
@@ -336,11 +392,17 @@ CORS_ALLOW_CREDENTIALS = True
 if not DEBUG and CORS_ALLOW_ALL_ORIGINS:
     raise ImproperlyConfigured("CORS_ALLOW_ALL_ORIGINS deve ser False em produção.")
 
+cors_default_origins = (
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "http://localhost:3000,http://127.0.0.1:3000"
+    if DEBUG
+    else ""
+)
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000",
+        cors_default_origins,
     ).split(",")
     if origin.strip()
 ]
@@ -350,12 +412,21 @@ csrf_default_origins = (
     "http://127.0.0.1:5173,"
     "http://localhost:3000,"
     "http://127.0.0.1:3000"
+    if DEBUG
+    else ""
 )
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CSRF_TRUSTED_ORIGINS", csrf_default_origins).split(",")
     if origin.strip()
 ]
+if not DEBUG:
+    for setting_name, origins in (
+        ("CORS_ALLOWED_ORIGINS", CORS_ALLOWED_ORIGINS),
+        ("CSRF_TRUSTED_ORIGINS", CSRF_TRUSTED_ORIGINS),
+    ):
+        for origin in origins:
+            validate_public_https_origin(setting_name, origin)
 
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", not DEBUG)
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", not DEBUG)
