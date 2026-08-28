@@ -42,12 +42,19 @@ def build_access_status_email(pedido):
         return subject, body
 
     if pedido.status == "PRECISA_CORRIGIR":
+        verification = getattr(pedido, "verificacao_identidade", None)
+        recapture_url = ""
+        if verification and verification.status == "REPETIR":
+            recapture_url = (
+                f"\n\nRepetir a verificação pela câmara:\n"
+                f"{frontend}/verificar-identidade/{verification.token}/"
+            )
         subject = "Precisamos rever alguns dados do seu pedido NKATA"
         body = (
             f"Olá {primeiro_nome},\n\n"
             "A análise do seu pedido identificou informação que precisa de ser revista antes de continuarmos.\n\n"
-            "A equipa NKATA entrará em contacto pelo canal usado no pedido com a orientação necessária. "
-            "Por segurança, notas internas da análise não são enviadas automaticamente por email.\n\n"
+            "Por segurança, notas internas da análise não são enviadas automaticamente por email."
+            f"{recapture_url}\n\n"
             f"Acompanhar o pedido:\n{acompanhamento_url}\n\n"
             "NKATA"
         )

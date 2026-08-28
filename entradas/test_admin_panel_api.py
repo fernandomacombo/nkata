@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 
 from .admin_panel_api import _admin_call_duration_seconds, _admin_call_status
 from .call_models import ChamadaMatchNKATA
+from .identity_models import VerificacaoIdentidadeNKATA
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 from .posts_models import PublicacaoNKATA
 
@@ -81,6 +82,14 @@ class AdminPanelApiTests(TestCase):
         response = self.client.get(reverse("entradas_api:admin_summary"))
         self.assertEqual(response.status_code, 403)
 
+        detail = self.client.get(
+            reverse(
+                "entradas_api:admin_access_detail",
+                kwargs={"pedido_id": self.request_record.id},
+            )
+        )
+        self.assertEqual(detail.status_code, 403)
+
     def test_staff_session_exposes_admin_capability(self):
         self.client.force_authenticate(self.staff)
         response = self.client.get(reverse("entradas_api:session"))
@@ -141,6 +150,157 @@ class AdminPanelApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         pending.refresh_from_db()
         self.assertEqual(pending.status, "APROVADO")
+
+    def test_staff_can_review_private_identity_evidence_in_panel(self):
+        pending = create_request("identidade@nkata.test", status="PENDENTE")
+        verification = VerificacaoIdentidadeNKATA.objects.create(
+            pedido=pending,
+            email_hash="a" * 64,
+            idade_declarada=pending.idade,
+            aceita_biometria=True,
+            desafio_selfie="Vire o rosto para a direita.",
+            status="REVISAO",
+            risco="MEDIO",
+            pontuacao_risco=35,
+            bi_frente="nkata-id/documentos/frente.jpg",
+            bi_verso="nkata-id/documentos/verso.jpg",
+            selfie_ao_vivo="nkata-id/selfies/frontal.jpg",
+            selfie_desafio="nkata-id/selfies/desafio.jpg",
+            vivacidade_confirmada=True,
+            verificacoes_imagem={
+                "bi_frente": {"accepted": True, "score": 94, "messages": []},
+                "bi_verso": {"accepted": True, "score": 92, "messages": []},
+                "selfie_ao_vivo": {"accepted": True, "score": 96, "messages": []},
+                "selfie_desafio": {"accepted": True, "score": 95, "messages": []},
+            },
+            sinais_risco={
+                "documento_reutilizado": False,
+                "sequencia_ao_vivo": True,
+                "selfies_diferentes": True,
+                "comparacao_facial_disponivel": False,
+            },
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(
+            reverse(
+                "entradas_api:admin_access_detail",
+                kwargs={"pedido_id": pending.id},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["profile_media"]), 4)
+        self.assertEqual(len(response.data["identity_media"]), 4)
+        self.assertTrue(all(item["available"] for item in response.data["identity_media"]))
+        self.assertEqual(response.data["identity"]["id"], verification.id)
+        self.assertEqual(response.data["identity"]["status"], "REVISAO")
+        self.assertTrue(response.data["identity"]["liveness_confirmed"])
+        self.assertNotIn("documento_sha256", response.data["identity"])
+
+    def test_approving_reviewed_nkata_id_approves_identity_and_request(self):
+        pending = create_request("decisao@nkata.test", status="EM_ANALISE")
+        verification = VerificacaoIdentidadeNKATA.objects.create(
+            pedido=pending,
+            email_hash="b" * 64,
+            idade_declarada=pending.idade,
+            aceita_biometria=True,
+            desafio_selfie="Vire o rosto.",
+            status="REVISAO",
+            bi_frente="nkata-id/documentos/frente.jpg",
+            bi_verso="nkata-id/documentos/verso.jpg",
+            selfie_ao_vivo="nkata-id/selfies/frontal.jpg",
+            selfie_desafio="nkata-id/selfies/desafio.jpg",
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.post(
+            reverse("entradas_api:admin_action"),
+            {"resource": "access", "action": "approve", "id": pending.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        pending.refresh_from_db()
+        verification.refresh_from_db()
+        self.assertEqual(pending.status, "APROVADO")
+        self.assertEqual(verification.status, "APROVADA")
+        self.assertEqual(verification.decisao_origem, "HUMANA")
+        self.assertEqual(verification.analisado_por, self.staff)
+
+    def test_incomplete_nkata_id_cannot_be_approved(self):
+        pending = create_request("incompleto@nkata.test", status="PENDENTE")
+        VerificacaoIdentidadeNKATA.objects.create(
+            pedido=pending,
+            email_hash="c" * 64,
+            idade_declarada=pending.idade,
+            aceita_biometria=True,
+            desafio_selfie="Vire o rosto.",
+            status="REVISAO",
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.post(
+            reverse("entradas_api:admin_action"),
+            {"resource": "access", "action": "approve", "id": pending.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        pending.refresh_from_db()
+        self.assertEqual(pending.status, "PENDENTE")
+
+    def test_rejection_requires_an_internal_reason(self):
+        pending = create_request("motivo@nkata.test", status="EM_ANALISE")
+        self.client.force_authenticate(self.staff)
+        response = self.client.post(
+            reverse("entradas_api:admin_action"),
+            {"resource": "access", "action": "reject", "id": pending.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        pending.refresh_from_db()
+        self.assertEqual(pending.status, "EM_ANALISE")
+
+    def test_requesting_new_captures_resets_identity_safely(self):
+        reason = "A selfie está desfocada; repetir todas as capturas."
+        pending = create_request("repetir@nkata.test", status="EM_ANALISE")
+        verification = VerificacaoIdentidadeNKATA.objects.create(
+            pedido=pending,
+            email_hash="e" * 64,
+            idade_declarada=pending.idade,
+            aceita_biometria=True,
+            desafio_selfie="Vire o rosto.",
+            status="REVISAO",
+            bi_frente="nkata-id/documentos/frente.jpg",
+            bi_verso="nkata-id/documentos/verso.jpg",
+            selfie_ao_vivo="nkata-id/selfies/frontal.jpg",
+            selfie_desafio="nkata-id/selfies/desafio.jpg",
+            vivacidade_confirmada=True,
+            pontuacao_risco=35,
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.post(
+            reverse("entradas_api:admin_action"),
+            {
+                "resource": "access",
+                "action": "correction",
+                "id": pending.id,
+                "note": reason,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        pending.refresh_from_db()
+        verification.refresh_from_db()
+        self.assertEqual(pending.status, "PRECISA_CORRIGIR")
+        self.assertEqual(verification.status, "REPETIR")
+        self.assertFalse(verification.capturas_completas)
+        self.assertFalse(verification.vivacidade_confirmada)
+        self.assertEqual(verification.pontuacao_risco, 0)
+        self.assertEqual(verification.nota_interna, reason)
 
     def test_questionnaire_link_is_exposed_only_for_approved_pending_response(self):
         waiting = create_request("aguarda@nkata.test", status="APROVADO")

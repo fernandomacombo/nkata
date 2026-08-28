@@ -5,17 +5,20 @@ import {
   BarChart3,
   Check,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   CircleAlert,
   Clock3,
   Copy,
   ExternalLink,
+  Eye,
   FileCheck2,
   HeartHandshake,
   History,
   Image,
   LayoutDashboard,
   Loader2,
+  Maximize2,
   MessageSquare,
   PauseCircle,
   Phone,
@@ -30,6 +33,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  fetchAdminAccessDetail,
   fetchAdminList,
   fetchAdminSummary,
   performAdminAction,
@@ -37,12 +41,12 @@ import {
 
 const SECTIONS = [
   { id: "overview", label: "Visão geral", description: "Estado da comunidade", icon: LayoutDashboard },
-  { id: "access", label: "Pedidos", description: "Entrada e verificação", icon: FileCheck2 },
-  { id: "members", label: "Membros", description: "Contas e perfis", icon: Users },
-  { id: "content", label: "Moderação", description: "Publicações e momentos", icon: ShieldCheck },
-  { id: "reports", label: "Denúncias", description: "Segurança da comunidade", icon: ShieldAlert },
+  { id: "access", label: "Pedidos", description: "Identidade e entrada", icon: FileCheck2 },
+  { id: "members", label: "Membros", description: "Contas já aprovadas", icon: Users },
+  { id: "content", label: "Moderação", description: "Fotos e momentos", icon: ShieldCheck },
+  { id: "reports", label: "Denúncias", description: "Casos reportados", icon: ShieldAlert },
   { id: "operations", label: "Operações", description: "Matches e chamadas", icon: Activity },
-  { id: "audit", label: "Auditoria", description: "Histórico administrativo", icon: History },
+  { id: "audit", label: "Auditoria", description: "Ações dos operadores", icon: History },
 ];
 
 const FILTERS = {
@@ -240,6 +244,183 @@ function DetailsDialog({ pending, onClose }) {
   );
 }
 
+function EvidenceGroup({ title, items, onPreview }) {
+  return (
+    <section className="nk-admin-evidence-group">
+      <header><h3>{title}</h3><span>{items.filter((item) => item.available).length}/{items.length}</span></header>
+      <div>
+        {items.map((item) => (
+          <button
+            type="button"
+            key={item.key}
+            className={!item.available ? "is-missing" : ""}
+            onClick={() => item.available && onPreview(item)}
+            disabled={!item.available}
+          >
+            {item.available ? (
+              <img src={item.url} alt={item.label} loading="lazy" />
+            ) : (
+              <span><Image size={24} /></span>
+            )}
+            <strong>{item.label}</strong>
+            {item.available && <Maximize2 size={15} />}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetry, onMove, onAction }) {
+  const [preview, setPreview] = useState(null);
+
+  useEffect(() => setPreview(null), [selection?.item?.id]);
+  if (!selection) return null;
+
+  const item = detail || selection.item;
+  const identity = detail?.identity;
+  const canDecide = detail && !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status);
+  const approve = {
+    section: "access",
+    item,
+    action: "approve",
+    label: "Aprovar identidade e pedido",
+    description: `Confirmar que os documentos e as fotografias de ${item.name} correspondem e libertar o questionário.`,
+    icon: UserCheck,
+  };
+  const correction = {
+    section: "access",
+    item,
+    action: "correction",
+    label: "Pedir novas capturas",
+    description: `Invalidar as capturas atuais de ${item.name} e pedir uma nova verificação pela câmara.`,
+    acceptsNote: true,
+    noteRequired: true,
+    icon: CircleAlert,
+  };
+  const reject = {
+    section: "access",
+    item,
+    action: "reject",
+    label: "Recusar pedido",
+    description: `Encerrar o pedido de ${item.name}. Esta decisão deve ter um motivo interno.`,
+    acceptsNote: true,
+    noteRequired: true,
+    danger: true,
+    icon: Ban,
+  };
+
+  return (
+    <div className="nk-admin-dialog-layer" role="presentation">
+      <button type="button" className="nk-admin-dialog-backdrop" onClick={onClose} aria-label="Fechar" />
+      <section className="nk-admin-review" role="dialog" aria-modal="true" aria-labelledby="admin-review-title">
+        <header>
+          <div>
+            <small>Revisão do pedido</small>
+            <h2 id="admin-review-title">{item.name}</h2>
+            <span>{item.email} · recebido {formatDate(item.created_at)}</span>
+          </div>
+          <div>
+            <StatusBadge status={item.status} label={item.status_label} />
+            <button type="button" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
+          </div>
+        </header>
+
+        {loading ? (
+          <div className="nk-admin-review__state"><Loader2 className="nk-spin" size={28} /><strong>A abrir evidências privadas</strong></div>
+        ) : error ? (
+          <div className="nk-admin-review__state"><CircleAlert size={28} /><strong>{error}</strong><button type="button" onClick={onRetry}>Tentar novamente</button></div>
+        ) : detail ? (
+          <div className="nk-admin-review__body">
+            <div className="nk-admin-review__evidence">
+              <EvidenceGroup title="Fotografias do perfil" items={detail.profile_media} onPreview={setPreview} />
+              <EvidenceGroup title="Identidade enviada" items={detail.identity_media} onPreview={setPreview} />
+            </div>
+
+            <aside className="nk-admin-review__summary">
+              <section>
+                <header><h3>Verificação</h3><StatusBadge status={identity.status} label={identity.status_label} /></header>
+                <ul className="nk-admin-review__checks">
+                  <li className={identity.captures_complete ? "is-ok" : "is-alert"}>
+                    {identity.captures_complete ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}
+                    <span><strong>Capturas obrigatórias</strong><small>{identity.captures_complete ? "Completas" : "Incompletas"}</small></span>
+                  </li>
+                  {identity.mode === "NKATA_ID" && (
+                    <>
+                      <li className={identity.liveness_confirmed ? "is-ok" : "is-alert"}>
+                        {identity.liveness_confirmed ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}
+                        <span><strong>Sequência ao vivo</strong><small>{identity.liveness_confirmed ? "Confirmada" : "Requer atenção"}</small></span>
+                      </li>
+                      <li className={identity.risk === "ALTO" ? "is-alert" : "is-ok"}>
+                        {identity.risk === "ALTO" ? <ShieldAlert size={17} /> : <ShieldCheck size={17} />}
+                        <span><strong>Risco automático</strong><small>{identity.risk_label}{identity.risk_score !== null ? ` · ${identity.risk_score}/100` : ""}</small></span>
+                      </li>
+                      <li>
+                        <Eye size={17} />
+                        <span><strong>Comparação facial</strong><small>{identity.face_comparison_available ? `${identity.face_similarity}%` : "Revisão visual necessária"}</small></span>
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </section>
+
+              {identity.checks?.length > 0 && (
+                <section>
+                  <header><h3>Qualidade das imagens</h3></header>
+                  <div className="nk-admin-review__quality">
+                    {identity.checks.map((check) => (
+                      <div key={check.key} className={check.accepted ? "is-ok" : "is-alert"}>
+                        <span>{check.label}</span><strong>{check.score ?? "—"}{check.score != null ? "%" : ""}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <header><h3>Dados declarados</h3></header>
+                <dl>
+                  <div><dt>Telefone</dt><dd>{detail.phone}</dd></div>
+                  <div><dt>Cidade</dt><dd>{detail.city}</dd></div>
+                  <div><dt>Idade</dt><dd>{detail.age} anos</dd></div>
+                  <div><dt>Género</dt><dd>{detail.gender_label}</dd></div>
+                  <div className="is-wide"><dt>Objetivo</dt><dd>{detail.objective_label}</dd></div>
+                  {detail.note && <div className="is-wide"><dt>Última observação</dt><dd>{detail.note}</dd></div>}
+                </dl>
+              </section>
+
+              <a href={detail.admin_url} target="_blank" rel="noreferrer">Ficha técnica avançada <ExternalLink size={14} /></a>
+            </aside>
+          </div>
+        ) : null}
+
+        <footer>
+          <div className="nk-admin-review__nav">
+            <button type="button" onClick={() => onMove(-1)} disabled={!selection.hasPrevious} aria-label="Pedido anterior"><ChevronLeft size={18} /></button>
+            <span>{selection.position} de {selection.total}</span>
+            <button type="button" onClick={() => onMove(1)} disabled={!selection.hasNext} aria-label="Próximo pedido"><ChevronRight size={18} /></button>
+          </div>
+          {canDecide && (
+            <div className="nk-admin-review__decisions">
+              <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>
+              <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> Recusar</button>
+              <button type="button" className="is-primary" onClick={() => onAction(approve)} disabled={!identity?.captures_complete}><UserCheck size={16} /> Aprovar</button>
+            </div>
+          )}
+        </footer>
+
+        {preview && (
+          <div className="nk-admin-media-preview" role="dialog" aria-modal="true" aria-label={preview.label}>
+            <button type="button" onClick={() => setPreview(null)} aria-label="Fechar imagem"><X size={21} /></button>
+            <img src={preview.url} alt={preview.label} />
+            <strong>{preview.label}</strong>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function EmptyState({ loading, error, onRetry }) {
   if (loading) {
     return (
@@ -430,14 +611,6 @@ function MediaThumb({ item }) {
 
 function actionsFor(section, item) {
   if (section === "access") {
-    const review = { action: "review", label: "Analisar", description: `Colocar o pedido de ${item.name} em análise.`, icon: Clock3 };
-    const approve = { action: "approve", label: "Aprovar", description: `Aprovar o pedido de ${item.name} e libertar o questionário.`, icon: UserCheck };
-    const correction = { action: "correction", label: "Pedir correção", description: `Devolver o pedido de ${item.name} para correção.`, acceptsNote: true, noteRequired: true, icon: CircleAlert };
-    const reject = { action: "reject", label: "Recusar", description: `Recusar o pedido de ${item.name}. O perfil associado ficará oculto.`, acceptsNote: true, danger: true, icon: Ban };
-    if (item.status === "PENDENTE") return [review, approve, correction];
-    if (item.status === "EM_ANALISE") return [approve, correction, reject];
-    if (item.status === "PRECISA_CORRIGIR") return [review, approve, reject];
-    if (["RECUSADO", "BLOQUEADO"].includes(item.status)) return [review];
     return [];
   }
   if (section === "members") {
@@ -497,7 +670,7 @@ function AdminRow({ section, item, onAction, onCopyQuestionnaire, onDetails }) {
         {section === "audit" && item.detail && <p>{item.detail}</p>}
       </div>
       <div className="nk-admin-row__meta">
-        {section === "access" && <><span>{item.age} anos · {item.gender_label}</span><small>{item.has_questionnaire ? "Questionário concluído" : "Aguardando questionário"}</small></>}
+        {section === "access" && <><span>{item.age} anos · {item.gender_label}</span><small>{item.identity_ready ? item.identity_status_label : "Identidade incompleta"}</small></>}
         {section === "members" && <><span>{item.age} anos · {item.visible ? "Visível" : "Oculto"}</span><small>{item.pending_reports ? `${item.pending_reports} denúncia(s) pendente(s)` : "Sem denúncias pendentes"}</small></>}
         {section === "content" && <><span>Risco: {item.risk_label}</span><small>{item.visibility_label}</small></>}
         {section === "reports" && <><span>Por {item.reporter}</span><small>{formatDate(item.created_at)}</small></>}
@@ -538,8 +711,8 @@ function AdminRow({ section, item, onAction, onCopyQuestionnaire, onDetails }) {
             </button>
           );
         })}
-        <button type="button" onClick={() => onDetails({ section, item })} title="Ver detalhes">
-          <ExternalLink size={16} /><span>Detalhes</span>
+        <button type="button" className={section === "access" ? "is-primary" : ""} onClick={() => onDetails({ section, item })} title={section === "access" ? "Rever pedido" : "Ver detalhes"}>
+          {section === "access" ? <Eye size={16} /> : <ExternalLink size={16} />}<span>{section === "access" ? "Rever pedido" : "Detalhes"}</span>
         </button>
       </div>
     </article>
@@ -558,6 +731,10 @@ export default function AdminPanelPage({ session }) {
   const [filters, setFilters] = useState({ query: "", status: "", kind: "" });
   const [pendingAction, setPendingAction] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
+  const [accessReview, setAccessReview] = useState(null);
+  const [accessDetail, setAccessDetail] = useState(null);
+  const [accessDetailLoading, setAccessDetailLoading] = useState(false);
+  const [accessDetailError, setAccessDetailError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -627,6 +804,42 @@ export default function AdminPanelPage({ session }) {
 
   const openAction = (action) => setPendingAction(action);
 
+  const openAccessReview = useCallback(async (item) => {
+    const index = listData.results.findIndex((entry) => entry.id === item.id);
+    setAccessReview({
+      item,
+      index,
+      position: index + 1,
+      total: listData.results.length,
+      hasPrevious: index > 0,
+      hasNext: index >= 0 && index < listData.results.length - 1,
+    });
+    setAccessDetail(null);
+    setAccessDetailError("");
+    setAccessDetailLoading(true);
+    try {
+      setAccessDetail(await fetchAdminAccessDetail(item.id));
+    } catch (error) {
+      setAccessDetailError(error.message || "Não foi possível abrir este pedido.");
+    } finally {
+      setAccessDetailLoading(false);
+    }
+  }, [listData.results]);
+
+  const openDetails = (pending) => {
+    if (pending.section === "access") {
+      openAccessReview(pending.item);
+      return;
+    }
+    setSelectedDetails(pending);
+  };
+
+  const moveAccessReview = (direction) => {
+    if (!accessReview) return;
+    const next = listData.results[accessReview.index + direction];
+    if (next) openAccessReview(next);
+  };
+
   const copyQuestionnaire = async (item) => {
     try {
       const url = new URL(item.questionnaire_path, window.location.origin).toString();
@@ -660,6 +873,13 @@ export default function AdminPanelPage({ session }) {
       setPendingAction(null);
       setToast(result.message || "Alteração concluída.");
       await Promise.all([loadList(), loadSummary()]);
+      if (section === "access" && accessReview?.item?.id === item.id) {
+        try {
+          setAccessDetail(await fetchAdminAccessDetail(item.id));
+        } catch {
+          setAccessDetailError("A decisão foi guardada. Atualize a ficha para ver o novo estado.");
+        }
+      }
     } catch (error) {
       setToast(error.message || "Não foi possível concluir a alteração.");
     } finally {
@@ -763,7 +983,7 @@ export default function AdminPanelPage({ session }) {
                         item={item}
                         onAction={openAction}
                         onCopyQuestionnaire={copyQuestionnaire}
-                        onDetails={setSelectedDetails}
+                        onDetails={openDetails}
                       />
                     ))
                     : <EmptyState loading={listLoading} error={listError} onRetry={() => loadList()} />}
@@ -776,6 +996,16 @@ export default function AdminPanelPage({ session }) {
 
       {toast && <div className="nk-admin-toast" role="status"><CheckCircle2 size={18} />{toast}</div>}
       <DetailsDialog pending={selectedDetails} onClose={() => setSelectedDetails(null)} />
+      <AccessReviewDialog
+        selection={accessReview}
+        detail={accessDetail}
+        loading={accessDetailLoading}
+        error={accessDetailError}
+        onClose={() => { setAccessReview(null); setAccessDetail(null); }}
+        onRetry={() => accessReview && openAccessReview(accessReview.item)}
+        onMove={moveAccessReview}
+        onAction={openAction}
+      />
       <ActionDialog pending={pendingAction} busy={actionBusy} onClose={() => !actionBusy && setPendingAction(null)} onConfirm={confirmAction} />
     </main>
   );

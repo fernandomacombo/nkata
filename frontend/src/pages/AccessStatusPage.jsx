@@ -345,6 +345,15 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
             </div>
 
             <footer>
+              {result.next_action === "IDENTITY_RECAPTURE" && result.next_path && (
+                <button
+                  type="button"
+                  className="nk-button nk-button--wine"
+                  onClick={() => window.location.assign(result.next_path)}
+                >
+                  <RefreshCw size={18} /> Repetir verificação
+                </button>
+              )}
               {result.can_login && (
                 <button type="button" className="nk-button nk-button--wine" onClick={onLogin}>
                   <BadgeCheck size={18} /> Entrar na conta

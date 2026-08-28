@@ -12,6 +12,10 @@ export function fetchAdminList({ section, query = "", status = "", kind = "", si
   return request(`/api/painel/lista/?${params.toString()}`, { signal });
 }
 
+export function fetchAdminAccessDetail(id, { signal } = {}) {
+  return request(`/api/painel/pedidos/${id}/`, { signal });
+}
+
 export function performAdminAction(payload) {
   return request("/api/painel/acoes/", {
     method: "POST",

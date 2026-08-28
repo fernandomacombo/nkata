@@ -41,6 +41,11 @@ urlpatterns = [
     path("auth/logout/", api_views.api_logout, name="logout"),
     path("painel/resumo/", admin_panel_api.api_admin_summary, name="admin_summary"),
     path("painel/lista/", admin_panel_api.api_admin_list, name="admin_list"),
+    path(
+        "painel/pedidos/<int:pedido_id>/",
+        admin_panel_api.api_admin_access_detail,
+        name="admin_access_detail",
+    ),
     path("painel/acoes/", admin_panel_api.api_admin_action, name="admin_action"),
     path(
         "auth/password-change/",

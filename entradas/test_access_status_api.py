@@ -6,6 +6,7 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
+from .identity_models import VerificacaoIdentidadeNKATA
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 
 
@@ -150,6 +151,35 @@ class AccessStatusApiTests(TestCase):
             "selfie_com_bi",
         }
         self.assertTrue(forbidden_fields.isdisjoint(payload.keys()))
+
+    def test_pedido_de_nova_captura_devolve_apenas_o_caminho_privado(self):
+        pedido = self.create_request(
+            status="PRECISA_CORRIGIR",
+            email="recaptura@example.com",
+        )
+        verification = VerificacaoIdentidadeNKATA.objects.create(
+            pedido=pedido,
+            email_hash="d" * 64,
+            idade_declarada=pedido.idade,
+            aceita_biometria=True,
+            desafio_selfie="Vire o rosto.",
+            status="REPETIR",
+        )
+
+        response = self.client.post(
+            "/api/acompanhar-pedido/",
+            data={"email": pedido.email, "codigo": str(pedido.token)},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["next_action"], "IDENTITY_RECAPTURE")
+        self.assertEqual(
+            payload["next_path"],
+            f"/verificar-identidade/{verification.token}/",
+        )
+        self.assertNotIn("observacao_admin", payload)
 
     def test_pedido_aprovado_indica_que_pode_entrar(self):
         pedido = self.create_request(status="APROVADO", email="aprovado@example.com")

@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from .call_models import ChamadaMatchNKATA
 from .content_moderation_models import AnaliseAutomaticaConteudoNKATA
 from .content_moderation_service import moderation_provider_label, record_human_decision
+from .identity_models import nkata_id_expires_at
 from .models import (
     DenunciaPerfil,
     MatchPerfil,
@@ -36,6 +37,30 @@ AUDIT_ACTIONS = {
     1: ("CRIACAO", "Criação"),
     2: ("ALTERACAO", "Alteração"),
     3: ("REMOCAO", "Remoção"),
+}
+
+PROFILE_MEDIA_LABELS = (
+    ("foto_perfil", "Fotografia principal"),
+    ("foto_extra_1", "Fotografia 2"),
+    ("foto_extra_2", "Fotografia 3"),
+    ("foto_extra_3", "Fotografia 4"),
+)
+LEGACY_IDENTITY_MEDIA_LABELS = (
+    ("bi_frente", "BI — frente"),
+    ("bi_verso", "BI — verso"),
+    ("selfie_com_bi", "Selfie com BI"),
+)
+NKATA_ID_MEDIA_LABELS = (
+    ("bi_frente", "BI — frente"),
+    ("bi_verso", "BI — verso"),
+    ("selfie_ao_vivo", "Selfie frontal"),
+    ("selfie_desafio", "Selfie do desafio"),
+)
+CAPTURE_CHECK_LABELS = {
+    "bi_frente": "BI — frente",
+    "bi_verso": "BI — verso",
+    "selfie_ao_vivo": "Selfie frontal",
+    "selfie_desafio": "Selfie do desafio",
 }
 
 
@@ -180,7 +205,7 @@ def _access_rows(request, limit):
     status_filter = str(request.query_params.get("status", "")).strip().upper()
     queryset = (
         PedidoEntrada.objects
-        .select_related("perfil__usuario", "questionario")
+        .select_related("perfil__usuario", "questionario", "verificacao_identidade")
         .order_by("-criado_em")
     )
     if query:
@@ -198,6 +223,7 @@ def _access_rows(request, limit):
     results = []
     for item in queryset[:limit]:
         profile = getattr(item, "perfil", None)
+        verification = getattr(item, "verificacao_identidade", None)
         has_questionnaire = hasattr(item, "questionario")
         results.append({
             "id": item.id,
@@ -222,11 +248,135 @@ def _access_rows(request, limit):
                 profile and profile.usuario and profile.usuario.has_usable_password()
             ),
             "note": item.observacao_admin,
+            "identity_status": verification.status if verification else "LEGADO",
+            "identity_status_label": (
+                verification.get_status_display() if verification else "Verificação anterior"
+            ),
+            "identity_ready": (
+                verification.capturas_completas
+                if verification
+                else all(bool(getattr(item, field)) for field, _label in LEGACY_IDENTITY_MEDIA_LABELS)
+            ),
             "photo_url": f"/api/admin/pedidos/{item.id}/media/foto_perfil/",
             "created_at": item.criado_em,
             "admin_url": f"/admin/entradas/pedidoentrada/{item.id}/change/",
         })
     return {"total": total, "results": results}
+
+
+def _media_item(owner, field_name, label, url):
+    available = bool(getattr(owner, field_name, None))
+    return {
+        "key": field_name,
+        "label": label,
+        "available": available,
+        "url": url if available else "",
+    }
+
+
+def _quality_checks(verification):
+    results = []
+    raw_checks = verification.verificacoes_imagem or {}
+    for field_name, label in CAPTURE_CHECK_LABELS.items():
+        value = raw_checks.get(field_name) or {}
+        results.append({
+            "key": field_name,
+            "label": label,
+            "available": bool(getattr(verification, field_name, None)),
+            "accepted": bool(value.get("accepted")),
+            "score": value.get("score"),
+        })
+    return results
+
+
+def _access_detail_payload(item):
+    verification = getattr(item, "verificacao_identidade", None)
+    profile_media = [
+        _media_item(
+            item,
+            field_name,
+            label,
+            f"/api/admin/pedidos/{item.id}/media/{field_name}/",
+        )
+        for field_name, label in PROFILE_MEDIA_LABELS
+    ]
+
+    if verification:
+        identity_media = [
+            _media_item(
+                verification,
+                field_name,
+                label,
+                f"/api/admin/nkata-id/{verification.id}/media/{field_name}/",
+            )
+            for field_name, label in NKATA_ID_MEDIA_LABELS
+        ]
+        identity = {
+            "mode": "NKATA_ID",
+            "id": verification.id,
+            "status": verification.status,
+            "status_label": verification.get_status_display(),
+            "risk": verification.risco,
+            "risk_label": verification.get_risco_display(),
+            "risk_score": verification.pontuacao_risco,
+            "captures_complete": verification.capturas_completas,
+            "liveness_confirmed": verification.vivacidade_confirmada,
+            "face_similarity": verification.correspondencia_facial,
+            "face_comparison_available": verification.correspondencia_facial is not None,
+            "checks": _quality_checks(verification),
+        }
+    else:
+        identity_media = [
+            _media_item(
+                item,
+                field_name,
+                label,
+                f"/api/admin/pedidos/{item.id}/media/{field_name}/",
+            )
+            for field_name, label in LEGACY_IDENTITY_MEDIA_LABELS
+        ]
+        captures_complete = all(entry["available"] for entry in identity_media)
+        identity = {
+            "mode": "LEGACY",
+            "id": None,
+            "status": "LEGADO",
+            "status_label": "Verificação anterior",
+            "risk": "INDEFINIDO",
+            "risk_label": "Revisão humana",
+            "risk_score": None,
+            "captures_complete": captures_complete,
+            "liveness_confirmed": None,
+            "face_similarity": None,
+            "face_comparison_available": False,
+            "checks": [],
+        }
+
+    profile = getattr(item, "perfil", None)
+    return {
+        "id": item.id,
+        "name": item.nome_completo,
+        "email": item.email,
+        "phone": item.telefone,
+        "city": item.cidade,
+        "age": item.idade,
+        "gender_label": item.get_genero_display(),
+        "objective_label": item.get_objetivo_display(),
+        "status": item.status,
+        "status_label": item.get_status_display(),
+        "accepted_verification": item.aceita_verificacao,
+        "has_questionnaire": hasattr(item, "questionario"),
+        "has_profile": bool(profile),
+        "has_password": bool(
+            profile and profile.usuario and profile.usuario.has_usable_password()
+        ),
+        "note": item.observacao_admin,
+        "created_at": item.criado_em,
+        "updated_at": item.atualizado_em,
+        "admin_url": f"/admin/entradas/pedidoentrada/{item.id}/change/",
+        "profile_media": profile_media,
+        "identity_media": identity_media,
+        "identity": identity,
+    }
 
 
 def _analysis_map(content_type, ids):
@@ -522,6 +672,25 @@ def api_admin_list(request):
     return Response(handler(request, limit))
 
 
+@api_view(["GET"])
+@permission_classes([permissions.IsAdminUser])
+def api_admin_access_detail(request, pedido_id):
+    item = (
+        PedidoEntrada.objects
+        .select_related(
+            "perfil__usuario",
+            "questionario",
+            "verificacao_identidade",
+            "verificacao_identidade__analisado_por",
+        )
+        .filter(id=pedido_id)
+        .first()
+    )
+    if not item:
+        return Response({"detail": "Pedido não encontrado."}, status=404)
+    return Response(_access_detail_payload(item))
+
+
 def _action_member(request, object_id, action):
     profile = PerfilNKATA.objects.select_related("pedido", "usuario").filter(
         id=object_id
@@ -550,20 +719,85 @@ def _action_member(request, object_id, action):
 
 
 def _action_access(request, object_id, action):
-    item = PedidoEntrada.objects.filter(id=object_id).first()
+    item = (
+        PedidoEntrada.objects
+        .select_related("verificacao_identidade")
+        .select_for_update()
+        .filter(id=object_id)
+        .first()
+    )
     if not item:
         return None, "Pedido não encontrado.", 404
-    status_map = {
-        "review": "EM_ANALISE",
-        "approve": "APROVADO",
-        "correction": "PRECISA_CORRIGIR",
-        "reject": "RECUSADO",
-        "block": "BLOQUEADO",
-    }
-    next_status = status_map.get(action)
-    if not next_status:
+    if action not in {"review", "approve", "correction", "reject", "block"}:
         return None, "Ação de pedido inválida.", 400
     note = str(request.data.get("note", "")).strip()[:1000]
+    if action in {"correction", "reject"} and not note:
+        return None, "Indique o motivo desta decisão.", 400
+
+    verification = getattr(item, "verificacao_identidade", None)
+    if action == "approve":
+        if verification:
+            if not verification.capturas_completas:
+                return None, "As quatro capturas do NKATA ID são obrigatórias.", 400
+            if verification.status not in {"REVISAO", "APROVADA"}:
+                return None, "A identidade ainda não está pronta para aprovação.", 400
+            if verification.status == "REVISAO":
+                verification.status = "APROVADA"
+                verification.decisao_origem = "HUMANA"
+                verification.analisado_por = request.user
+                verification.analisado_em = timezone.now()
+                if note:
+                    verification.nota_interna = note
+                verification.save(update_fields=[
+                    "status", "decisao_origem", "analisado_por", "analisado_em",
+                    "nota_interna", "atualizado_em",
+                ])
+        elif not all(
+            bool(getattr(item, field_name))
+            for field_name, _label in LEGACY_IDENTITY_MEDIA_LABELS
+        ):
+            return None, "Os documentos de identidade estão incompletos.", 400
+        next_status = "APROVADO"
+    elif action == "correction":
+        next_status = "PRECISA_CORRIGIR"
+        if verification:
+            for field_name in verification.CAPTURE_FIELDS:
+                field = getattr(verification, field_name)
+                if field:
+                    field.delete(save=False)
+            verification.status = "REPETIR"
+            verification.risco = "INDEFINIDO"
+            verification.pontuacao_risco = 0
+            verification.etapa_atual = "bi_frente"
+            verification.verificacoes_imagem = {}
+            verification.sinais_risco = {}
+            verification.documento_sha256 = ""
+            verification.selfie_sha256 = ""
+            verification.provedor_biometrico = "qualidade_local"
+            verification.correspondencia_facial = None
+            verification.vivacidade_confirmada = False
+            verification.decisao_origem = "HUMANA"
+            verification.nota_interna = note
+            verification.analisado_por = request.user
+            verification.analisado_em = timezone.now()
+            verification.expira_em = nkata_id_expires_at()
+            verification.save()
+    elif action == "reject":
+        next_status = "RECUSADO"
+        if verification:
+            verification.status = "REJEITADA"
+            verification.risco = "ALTO"
+            verification.decisao_origem = "HUMANA"
+            verification.nota_interna = note
+            verification.analisado_por = request.user
+            verification.analisado_em = timezone.now()
+            verification.save(update_fields=[
+                "status", "risco", "decisao_origem", "nota_interna",
+                "analisado_por", "analisado_em", "atualizado_em",
+            ])
+    else:
+        next_status = "EM_ANALISE" if action == "review" else "BLOQUEADO"
+
     item.status = next_status
     if note:
         item.observacao_admin = note

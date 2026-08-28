@@ -192,6 +192,19 @@ def _status_payload(pedido):
     if pedido.status == "APROVADO" and can_login:
         message = "A sua conta está pronta. Já pode entrar no NKATA com o email e a palavra-passe que criou."
 
+    verification = getattr(pedido, "verificacao_identidade", None)
+    recapture_path = ""
+    if (
+        pedido.status == "PRECISA_CORRIGIR"
+        and verification
+        and verification.status == "REPETIR"
+    ):
+        message = (
+            "A equipa pediu novas capturas da identidade. Use a câmara do telefone "
+            "para repetir a verificação e depois consulte novamente este pedido."
+        )
+        recapture_path = f"/verificar-identidade/{verification.token}/"
+
     return {
         "codigo": str(pedido.token),
         "status": pedido.status,
@@ -203,7 +216,13 @@ def _status_payload(pedido):
         "created_at": pedido.criado_em,
         "updated_at": pedido.atualizado_em,
         "can_login": can_login,
-        "next_action": "LOGIN" if can_login else "QUESTIONNAIRE" if pedido.status == "APROVADO" else None,
+        "next_action": (
+            "LOGIN" if can_login
+            else "QUESTIONNAIRE" if pedido.status == "APROVADO"
+            else "IDENTITY_RECAPTURE" if recapture_path
+            else None
+        ),
+        "next_path": recapture_path,
     }
 
 

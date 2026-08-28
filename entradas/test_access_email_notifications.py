@@ -36,6 +36,22 @@ class AccessEmailNotificationsTests(SimpleTestCase):
         self.assertNotIn("NOTA INTERNA", body)
         self.assertIn("acompanhar-pedido", body)
 
+    def test_correcao_de_identidade_inclui_link_privado_de_nova_captura(self):
+        verification = SimpleNamespace(
+            status="REPETIR",
+            token=UUID("87654321-4321-8765-4321-876543218765"),
+        )
+        _subject, body = build_access_status_email(self.pedido(
+            "PRECISA_CORRIGIR",
+            verificacao_identidade=verification,
+        ))
+
+        self.assertIn(
+            "http://localhost:5173/verificar-identidade/87654321-4321-8765-4321-876543218765/",
+            body,
+        )
+        self.assertNotIn("NOTA INTERNA", body)
+
     def test_recusa_nao_inclui_detalhes_internos(self):
         subject, body = build_access_status_email(self.pedido("RECUSADO"))
 
