@@ -128,8 +128,12 @@ def _summary_payload():
             "members_active": PerfilNKATA.objects.filter(status="ATIVO").count(),
             "members_new_7d": PerfilNKATA.objects.filter(criado_em__gte=week_ago).count(),
             "access_pending": PedidoEntrada.objects.filter(
-                status__in=["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"]
-            ).count(),
+                Q(status__in=["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"])
+                | (
+                    Q(status="APROVADO", verificacao_identidade__isnull=False)
+                    & ~Q(verificacao_identidade__status="APROVADA")
+                )
+            ).distinct().count(),
             "content_pending": pending_posts + pending_moments,
             "reports_pending": pending_profile_reports + pending_post_reports,
             "matches_active": MatchPerfil.objects.filter(status="ATIVO").count(),
@@ -216,7 +220,18 @@ def _access_rows(request, limit):
             | Q(cidade__icontains=query)
         )
     valid_statuses = {value for value, _label in PedidoEntrada.STATUS_CHOICES}
-    if status_filter in valid_statuses:
+    identity_review = (
+        Q(status="APROVADO", verificacao_identidade__isnull=False)
+        & ~Q(verificacao_identidade__status="APROVADA")
+    )
+    if status_filter == "EM_ANALISE":
+        queryset = queryset.filter(Q(status="EM_ANALISE") | identity_review)
+    elif status_filter == "APROVADO":
+        queryset = queryset.filter(status="APROVADO").filter(
+            Q(verificacao_identidade__isnull=True)
+            | Q(verificacao_identidade__status="APROVADA")
+        )
+    elif status_filter in valid_statuses:
         queryset = queryset.filter(status=status_filter)
 
     total = queryset.count()
@@ -225,6 +240,11 @@ def _access_rows(request, limit):
         profile = getattr(item, "perfil", None)
         verification = getattr(item, "verificacao_identidade", None)
         has_questionnaire = hasattr(item, "questionario")
+        identity_pending = bool(
+            item.status == "APROVADO"
+            and verification
+            and verification.status != "APROVADA"
+        )
         results.append({
             "id": item.id,
             "name": item.nome_completo,
@@ -236,11 +256,15 @@ def _access_rows(request, limit):
             "objective_label": item.get_objetivo_display(),
             "status": item.status,
             "status_label": item.get_status_display(),
+            "display_status": "EM_ANALISE" if identity_pending else item.status,
+            "display_status_label": (
+                "Identidade pendente" if identity_pending else item.get_status_display()
+            ),
             "accepted_verification": item.aceita_verificacao,
             "has_questionnaire": has_questionnaire,
             "questionnaire_path": (
                 f"/questionario/{item.token}/"
-                if item.status == "APROVADO" and not has_questionnaire
+                if item.status == "APROVADO" and not has_questionnaire and not identity_pending
                 else ""
             ),
             "has_profile": bool(profile),
@@ -352,6 +376,12 @@ def _access_detail_payload(item):
         }
 
     profile = getattr(item, "perfil", None)
+    has_questionnaire = hasattr(item, "questionario")
+    identity_pending = bool(
+        item.status == "APROVADO"
+        and verification
+        and verification.status != "APROVADA"
+    )
     return {
         "id": item.id,
         "name": item.nome_completo,
@@ -363,8 +393,17 @@ def _access_detail_payload(item):
         "objective_label": item.get_objetivo_display(),
         "status": item.status,
         "status_label": item.get_status_display(),
+        "display_status": "EM_ANALISE" if identity_pending else item.status,
+        "display_status_label": (
+            "Identidade pendente" if identity_pending else item.get_status_display()
+        ),
         "accepted_verification": item.aceita_verificacao,
-        "has_questionnaire": hasattr(item, "questionario"),
+        "has_questionnaire": has_questionnaire,
+        "questionnaire_path": (
+            f"/questionario/{item.token}/"
+            if item.status == "APROVADO" and not has_questionnaire and not identity_pending
+            else ""
+        ),
         "has_profile": bool(profile),
         "has_password": bool(
             profile and profile.usuario and profile.usuario.has_usable_password()

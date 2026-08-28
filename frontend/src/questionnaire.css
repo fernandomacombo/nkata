@@ -57,12 +57,12 @@
 
 .nk-questionnaire-layout {
   display: grid;
-  width: min(1180px, calc(100% - 40px));
+  width: min(1160px, calc(100% - 40px));
   margin: 0 auto;
-  grid-template-columns: minmax(0, 0.78fr) minmax(520px, 1.1fr);
-  gap: clamp(48px, 7vw, 92px);
+  grid-template-columns: minmax(290px, 0.72fr) minmax(560px, 1.28fr);
+  gap: clamp(30px, 4vw, 54px);
   align-items: start;
-  padding: 64px 0 84px;
+  padding: 42px 0 64px;
 }
 
 .nk-questionnaire-intro {
@@ -74,7 +74,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
   padding: 0;
   background: transparent;
   color: var(--nk-muted);
@@ -83,21 +83,21 @@
 }
 
 .nk-questionnaire-intro h1 {
-  max-width: 520px;
-  margin: 20px 0 0;
+  max-width: 380px;
+  margin: 16px 0 0;
   font-family: "Playfair Display", Georgia, serif;
-  font-size: clamp(2.7rem, 4.5vw, 4.65rem);
+  font-size: clamp(2.35rem, 3.6vw, 3.45rem);
   font-weight: 600;
   letter-spacing: -0.045em;
-  line-height: 0.98;
+  line-height: 1.01;
 }
 
 .nk-questionnaire-intro > p {
-  max-width: 520px;
-  margin: 22px 0 0;
+  max-width: 360px;
+  margin: 16px 0 0;
   color: var(--nk-muted);
   font-size: 0.94rem;
-  line-height: 1.72;
+  line-height: 1.6;
 }
 
 .nk-questionnaire-person {
@@ -105,12 +105,12 @@
   grid-template-columns: 46px minmax(0, 1fr);
   gap: 13px;
   align-items: center;
-  max-width: 520px;
-  margin-top: 28px;
+  max-width: 390px;
+  margin-top: 22px;
   border: 1px solid rgba(63, 105, 89, 0.15);
   border-radius: 19px;
   background: rgba(234, 242, 237, 0.74);
-  padding: 15px;
+  padding: 12px;
 }
 
 .nk-questionnaire-person > span {
@@ -149,8 +149,8 @@
 .nk-questionnaire-steps {
   display: grid;
   gap: 8px;
-  max-width: 520px;
-  margin-top: 28px;
+  max-width: 390px;
+  margin-top: 20px;
 }
 
 .nk-questionnaire-steps > div {
@@ -159,7 +159,7 @@
   gap: 12px;
   align-items: center;
   border-radius: 16px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   color: #8b827c;
 }
 
@@ -210,9 +210,9 @@
 
 .nk-questionnaire-card {
   border: 1px solid rgba(51, 42, 37, 0.1);
-  border-radius: 30px;
+  border-radius: 24px;
   background: rgba(255, 253, 249, 0.95);
-  padding: clamp(26px, 4vw, 44px);
+  padding: clamp(24px, 3vw, 34px);
   box-shadow: var(--nk-shadow-md);
 }
 
@@ -227,7 +227,7 @@
 .nk-questionnaire-card__heading h2 {
   margin: 9px 0 0;
   font-family: "Playfair Display", Georgia, serif;
-  font-size: clamp(2rem, 3.2vw, 2.8rem);
+  font-size: clamp(1.8rem, 2.8vw, 2.35rem);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -242,8 +242,8 @@
 .nk-questionnaire-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 17px;
-  margin-top: 30px;
+  gap: 15px;
+  margin-top: 24px;
 }
 
 .nk-questionnaire-field {
@@ -277,12 +277,12 @@
 
 .nk-questionnaire-field input,
 .nk-questionnaire-field select {
-  min-height: 50px;
+  min-height: 46px;
   padding: 0 14px;
 }
 
 .nk-questionnaire-field textarea {
-  min-height: 112px;
+  min-height: 92px;
   resize: vertical;
   padding: 13px 14px;
   line-height: 1.6;
@@ -307,11 +307,11 @@
   grid-template-columns: auto 26px minmax(0, 1fr);
   gap: 10px;
   align-items: start;
-  margin-top: 20px;
+  margin-top: 16px;
   border: 1px solid rgba(63, 105, 89, 0.14);
   border-radius: 17px;
   background: rgba(234, 242, 237, 0.62);
-  padding: 14px;
+  padding: 12px;
   cursor: pointer;
 }
 
@@ -376,7 +376,7 @@
 
 .nk-questionnaire-primary {
   width: 100%;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .nk-questionnaire-password-note {
@@ -528,7 +528,7 @@
   }
 
   .nk-questionnaire-intro h1 {
-    max-width: 650px;
+    max-width: 520px;
   }
 
   .nk-questionnaire-intro > p,
@@ -559,7 +559,7 @@
   }
 
   .nk-questionnaire-intro h1 {
-    font-size: clamp(2.45rem, 12vw, 3.45rem);
+    font-size: clamp(2.2rem, 10vw, 3rem);
   }
 
   .nk-questionnaire-card {

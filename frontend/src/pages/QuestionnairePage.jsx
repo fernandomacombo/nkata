@@ -195,10 +195,8 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
             <ArrowLeft size={16} /> Voltar
           </button>
           <span className="nk-eyebrow nk-eyebrow--dark"><BadgeCheck size={15} /> Pedido aprovado</span>
-          <h1>{firstName ? `${firstName}, ` : ""}vamos conhecer melhor as suas intenções.</h1>
-          <p>
-            As respostas ajudam a apresentar o seu perfil com mais clareza e a manter a comunidade focada em relações sérias.
-          </p>
+          <h1>{firstName ? `${firstName}, ` : ""}complete o seu perfil.</h1>
+          <p>Conte-nos o essencial para prepararmos a sua conta.</p>
 
           <div className="nk-questionnaire-person">
             <span><UserRound size={20} /></span>
@@ -278,15 +276,15 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
                   <FieldError errors={errors} name="sobre_si" />
                 </label>
 
-                <label className="nk-questionnaire-field nk-questionnaire-field--full">
+                <label className="nk-questionnaire-field">
                   <span>O que mais valoriza numa relação?</span>
-                  <textarea rows="4" value={values.o_que_valoriza} onChange={(event) => updateValue("o_que_valoriza", event.target.value)} placeholder="Ex.: respeito, honestidade, presença, comunicação…" />
+                  <textarea rows="3" value={values.o_que_valoriza} onChange={(event) => updateValue("o_que_valoriza", event.target.value)} placeholder="Ex.: respeito, honestidade, comunicação…" />
                   <FieldError errors={errors} name="o_que_valoriza" />
                 </label>
 
-                <label className="nk-questionnaire-field nk-questionnaire-field--full">
+                <label className="nk-questionnaire-field">
                   <span>O que não aceita numa relação?</span>
-                  <textarea rows="4" value={values.o_que_nao_aceita} onChange={(event) => updateValue("o_que_nao_aceita", event.target.value)} placeholder="Fale dos limites que considera importantes." />
+                  <textarea rows="3" value={values.o_que_nao_aceita} onChange={(event) => updateValue("o_que_nao_aceita", event.target.value)} placeholder="Indique os seus limites essenciais." />
                   <FieldError errors={errors} name="o_que_nao_aceita" />
                 </label>
               </div>

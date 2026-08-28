@@ -324,6 +324,44 @@ class AdminPanelApiTests(TestCase):
             "",
         )
 
+    def test_approved_request_with_identity_in_review_stays_in_work_queue(self):
+        waiting = create_request("revisao-antiga@nkata.test", status="APROVADO")
+        VerificacaoIdentidadeNKATA.objects.create(
+            pedido=waiting,
+            email_hash="f" * 64,
+            idade_declarada=waiting.idade,
+            aceita_biometria=True,
+            desafio_selfie="Olhe para a câmara.",
+            status="REVISAO",
+            bi_frente="nkata-id/documentos/frente.jpg",
+            bi_verso="nkata-id/documentos/verso.jpg",
+            selfie_ao_vivo="nkata-id/selfies/frontal.jpg",
+            selfie_desafio="nkata-id/selfies/desafio.jpg",
+        )
+        self.client.force_authenticate(self.staff)
+
+        summary = self.client.get(reverse("entradas_api:admin_summary"))
+        queue = self.client.get(
+            reverse("entradas_api:admin_list"),
+            {"section": "access", "status": "EM_ANALISE"},
+        )
+        detail = self.client.get(
+            reverse(
+                "entradas_api:admin_access_detail",
+                kwargs={"pedido_id": waiting.id},
+            )
+        )
+
+        self.assertEqual(summary.status_code, 200)
+        self.assertEqual(summary.data["metrics"]["access_pending"], 1)
+        self.assertEqual(queue.status_code, 200)
+        row = next(item for item in queue.data["results"] if item["id"] == waiting.id)
+        self.assertEqual(row["display_status"], "EM_ANALISE")
+        self.assertEqual(row["display_status_label"], "Identidade pendente")
+        self.assertEqual(row["questionnaire_path"], "")
+        self.assertEqual(detail.data["display_status"], "EM_ANALISE")
+        self.assertEqual(detail.data["questionnaire_path"], "")
+
     def test_staff_can_approve_pending_content(self):
         publication = PublicacaoNKATA.objects.create(
             perfil=self.profile,

@@ -41,12 +41,12 @@ import {
 
 const SECTIONS = [
   { id: "overview", label: "Visão geral", description: "Estado da comunidade", icon: LayoutDashboard },
-  { id: "access", label: "Pedidos", description: "Identidade e entrada", icon: FileCheck2 },
-  { id: "members", label: "Membros", description: "Contas já aprovadas", icon: Users },
-  { id: "content", label: "Moderação", description: "Fotos e momentos", icon: ShieldCheck },
-  { id: "reports", label: "Denúncias", description: "Casos reportados", icon: ShieldAlert },
-  { id: "operations", label: "Operações", description: "Matches e chamadas", icon: Activity },
-  { id: "audit", label: "Auditoria", description: "Ações dos operadores", icon: History },
+  { id: "access", label: "Pedidos", description: "Identidade e admissão", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: FileCheck2 },
+  { id: "members", label: "Membros", description: "Contas e perfis", search: "Nome, email, telefone ou cidade", columns: ["Membro", "Conta", "Ação"], icon: Users },
+  { id: "content", label: "Moderação", description: "Fotos e momentos", search: "Autor, email ou conteúdo", columns: ["Conteúdo", "Moderação", "Ação"], icon: ShieldCheck },
+  { id: "reports", label: "Denúncias", description: "Casos reportados", search: "Alvo, denunciante ou motivo", columns: ["Denúncia", "Estado", "Ação"], icon: ShieldAlert },
+  { id: "operations", label: "Operações", description: "Matches e chamadas", search: "Participante ou estado", columns: ["Operação", "Estado", "Ação"], icon: Activity },
+  { id: "audit", label: "Auditoria", description: "Ações dos operadores", search: "Objeto, operador ou descrição", columns: ["Registo", "Operador", "Ação"], icon: History },
 ];
 
 const FILTERS = {
@@ -206,9 +206,10 @@ function detailRowsFor(section, item) {
   return [];
 }
 
-function DetailsDialog({ pending, onClose }) {
+function DetailsDialog({ pending, onClose, onAction }) {
   if (!pending) return null;
   const { section, item } = pending;
+  const actions = actionsFor(section, item);
   const sectionLabel = SECTIONS.find((entry) => entry.id === section)?.label || "Detalhes";
   const title = item.name || item.author || item.target || item.title || sectionLabel;
   return (
@@ -232,6 +233,19 @@ function DetailsDialog({ pending, onClose }) {
           </dl>
         </div>
         <footer>
+          {actions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                type="button"
+                key={action.action}
+                className={`nk-admin-button ${action.danger ? "is-danger" : "is-quiet"}`}
+                onClick={() => onAction({ ...action, item, section })}
+              >
+                <Icon size={16} /> {action.label}
+              </button>
+            );
+          })}
           {item.admin_url && (
             <a className="nk-admin-button is-quiet" href={item.admin_url} target="_blank" rel="noreferrer">
               <ExternalLink size={16} /> Abrir ficha técnica
@@ -271,7 +285,7 @@ function EvidenceGroup({ title, items, onPreview }) {
   );
 }
 
-function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetry, onMove, onAction }) {
+function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetry, onMove, onAction, onCopyQuestionnaire }) {
   const [preview, setPreview] = useState(null);
 
   useEffect(() => setPreview(null), [selection?.item?.id]);
@@ -279,12 +293,15 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
 
   const item = detail || selection.item;
   const identity = detail?.identity;
-  const canDecide = detail && !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status);
+  const identityPending = detail?.status === "APROVADO" && identity?.status === "REVISAO";
+  const canDecide = detail && (
+    !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || identityPending
+  );
   const approve = {
     section: "access",
     item,
     action: "approve",
-    label: "Aprovar identidade e pedido",
+    label: identityPending ? "Confirmar identidade" : "Aprovar identidade e pedido",
     description: `Confirmar que os documentos e as fotografias de ${item.name} correspondem e libertar o questionário.`,
     icon: UserCheck,
   };
@@ -321,7 +338,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
             <span>{item.email} · recebido {formatDate(item.created_at)}</span>
           </div>
           <div>
-            <StatusBadge status={item.status} label={item.status_label} />
+            <StatusBadge status={item.display_status || item.status} label={item.display_status_label || item.status_label} />
             <button type="button" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
           </div>
         </header>
@@ -400,6 +417,11 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
             <span>{selection.position} de {selection.total}</span>
             <button type="button" onClick={() => onMove(1)} disabled={!selection.hasNext} aria-label="Próximo pedido"><ChevronRight size={18} /></button>
           </div>
+          {detail?.questionnaire_path && !canDecide && (
+            <button type="button" className="nk-admin-review__copy" onClick={() => onCopyQuestionnaire(detail)}>
+              <Copy size={16} /> Copiar acesso ao cadastro
+            </button>
+          )}
           {canDecide && (
             <div className="nk-admin-review__decisions">
               <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>
@@ -643,8 +665,7 @@ function actionsFor(section, item) {
   return [];
 }
 
-function AdminRow({ section, item, onAction, onCopyQuestionnaire, onDetails }) {
-  const actions = actionsFor(section, item);
+function AdminRow({ section, item, onDetails }) {
   const title = item.name || item.author || item.target || item.title;
   const subtitle = section === "access"
     ? `${item.email} · ${item.city}`
@@ -657,8 +678,8 @@ function AdminRow({ section, item, onAction, onCopyQuestionnaire, onDetails }) {
           : section === "audit"
             ? item.object_type
           : item.detail;
-  const status = item.status;
-  const statusLabel = item.status_label || (status === "ANALISADA" ? "Analisada" : status === "PENDENTE" ? "Pendente" : status);
+  const status = item.display_status || item.status;
+  const statusLabel = item.display_status_label || item.status_label || (status === "ANALISADA" ? "Analisada" : status === "PENDENTE" ? "Pendente" : status);
   return (
     <article className="nk-admin-row">
       <MediaThumb item={item} />
@@ -688,31 +709,8 @@ function AdminRow({ section, item, onAction, onCopyQuestionnaire, onDetails }) {
         {!['reports', 'operations', 'audit'].includes(section) && <small>{formatDate(item.created_at)}</small>}
       </div>
       <div className="nk-admin-row__actions">
-        {section === "access" && item.questionnaire_path && (
-          <button
-            type="button"
-            onClick={() => onCopyQuestionnaire(item)}
-            title="Copiar link do questionário"
-          >
-            <Copy size={16} /><span>Copiar link</span>
-          </button>
-        )}
-        {actions.slice(0, 3).map((action) => {
-          const Icon = action.icon;
-          return (
-            <button
-              type="button"
-              key={action.action}
-              className={action.danger ? "is-danger" : ""}
-              onClick={() => onAction({ ...action, item, section })}
-              title={action.label}
-            >
-              <Icon size={16} /><span>{action.label}</span>
-            </button>
-          );
-        })}
         <button type="button" className={section === "access" ? "is-primary" : ""} onClick={() => onDetails({ section, item })} title={section === "access" ? "Rever pedido" : "Ver detalhes"}>
-          {section === "access" ? <Eye size={16} /> : <ExternalLink size={16} />}<span>{section === "access" ? "Rever pedido" : "Detalhes"}</span>
+          <Eye size={16} /><span>{section === "access" ? "Rever pedido" : "Abrir"}</span>
         </button>
       </div>
     </article>
@@ -871,6 +869,7 @@ export default function AdminPanelPage({ session }) {
         report_type: item.report_type,
       });
       setPendingAction(null);
+      if (section !== "access") setSelectedDetails(null);
       setToast(result.message || "Alteração concluída.");
       await Promise.all([loadList(), loadSummary()]);
       if (section === "access" && accessReview?.item?.id === item.id) {
@@ -938,17 +937,18 @@ export default function AdminPanelPage({ session }) {
               />
             ) : (
               <>
-                <header className="nk-admin-section-header">
-                  <div><small>Gestão operacional</small><h2>{selectedSection.label}</h2><p>{selectedSection.description}</p></div>
-                  <button type="button" onClick={() => loadList()} disabled={listLoading} title="Atualizar">
-                    <RefreshCw className={listLoading ? "nk-spin" : ""} size={18} />
-                  </button>
-                </header>
+                <section className="nk-admin-workspace-toolbar">
+                  <header className="nk-admin-section-header">
+                    <div><small>Gestão operacional</small><h2>{selectedSection.label}</h2><p>{selectedSection.description}</p></div>
+                    <button type="button" onClick={() => loadList()} disabled={listLoading} title="Atualizar">
+                      <RefreshCw className={listLoading ? "nk-spin" : ""} size={18} />
+                    </button>
+                  </header>
 
-                <form className="nk-admin-filters" onSubmit={submitSearch}>
+                  <form className="nk-admin-filters" onSubmit={submitSearch}>
                   <label>
                     <Search size={17} />
-                    <input value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder="Pesquisar por nome, email ou cidade" />
+                    <input value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder={selectedSection.search} />
                     {draftQuery && <button type="button" onClick={() => { setDraftQuery(""); setFilters((current) => ({ ...current, query: "" })); }} aria-label="Limpar pesquisa"><X size={16} /></button>}
                   </label>
                   {activeSection === "content" && (
@@ -967,7 +967,8 @@ export default function AdminPanelPage({ session }) {
                       : FILTERS[activeSection] || []).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
                   </select>
                   <button type="submit" className="nk-admin-button is-primary"><Search size={16} /> Pesquisar</button>
-                </form>
+                  </form>
+                </section>
 
                 <div className="nk-admin-list-heading">
                   <span>{listData.total || 0} registo(s)</span>
@@ -975,14 +976,17 @@ export default function AdminPanelPage({ session }) {
                 </div>
 
                 <div className="nk-admin-list">
+                  <div className="nk-admin-list-columns" aria-hidden="true">
+                    <span>{selectedSection.columns?.[0]}</span>
+                    <span>{selectedSection.columns?.[1]}</span>
+                    <span>{selectedSection.columns?.[2]}</span>
+                  </div>
                   {listData.results?.length && !listLoading
                     ? listData.results.map((item) => (
                       <AdminRow
                         key={`${item.content_type || item.report_type || item.operation_type || activeSection}-${item.id}`}
                         section={activeSection}
                         item={item}
-                        onAction={openAction}
-                        onCopyQuestionnaire={copyQuestionnaire}
                         onDetails={openDetails}
                       />
                     ))
@@ -995,7 +999,7 @@ export default function AdminPanelPage({ session }) {
       </div>
 
       {toast && <div className="nk-admin-toast" role="status"><CheckCircle2 size={18} />{toast}</div>}
-      <DetailsDialog pending={selectedDetails} onClose={() => setSelectedDetails(null)} />
+      <DetailsDialog pending={selectedDetails} onClose={() => setSelectedDetails(null)} onAction={openAction} />
       <AccessReviewDialog
         selection={accessReview}
         detail={accessDetail}
@@ -1005,6 +1009,7 @@ export default function AdminPanelPage({ session }) {
         onRetry={() => accessReview && openAccessReview(accessReview.item)}
         onMove={moveAccessReview}
         onAction={openAction}
+        onCopyQuestionnaire={copyQuestionnaire}
       />
       <ActionDialog pending={pendingAction} busy={actionBusy} onClose={() => !actionBusy && setPendingAction(null)} onConfirm={confirmAction} />
     </main>
