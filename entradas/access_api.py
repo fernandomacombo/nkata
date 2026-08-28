@@ -191,9 +191,17 @@ def _status_payload(pedido):
     message = content["message"]
     if pedido.status == "APROVADO" and can_login:
         message = "A sua conta está pronta. Já pode entrar no NKATA com o email e a palavra-passe que criou."
+    elif pedido.status == "APROVADO":
+        message = (
+            "A entrada foi aprovada. Continue o cadastro para responder ao "
+            "questionário e criar a sua palavra-passe."
+        )
 
     verification = getattr(pedido, "verificacao_identidade", None)
     recapture_path = ""
+    questionnaire_path = ""
+    if pedido.status == "APROVADO" and not can_login:
+        questionnaire_path = f"/questionario/{pedido.token}/"
     if (
         pedido.status == "PRECISA_CORRIGIR"
         and verification
@@ -222,7 +230,7 @@ def _status_payload(pedido):
             else "IDENTITY_RECAPTURE" if recapture_path
             else None
         ),
-        "next_path": recapture_path,
+        "next_path": questionnaire_path or recapture_path,
     }
 
 

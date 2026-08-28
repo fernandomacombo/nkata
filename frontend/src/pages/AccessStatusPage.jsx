@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
+  ArrowRight,
   BadgeCheck,
   Check,
   ClipboardCopy,
@@ -345,6 +346,15 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
             </div>
 
             <footer>
+              {result.next_action === "QUESTIONNAIRE" && result.next_path && (
+                <button
+                  type="button"
+                  className="nk-button nk-button--wine"
+                  onClick={() => window.location.assign(result.next_path)}
+                >
+                  <FileSearch size={18} /> Continuar cadastro <ArrowRight size={17} />
+                </button>
+              )}
               {result.next_action === "IDENTITY_RECAPTURE" && result.next_path && (
                 <button
                   type="button"
@@ -359,8 +369,11 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
                   <BadgeCheck size={18} /> Entrar na conta
                 </button>
               )}
+              <button type="button" className="nk-button nk-button--quiet" onClick={onBack}>
+                Voltar ao início
+              </button>
               <button type="button" className="nk-button nk-button--quiet" onClick={resetLookup}>
-                Consultar outro pedido
+                Consultar outro código
               </button>
             </footer>
           </section>

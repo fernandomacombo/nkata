@@ -181,6 +181,25 @@ class AccessStatusApiTests(TestCase):
         )
         self.assertNotIn("observacao_admin", payload)
 
+    def test_pedido_aprovado_permite_continuar_o_cadastro(self):
+        pedido = self.create_request(
+            status="APROVADO",
+            email="continuar@example.com",
+        )
+
+        response = self.client.post(
+            "/api/acompanhar-pedido/",
+            data={"email": pedido.email, "codigo": str(pedido.token)},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload["can_login"])
+        self.assertEqual(payload["next_action"], "QUESTIONNAIRE")
+        self.assertEqual(payload["next_path"], f"/questionario/{pedido.token}/")
+        self.assertIn("Continue o cadastro", payload["message"])
+
     def test_pedido_aprovado_indica_que_pode_entrar(self):
         pedido = self.create_request(status="APROVADO", email="aprovado@example.com")
         user = User.objects.create_user(
@@ -224,3 +243,5 @@ class AccessStatusApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["can_login"])
         self.assertEqual(response.json()["tone"], "success")
+        self.assertEqual(response.json()["next_action"], "LOGIN")
+        self.assertEqual(response.json()["next_path"], "")
