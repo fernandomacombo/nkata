@@ -235,6 +235,27 @@ class NkataIdApiTests(TestCase):
         self.assertTrue(result["detected"], result)
         self.assertTrue(result["ready"], result)
 
+    def test_blurred_document_preview_asks_user_to_wait_for_focus(self):
+        stream = BytesIO()
+        Image.new("RGB", (640, 480), color=(110, 110, 110)).save(
+            stream,
+            format="JPEG",
+            quality=90,
+        )
+        stream.seek(0)
+
+        result = inspect_identity_preview(
+            SimpleUploadedFile(
+                "bi-desfocado.jpg",
+                stream.read(),
+                content_type="image/jpeg",
+            ),
+            "bi_frente",
+        )
+
+        self.assertFalse(result["ready"], result)
+        self.assertIn("focagem", result["message"].lower())
+
     @patch("entradas.identity_verification_service._face_boxes")
     def test_face_preview_requires_one_centered_stable_face(self, faces):
         faces.return_value = [(190, 105, 260, 260)]

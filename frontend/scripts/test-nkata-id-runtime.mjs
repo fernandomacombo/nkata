@@ -6,7 +6,9 @@ import {
   createNkataIdStatusPoller,
   fitNkataIdCaptureDimensions,
   isPhoneReachableNkataIdOrigin,
+  nkataIdCameraConstraints,
   normalizeNkataIdAppOrigin,
+  optimizeNkataIdCameraTrack,
 } from "../src/services/nkataIdRuntime.js";
 
 test("captura apenas depois de duas deteções estáveis consecutivas", () => {
@@ -48,6 +50,34 @@ test("limita a captura a 1280 px sem deformar a imagem", () => {
     width: 640,
     height: 480,
   });
+});
+
+test("pede maior resolução para o BI e mantém a câmara frontal leve", () => {
+  assert.deepEqual(nkataIdCameraConstraints("environment"), {
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+    },
+    audio: false,
+  });
+  assert.equal(nkataIdCameraConstraints("user").video.width.ideal, 1280);
+});
+
+test("ativa focagem contínua apenas quando a câmara a suporta", async () => {
+  let applied = null;
+  const supported = await optimizeNkataIdCameraTrack({
+    getCapabilities: () => ({ focusMode: ["manual", "continuous"] }),
+    applyConstraints: async (constraints) => { applied = constraints; },
+  });
+  assert.equal(supported, true);
+  assert.deepEqual(applied, { advanced: [{ focusMode: "continuous" }] });
+
+  const unsupported = await optimizeNkataIdCameraTrack({
+    getCapabilities: () => ({}),
+    applyConstraints: async () => assert.fail("não deve aplicar constraints"),
+  });
+  assert.equal(unsupported, false);
 });
 
 function manualScheduler() {

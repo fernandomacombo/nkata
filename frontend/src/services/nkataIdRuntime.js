@@ -27,6 +27,35 @@ export function advanceNkataIdDetectionStability(
   };
 }
 
+export function nkataIdCameraConstraints(facingMode) {
+  const isDocument = facingMode === "environment";
+  return {
+    video: {
+      facingMode: { ideal: facingMode },
+      width: { ideal: isDocument ? 1920 : 1280 },
+      height: { ideal: isDocument ? 1080 : 720 },
+    },
+    audio: false,
+  };
+}
+
+export async function optimizeNkataIdCameraTrack(track) {
+  if (!track?.applyConstraints || !track?.getCapabilities) return false;
+  const capabilities = track.getCapabilities() || {};
+  const focusModes = Array.isArray(capabilities.focusMode)
+    ? capabilities.focusMode
+    : [];
+  if (!focusModes.includes("continuous")) return false;
+
+  try {
+    await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+    return true;
+  } catch {
+    // Nem todos os WebKit que anunciam a capacidade conseguem aplicá-la.
+    return false;
+  }
+}
+
 export function normalizeNkataIdAppOrigin(configuredOrigin, browserOrigin) {
   const candidate = String(configuredOrigin || browserOrigin || "").trim();
   if (!candidate) return "";

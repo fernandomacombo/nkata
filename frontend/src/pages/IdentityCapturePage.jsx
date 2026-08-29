@@ -20,6 +20,8 @@ import {
 import {
   advanceNkataIdDetectionStability,
   fitNkataIdCaptureDimensions,
+  nkataIdCameraConstraints,
+  optimizeNkataIdCameraTrack,
 } from "../services/nkataIdRuntime.js";
 import NkataLogo from "../components/brand/NkataLogo.jsx";
 
@@ -62,6 +64,28 @@ const CAPTURES = {
 
 function stopStream(stream) {
   stream?.getTracks?.().forEach((track) => track.stop());
+}
+
+function waitForVideoFrame(video, timeoutMs = 5000) {
+  if (video?.readyState >= 2 && video.videoWidth > 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("A câmara não apresentou imagem."));
+    }, timeoutMs);
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      video?.removeEventListener("loadeddata", handleReady);
+      video?.removeEventListener("canplay", handleReady);
+    };
+    const handleReady = () => {
+      if (!video?.videoWidth) return;
+      cleanup();
+      resolve();
+    };
+    video?.addEventListener("loadeddata", handleReady);
+    video?.addEventListener("canplay", handleReady);
+  });
 }
 
 function frameFile(video, canvas, captureType, { maxSide, quality, suffix = "" }) {
@@ -183,6 +207,7 @@ export default function IdentityCapturePage({ token, onExit }) {
       if (videoRef.current) {
         videoRef.current.srcObject = streamRef.current;
         await videoRef.current.play();
+        await waitForVideoFrame(videoRef.current);
       }
       setCameraReady(true);
       return;
@@ -196,23 +221,27 @@ export default function IdentityCapturePage({ token, onExit }) {
       stopPreviewAnalysis();
       stopStream(streamRef.current);
       streamRef.current = null;
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: requestedFacingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia(
+        nkataIdCameraConstraints(requestedFacingMode),
+      );
       streamRef.current = stream;
       activeFacingModeRef.current = requestedFacingMode;
+      await optimizeNkataIdCameraTrack(stream.getVideoTracks?.()[0]);
       if (videoRef.current) {
+        videoRef.current.controls = false;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("webkit-playsinline", "true");
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        await waitForVideoFrame(videoRef.current);
       }
       setCameraActivated(true);
       setCameraReady(true);
     } catch (_cameraError) {
+      stopStream(streamRef.current);
+      streamRef.current = null;
+      activeFacingModeRef.current = "";
+      if (videoRef.current) videoRef.current.srcObject = null;
       setError("Não foi possível abrir a câmara ao vivo. Confirme a permissão da câmara e tente novamente.");
     } finally {
       cameraStartingRef.current = false;
@@ -402,8 +431,16 @@ export default function IdentityCapturePage({ token, onExit }) {
         <p>{selfieChallenge || config.help}</p>
       </section>
 
-      <section className={`nk-id-camera ${config.facingMode === "user" ? "is-selfie" : "is-document"} ${detection.detected ? "has-detection" : ""} ${detection.ready ? "is-ready" : ""}`}>
-        <video ref={videoRef} autoPlay muted playsInline />
+      <section className={`nk-id-camera ${config.facingMode === "user" ? "is-selfie" : "is-document"} ${cameraReady ? "has-live-video" : ""} ${detection.detected ? "has-detection" : ""} ${detection.ready ? "is-ready" : ""}`}>
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          controls={false}
+          disablePictureInPicture
+          aria-hidden={!cameraReady}
+        />
         {!cameraReady && (
           <div className="nk-id-camera__empty">
             <Icon size={38} />

@@ -84,26 +84,38 @@ def _document_candidate(image):
     for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:12]:
         area = float(cv2.contourArea(contour))
         coverage = area / max(1.0, frame_area)
-        if coverage < 0.14 or coverage > 0.92:
+        if coverage < 0.10 or coverage > 0.94:
             continue
         perimeter = cv2.arcLength(contour, True)
-        approximation = cv2.approxPolyDP(contour, 0.025 * perimeter, True)
-        if len(approximation) != 4 or not cv2.isContourConvex(approximation):
+        approximation = cv2.approxPolyDP(contour, 0.035 * perimeter, True)
+
+        # Um BI real raramente produz quatro cantos perfeitos numa frame pequena:
+        # há cantos arredondados, reflexos e perspetiva. O retângulo orientado
+        # mantém a deteção estável nesses casos sem aceitar formas muito irregulares.
+        center, (box_width, box_height), _angle = cv2.minAreaRect(contour)
+        rectangle_area = float(box_width * box_height)
+        if rectangle_area <= 0:
             continue
-        x, y, box_width, box_height = cv2.boundingRect(approximation)
+        rectangularity = area / rectangle_area
+        has_card_shape = (
+            len(approximation) == 4 and cv2.isContourConvex(approximation)
+        ) or rectangularity >= 0.58
+        if not has_card_shape:
+            continue
         short_side = min(box_width, box_height)
         long_side = max(box_width, box_height)
         if short_side <= 0:
             continue
         aspect_ratio = long_side / short_side
-        if not 1.25 <= aspect_ratio <= 1.95:
+        if not 1.22 <= aspect_ratio <= 2.00:
             continue
-        center_x = (x + box_width / 2) / width
-        center_y = (y + box_height / 2) / height
-        centered = abs(center_x - 0.5) <= 0.18 and abs(center_y - 0.5) <= 0.18
+        center_x = center[0] / width
+        center_y = center[1] / height
+        centered = abs(center_x - 0.5) <= 0.22 and abs(center_y - 0.5) <= 0.22
         candidate = {
             "coverage": round(coverage, 3),
             "aspect_ratio": round(aspect_ratio, 3),
+            "rectangularity": round(rectangularity, 3),
             "centered": centered,
         }
         if best is None or candidate["coverage"] > best["coverage"]:
@@ -167,14 +179,14 @@ def inspect_identity_preview(upload, capture_type):
 
     document = _document_candidate(image)
     ready = bool(document and document["centered"] and light_ok and steady)
-    if not document:
+    if not light_ok:
+        message = "Melhore a iluminação e evite reflexos."
+    elif not steady:
+        message = "Afaste ligeiramente o BI e aguarde a focagem da câmara."
+    elif not document:
         message = "Mostre o BI inteiro dentro da moldura."
     elif not document["centered"]:
         message = "Centralize o BI na moldura."
-    elif not light_ok:
-        message = "Melhore a iluminação e evite reflexos."
-    elif not steady:
-        message = "Mantenha o telefone firme."
     else:
         message = "BI detetado. Mantenha a posição."
     return {
@@ -186,6 +198,7 @@ def inspect_identity_preview(upload, capture_type):
             "centered": bool(document and document["centered"]),
             "coverage": document["coverage"] if document else 0.0,
             "aspect_ratio": document["aspect_ratio"] if document else None,
+            "rectangularity": document["rectangularity"] if document else None,
             "light_ok": light_ok,
             "steady": steady,
         },
