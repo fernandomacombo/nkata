@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Activity,
   Ban,
@@ -206,6 +207,24 @@ function detailRowsFor(section, item) {
   return [];
 }
 
+function AdminDialogLayer({ children, onClose, confirmation = false }) {
+  return createPortal(
+    <div
+      className={`nk-admin-dialog-layer${confirmation ? " is-confirmation" : ""}`}
+      role="presentation"
+    >
+      <button
+        type="button"
+        className="nk-admin-dialog-backdrop"
+        onClick={onClose}
+        aria-label="Fechar"
+      />
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
 function DetailsDialog({ pending, onClose, onAction }) {
   if (!pending) return null;
   const { section, item } = pending;
@@ -214,8 +233,7 @@ function DetailsDialog({ pending, onClose, onAction }) {
   const title = item.name || item.author || item.target || item.title || sectionLabel;
   const previewUrl = item.media_url || item.photo_url;
   return (
-    <div className="nk-admin-dialog-layer" role="presentation">
-      <button type="button" className="nk-admin-dialog-backdrop" onClick={onClose} aria-label="Fechar" />
+    <AdminDialogLayer onClose={onClose}>
       <section className="nk-admin-dialog nk-admin-details" role="dialog" aria-modal="true" aria-labelledby="admin-details-title">
         <header>
           <span><FileCheck2 size={22} /></span>
@@ -264,7 +282,7 @@ function DetailsDialog({ pending, onClose, onAction }) {
           <button type="button" className="nk-admin-button is-primary" onClick={onClose}>Fechar</button>
         </footer>
       </section>
-    </div>
+    </AdminDialogLayer>
   );
 }
 
@@ -279,8 +297,7 @@ function ContentReviewDialog({ selection, onClose, onMove, onAction }) {
   const hasVisualMedia = Boolean(item.media_url && ["IMAGEM", "VIDEO"].includes(item.media_type));
 
   return (
-    <div className="nk-admin-dialog-layer" role="presentation">
-      <button type="button" className="nk-admin-dialog-backdrop" onClick={onClose} aria-label="Fechar" />
+    <AdminDialogLayer onClose={onClose}>
       <section className="nk-admin-content-review" role="dialog" aria-modal="true" aria-labelledby="content-review-title">
         <header>
           <div>
@@ -360,7 +377,7 @@ function ContentReviewDialog({ selection, onClose, onMove, onAction }) {
           </div>
         )}
       </section>
-    </div>
+    </AdminDialogLayer>
   );
 }
 
@@ -434,8 +451,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
   };
 
   return (
-    <div className="nk-admin-dialog-layer" role="presentation">
-      <button type="button" className="nk-admin-dialog-backdrop" onClick={onClose} aria-label="Fechar" />
+    <AdminDialogLayer onClose={onClose}>
       <section className="nk-admin-review" role="dialog" aria-modal="true" aria-labelledby="admin-review-title">
         <header>
           <div>
@@ -545,7 +561,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
           </div>
         )}
       </section>
-    </div>
+    </AdminDialogLayer>
   );
 }
 
@@ -573,8 +589,7 @@ function ActionDialog({ pending, busy, onClose, onConfirm }) {
   const [note, setNote] = useState("");
   if (!pending) return null;
   return (
-    <div className="nk-admin-dialog-layer" role="presentation">
-      <button type="button" className="nk-admin-dialog-backdrop" onClick={onClose} aria-label="Fechar" />
+    <AdminDialogLayer onClose={onClose} confirmation>
       <section className="nk-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-action-title">
         <header>
           <span className={pending.danger ? "is-danger" : ""}>
@@ -612,7 +627,7 @@ function ActionDialog({ pending, busy, onClose, onConfirm }) {
           </button>
         </footer>
       </section>
-    </div>
+    </AdminDialogLayer>
   );
 }
 
@@ -842,6 +857,21 @@ export default function AdminPanelPage({ session }) {
   const [accessDetailError, setAccessDetailError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState("");
+  const modalOpen = Boolean(
+    selectedDetails || contentReview || accessReview || pendingAction,
+  );
+
+  useEffect(() => {
+    if (!modalOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscroll;
+    };
+  }, [modalOpen]);
 
   const loadSummary = useCallback(async ({ signal } = {}) => {
     setSummaryLoading(true);

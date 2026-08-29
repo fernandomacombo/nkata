@@ -830,6 +830,8 @@
   padding: 22px;
 }
 
+.nk-admin-dialog-layer.is-confirmation { z-index: 165; }
+
 .nk-admin-dialog-backdrop {
   position: absolute;
   inset: 0;
