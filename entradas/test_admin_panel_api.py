@@ -2,6 +2,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -11,6 +12,7 @@ from .admin_panel_api import _admin_call_duration_seconds, _admin_call_status
 from .call_models import ChamadaMatchNKATA
 from .identity_models import VerificacaoIdentidadeNKATA
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
+from .moments_models import MomentoNKATA
 from .posts_models import PublicacaoNKATA
 
 
@@ -387,6 +389,144 @@ class AdminPanelApiTests(TestCase):
         publication.refresh_from_db()
         self.assertEqual(publication.moderacao_status, "APROVADO")
         self.assertIsNotNone(publication.moderado_em)
+
+    def test_approving_a_moment_starts_a_fresh_visibility_window(self):
+        expired_at = timezone.now() - timedelta(hours=2)
+        moment = MomentoNKATA.objects.create(
+            perfil=self.profile,
+            usuario=self.member_user,
+            tipo_media="TEXTO",
+            texto="Um momento tranquilo.",
+            visibilidade="TODOS",
+            moderacao_status="PENDENTE",
+            expira_em=expired_at,
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.post(
+            reverse("entradas_api:admin_action"),
+            {
+                "resource": "content",
+                "content_type": "MOMENTO",
+                "action": "approve",
+                "id": moment.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        moment.refresh_from_db()
+        self.assertEqual(moment.moderacao_status, "APROVADO")
+        self.assertGreater(moment.expira_em, timezone.now() + timedelta(hours=23))
+
+    def test_rejecting_content_requires_a_moderation_reason(self):
+        publication = PublicacaoNKATA.objects.create(
+            perfil=self.profile,
+            usuario=self.member_user,
+            media="posts/2026/08/09/rejeitar.jpg",
+            tipo_media="IMAGEM",
+            legenda="Conteúdo para decisão.",
+            visibilidade="TODOS",
+            moderacao_status="PENDENTE",
+        )
+        self.client.force_authenticate(self.staff)
+
+        without_reason = self.client.post(
+            reverse("entradas_api:admin_action"),
+            {
+                "resource": "content",
+                "content_type": "PUBLICACAO",
+                "action": "reject",
+                "id": publication.id,
+            },
+            format="json",
+        )
+        with_reason = self.client.post(
+            reverse("entradas_api:admin_action"),
+            {
+                "resource": "content",
+                "content_type": "PUBLICACAO",
+                "action": "reject",
+                "id": publication.id,
+                "note": "Apresenta contacto pessoal no conteúdo.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(without_reason.status_code, 400)
+        self.assertEqual(with_reason.status_code, 200)
+        publication.refresh_from_db()
+        self.assertEqual(publication.moderacao_status, "REJEITADO")
+        self.assertEqual(
+            publication.moderacao_motivo,
+            "Apresenta contacto pessoal no conteúdo.",
+        )
+
+    def test_staff_content_queue_exposes_private_publications_and_moments_for_review(self):
+        publication = PublicacaoNKATA.objects.create(
+            perfil=self.profile,
+            usuario=self.member_user,
+            media=SimpleUploadedFile(
+                "publicacao-pendente.jpg",
+                b"nkata-private-image",
+                content_type="image/jpeg",
+            ),
+            tipo_media="IMAGEM",
+            legenda="Publicação que precisa de revisão.",
+            visibilidade="TODOS",
+            moderacao_status="PENDENTE",
+        )
+        moment = MomentoNKATA.objects.create(
+            perfil=self.profile,
+            usuario=self.member_user,
+            media=SimpleUploadedFile(
+                "momento-pendente.mp4",
+                b"nkata-private-video",
+                content_type="video/mp4",
+            ),
+            tipo_media="VIDEO",
+            texto="Momento que precisa de revisão.",
+            visibilidade="MATCHES",
+            moderacao_status="PENDENTE",
+        )
+        self.addCleanup(publication.media.storage.delete, publication.media.name)
+        self.addCleanup(moment.media.storage.delete, moment.media.name)
+        self.client.force_authenticate(self.staff)
+
+        queue = self.client.get(
+            reverse("entradas_api:admin_list"),
+            {"section": "content", "status": "PENDENTE"},
+        )
+
+        self.assertEqual(queue.status_code, 200)
+        rows = {
+            (item["content_type"], item["id"]): item
+            for item in queue.data["results"]
+        }
+        post_row = rows[("PUBLICACAO", publication.id)]
+        moment_row = rows[("MOMENTO", moment.id)]
+        self.assertEqual(post_row["media_type"], "IMAGEM")
+        self.assertEqual(moment_row["media_type"], "VIDEO")
+        self.assertEqual(post_row["analysis_status_label"], "Não realizada")
+        self.assertIsNotNone(moment_row["expires_at"])
+
+        post_media = self.client.get(post_row["media_url"])
+        moment_media = self.client.get(moment_row["media_url"])
+        self.assertEqual(post_media.status_code, 200)
+        self.assertEqual(moment_media.status_code, 200)
+        self.assertEqual(post_media["Cache-Control"], "private, max-age=120")
+        self.assertEqual(moment_media["Cache-Control"], "private, max-age=120")
+        self.assertEqual(post_media["X-Robots-Tag"], "noindex, noimageindex, noarchive")
+        self.assertEqual(moment_media["X-Robots-Tag"], "noindex, noimageindex, noarchive")
+
+        outsider = User.objects.create_user(
+            username="outro-membro",
+            email="outro@nkata.test",
+            password="senha-segura",
+        )
+        self.client.force_authenticate(outsider)
+        self.assertEqual(self.client.get(post_row["media_url"]).status_code, 404)
+        self.assertEqual(self.client.get(moment_row["media_url"]).status_code, 404)
 
 
 class AdminCallPresentationTests(SimpleTestCase):

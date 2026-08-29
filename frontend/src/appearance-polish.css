@@ -321,6 +321,64 @@ html[data-nkata-theme="NOITE"] .nk-conversation__loading span {
   color: var(--nk-muted);
 }
 
+/*
+ * A ficha visitada conserva o seu próprio tema mesmo quando o visitante usa
+ * o modo Noite. Estas cores explícitas evitam que texto claro herdado do
+ * cabeçalho escuro desapareça sobre a superfície clara do perfil.
+ */
+.nk-profile-detail--theme-classico :is(
+  .nk-profile-detail__heading h1,
+  .nk-profile-detail__block p,
+  .nk-profile-signals__heading h2,
+  .nk-profile-signals__grid > button > strong
+) {
+  color: #241b18;
+  opacity: 1;
+}
+
+.nk-profile-detail--theme-classico :is(
+  .nk-profile-detail__heading p,
+  .nk-profile-detail__block > span,
+  .nk-profile-signals__heading > div > span
+) {
+  color: #7d2638;
+  opacity: 1;
+}
+
+.nk-profile-detail--theme-classico :is(
+  .nk-profile-signals__heading p,
+  .nk-profile-signals__grid > button > small,
+  .nk-profile-detail__back,
+  .nk-profile-safety > span
+) {
+  color: #685d57;
+}
+
+.nk-profile-detail--theme-classico .nk-button--quiet {
+  border-color: rgba(57, 44, 40, 0.18);
+  background: rgba(255, 253, 249, 0.88);
+  color: #4f4540;
+  opacity: 1;
+}
+
+.nk-profile-detail--theme-areia :is(
+  .nk-profile-detail__heading h1,
+  .nk-profile-detail__block p,
+  .nk-profile-signals__heading h2,
+  .nk-profile-signals__grid > button > strong
+) {
+  color: #352821;
+  opacity: 1;
+}
+
+.nk-profile-detail--theme-areia :is(
+  .nk-profile-signals__heading p,
+  .nk-profile-signals__grid > button > small,
+  .nk-profile-safety > span
+) {
+  color: #68584e;
+}
+
 .nk-profile-detail--theme-classico .nk-profile-detail__content {
   background-color: transparent;
 }

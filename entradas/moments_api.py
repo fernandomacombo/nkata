@@ -366,6 +366,8 @@ def api_media_momento(request, momento_id):
     response["Content-Disposition"] = f'inline; filename="{os.path.basename(momento.media.name)}"'
     response["Cache-Control"] = "private, max-age=120"
     response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+    response["X-Robots-Tag"] = "noindex, noimageindex, noarchive"
     return response
 
 

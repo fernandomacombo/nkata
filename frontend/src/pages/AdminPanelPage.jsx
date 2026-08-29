@@ -212,6 +212,7 @@ function DetailsDialog({ pending, onClose, onAction }) {
   const actions = actionsFor(section, item);
   const sectionLabel = SECTIONS.find((entry) => entry.id === section)?.label || "Detalhes";
   const title = item.name || item.author || item.target || item.title || sectionLabel;
+  const previewUrl = item.media_url || item.photo_url;
   return (
     <div className="nk-admin-dialog-layer" role="presentation">
       <button type="button" className="nk-admin-dialog-backdrop" onClick={onClose} aria-label="Fechar" />
@@ -223,6 +224,15 @@ function DetailsDialog({ pending, onClose, onAction }) {
         <div>
           <small>Ficha administrativa · {sectionLabel}</small>
           <h2 id="admin-details-title">{title}</h2>
+          {previewUrl && (
+            <div className="nk-admin-details__media">
+              {item.media_type === "VIDEO" ? (
+                <video src={previewUrl} controls playsInline preload="metadata" controlsList="nodownload" />
+              ) : (
+                <img src={previewUrl} alt={`Conteúdo associado a ${title}`} />
+              )}
+            </div>
+          )}
           <dl className="nk-admin-details__grid">
             {detailRowsFor(section, item).map(([label, value, wide]) => (
               <div className={wide ? "is-wide" : ""} key={label}>
@@ -253,6 +263,102 @@ function DetailsDialog({ pending, onClose, onAction }) {
           )}
           <button type="button" className="nk-admin-button is-primary" onClick={onClose}>Fechar</button>
         </footer>
+      </section>
+    </div>
+  );
+}
+
+function ContentReviewDialog({ selection, onClose, onMove, onAction }) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  useEffect(() => setPreviewOpen(false), [selection?.item?.id]);
+  if (!selection) return null;
+
+  const item = selection.item;
+  const actions = actionsFor("content", item);
+  const hasVisualMedia = Boolean(item.media_url && ["IMAGEM", "VIDEO"].includes(item.media_type));
+
+  return (
+    <div className="nk-admin-dialog-layer" role="presentation">
+      <button type="button" className="nk-admin-dialog-backdrop" onClick={onClose} aria-label="Fechar" />
+      <section className="nk-admin-content-review" role="dialog" aria-modal="true" aria-labelledby="content-review-title">
+        <header>
+          <div>
+            <small>Revisão de moderação</small>
+            <h2 id="content-review-title">{item.content_label} de {item.author}</h2>
+            <span>Enviado {formatDate(item.created_at)}</span>
+          </div>
+          <div>
+            <StatusBadge status={item.status} label={item.status_label} />
+            <button type="button" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
+          </div>
+        </header>
+
+        <div className="nk-admin-content-review__body">
+          <section className={`nk-admin-content-review__stage is-${String(item.media_type || "texto").toLowerCase()}`}>
+            {item.media_type === "IMAGEM" && item.media_url ? (
+              <button type="button" onClick={() => setPreviewOpen(true)} aria-label="Ampliar imagem">
+                <img src={item.media_url} alt={`Conteúdo enviado por ${item.author}`} />
+                <span><Maximize2 size={16} /> Ampliar</span>
+              </button>
+            ) : item.media_type === "VIDEO" && item.media_url ? (
+              <video src={item.media_url} controls playsInline preload="metadata" controlsList="nodownload" />
+            ) : (
+              <div className="nk-admin-content-review__text">
+                <MessageSquare size={25} />
+                <p>{item.text || "Momento sem texto disponível."}</p>
+              </div>
+            )}
+          </section>
+
+          <aside className="nk-admin-content-review__summary">
+            <section>
+              <small>Conteúdo</small>
+              <h3>{item.content_label} · {item.media_type}</h3>
+              {item.text && hasVisualMedia && <p>{item.text}</p>}
+            </section>
+            <dl>
+              <div><dt>Visibilidade</dt><dd>{item.visibility_label}</dd></div>
+              <div><dt>Risco</dt><dd>{item.risk_label}</dd></div>
+              <div><dt>Análise</dt><dd>{item.analysis_status_label || "Não realizada"}</dd></div>
+              {item.expires_at && <div><dt>Expira</dt><dd>{formatDate(item.expires_at)}</dd></div>}
+              {item.moderation_note && <div className="is-wide"><dt>Decisão anterior</dt><dd>{item.moderation_note}</dd></div>}
+              {item.analysis_note && <div className="is-wide"><dt>Nota automática</dt><dd>{item.analysis_note}</dd></div>}
+            </dl>
+            <p><ShieldCheck size={15} /> O ficheiro é privado e só está aberto para esta revisão.</p>
+          </aside>
+        </div>
+
+        <footer>
+          <div className="nk-admin-review__nav">
+            <button type="button" onClick={() => onMove(-1)} disabled={!selection.hasPrevious} aria-label="Conteúdo anterior"><ChevronLeft size={18} /></button>
+            <span>{selection.position} de {selection.total}</span>
+            <button type="button" onClick={() => onMove(1)} disabled={!selection.hasNext} aria-label="Próximo conteúdo"><ChevronRight size={18} /></button>
+          </div>
+          <div className="nk-admin-content-review__actions">
+            {actions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  type="button"
+                  key={action.action}
+                  className={action.action === "approve" ? "is-primary" : action.danger ? "is-danger" : "is-quiet"}
+                  onClick={() => onAction({ ...action, item, section: "content" })}
+                >
+                  <Icon size={16} /> {action.label}
+                </button>
+              );
+            })}
+          </div>
+        </footer>
+
+        {previewOpen && (
+          <div className="nk-admin-media-preview" role="dialog" aria-modal="true" aria-label="Imagem ampliada">
+            <button type="button" onClick={() => setPreviewOpen(false)} aria-label="Fechar imagem"><X size={21} /></button>
+            <img src={item.media_url} alt={`Conteúdo enviado por ${item.author}`} />
+            <strong>{item.content_label} de {item.author}</strong>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -645,8 +751,8 @@ function actionsFor(section, item) {
   if (section === "content") {
     return [
       item.status !== "APROVADO" && { action: "approve", label: "Aprovar", description: `Aprovar esta ${item.content_label.toLowerCase()} de ${item.author}.`, icon: CheckCircle2 },
-      item.status !== "REJEITADO" && { action: "reject", label: "Rejeitar", description: "Retirar este conteúdo da comunidade.", acceptsNote: true, icon: Ban },
-      { action: "severe", label: "Violação grave", description: "Rejeitar o conteúdo e pausar o perfil para revisão.", acceptsNote: true, danger: true, icon: ShieldAlert },
+      item.status !== "REJEITADO" && { action: "reject", label: "Rejeitar", description: "Retirar este conteúdo da comunidade e registar o motivo.", acceptsNote: true, noteRequired: true, icon: Ban },
+      { action: "severe", label: "Violação grave", description: "Rejeitar o conteúdo, pausar o perfil e registar o motivo.", acceptsNote: true, noteRequired: true, danger: true, icon: ShieldAlert },
     ].filter(Boolean);
   }
   if (section === "reports") {
@@ -729,6 +835,7 @@ export default function AdminPanelPage({ session }) {
   const [filters, setFilters] = useState({ query: "", status: "", kind: "" });
   const [pendingAction, setPendingAction] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
+  const [contentReview, setContentReview] = useState(null);
   const [accessReview, setAccessReview] = useState(null);
   const [accessDetail, setAccessDetail] = useState(null);
   const [accessDetailLoading, setAccessDetailLoading] = useState(false);
@@ -779,7 +886,7 @@ export default function AdminPanelPage({ session }) {
     setDraftQuery("");
     setFilters({
       query: "",
-      status: activeSection === "reports" ? "PENDENTE" : "",
+      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : "",
       kind: activeSection === "operations" ? "CALLS" : "",
     });
   }, [activeSection]);
@@ -829,6 +936,20 @@ export default function AdminPanelPage({ session }) {
       openAccessReview(pending.item);
       return;
     }
+    if (pending.section === "content") {
+      const index = listData.results.findIndex((entry) => (
+        entry.id === pending.item.id && entry.content_type === pending.item.content_type
+      ));
+      setContentReview({
+        item: pending.item,
+        index,
+        position: index + 1,
+        total: listData.results.length,
+        hasPrevious: index > 0,
+        hasNext: index >= 0 && index < listData.results.length - 1,
+      });
+      return;
+    }
     setSelectedDetails(pending);
   };
 
@@ -836,6 +957,21 @@ export default function AdminPanelPage({ session }) {
     if (!accessReview) return;
     const next = listData.results[accessReview.index + direction];
     if (next) openAccessReview(next);
+  };
+
+  const moveContentReview = (direction) => {
+    if (!contentReview) return;
+    const index = contentReview.index + direction;
+    const next = listData.results[index];
+    if (!next) return;
+    setContentReview({
+      item: next,
+      index,
+      position: index + 1,
+      total: listData.results.length,
+      hasPrevious: index > 0,
+      hasNext: index < listData.results.length - 1,
+    });
   };
 
   const copyQuestionnaire = async (item) => {
@@ -870,6 +1006,7 @@ export default function AdminPanelPage({ session }) {
       });
       setPendingAction(null);
       if (section !== "access") setSelectedDetails(null);
+      if (section === "content") setContentReview(null);
       setToast(result.message || "Alteração concluída.");
       await Promise.all([loadList(), loadSummary()]);
       if (section === "access" && accessReview?.item?.id === item.id) {
@@ -1000,6 +1137,12 @@ export default function AdminPanelPage({ session }) {
 
       {toast && <div className="nk-admin-toast" role="status"><CheckCircle2 size={18} />{toast}</div>}
       <DetailsDialog pending={selectedDetails} onClose={() => setSelectedDetails(null)} onAction={openAction} />
+      <ContentReviewDialog
+        selection={contentReview}
+        onClose={() => setContentReview(null)}
+        onMove={moveContentReview}
+        onAction={openAction}
+      />
       <AccessReviewDialog
         selection={accessReview}
         detail={accessDetail}

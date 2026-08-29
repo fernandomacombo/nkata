@@ -21,7 +21,7 @@ from .models import (
     PedidoEntrada,
     PerfilNKATA,
 )
-from .moments_models import MomentoNKATA
+from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .post_safety_models import DenunciaPublicacaoNKATA
 from .posts_models import PublicacaoNKATA
 from .profile_media_api import profile_photo_url
@@ -464,12 +464,15 @@ def _content_rows(request, limit):
                 "risk": analysis.risk_level if analysis else "INDEFINIDO",
                 "risk_label": analysis.get_risk_level_display() if analysis else "Não analisado",
                 "analysis_status": analysis.status if analysis else "",
+                "analysis_status_label": analysis.get_status_display() if analysis else "Não realizada",
+                "analysis_note": analysis.notes if analysis else "",
                 "media_url": (
                     f"/api/publicacoes/{item.id}/media/"
                     if content_type == "PUBLICACAO"
                     else f"/api/momentos/{item.id}/media/"
                 ) if item.media else None,
                 "created_at": item.criado_em,
+                "expires_at": getattr(item, "expira_em", None),
                 "admin_url": (
                     f"/admin/entradas/publicacaonkata/{item.id}/change/"
                     if content_type == "PUBLICACAO"
@@ -532,6 +535,8 @@ def _report_rows(request, limit):
             "reporter": report.denunciante.email if report.denunciante else "Anónimo",
             "status": "ANALISADA" if report.analisada else "PENDENTE",
             "created_at": report.criado_em,
+            "photo_url": profile_photo_url(report.perfil),
+            "media_type": "IMAGEM",
             "admin_url": f"/admin/entradas/denunciaperfil/{report.id}/change/",
         })
     for report in post_reports[:limit]:
@@ -547,6 +552,7 @@ def _report_rows(request, limit):
             "status": report.estado,
             "created_at": report.criado_em,
             "media_url": f"/api/publicacoes/{report.publicacao_id}/media/",
+            "media_type": report.publicacao.tipo_media,
             "admin_url": f"/admin/entradas/denunciapublicacaonkata/{report.id}/change/",
         })
     rows.sort(key=lambda row: row["created_at"], reverse=True)
@@ -856,9 +862,13 @@ def _action_content(request, object_id, action):
     if not item:
         return None, "Conteúdo não encontrado.", 404
     note = str(request.data.get("note", "")).strip()[:240]
+    if action in {"reject", "severe"} and not note:
+        return None, "Indique o motivo da decisão de moderação.", 400
     if action == "approve":
         item.moderacao_status = "APROVADO"
         item.moderacao_motivo = ""
+        if content_type == "MOMENTO":
+            item.expira_em = timezone.now() + timedelta(hours=MOMENT_LIFETIME_HOURS)
         decision = "APROVADO"
         message = "Conteúdo aprovado e disponibilizado."
     elif action in {"reject", "severe"}:
@@ -867,11 +877,7 @@ def _action_content(request, object_id, action):
                 capa_publicacao_id=None,
             )
         item.moderacao_status = "REJEITADO"
-        item.moderacao_motivo = note or (
-            "Conteúdo rejeitado por violação grave das regras da comunidade."
-            if action == "severe"
-            else "Conteúdo não aprovado pela equipa de moderação."
-        )
+        item.moderacao_motivo = note
         decision = "GRAVE" if action == "severe" else "REJEITADO"
         message = "Conteúdo rejeitado."
         if action == "severe":
@@ -883,6 +889,8 @@ def _action_content(request, object_id, action):
         return None, "Ação de moderação inválida.", 400
     item.moderado_em = timezone.now()
     update_fields = ["moderacao_status", "moderacao_motivo", "moderado_em"]
+    if content_type == "MOMENTO" and action == "approve":
+        update_fields.append("expira_em")
     if hasattr(item, "atualizado_em"):
         update_fields.append("atualizado_em")
     item.save(update_fields=update_fields)
