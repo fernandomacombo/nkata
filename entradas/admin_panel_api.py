@@ -763,11 +763,21 @@ def _action_member(request, object_id, action):
     return profile, message, 200
 
 
-def _action_access(request, object_id, action):
-    item = (
+def _locked_access_request_queryset():
+    return (
         PedidoEntrada.objects
         .select_related("verificacao_identidade")
-        .select_for_update()
+        # A verificação é opcional, logo o select_related produz um LEFT OUTER
+        # JOIN. O PostgreSQL não permite FOR UPDATE no lado anulável desse
+        # join. Bloqueamos somente o pedido; a transação continua a impedir
+        # duas decisões administrativas concorrentes sobre o mesmo registo.
+        .select_for_update(of=("self",))
+    )
+
+
+def _action_access(request, object_id, action):
+    item = (
+        _locked_access_request_queryset()
         .filter(id=object_id)
         .first()
     )

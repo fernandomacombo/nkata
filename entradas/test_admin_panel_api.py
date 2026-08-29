@@ -8,7 +8,11 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from .admin_panel_api import _admin_call_duration_seconds, _admin_call_status
+from .admin_panel_api import (
+    _admin_call_duration_seconds,
+    _admin_call_status,
+    _locked_access_request_queryset,
+)
 from .call_models import ChamadaMatchNKATA
 from .identity_models import VerificacaoIdentidadeNKATA
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
@@ -98,6 +102,12 @@ class AdminPanelApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["user"]["is_staff"])
         self.assertFalse(response.data["user"]["is_superuser"])
+
+    def test_access_action_locks_only_the_request_row(self):
+        """Evita FOR UPDATE no LEFT JOIN opcional rejeitado pelo PostgreSQL."""
+        queryset = _locked_access_request_queryset()
+
+        self.assertEqual(queryset.query.select_for_update_of, ("self",))
 
     def test_staff_can_read_summary_and_members(self):
         self.client.force_authenticate(self.staff)
