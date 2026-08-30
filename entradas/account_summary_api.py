@@ -10,6 +10,7 @@ from .chat_media_models import MensagemAudioMatchNKATA
 from .models import AcaoPerfil, MatchPerfil, MensagemMatch
 from .plan_service import plan_for_user, signal_quota_for_user
 from .posts_models import PublicacaoNKATA
+from .user_roles import member_profile_for_user
 
 
 def _profile_completeness(perfil):
@@ -77,7 +78,7 @@ def _call_stats(user, match_ids):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def api_resumo_da_conta(request):
-    perfil = getattr(request.user, "perfil_nkata", None)
+    perfil = member_profile_for_user(request.user)
     if not perfil:
         return Response({"detail": "Perfil não encontrado."}, status=404)
 

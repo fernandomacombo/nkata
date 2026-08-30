@@ -22,6 +22,11 @@ def perfil_pronto_para_publicar(perfil):
     if not perfil.usuario_id:
         return False
 
+    if getattr(perfil.usuario, "is_staff", False) or getattr(
+        perfil.usuario, "is_superuser", False
+    ):
+        return False
+
     if not perfil.usuario.has_usable_password():
         return False
 
@@ -40,7 +45,7 @@ def manter_perfil_privado_ate_conta_ficar_pronta(sender, instance, **kwargs):
     Um perfil nunca deve ficar público antes de o pedido estar aprovado,
     o questionário estar concluído e o titular ter criado a própria senha.
     """
-    if instance.status == "BLOQUEADO":
+    if instance.status in {"BLOQUEADO", "ENCERRAMENTO"}:
         instance.visivel = False
         instance.destaque_publico = False
         return
@@ -82,7 +87,7 @@ def ativar_perfil_depois_da_criacao_da_senha(sender, instance, **kwargs):
         .first()
     )
 
-    if not perfil or perfil.status == "BLOQUEADO":
+    if not perfil or perfil.status in {"BLOQUEADO", "ENCERRAMENTO"}:
         return
 
     if not perfil_pronto_para_publicar(perfil):

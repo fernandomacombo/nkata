@@ -147,12 +147,6 @@ export default function NotificationsPage({
       </CompactPageHeader>
 
       <section className="nk-shell nk-notifications-page__content">
-        {push.status === "unconfigured" && (
-          <div className="nk-push-status is-setup">
-            <BellRing size={18} />
-            <span>{english ? "Push is ready in the app and only needs the server VAPID keys." : "O push está preparado na aplicação e só precisa das chaves VAPID no servidor."}</span>
-          </div>
-        )}
         {push.status === "denied" && (
           <div className="nk-push-status is-warning">
             <BellOff size={18} />
@@ -167,7 +161,7 @@ export default function NotificationsPage({
         )}
         {push.status === "error" && push.message && (
           <div className="nk-push-status is-warning">
-            <BellOff size={18} /><span>{push.message}</span>
+            <BellOff size={18} /><span>{english ? "Push notifications are temporarily unavailable." : "As notificações no dispositivo estão temporariamente indisponíveis."}</span>
           </div>
         )}
         <div className="nk-notifications-page__toolbar">

@@ -25,6 +25,8 @@ from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .post_safety_models import DenunciaPublicacaoNKATA
 from .posts_models import PublicacaoNKATA
 from .profile_media_api import profile_photo_url
+from .plan_service import PLAN_DEFINITIONS, assign_plan, plan_code_for_user
+from .user_roles import has_admin_capability
 from .webrtc_credentials import turn_is_configured
 
 
@@ -112,7 +114,7 @@ def _daily_activity(days=7):
     return points
 
 
-def _summary_payload():
+def _summary_payload(request):
     now = timezone.now()
     week_ago = now - timedelta(days=7)
     today = timezone.localdate()
@@ -155,7 +157,7 @@ def _summary_payload():
                 != "manual"
             ),
             "environment": "Desenvolvimento" if settings.DEBUG else "Produção",
-        },
+        } if request.user.is_superuser else None,
         "activity": _daily_activity(),
     }
 
@@ -166,6 +168,7 @@ def _member_rows(request, limit):
     queryset = (
         PerfilNKATA.objects
         .select_related("pedido", "usuario")
+        .filter(usuario__is_staff=False)
         .annotate(report_count=Count("denuncias", filter=Q(denuncias__analisada=False)))
         .order_by("-criado_em")
     )
@@ -182,6 +185,8 @@ def _member_rows(request, limit):
     total = queryset.count()
     results = []
     for profile in queryset[:limit]:
+        plan_code = plan_code_for_user(profile.usuario) if profile.usuario_id else "LIVRE"
+        plan_definition = PLAN_DEFINITIONS.get(plan_code, PLAN_DEFINITIONS["LIVRE"])
         results.append({
             "id": profile.id,
             "name": profile.nome_publico,
@@ -196,6 +201,12 @@ def _member_rows(request, limit):
             "visible": profile.visivel,
             "verified": profile.pedido.status == "APROVADO",
             "account_active": bool(profile.usuario and profile.usuario.is_active),
+            "plan_code": plan_code,
+            "plan_label": plan_definition["label"],
+            "paused_until": profile.pausado_ate,
+            "pause_reason": profile.motivo_pausa,
+            "closure_requested_at": profile.encerramento_solicitado_em,
+            "closure_reason": profile.motivo_encerramento,
             "pending_reports": profile.report_count,
             "photo_url": profile_photo_url(profile),
             "created_at": profile.criado_em,
@@ -695,7 +706,9 @@ def _operation_rows(request, limit):
 @api_view(["GET"])
 @permission_classes([permissions.IsAdminUser])
 def api_admin_summary(request):
-    return Response(_summary_payload())
+    if not has_admin_capability(request.user, "overview"):
+        return Response({"detail": "Sem permissão para a visão geral."}, status=403)
+    return Response(_summary_payload(request))
 
 
 @api_view(["GET"])
@@ -714,12 +727,16 @@ def api_admin_list(request):
     handler = handlers.get(section)
     if not handler:
         return Response({"detail": "Área administrativa inválida."}, status=400)
+    if not has_admin_capability(request.user, section):
+        return Response({"detail": "Sem permissão para esta área."}, status=403)
     return Response(handler(request, limit))
 
 
 @api_view(["GET"])
 @permission_classes([permissions.IsAdminUser])
 def api_admin_access_detail(request, pedido_id):
+    if not has_admin_capability(request.user, "access"):
+        return Response({"detail": "Sem permissão para analisar pedidos."}, status=403)
     item = (
         PedidoEntrada.objects
         .select_related(
@@ -743,8 +760,19 @@ def _action_member(request, object_id, action):
     if not profile:
         return None, "Membro não encontrado.", 404
 
-    if action == "pause":
-        PerfilNKATA.objects.filter(id=profile.id).update(status="PAUSADO", visivel=False)
+    if action.startswith("plan_"):
+        if not profile.usuario_id:
+            return None, "Este membro ainda não possui conta.", 400
+        plan_code = action.removeprefix("plan_").upper()
+        if plan_code not in PLAN_DEFINITIONS:
+            return None, "Plano inválido.", 400
+        assign_plan(profile.usuario, plan_code)
+        message = f"Plano alterado para {PLAN_DEFINITIONS[plan_code]['label']}."
+    elif action == "pause":
+        PerfilNKATA.objects.filter(id=profile.id).update(
+            status="PAUSADO", visivel=False, pausa_iniciada_pelo_usuario=False,
+            pausado_ate=None, motivo_pausa="",
+        )
         message = "Membro pausado e retirado da descoberta."
     elif action == "block":
         PerfilNKATA.objects.filter(id=profile.id).update(status="BLOQUEADO", visivel=False)
@@ -755,7 +783,11 @@ def _action_member(request, object_id, action):
         if profile.pedido.status != "APROVADO" or not profile.usuario_id:
             return None, "O membro precisa de pedido aprovado e conta criada.", 400
         type(profile.usuario).objects.filter(id=profile.usuario_id).update(is_active=True)
-        PerfilNKATA.objects.filter(id=profile.id).update(status="ATIVO", visivel=True)
+        PerfilNKATA.objects.filter(id=profile.id).update(
+            status="ATIVO", visivel=True, pausa_iniciada_pelo_usuario=False,
+            pausado_ate=None, motivo_pausa="", encerramento_solicitado_em=None,
+            motivo_encerramento="",
+        )
         message = "Membro ativado e visível na comunidade."
     else:
         return None, "Ação de membro inválida.", 400
@@ -1018,6 +1050,15 @@ def api_admin_action(request):
     handler = handlers.get(resource)
     if not handler:
         return Response({"detail": "Recurso administrativo inválido."}, status=400)
+    capability_by_resource = {
+        "member": "members",
+        "access": "access",
+        "content": "content",
+        "report": "reports",
+        "match": "operations",
+    }
+    if not has_admin_capability(request.user, capability_by_resource[resource]):
+        return Response({"detail": "Sem permissão para esta ação."}, status=403)
     _obj, message, response_status = handler(request, object_id, action)
     return Response(
         {"ok": response_status < 400, "message": message},

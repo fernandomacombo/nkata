@@ -39,6 +39,7 @@ def api_destaques_publicos(request):
             foto_destaque_publico_aprovada=True,
             pedido__status="APROVADO",
             usuario__is_active=True,
+            usuario__is_staff=False,
         )
         .exclude(pedido__foto_perfil="")
         .select_related("pedido", "usuario", "usuario__preferencias_nkata")

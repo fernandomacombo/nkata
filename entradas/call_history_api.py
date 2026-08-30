@@ -8,15 +8,14 @@ from rest_framework.response import Response
 from .call_api import _expire_ringing_call
 from .call_models import ChamadaMatchNKATA
 from .models import MatchPerfil
+from .user_roles import active_member_profile_for_user
 
 
 MAX_CALL_HISTORY_ITEMS = 40
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _match_do_utilizador(user, match_id):

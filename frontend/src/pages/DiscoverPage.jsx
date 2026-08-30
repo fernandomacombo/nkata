@@ -292,8 +292,8 @@ export default function DiscoverPage({
             <ShieldCheck size={28} />
             <h2>{english ? "No profiles yet" : "Ainda não há perfis"}</h2>
             <p>{english ? "New members will appear here after approval." : "Novos membros aparecerão aqui após aprovação."}</p>
-            <button type="button" onClick={() => window.location.assign("/pedir-acesso/")}>
-              {english ? "Request access" : "Pedir acesso"}
+            <button type="button" onClick={onReload}>
+              {english ? "Refresh profiles" : "Atualizar perfis"}
             </button>
           </div>
         ) : (

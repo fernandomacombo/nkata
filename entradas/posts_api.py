@@ -18,6 +18,7 @@ from .post_reaction_service import reaction_payload, toggle_reaction
 from .post_safety_models import OcultacaoPublicacaoNKATA
 from .posts_models import PublicacaoNKATA
 from .profile_media_api import profile_photo_url
+from .user_roles import active_member_profile_for_user
 
 
 MAX_IMAGE_SIZE = 10 * 1024 * 1024
@@ -38,9 +39,7 @@ CAPTION_BY_CODE = {item["value"]: item for item in POST_CAPTIONS}
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _profile_payload(request, perfil):

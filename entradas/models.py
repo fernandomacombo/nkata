@@ -125,6 +125,7 @@ class PerfilNKATA(models.Model):
         ("ATIVO", "Ativo"),
         ("PAUSADO", "Pausado"),
         ("BLOQUEADO", "Bloqueado"),
+        ("ENCERRAMENTO", "Encerramento solicitado"),
     ]
     pedido = models.OneToOneField(PedidoEntrada, on_delete=models.CASCADE, related_name="perfil")
     usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="perfil_nkata")
@@ -153,6 +154,11 @@ class PerfilNKATA(models.Model):
         db_index=True,
     )
     owner_session_key = models.CharField(max_length=120, blank=True, db_index=True)
+    pausa_iniciada_pelo_usuario = models.BooleanField(default=False)
+    pausado_ate = models.DateTimeField(null=True, blank=True)
+    motivo_pausa = models.CharField(max_length=240, blank=True)
+    encerramento_solicitado_em = models.DateTimeField(null=True, blank=True)
+    motivo_encerramento = models.CharField(max_length=500, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 

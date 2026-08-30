@@ -24,6 +24,8 @@ from .serializers import (
     PerfilResumoSerializer,
 )
 from .throttles import LoginRateThrottle
+from .account_state import refresh_temporary_pause
+from .user_roles import admin_capabilities_payload, member_profile_for_user
 
 
 MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024
@@ -33,13 +35,11 @@ REPORT_REASONS = {value for value, _label in DenunciaPerfil.MOTIVOS}
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return member_profile_for_user(user)
 
 
 def _dados_da_sessao(request):
-    perfil = _perfil_do_utilizador(request.user)
+    perfil = refresh_temporary_pause(_perfil_do_utilizador(request.user))
 
     if not request.user.is_authenticated:
         return {
@@ -56,6 +56,7 @@ def _dados_da_sessao(request):
             "email": request.user.email,
             "is_staff": request.user.is_staff,
             "is_superuser": request.user.is_superuser,
+            "admin_capabilities": admin_capabilities_payload(request.user),
         },
         "profile": (
             {
@@ -63,7 +64,10 @@ def _dados_da_sessao(request):
                 "name": perfil.nome_publico,
                 "city": perfil.cidade,
                 "status": perfil.status,
+                "status_label": perfil.get_status_display(),
                 "visible": perfil.visivel,
+                "user_paused": perfil.pausa_iniciada_pelo_usuario,
+                "paused_until": perfil.pausado_ate,
             }
             if perfil
             else None

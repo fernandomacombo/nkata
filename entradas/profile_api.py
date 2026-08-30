@@ -6,12 +6,11 @@ from rest_framework.response import Response
 from .models import AcaoPerfil, PerfilNKATA
 from .profile_gallery_api import gallery_for_profile_viewer
 from .serializers import PerfilDetalheSerializer, PerfilResumoSerializer
+from .user_roles import active_member_profile_for_user
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _filtro_perfil_proprio(user):
@@ -64,9 +63,12 @@ def _bloqueio_entre_perfis(perfil_a, perfil_b):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def api_perfis(request):
+    if not active_member_profile_for_user(request.user):
+        return Response({"detail": "Esta área está disponível apenas para membros."}, status=403)
     perfis = PerfilNKATA.objects.filter(
         status="ATIVO",
         visivel=True,
+        usuario__is_staff=False,
     ).select_related("pedido", "usuario", "usuario__preferencias_nkata")
 
     if request.user.is_authenticated:
@@ -101,6 +103,8 @@ def api_perfis(request):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def api_perfil_detalhe(request, perfil_id):
+    if not active_member_profile_for_user(request.user):
+        return Response({"detail": "Esta área está disponível apenas para membros."}, status=403)
     try:
         perfil = PerfilNKATA.objects.select_related(
             "pedido",
@@ -110,6 +114,7 @@ def api_perfil_detalhe(request, perfil_id):
             id=perfil_id,
             status="ATIVO",
             visivel=True,
+            usuario__is_staff=False,
         )
     except PerfilNKATA.DoesNotExist:
         return Response({"detail": "Perfil não encontrado."}, status=404)

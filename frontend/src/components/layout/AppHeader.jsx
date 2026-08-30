@@ -36,6 +36,8 @@ export default function AppHeader({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const authenticated = Boolean(session?.authenticated);
+  const operator = Boolean(authenticated && session?.user?.is_staff);
+  const member = Boolean(authenticated && !operator);
   const english = language === "EN";
   const tr = (portuguese, englishText) => (english ? englishText : portuguese);
   const memberName = session?.profile?.name || session?.user?.name || tr("Conta", "Account");
@@ -94,7 +96,7 @@ export default function AppHeader({
         <button
           type="button"
           className="nk-brand"
-          onClick={() => navigate("home")}
+          onClick={() => navigate(operator ? "admin" : "home")}
           aria-label={tr("Ir para o início", "Go to home")}
         >
           <NkataLogo className="nk-brand__logo" />
@@ -102,21 +104,21 @@ export default function AppHeader({
         </button>
 
         <nav className="nk-desktop-nav" aria-label={tr("Navegação principal", "Main navigation")}>
-          <button
+          {!operator && <button
             type="button"
             className={activePage === "home" ? "is-active" : ""}
             onClick={() => navigate("home")}
           >
             {tr("Início", "Home")}
-          </button>
-          <button
+          </button>}
+          {!operator && <button
             type="button"
             className={activePage === "discover" ? "is-active" : ""}
             onClick={() => navigate("discover")}
           >
             {tr("Perfis", "Profiles")}
-          </button>
-          {authenticated && (
+          </button>}
+          {member && (
             <button
               type="button"
               className={activePage === "moments" ? "is-active" : ""}
@@ -134,7 +136,7 @@ export default function AppHeader({
               {tr("Painel", "Admin")}
             </button>
           )}
-          {authenticated && (
+          {member && (
             <button
               type="button"
               className={activePage === "saved" ? "is-active" : ""}
@@ -143,7 +145,7 @@ export default function AppHeader({
               {tr("Guardados", "Saved")} {savedCount > 0 ? `(${savedCount})` : ""}
             </button>
           )}
-          {authenticated && (
+          {member && (
             <button
               type="button"
               className={activePage === "matches" ? "is-active" : ""}
@@ -152,13 +154,13 @@ export default function AppHeader({
               Matches {unreadMatches > 0 ? `(${unreadMatches})` : ""}
             </button>
           )}
-          <button
+          {!operator && <button
             type="button"
             className={activePage === "security" ? "is-active" : ""}
             onClick={() => navigate("security")}
           >
             {tr("Segurança", "Safety")}
-          </button>
+          </button>}
           {!authenticated && (
             <button type="button" onClick={() => goTo("/acompanhar-pedido/")}>
               {tr("Acompanhar pedido", "Track request")}
@@ -174,7 +176,7 @@ export default function AppHeader({
 
           {authenticated ? (
             <>
-              <button
+              {member && <button
                 type="button"
                 className={`nk-header__notifications ${activePage === "notifications" ? "is-active" : ""}`}
                 onClick={() => navigate("notifications")}
@@ -190,8 +192,8 @@ export default function AppHeader({
                     {unreadNotifications > 99 ? "99+" : unreadNotifications}
                   </span>
                 )}
-              </button>
-              <button
+              </button>}
+              {member && <button
                 type="button"
                 className="nk-header__member"
                 onClick={() => navigate("account")}
@@ -199,7 +201,7 @@ export default function AppHeader({
               >
                 <UserRound size={16} />
                 <span>{memberName}</span>
-              </button>
+              </button>}
               <button
                 type="button"
                 className="nk-header__logout"
@@ -267,16 +269,16 @@ export default function AppHeader({
                 <NkataLogo className="nk-brand__logo" />
                 <div>
                   <strong>NKATA</strong>
-                  <small>{authenticated ? tr("Área de membros", "Members area") : tr("Relações com intenção", "Intentional relationships")}</small>
+                  <small>{operator ? tr("Área administrativa", "Admin area") : authenticated ? tr("Área de membros", "Members area") : tr("Relações com intenção", "Intentional relationships")}</small>
                 </div>
               </div>
-              <button
+              {!operator && <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label={tr("Fechar menu", "Close menu")}
               >
                 <X size={20} />
-              </button>
+              </button>}
             </header>
 
             {authenticated && (
@@ -291,14 +293,14 @@ export default function AppHeader({
             )}
 
             <nav className="nk-mobile-menu__nav" aria-label={tr("Opções do menu", "Menu options")}>
-              <button
+              {!operator && <button
                 type="button"
                 className={activePage === "home" ? "is-active" : ""}
                 onClick={() => navigate("home")}
               >
                 <span><Home size={19} /></span>
                 <div><strong>{tr("Início", "Home")}</strong><small>{tr("Voltar à página principal", "Return to the home page")}</small></div>
-              </button>
+              </button>}
 
               <button
                 type="button"
@@ -309,7 +311,7 @@ export default function AppHeader({
                 <div><strong>{tr("Perfis", "Profiles")}</strong><small>{tr("Conhecer pessoas da comunidade", "Meet people in the community")}</small></div>
               </button>
 
-              {authenticated && (
+              {member && (
                 <button
                   type="button"
                   className={activePage === "moments" ? "is-active" : ""}
@@ -331,7 +333,7 @@ export default function AppHeader({
                 </button>
               )}
 
-              {authenticated && (
+              {member && (
                 <button
                   type="button"
                   className={activePage === "saved" ? "is-active" : ""}
@@ -343,7 +345,7 @@ export default function AppHeader({
                 </button>
               )}
 
-              {authenticated && (
+              {member && (
                 <button
                   type="button"
                   className={activePage === "matches" ? "is-active" : ""}
@@ -355,7 +357,7 @@ export default function AppHeader({
                 </button>
               )}
 
-              {authenticated && (
+              {member && (
                 <button
                   type="button"
                   className={activePage === "notifications" ? "is-active" : ""}
@@ -369,7 +371,7 @@ export default function AppHeader({
                 </button>
               )}
 
-              {authenticated && (
+              {member && (
                 <button
                   type="button"
                   className={activePage === "account" ? "is-active" : ""}
@@ -380,14 +382,14 @@ export default function AppHeader({
                 </button>
               )}
 
-              <button
+              {!operator && <button
                 type="button"
                 className={activePage === "security" ? "is-active" : ""}
                 onClick={() => navigate("security")}
               >
                 <span><ShieldCheck size={19} /></span>
                 <div><strong>{tr("Segurança", "Safety")}</strong><small>{tr("Como protegemos a comunidade", "How we protect the community")}</small></div>
-              </button>
+              </button>}
 
               {!authenticated && (
                 <button type="button" onClick={() => goTo("/acompanhar-pedido/")}>

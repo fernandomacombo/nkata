@@ -1655,3 +1655,19 @@
   .nk-admin-chart__column i { transition: none; }
   .nk-spin { animation-duration: 1600ms; }
 }
+
+.nk-admin-team { display: grid; gap: 18px; }
+.nk-admin-team__form { display: grid; gap: 14px; padding: 24px; }
+.nk-admin-team__form > input { padding: 12px 14px; border: 1px solid var(--nk-line); border-radius: 12px; font: inherit; }
+.nk-admin-team__form fieldset { display: grid; gap: 9px; padding: 16px; border: 1px solid var(--nk-line); border-radius: 16px; }
+.nk-admin-team__form fieldset label { display: flex; gap: 10px; align-items: flex-start; }
+.nk-admin-team__form fieldset span { display: grid; }
+.nk-admin-team__form fieldset small { color: var(--nk-muted); }
+.nk-admin-team__list { display: grid; gap: 10px; }
+.nk-admin-team__list article { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 22px; }
+.nk-admin-team__list article > div { display: grid; gap: 4px; }
+.nk-admin-team__list article small,
+.nk-admin-team__list article span { color: var(--nk-muted); }
+.nk-admin-team__permissions { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.nk-admin-team__permissions label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+.nk-admin-toast.is-inline { position: static; max-width: none; }

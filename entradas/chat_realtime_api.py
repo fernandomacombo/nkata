@@ -14,6 +14,7 @@ from .chat_media_api import serialize_audio_message
 from .chat_realtime_models import EstadoConversaNKATA
 from .models import MatchPerfil
 from .serializers import MensagemMatchSerializer
+from .user_roles import active_member_profile_for_user
 
 
 TYPING_TTL_SECONDS = 5
@@ -23,9 +24,7 @@ MAX_RECEIPT_IDS = 200
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _match_do_utilizador(user, match_id):

@@ -18,6 +18,7 @@ from .models import AcaoPerfil, MatchPerfil
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .profile_media_api import profile_photo_url
 from .plan_service import plan_for_user
+from .user_roles import active_member_profile_for_user
 
 
 MAX_IMAGE_SIZE = 8 * 1024 * 1024
@@ -38,9 +39,7 @@ CAPTION_BY_CODE = {item["value"]: item for item in MOMENT_CAPTIONS}
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _profile_payload(request, perfil):

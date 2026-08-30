@@ -3,6 +3,35 @@
   padding-bottom: 120px;
 }
 
+.nk-account-lifecycle {
+  padding: 28px;
+  border: 1px solid var(--nk-line);
+  border-radius: 28px;
+  background: var(--nk-surface);
+}
+
+.nk-account-lifecycle > header,
+.nk-account-lifecycle > header > div {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.nk-account-lifecycle h2,
+.nk-account-lifecycle p { margin: 0; }
+.nk-account-lifecycle p { color: var(--nk-muted); }
+.nk-account-lifecycle__form,
+.nk-account-lifecycle__paused,
+.nk-account-lifecycle details { margin-top: 20px; display: grid; gap: 12px; }
+.nk-account-lifecycle label { display: grid; gap: 7px; }
+.nk-account-lifecycle label > span { font-size: 13px; font-weight: 700; }
+.nk-account-lifecycle input,
+.nk-account-lifecycle select,
+.nk-account-lifecycle textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--nk-line); border-radius: 14px; background: #fff; font: inherit; }
+.nk-account-lifecycle button { width: fit-content; display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border: 0; border-radius: 999px; background: var(--nk-wine); color: #fff; font-weight: 800; }
+.nk-account-lifecycle button.is-danger { background: #7c1f32; }
+.nk-account-lifecycle summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 800; color: #7c1f32; }
+
 .nk-account__intro {
   border-bottom: 1px solid var(--nk-line);
   background: rgba(255, 253, 249, 0.72);

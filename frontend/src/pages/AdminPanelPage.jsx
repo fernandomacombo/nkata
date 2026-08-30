@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   UserCheck,
   Users,
+  UserCog,
   Video,
   X,
 } from "lucide-react";
@@ -38,6 +39,9 @@ import {
   fetchAdminList,
   fetchAdminSummary,
   performAdminAction,
+  fetchAdminStaff,
+  createAdminStaff,
+  updateAdminStaff,
 } from "../services/adminApi.js";
 
 const SECTIONS = [
@@ -48,7 +52,56 @@ const SECTIONS = [
   { id: "reports", label: "Denúncias", description: "Casos reportados", search: "Alvo, denunciante ou motivo", columns: ["Denúncia", "Estado", "Ação"], icon: ShieldAlert },
   { id: "operations", label: "Operações", description: "Matches e chamadas", search: "Participante ou estado", columns: ["Operação", "Estado", "Ação"], icon: Activity },
   { id: "audit", label: "Auditoria", description: "Ações dos operadores", search: "Objeto, operador ou descrição", columns: ["Registo", "Operador", "Ação"], icon: History },
+  { id: "team", label: "Equipa", description: "Staff e permissões", icon: UserCog },
 ];
+
+function TeamPanel() {
+  const [data, setData] = useState({ capabilities: [], results: [] });
+  const [form, setForm] = useState({ name: "", email: "", password: "", capabilities: [] });
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const reload = useCallback(async () => {
+    try { setData(await fetchAdminStaff()); } catch (error) { setMessage(error.message); }
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const toggleCapability = (code) => setForm((current) => ({
+    ...current,
+    capabilities: current.capabilities.includes(code)
+      ? current.capabilities.filter((item) => item !== code)
+      : [...current.capabilities, code],
+  }));
+
+  const submit = async (event) => {
+    event.preventDefault(); setBusy(true); setMessage("");
+    try {
+      const result = await createAdminStaff(form);
+      setMessage(result.message); setForm({ name: "", email: "", password: "", capabilities: [] });
+      await reload();
+    } catch (error) { setMessage(error.message); } finally { setBusy(false); }
+  };
+
+  const update = async (user, payload) => {
+    setBusy(true); setMessage("");
+    try { const result = await updateAdminStaff(user.id, payload); setMessage(result.message); await reload(); }
+    catch (error) { setMessage(error.message); } finally { setBusy(false); }
+  };
+
+  return <section className="nk-admin-team">
+    <header className="nk-admin-section-header"><div><small>Exclusivo do superutilizador</small><h2>Equipa e permissões</h2><p>Crie operadores sem perfil público e escolha exatamente o que podem fazer.</p></div></header>
+    <form onSubmit={submit} className="nk-admin-card nk-admin-team__form">
+      <input placeholder="Nome" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
+      <input type="email" placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required />
+      <input type="password" placeholder="Palavra-passe inicial (mín. 10)" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={10} required />
+      <fieldset><legend>Permissões</legend>{data.capabilities.map((capability) => <label key={capability.code}><input type="checkbox" checked={form.capabilities.includes(capability.code)} onChange={() => toggleCapability(capability.code)} /><span><strong>{capability.label}</strong><small>{capability.description}</small></span></label>)}</fieldset>
+      <button type="submit" className="nk-admin-button is-primary" disabled={busy}>Criar operador</button>
+    </form>
+    {message && <div className="nk-admin-toast is-inline">{message}</div>}
+    <div className="nk-admin-team__list">{data.results.map((user) => <article className="nk-admin-card" key={user.id}><div><strong>{user.name}</strong><small>{user.email}</small><div className="nk-admin-team__permissions">{data.capabilities.map((capability) => <label key={capability.code}><input type="checkbox" checked={user.capabilities.includes(capability.code)} disabled={busy} onChange={() => update(user, { capabilities: user.capabilities.includes(capability.code) ? user.capabilities.filter((code) => code !== capability.code) : [...user.capabilities, capability.code] })} />{capability.label}</label>)}</div></div><button type="button" className={`nk-admin-button ${user.active ? "is-danger" : "is-primary"}`} disabled={busy} onClick={() => update(user, { active: !user.active })}>{user.active ? "Desativar" : "Ativar"}</button></article>)}</div>
+  </section>;
+}
 
 const FILTERS = {
   access: [
@@ -58,7 +111,7 @@ const FILTERS = {
   ],
   members: [
     ["", "Todos os estados"], ["ATIVO", "Ativo"], ["PAUSADO", "Pausado"],
-    ["BLOQUEADO", "Bloqueado"],
+    ["BLOQUEADO", "Bloqueado"], ["ENCERRAMENTO", "Eliminação solicitada"],
   ],
   content: [
     ["", "Todos os estados"], ["PENDENTE", "Pendente"],
@@ -159,6 +212,11 @@ function detailRowsFor(section, item) {
       ["Género", item.gender_label], ["Objetivo", item.objective_label],
       ["Perfil visível", yesNo(item.visible)], ["Identidade verificada", yesNo(item.verified)],
       ["Conta ativa", yesNo(item.account_active)], ["Denúncias pendentes", item.pending_reports || "Nenhuma"],
+      ["Plano ativo", item.plan_label || "NKATA Livre"],
+      ["Suspensa até", formatDate(item.paused_until)],
+      ["Motivo da suspensão", item.pause_reason || "—", true],
+      ["Eliminação solicitada", formatDate(item.closure_requested_at)],
+      ["Motivo da eliminação", item.closure_reason || "—", true],
     ];
   }
   if (section === "content") {
@@ -682,7 +740,7 @@ function Overview({ summary, loading, error, onRetry, onOpenSection }) {
           </footer>
         </section>
 
-        <section className="nk-admin-card nk-admin-system-card">
+        {summary.system && <section className="nk-admin-card nk-admin-system-card">
           <header className="nk-admin-card-title">
             <div><small>Infraestrutura</small><h2>Estado do sistema</h2></div>
             <Activity size={21} />
@@ -705,7 +763,7 @@ function Overview({ summary, loading, error, onRetry, onOpenSection }) {
               <StatusBadge status="NEUTRAL" label={summary.system.environment} />
             </li>
           </ul>
-        </section>
+        </section>}
       </div>
 
       <section className="nk-admin-priorities">
@@ -761,6 +819,9 @@ function actionsFor(section, item) {
       item.status !== "ATIVO" && { action: "activate", label: "Ativar", description: `Ativar ${item.name} e tornar o perfil visível.`, icon: PlayCircle },
       item.status === "ATIVO" && { action: "pause", label: "Pausar", description: `Retirar temporariamente ${item.name} da descoberta.`, icon: PauseCircle },
       item.status !== "BLOQUEADO" && { action: "block", label: "Bloquear", description: `Bloquear ${item.name} e desativar o acesso à conta.`, danger: true, icon: Ban },
+      item.plan_code !== "LIVRE" && { action: "plan_livre", label: "Plano Livre", description: `Alterar o plano de ${item.name} para NKATA Livre.`, icon: CheckCircle2 },
+      item.plan_code !== "ESSENCIAL" && { action: "plan_essencial", label: "Plano Essencial", description: `Alterar o plano de ${item.name} para NKATA Essencial.`, icon: CheckCircle2 },
+      item.plan_code !== "PREMIUM" && { action: "plan_premium", label: "Plano Premium", description: `Alterar o plano de ${item.name} para NKATA Premium.`, icon: CheckCircle2 },
     ].filter(Boolean);
   }
   if (section === "content") {
@@ -813,7 +874,7 @@ function AdminRow({ section, item, onDetails }) {
       </div>
       <div className="nk-admin-row__meta">
         {section === "access" && <><span>{item.age} anos · {item.gender_label}</span><small>{item.identity_ready ? item.identity_status_label : "Identidade incompleta"}</small></>}
-        {section === "members" && <><span>{item.age} anos · {item.visible ? "Visível" : "Oculto"}</span><small>{item.pending_reports ? `${item.pending_reports} denúncia(s) pendente(s)` : "Sem denúncias pendentes"}</small></>}
+        {section === "members" && <><span>{item.age} anos · {item.visible ? "Visível" : "Oculto"}</span><small>{item.plan_label || "NKATA Livre"} · {item.pending_reports ? `${item.pending_reports} denúncia(s)` : "sem denúncias"}</small></>}
         {section === "content" && <><span>Risco: {item.risk_label}</span><small>{item.visibility_label}</small></>}
         {section === "reports" && <><span>Por {item.reporter}</span><small>{formatDate(item.created_at)}</small></>}
         {section === "operations" && item.operation_type === "CALL" && (
@@ -857,6 +918,14 @@ export default function AdminPanelPage({ session }) {
   const [accessDetailError, setAccessDetailError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState("");
+  const allowedCodes = useMemo(
+    () => new Set((session?.user?.admin_capabilities || []).map((item) => item.code)),
+    [session?.user?.admin_capabilities],
+  );
+  const allowedSections = useMemo(
+    () => SECTIONS.filter((section) => section.id === "team" ? session?.user?.is_superuser : allowedCodes.has(section.id)),
+    [allowedCodes, session?.user?.is_superuser],
+  );
   const modalOpen = Boolean(
     selectedDetails || contentReview || accessReview || pendingAction,
   );
@@ -886,7 +955,7 @@ export default function AdminPanelPage({ session }) {
   }, []);
 
   const loadList = useCallback(async ({ signal } = {}) => {
-    if (activeSection === "overview") return;
+    if (["overview", "team"].includes(activeSection)) return;
     setListLoading(true);
     setListError("");
     try {
@@ -900,13 +969,24 @@ export default function AdminPanelPage({ session }) {
   }, [activeSection, filters]);
 
   useEffect(() => {
+    if (!allowedSections.length) return;
+    if (!allowedSections.some((section) => section.id === activeSection)) {
+      setActiveSection(allowedSections[0].id);
+    }
+  }, [activeSection, allowedSections]);
+
+  useEffect(() => {
+    if (!allowedCodes.has("overview")) {
+      setSummaryLoading(false);
+      return undefined;
+    }
     const controller = new AbortController();
     loadSummary({ signal: controller.signal });
     return () => controller.abort();
-  }, [loadSummary]);
+  }, [allowedCodes, loadSummary]);
 
   useEffect(() => {
-    if (activeSection === "overview") return undefined;
+    if (["overview", "team"].includes(activeSection)) return undefined;
     const controller = new AbortController();
     loadList({ signal: controller.signal });
     return () => controller.abort();
@@ -1072,7 +1152,7 @@ export default function AdminPanelPage({ session }) {
         <div className="nk-admin-layout">
           <aside className="nk-admin-sidebar">
             <nav aria-label="Áreas administrativas">
-              {SECTIONS.map((section) => {
+              {allowedSections.map((section) => {
                 const Icon = section.icon;
                 const active = section.id === activeSection;
                 const badge = section.id === "access" ? summary?.metrics?.access_pending
@@ -1102,7 +1182,7 @@ export default function AdminPanelPage({ session }) {
                 onRetry={() => loadSummary()}
                 onOpenSection={setActiveSection}
               />
-            ) : (
+            ) : activeSection === "team" ? <TeamPanel /> : (
               <>
                 <section className="nk-admin-workspace-toolbar">
                   <header className="nk-admin-section-header">

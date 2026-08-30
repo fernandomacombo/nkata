@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   Play,
   UserRound,
+  PauseCircle,
+  Trash2,
   X,
 } from "lucide-react";
 import PlanPanel from "../components/account/PlanPanel.jsx";
@@ -27,9 +29,105 @@ import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import {
   API_BASE_URL,
   fetchMyProfileGallery,
+  fetchMyAccountManagement,
+  manageMyAccount,
   updateMyProfileCover,
   uploadMyProfilePhoto,
 } from "../services/api.js";
+
+function AccountLifecyclePanel({ language, onSignOut }) {
+  const english = language === "EN";
+  const [state, setState] = useState(null);
+  const [days, setDays] = useState("30");
+  const [pauseReason, setPauseReason] = useState("");
+  const [closeReason, setCloseReason] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchMyAccountManagement({ signal: controller.signal })
+      .then(setState)
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") setError(requestError.message);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const run = async (payload) => {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await manageMyAccount(payload);
+      if (result.signed_out) {
+        await onSignOut?.();
+        return;
+      }
+      setState(result.state);
+      setMessage(result.message || (english ? "Account updated." : "Conta atualizada."));
+    } catch (requestError) {
+      setError(requestError.message || (english ? "Could not update the account." : "Não foi possível atualizar a conta."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const userPaused = state?.status === "PAUSADO" && state?.user_paused;
+  return (
+    <section className="nk-account-lifecycle">
+      <header>
+        <span><PauseCircle size={19} /></span>
+        <div>
+          <h2>{english ? "Pause or close account" : "Suspender ou eliminar conta"}</h2>
+          <p>{english ? "Control your availability and your data." : "Controle a sua disponibilidade e os seus dados."}</p>
+        </div>
+      </header>
+
+      {userPaused ? (
+        <div className="nk-account-lifecycle__paused">
+          <strong>{english ? "Account temporarily suspended" : "Conta temporariamente suspensa"}</strong>
+          <span>{state.paused_until ? new Date(state.paused_until).toLocaleDateString(english ? "en-GB" : "pt-PT") : ""}</span>
+          <button type="button" onClick={() => run({ action: "reactivate" })} disabled={busy}>
+            {english ? "Reactivate now" : "Reativar agora"}
+          </button>
+        </div>
+      ) : (
+        <div className="nk-account-lifecycle__form">
+          <label>
+            <span>{english ? "Pause duration" : "Duração da suspensão"}</span>
+            <select value={days} onChange={(event) => setDays(event.target.value)}>
+              <option value="7">7 {english ? "days" : "dias"}</option>
+              <option value="30">30 {english ? "days" : "dias"}</option>
+              <option value="90">90 {english ? "days" : "dias"}</option>
+            </select>
+          </label>
+          <label>
+            <span>{english ? "Reason" : "Motivo"}</span>
+            <input value={pauseReason} onChange={(event) => setPauseReason(event.target.value)} maxLength={240} />
+          </label>
+          <button type="button" onClick={() => run({ action: "pause", days: Number(days), reason: pauseReason })} disabled={busy || !pauseReason.trim()}>
+            <PauseCircle size={16} /> {english ? "Suspend temporarily" : "Suspender temporariamente"}
+          </button>
+        </div>
+      )}
+
+      <details>
+        <summary><Trash2 size={16} /> {english ? "Request account deletion" : "Pedir eliminação da conta"}</summary>
+        <p>{english ? "Your account will be disabled immediately and reviewed by the NKATA team." : "A conta será desativada imediatamente e o pedido tratado pela equipa NKATA."}</p>
+        <label><span>{english ? "Reason" : "Motivo"}</span><textarea value={closeReason} onChange={(event) => setCloseReason(event.target.value)} rows={3} maxLength={500} /></label>
+        <label><span>{english ? "Current password" : "Palavra-passe atual"}</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+        <button type="button" className="is-danger" onClick={() => run({ action: "close", reason: closeReason, password })} disabled={busy || closeReason.trim().length < 5 || !password}>
+          {english ? "Disable and request deletion" : "Desativar e pedir eliminação"}
+        </button>
+      </details>
+      {message && <div className="nk-account-form__message is-success">{message}</div>}
+      {error && <div className="nk-account-form__message is-error">{error}</div>}
+    </section>
+  );
+}
 
 const objectiveOptions = [
   { value: "RELACIONAMENTO_SERIO", pt: "Relacionamento sério", en: "Serious relationship" },
@@ -757,6 +855,7 @@ export default function AccountPage({
               </section>
 
               <DeviceExperiencePanel language={language} />
+              <AccountLifecyclePanel language={language} onSignOut={onSignOut} />
             </div>
           )}
         </div>

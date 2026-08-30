@@ -6,12 +6,11 @@ from rest_framework.response import Response
 
 from .models import AcaoPerfil, PerfilNKATA
 from .serializers import PerfilResumoSerializer
+from .user_roles import active_member_profile_for_user
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _bloqueio_entre_perfis(perfil_a, perfil_b):

@@ -105,6 +105,10 @@ export default function App() {
     refreshSession,
   } = useSession();
 
+  const operator = Boolean(authenticated && session?.user?.is_staff);
+  const memberAuthenticated = Boolean(authenticated && !operator);
+  const memberPaused = memberAuthenticated && session?.profile?.status === "PAUSADO";
+
   const sessionIdentity = authenticated
     ? `user:${session?.user?.id || "unknown"}:profile:${session?.profile?.id || "unknown"}`
     : "guest";
@@ -116,7 +120,7 @@ export default function App() {
     error: preferencesError,
     previewPreferences,
     savePreferences,
-  } = useAppPreferences({ authenticated, identity: sessionIdentity });
+  } = useAppPreferences({ authenticated: memberAuthenticated, identity: sessionIdentity });
 
   const loadProfiles = useCallback(async ({ signal } = {}) => {
     setLoading(true);
@@ -143,7 +147,7 @@ export default function App() {
   }, []);
 
   const loadMatches = useCallback(async ({ signal } = {}) => {
-    if (!authenticated) return;
+    if (!memberAuthenticated) return;
 
     setMatchesLoading(true);
     setMatchesError("");
@@ -158,10 +162,10 @@ export default function App() {
     } finally {
       if (!signal?.aborted) setMatchesLoading(false);
     }
-  }, [authenticated]);
+  }, [memberAuthenticated]);
 
   const loadAccount = useCallback(async ({ signal } = {}) => {
-    if (!authenticated) return;
+    if (!memberAuthenticated) return;
 
     setAccountLoading(true);
     setAccountError("");
@@ -180,10 +184,10 @@ export default function App() {
     } finally {
       if (!signal?.aborted) setAccountLoading(false);
     }
-  }, [authenticated]);
+  }, [memberAuthenticated]);
 
   const loadNotifications = useCallback(async ({ signal, silent = false } = {}) => {
-    if (!authenticated) return;
+    if (!memberAuthenticated) return;
 
     if (!silent) setNotificationsLoading(true);
     setNotificationsError("");
@@ -198,7 +202,7 @@ export default function App() {
     } finally {
       if (!signal?.aborted && !silent) setNotificationsLoading(false);
     }
-  }, [authenticated]);
+  }, [memberAuthenticated]);
 
   useEffect(() => {
     if (sessionLoading) return undefined;
@@ -239,7 +243,7 @@ export default function App() {
   }, [activePage, authenticated, loadAccount]);
 
   useEffect(() => {
-    if (!authenticated) {
+    if (!memberAuthenticated) {
       setNotifications([]);
       setNotificationsError("");
       return undefined;
@@ -258,7 +262,7 @@ export default function App() {
       controller.abort();
       window.clearInterval(intervalId);
     };
-  }, [authenticated, loadNotifications]);
+  }, [memberAuthenticated, loadNotifications]);
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -270,6 +274,24 @@ export default function App() {
       setActivePage("login", { replace: true });
     }
   }, [activePage, authenticated, sessionLoading, setActivePage]);
+
+  useEffect(() => {
+    if (sessionLoading || !authenticated) return;
+
+    if (activePage === "login") {
+      setActivePage(operator ? "admin" : "home", { replace: true });
+      return;
+    }
+
+    if (operator && activePage !== "admin") {
+      setActivePage("admin", { replace: true });
+      return;
+    }
+
+    if (memberPaused && !["account", "security"].includes(activePage)) {
+      setActivePage("account", { replace: true });
+    }
+  }, [activePage, authenticated, memberPaused, operator, sessionLoading, setActivePage]);
 
   useEffect(() => {
     if (sessionLoading || activePage !== "admin" || !authenticated) return;
@@ -374,6 +396,10 @@ export default function App() {
   }, [activePage, authenticated, routeMatchId, selectedMatch?.id]);
 
   const openLogin = (returnPage = activePage) => {
+    if (authenticated) {
+      setActivePage(operator ? "admin" : "home", { replace: true });
+      return;
+    }
     const safeReturnPage = returnPage === "conversation" ? "matches" : returnPage;
     setReturnPageAfterLogin(safeReturnPage === "login" ? "home" : safeReturnPage);
     setLoginError("");
@@ -410,8 +436,8 @@ export default function App() {
     setLoginError("");
 
     try {
-      await signIn({ email, password });
-      setActivePage(returnPageAfterLogin || "home", { replace: true });
+      const nextSession = await signIn({ email, password });
+      setActivePage(nextSession?.user?.is_staff ? "admin" : (returnPageAfterLogin || "home"), { replace: true });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       setLoginError(error.message || "Não foi possível entrar.");
@@ -423,6 +449,8 @@ export default function App() {
   const handleSignOut = async () => {
     try {
       await signOut();
+    } catch {
+      // A sessão também pode já ter sido encerrada por uma ação de conta.
     } finally {
       setInterestState({ profileId: null, active: false, loading: false, message: "" });
       setMatches([]);
@@ -727,7 +755,7 @@ export default function App() {
       />
 
       {activePage === "home" && (
-        authenticated ? (
+        memberAuthenticated ? (
           <MemberHomePage
             onNavigate={handleNavigate}
             onOpenProfile={handleOpenProfile}
@@ -745,7 +773,7 @@ export default function App() {
 
       {activePage === "discover" && (
         <DiscoverPage
-          authenticated={authenticated}
+          authenticated={memberAuthenticated}
           profiles={profiles}
           loading={loading}
           usingDemoData={usingDemoData}
@@ -758,7 +786,7 @@ export default function App() {
         />
       )}
 
-      {activePage === "moments" && authenticated && (
+      {activePage === "moments" && memberAuthenticated && (
         <MomentsPage onOpenProfile={handleOpenProfile} />
       )}
 
@@ -778,7 +806,7 @@ export default function App() {
         <SecurityPage authenticated={authenticated} onNavigate={handleNavigate} />
       )}
 
-      {activePage === "login" && (
+      {activePage === "login" && !authenticated && (
         <LoginPage
           onBack={() => setActivePage(returnPageAfterLogin || "home")}
           onSubmit={handleLogin}
@@ -793,7 +821,7 @@ export default function App() {
           loading={profileLoading}
           error={profileError}
           saved={selectedProfile ? isSaved(selectedProfile) : false}
-          authenticated={authenticated}
+          authenticated={memberAuthenticated}
           interestActive={
             interestState.profileId === selectedProfile?.id
               ? interestState.active
@@ -808,7 +836,7 @@ export default function App() {
         />
       )}
 
-      {activePage === "matches" && authenticated && (
+      {activePage === "matches" && memberAuthenticated && (
         <MatchesPage
           matches={matches}
           loading={matchesLoading}
@@ -819,7 +847,7 @@ export default function App() {
         />
       )}
 
-      {activePage === "conversation" && authenticated && (
+      {activePage === "conversation" && memberAuthenticated && (
         <ConversationPage
           match={selectedMatch}
           messages={conversationMessages}
@@ -831,7 +859,7 @@ export default function App() {
         />
       )}
 
-      {activePage === "notifications" && authenticated && (
+      {activePage === "notifications" && memberAuthenticated && (
         <NotificationsPage
           notifications={notifications}
           unread={unreadNotifications}
@@ -843,7 +871,7 @@ export default function App() {
         />
       )}
 
-      {activePage === "account" && authenticated && (
+      {activePage === "account" && memberAuthenticated && (
         <AccountPage
           account={account}
           interests={accountInterests}
@@ -870,7 +898,7 @@ export default function App() {
         <AdminPanelPage session={session} />
       )}
 
-      {activePage !== "admin" && (
+      {activePage !== "admin" && !operator && (
         <BottomNavigation
           activePage={visiblePage}
           onNavigate={handleNavigate}

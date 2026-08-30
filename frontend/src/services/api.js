@@ -423,6 +423,14 @@ export async function updateMyAccount(values) {
   return normalizeAccount(payload);
 }
 
+export async function fetchMyAccountManagement({ signal } = {}) {
+  return request("/api/minha-conta/gestao/", { signal });
+}
+
+export async function manageMyAccount(values) {
+  return request("/api/minha-conta/gestao/", { method: "POST", body: values });
+}
+
 export async function uploadMyProfilePhoto(file) {
   const form = new FormData();
   form.append("foto", file);

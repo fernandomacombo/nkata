@@ -22,3 +22,15 @@ export function performAdminAction(payload) {
     body: payload,
   });
 }
+
+export function fetchAdminStaff({ signal } = {}) {
+  return request("/api/painel/equipa/", { signal });
+}
+
+export function createAdminStaff(payload) {
+  return request("/api/painel/equipa/", { method: "POST", body: payload });
+}
+
+export function updateAdminStaff(id, payload) {
+  return request(`/api/painel/equipa/${id}/`, { method: "PATCH", body: payload });
+}

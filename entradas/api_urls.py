@@ -2,10 +2,12 @@ from django.urls import path
 
 from . import (
     access_api,
+    account_management_api,
     account_preferences_api,
     account_security_api,
     account_summary_api,
     admin_panel_api,
+    admin_staff_api,
     api_views,
     call_api,
     call_history_api,
@@ -47,6 +49,12 @@ urlpatterns = [
         name="admin_access_detail",
     ),
     path("painel/acoes/", admin_panel_api.api_admin_action, name="admin_action"),
+    path("painel/equipa/", admin_staff_api.api_admin_staff, name="admin_staff"),
+    path(
+        "painel/equipa/<int:staff_id>/",
+        admin_staff_api.api_admin_staff_detail,
+        name="admin_staff_detail",
+    ),
     path(
         "auth/password-change/",
         account_security_api.api_alterar_palavra_passe,
@@ -218,6 +226,11 @@ urlpatterns = [
         name="apagar_publicacao",
     ),
     path("minha-conta/", api_views.api_minha_conta, name="minha_conta"),
+    path(
+        "minha-conta/gestao/",
+        account_management_api.api_gestao_da_conta,
+        name="gestao_da_conta",
+    ),
     path(
         "minha-conta/resumo/",
         account_summary_api.api_resumo_da_conta,

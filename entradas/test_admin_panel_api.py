@@ -18,6 +18,7 @@ from .identity_models import VerificacaoIdentidadeNKATA
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 from .moments_models import MomentoNKATA
 from .posts_models import PublicacaoNKATA
+from .user_roles import set_admin_capabilities
 
 
 def create_request(email, status="APROVADO"):
@@ -49,6 +50,10 @@ class AdminPanelApiTests(TestCase):
             email="operador@nkata.test",
             password="senha-segura",
             is_staff=True,
+        )
+        set_admin_capabilities(
+            self.staff,
+            ["overview", "access", "members", "content", "reports", "operations", "audit"],
         )
         self.member_user = User.objects.create_user(
             username="membro",

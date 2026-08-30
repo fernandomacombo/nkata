@@ -12,6 +12,7 @@ from .profile_media_api import profile_photo_url
 from .models import MatchPerfil
 from .plan_service import plan_for_user
 from .webrtc_credentials import ice_servers_for_user
+from .user_roles import active_member_profile_for_user
 
 
 CALL_RING_TIMEOUT_SECONDS = 45
@@ -24,9 +25,7 @@ LIVE_CALL_STATES = {
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _match_do_utilizador(user, match_id, *, for_update=False):

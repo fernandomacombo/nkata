@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from .chat_media_models import MensagemAudioMatchNKATA
 from .models import MatchPerfil
 from .plan_service import plan_for_user
+from .user_roles import active_member_profile_for_user
 
 
 MAX_AUDIO_SIZE = 12 * 1024 * 1024
@@ -30,9 +31,7 @@ ALLOWED_AUDIO_CONTENT_TYPES = {
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _match_do_utilizador(user, match_id):

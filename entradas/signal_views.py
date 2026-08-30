@@ -15,6 +15,7 @@ from .plan_service import (
     RECHARGE_SIGNAL_PREFIX,
     signal_quota_for_user,
 )
+from .user_roles import active_member_profile_for_user
 
 
 User = get_user_model()
@@ -43,9 +44,7 @@ SIGNAL_DB_TYPES = [item["db_type"] for item in SIGNAL_DEFINITIONS.values()]
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _bloqueio_entre_perfis(perfil_a, perfil_b):

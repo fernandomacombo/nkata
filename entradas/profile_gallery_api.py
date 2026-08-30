@@ -5,15 +5,14 @@ from rest_framework.response import Response
 
 from .posts_api import _feed_queryset
 from .posts_models import PublicacaoNKATA
+from .user_roles import active_member_profile_for_user
 
 
 PROFILE_GALLERY_LIMIT = 18
 
 
 def _perfil_do_utilizador(user):
-    if not user or not user.is_authenticated:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return active_member_profile_for_user(user)
 
 
 def _gallery_item(publicacao, cover_id=None):

@@ -6,6 +6,7 @@ from django.dispatch import receiver
 
 from .models import AcaoPerfil, MatchPerfil, MensagemMatch
 from .notification_models import NotificacaoNKATA
+from .user_roles import member_profile_for_user
 
 
 logger = logging.getLogger(__name__)
@@ -27,9 +28,7 @@ SIGNAL_NOTIFICATION_CONTENT = {
 
 
 def _perfil_do_utilizador(user):
-    if not user:
-        return None
-    return getattr(user, "perfil_nkata", None)
+    return member_profile_for_user(user)
 
 
 def _nome_publico(user):
