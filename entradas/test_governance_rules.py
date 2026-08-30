@@ -4,6 +4,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from .models import PedidoEntrada, PerfilNKATA
+from .moments_models import MomentoNKATA
 from .plan_service import plan_code_for_user
 from .user_roles import set_admin_capabilities
 
@@ -78,6 +79,18 @@ class GovernanceRulesTests(TestCase):
         }, format="json")
         self.assertEqual(change.status_code, 200)
         self.assertEqual(plan_code_for_user(self.member), "PREMIUM")
+
+    def test_member_can_publish_predefined_text_moment(self):
+        self.client.force_authenticate(self.member)
+        response = self.client.post(
+            reverse("entradas_api:momentos"),
+            {"caption": "BOAS_ENERGIAS"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        moment = MomentoNKATA.objects.get(pk=response.data["id"])
+        self.assertEqual(moment.moderacao_status, "APROVADO")
+        self.assertIsNotNone(moment.moderado_em)
 
     def test_member_can_pause_reactivate_and_request_closure(self):
         self.client.force_authenticate(self.member)

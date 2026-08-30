@@ -300,10 +300,10 @@ def api_momentos(request):
             return Response({"media": ["Não foi possível preparar esta imagem."]}, status=400)
 
     moderation_status = "PENDENTE" if media else "APROVADO"
-    approved_at = timezone.now() if moderation_status == "APROVADO" else None
+    moderated_at = timezone.now() if moderation_status == "APROVADO" else None
     expires_at = (
-        approved_at + timedelta(hours=MOMENT_LIFETIME_HOURS)
-        if approved_at
+        moderated_at + timedelta(hours=MOMENT_LIFETIME_HOURS)
+        if moderated_at
         else timezone.now() + timedelta(hours=MOMENT_LIFETIME_HOURS)
     )
 
@@ -316,7 +316,7 @@ def api_momentos(request):
             tipo_media=media_type or "TEXTO",
             media=media,
             moderacao_status=moderation_status,
-            aprovado_em=approved_at,
+            moderado_em=moderated_at,
             expira_em=expires_at,
         )
         if media:
