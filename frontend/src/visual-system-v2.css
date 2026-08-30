@@ -421,8 +421,8 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
 }
 
 /*
- * Hero móvel v4: fotografia e texto continuam separados, mas o conteúdo deixa
- * de criar uma faixa escura. O fundo passa a ser o da própria página.
+ * Hero móvel v3: a fotografia apresenta as pessoas sem texto por cima.
+ * A mensagem fica numa ficha compacta, semelhante ao primeiro ecrã de uma app.
  */
 @media (max-width: 760px) {
   .nk-header--hero {
@@ -450,8 +450,7 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
     display: block;
     min-height: 0;
     padding: 0 0 calc(20px + env(safe-area-inset-bottom, 0px));
-    background: transparent;
-    color: var(--nk-ink);
+    background: #15110f;
   }
 
   .nk-hero__background {
@@ -497,10 +496,8 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
   .nk-hero--cover .nk-eyebrow--hero {
     min-height: 30px;
     padding: 6px 9px;
-    border-color: transparent;
-    background: transparent;
-    padding-inline: 0;
-    color: var(--nk-wine);
+    border-color: rgba(255, 255, 255, 0.13);
+    background: #2c2421;
     font-size: 0.56rem;
   }
 
@@ -510,17 +507,12 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
     font-size: clamp(1.9rem, 8.4vw, 2.35rem);
     line-height: 0.98;
     letter-spacing: -0.045em;
-    color: var(--nk-ink);
-  }
-
-  .nk-hero--cover .nk-hero__copy h1 em {
-    color: var(--nk-wine);
   }
 
   .nk-hero--cover .nk-hero__copy > p {
     max-width: 320px;
     margin-top: 10px;
-    color: var(--nk-muted);
+    color: rgba(255, 255, 255, 0.72);
     font-size: 0.76rem;
     line-height: 1.42;
   }
@@ -539,17 +531,6 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
     min-height: 44px;
     padding-inline: 10px;
     font-size: 0.68rem;
-  }
-
-  .nk-hero--cover .nk-button--hero-secondary {
-    border-color: var(--nk-line);
-    background: transparent;
-    color: var(--nk-ink);
-    backdrop-filter: none;
-  }
-
-  .nk-hero--cover .nk-button--hero-secondary:hover {
-    background: var(--nk-paper);
   }
 
   .nk-hero--cover .nk-hero__trust,
