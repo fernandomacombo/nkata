@@ -7,6 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 MAX_IMAGE_PIXELS = 40_000_000
 MAX_IMAGE_SIDE = 12_000
+MAX_STORED_IMAGE_SIDE = 2_048
 
 IMAGE_OUTPUTS = {
     "JPEG": (".jpg", "image/jpeg"),
@@ -38,6 +39,10 @@ def sanitized_image_upload(upload):
             raise ValueError("Formato de imagem não suportado.")
         image = ImageOps.exif_transpose(source)
         image.load()
+        image.thumbnail(
+            (MAX_STORED_IMAGE_SIDE, MAX_STORED_IMAGE_SIDE),
+            Image.Resampling.LANCZOS,
+        )
 
         if image_format == "JPEG" and image.mode != "RGB":
             if "A" in image.mode:
@@ -49,8 +54,12 @@ def sanitized_image_upload(upload):
 
         output = BytesIO()
         save_options = {"format": image_format}
-        if image_format in {"JPEG", "WEBP"}:
-            save_options.update({"quality": 92, "optimize": True})
+        if image_format == "JPEG":
+            save_options.update({"quality": 84, "optimize": True, "progressive": True})
+        elif image_format == "WEBP":
+            save_options.update({"quality": 82, "method": 5})
+        elif image_format == "PNG":
+            save_options.update({"optimize": True})
         image.save(output, **save_options)
 
     upload.seek(0)

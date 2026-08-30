@@ -45,6 +45,8 @@ function MatchAvatar({ profile, english }) {
     <img
       src={src}
       alt={`${english ? "Photo of" : "Foto de"} ${profile?.nome_publico || (english ? "NKATA member" : "membro NKATA")}`}
+      loading="lazy"
+      decoding="async"
       onError={() => setFailed(true)}
     />
   );

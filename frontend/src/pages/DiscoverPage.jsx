@@ -50,6 +50,8 @@ function GuestPreviewCard({ profile, position, onOpen, english }) {
         <img
           src={profile.foto_url}
           alt=""
+          loading="lazy"
+          decoding="async"
           onError={(event) => {
             event.currentTarget.hidden = true;
           }}

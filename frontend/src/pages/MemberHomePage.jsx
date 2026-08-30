@@ -88,6 +88,7 @@ function PublicationMedia({ publication, english }) {
       src={publication.media_url}
       alt={`${english ? "Post by" : "Publicação de"} ${publication.profile.nome_publico}`}
       loading="lazy"
+      decoding="async"
     />
   );
 }
@@ -163,7 +164,7 @@ function PublicationCard({ publication, onOpenProfile, onChanged, onDeleted, eng
         >
           <span className="nk-feed-card__avatar">
             {publication.profile.foto_url ? (
-              <img src={publication.profile.foto_url} alt="" />
+              <img src={publication.profile.foto_url} alt="" loading="lazy" decoding="async" />
             ) : (
               <UserRound size={24} />
             )}
@@ -295,7 +296,7 @@ function ReviewPublication({ publication, onDeleted, english }) {
         {publication.media_type === "VIDEO" ? (
           <video src={publication.media_url} muted playsInline preload="metadata" />
         ) : (
-          <img src={publication.media_url} alt="" />
+          <img src={publication.media_url} alt="" loading="lazy" decoding="async" />
         )}
       </span>
       <span>

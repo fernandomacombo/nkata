@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from .media_validation import (
     MAX_IMAGE_PIXELS,
     MAX_IMAGE_SIDE,
+    MAX_STORED_IMAGE_SIDE,
     image_dimensions_are_safe,
     sanitized_image_upload,
 )
@@ -46,3 +47,14 @@ class MediaValidationTests(SimpleTestCase):
         with Image.open(clean) as result:
             self.assertFalse(result.getexif())
         self.assertEqual(clean.name, "fotografia.jpg")
+
+    def test_large_mobile_photo_is_reduced_before_storage(self):
+        source = BytesIO()
+        Image.new("RGB", (4032, 3024), color=(80, 62, 55)).save(source, format="JPEG", quality=95)
+        upload = SimpleUploadedFile("telemovel.jpg", source.getvalue(), content_type="image/jpeg")
+
+        clean = sanitized_image_upload(upload)
+
+        with Image.open(clean) as result:
+            self.assertLessEqual(max(result.size), MAX_STORED_IMAGE_SIDE)
+        self.assertLess(clean.size, upload.size)

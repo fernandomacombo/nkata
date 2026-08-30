@@ -61,6 +61,8 @@ export default function HomePage({
             <img
               src={desktopHero}
               alt=""
+              width="1672"
+              height="941"
               fetchPriority="high"
               decoding="async"
             />
@@ -76,11 +78,11 @@ export default function HomePage({
               </span>
 
               <h1>
-                Relações sérias começam com <em>intenções claras.</em>
+                Relações sérias. <em>Intenções claras.</em>
               </h1>
 
               <p>
-                Conheça pessoas adultas que procuram respeito, compromisso e uma relação com futuro.
+                Pessoas adultas, perfis confirmados e contactos protegidos.
               </p>
 
               <div className="nk-hero__actions">

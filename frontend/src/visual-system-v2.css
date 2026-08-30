@@ -1,0 +1,421 @@
+/*
+ * NKATA — sistema visual v2.
+ * Esta camada final corrige contraste, recortes e densidade sem alterar o desktop editorial.
+ */
+
+svg {
+  flex: 0 0 auto;
+}
+
+button > svg,
+a > svg,
+[role="button"] > svg {
+  align-self: center;
+}
+
+.nk-header--hero {
+  background: rgba(12, 10, 9, 0.42);
+}
+
+.nk-hero__overlay {
+  background: rgba(8, 7, 7, 0.28);
+}
+
+.nk-profile-card__media img,
+.nk-feed-card__media,
+.nk-moment-viewer__media,
+.nk-account-interest__photo img,
+.nk-match-card__photo img,
+.nk-notification__person img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* A fotografia da conta mantém sempre uma moldura quadrada, independentemente da imagem. */
+.nk-account-card__photo {
+  position: relative;
+  width: 112px;
+  min-width: 112px;
+  height: 112px;
+  min-height: 112px;
+  aspect-ratio: 1;
+  overflow: visible;
+}
+
+.nk-account-card__photo > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 24%;
+}
+
+/* O cabeçalho desta área era flexível em dois níveis e separava título e descrição. */
+.nk-account-lifecycle > header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.nk-account-lifecycle {
+  background: var(--nk-paper);
+}
+
+.nk-account-lifecycle > header > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--nk-wine-soft);
+  color: var(--nk-wine);
+}
+
+.nk-account-lifecycle > header > div {
+  display: grid;
+  gap: 4px;
+}
+
+.nk-account-lifecycle input,
+.nk-account-lifecycle select,
+.nk-account-lifecycle textarea {
+  background: var(--nk-paper);
+  color: var(--nk-ink);
+}
+
+/* Tema Noite: uma única escala de superfícies e contraste mínimo consistente. */
+html[data-nkata-theme="NOITE"] {
+  --nk-ink: #fff8f3;
+  --nk-charcoal: #f7ece6;
+  --nk-wine: #e49aad;
+  --nk-wine-dark: #ffc0ce;
+  --nk-wine-soft: rgba(228, 154, 173, 0.15);
+  --nk-cream: #151211;
+  --nk-paper: #27211f;
+  --nk-sand: #3a302d;
+  --nk-muted: #c8b9b2;
+  --nk-line: rgba(255, 248, 243, 0.17);
+  --nk-success: #9bcdb9;
+  color-scheme: dark;
+}
+
+html[data-nkata-theme="NOITE"] body,
+html[data-nkata-theme="NOITE"] body.nk-app-mode,
+html[data-nkata-theme="NOITE"] .nk-app {
+  background: #151211;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-community-empty,
+  .nk-empty-state,
+  .nk-empty-state--community,
+  .nk-library__empty,
+  .nk-profile-card,
+  .nk-filters,
+  .nk-account-lifecycle,
+  .nk-account-card,
+  .nk-account-form,
+  .nk-account-security,
+  .nk-account-interests,
+  .nk-account-tabs,
+  .nk-plan-panel,
+  .nk-preferences-panel,
+  .nk-following-panel,
+  .nk-mobile-menu,
+  .nk-mobile-menu__footer
+) {
+  border-color: var(--nk-line);
+  background: #27211f;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-community-empty h2,
+  .nk-empty-state h1,
+  .nk-empty-state h2,
+  .nk-library__empty h2,
+  .nk-account-lifecycle h2,
+  .nk-account-lifecycle label > span,
+  .nk-account-card h2,
+  .nk-account-form h2,
+  .nk-account-security h2
+) {
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-community-empty p,
+  .nk-empty-state p,
+  .nk-library__empty p,
+  .nk-account-lifecycle p,
+  .nk-account-card p,
+  .nk-account-card small
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  input,
+  select,
+  textarea,
+  .nk-search-field,
+  .nk-select-field,
+  .nk-account-lifecycle input,
+  .nk-account-lifecycle select,
+  .nk-account-lifecycle textarea
+) {
+  border-color: var(--nk-line);
+  background: #322a27;
+  color: var(--nk-ink);
+  caret-color: var(--nk-wine-dark);
+}
+
+html[data-nkata-theme="NOITE"] :is(input, textarea)::placeholder {
+  color: #aa9991;
+  opacity: 1;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-mobile-menu__header > button,
+  .nk-mobile-menu__nav > button > span,
+  .nk-mobile-menu__member > span,
+  .nk-account-tabs button.is-active
+) {
+  border-color: var(--nk-line);
+  background: #382e2b;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-mobile-menu__footer {
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.18);
+}
+
+html[data-nkata-theme="NOITE"] .nk-mobile-menu__logout {
+  border-color: rgba(228, 154, 173, 0.24);
+  background: rgba(228, 154, 173, 0.13);
+  color: #ffc0ce;
+}
+
+html[data-nkata-theme="NOITE"] .nk-button--wine,
+html[data-nkata-theme="NOITE"] .nk-account-lifecycle button {
+  background: #9b3048;
+  color: #fff;
+}
+
+html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
+  background: #603844;
+  color: #d6c8c2;
+  opacity: 1;
+}
+
+@media (max-width: 820px) {
+  /* O drawer é a camada de navegação principal e fica acima de qualquer diálogo. */
+  .nk-header:has(.nk-header__menu.is-open) {
+    z-index: 20000;
+  }
+
+  .nk-mobile-menu-layer {
+    z-index: 20010;
+    isolation: isolate;
+  }
+
+  /* Menu semelhante a app: cada opção ocupa apenas a altura necessária. */
+  .nk-mobile-menu__header {
+    min-height: 64px;
+    padding: 10px 14px;
+  }
+
+  .nk-mobile-menu__brand .nk-brand__logo {
+    width: 38px;
+    height: 27px;
+  }
+
+  .nk-mobile-menu__member {
+    margin: 10px 12px 2px;
+    padding: 10px;
+  }
+
+  .nk-mobile-menu__nav {
+    grid-auto-rows: min-content;
+    align-content: start;
+    gap: 3px;
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  .nk-mobile-menu__nav > button {
+    min-height: 52px;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 10px;
+    border-radius: 14px;
+    padding: 7px 9px;
+  }
+
+  .nk-mobile-menu__nav > button > span {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .nk-mobile-menu__nav strong {
+    font-size: 0.78rem;
+  }
+
+  .nk-mobile-menu__nav small {
+    margin-top: 2px;
+    font-size: 0.62rem;
+  }
+
+  .nk-mobile-menu__footer {
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom, 0px));
+  }
+
+  /* O hero usa a área vazia da fotografia; os rostos ficam livres. */
+  .nk-hero.nk-hero--cover,
+  .nk-hero__cover-content {
+    min-height: max(640px, 100svh);
+  }
+
+  .nk-hero__cover-content {
+    align-items: flex-start;
+    padding-top: calc(86px + env(safe-area-inset-top, 0px));
+    padding-bottom: 18px;
+  }
+
+  .nk-hero--cover .nk-hero__copy {
+    align-self: flex-start;
+    width: min(100%, 470px);
+    padding: 12px 0 0;
+  }
+
+  .nk-hero--cover .nk-hero__copy h1 {
+    max-width: 360px;
+    margin-top: 14px;
+    font-size: clamp(2.35rem, 10.6vw, 3.35rem);
+    line-height: 0.96;
+  }
+
+  .nk-hero--cover .nk-hero__copy > p {
+    max-width: 330px;
+    margin-top: 12px;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .nk-hero--cover .nk-hero__actions {
+    max-width: 360px;
+    margin-top: 15px;
+  }
+
+  .nk-hero--cover .nk-hero__trust {
+    max-width: 360px;
+    margin-top: 11px;
+  }
+
+  .nk-hero--cover .nk-hero__trust span {
+    min-height: 32px;
+    font-size: 0.61rem;
+  }
+
+  .nk-header--hero {
+    background: rgba(12, 10, 9, 0.38);
+  }
+
+  .nk-hero__overlay {
+    background: rgba(8, 7, 7, 0.24);
+  }
+
+  .nk-trust-strip {
+    display: none;
+  }
+
+  .nk-account-lifecycle {
+    border-radius: 20px;
+    padding: 18px;
+  }
+
+  .nk-account-lifecycle > header {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .nk-account-lifecycle > header > span {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .nk-account-lifecycle > header h2 {
+    font-size: 1rem;
+  }
+
+  .nk-account-lifecycle > header p {
+    font-size: 0.72rem;
+  }
+
+  .nk-account-lifecycle__form,
+  .nk-account-lifecycle__paused,
+  .nk-account-lifecycle details {
+    margin-top: 14px;
+    gap: 9px;
+  }
+
+  .nk-account-lifecycle textarea {
+    min-height: 88px;
+    resize: vertical;
+  }
+
+  .nk-account-lifecycle button {
+    min-height: 44px;
+  }
+
+  .nk-community-empty,
+  .nk-empty-state,
+  .nk-library__empty {
+    min-height: 0;
+    padding: 28px 18px;
+  }
+}
+
+@media (max-width: 520px) {
+  .nk-mobile-menu {
+    top: 4px;
+    right: 4px;
+    bottom: 4px;
+    width: calc(100% - 8px);
+    border-radius: 22px;
+  }
+
+  .nk-mobile-menu__nav small,
+  .nk-mobile-menu__brand small {
+    display: none;
+  }
+
+  .nk-mobile-menu__nav > button {
+    min-height: 48px;
+  }
+
+  .nk-mobile-menu__footer > small {
+    display: none;
+  }
+
+  .nk-hero--cover .nk-eyebrow--hero {
+    padding: 7px 10px;
+    font-size: 0.58rem;
+  }
+
+  .nk-hero--cover .nk-hero__actions .nk-button {
+    min-height: 44px;
+    font-size: 0.69rem;
+  }
+
+  .nk-account-card {
+    padding: 20px 16px;
+  }
+}

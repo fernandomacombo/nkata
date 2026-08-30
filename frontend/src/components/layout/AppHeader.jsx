@@ -272,13 +272,13 @@ export default function AppHeader({
                   <small>{operator ? tr("Área administrativa", "Admin area") : authenticated ? tr("Área de membros", "Members area") : tr("Relações com intenção", "Intentional relationships")}</small>
                 </div>
               </div>
-              {!operator && <button
+              <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label={tr("Fechar menu", "Close menu")}
               >
                 <X size={20} />
-              </button>}
+              </button>
             </header>
 
             {authenticated && (

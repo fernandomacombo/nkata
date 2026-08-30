@@ -40,6 +40,7 @@ export default function ProfileCard({
               src={profile.foto_url}
               alt={`${english ? "Photo of" : "Foto de"} ${profile.nome_publico}`}
               loading="lazy"
+              decoding="async"
               onError={() => setImageFailed(true)}
             />
           ) : (

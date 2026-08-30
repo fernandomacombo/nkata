@@ -88,6 +88,8 @@ function NotificationItem({ notification, index, onOpen, english }) {
           <img
             src={notification.profile.foto_url}
             alt={`${english ? "Photo of" : "Foto de"} ${notification.profile.nome_publico}`}
+            loading="lazy"
+            decoding="async"
           />
         ) : (
           <UserRound size={22} />

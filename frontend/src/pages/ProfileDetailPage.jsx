@@ -323,6 +323,7 @@ export default function ProfileDetailPage({
             <img
               src={profile.cover_url}
               alt=""
+              decoding="async"
               onError={(event) => { event.currentTarget.hidden = true; }}
             />
             <div />
@@ -335,6 +336,7 @@ export default function ProfileDetailPage({
               <img
                 src={profile.foto_url}
                 alt={`${english ? "Photo of" : "Foto de"} ${profile.nome_publico}`}
+                decoding="async"
                 onError={() => setImageFailed(true)}
               />
             ) : (

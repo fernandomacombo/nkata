@@ -39,7 +39,7 @@ function remainingLabel(moment, english) {
 
 function MomentMedia({ moment, onVideoProgress, onVideoEnded }) {
   if (moment.media_type === "IMAGEM" && moment.media_url) {
-    return <img className="nk-moment-viewer__media" src={moment.media_url} alt="" />;
+    return <img className="nk-moment-viewer__media" src={moment.media_url} alt="" decoding="async" />;
   }
 
   if (moment.media_type === "VIDEO" && moment.media_url) {
@@ -313,7 +313,7 @@ export default function AutoplayMomentViewer({
           >
             <span>
               {moment.profile.foto_url
-                ? <img src={moment.profile.foto_url} alt="" />
+                ? <img src={moment.profile.foto_url} alt="" loading="lazy" decoding="async" />
                 : <UserRound size={22} />}
             </span>
             <div>

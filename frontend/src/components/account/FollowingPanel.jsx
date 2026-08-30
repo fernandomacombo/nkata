@@ -60,7 +60,7 @@ function FollowingPerson({ profile, busy, english, onOpen, onUnfollow }) {
       >
         <span className="nk-following-person__photo">
           {profile.foto_url ? (
-            <img src={profile.foto_url} alt="" />
+            <img src={profile.foto_url} alt="" loading="lazy" decoding="async" />
           ) : (
             <UserRound size={34} strokeWidth={1.35} />
           )}

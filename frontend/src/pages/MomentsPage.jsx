@@ -75,7 +75,7 @@ function groupByProfile(moments) {
 
 function MomentMedia({ moment }) {
   if (moment.media_type === "IMAGEM" && moment.media_url) {
-    return <img className="nk-moment-viewer__media" src={moment.media_url} alt="" />;
+    return <img className="nk-moment-viewer__media" src={moment.media_url} alt="" decoding="async" />;
   }
   if (moment.media_type === "VIDEO" && moment.media_url) {
     return (
@@ -141,7 +141,7 @@ function MomentViewer({ moments, initialIndex, onClose, onDelete, onOpenProfile,
           >
             <span>
               {moment.profile.foto_url
-                ? <img src={moment.profile.foto_url} alt="" />
+                ? <img src={moment.profile.foto_url} alt="" loading="lazy" decoding="async" />
                 : <UserRound size={22} />}
             </span>
             <div>
@@ -204,7 +204,7 @@ function ReviewItem({ moment, onDelete, english }) {
     <article className={`nk-moment-review-item ${pending ? "is-pending" : "is-rejected"}`}>
       <div className="nk-moment-review-item__media">
         {moment.media_type === "IMAGEM" && moment.media_url ? (
-          <img src={moment.media_url} alt={english ? "Content submitted for review" : "Conteúdo enviado para revisão"} />
+          <img src={moment.media_url} alt={english ? "Content submitted for review" : "Conteúdo enviado para revisão"} loading="lazy" decoding="async" />
         ) : moment.media_type === "VIDEO" && moment.media_url ? (
           <video src={moment.media_url} muted playsInline preload="metadata" />
         ) : (
@@ -460,7 +460,7 @@ export default function MomentsPage({ onOpenProfile }) {
                 <span className="nk-moment-rail__ring">
                   <span>
                     {group.profile.foto_url
-                      ? <img src={group.profile.foto_url} alt="" />
+                      ? <img src={group.profile.foto_url} alt="" loading="lazy" decoding="async" />
                       : <UserRound size={28} />}
                     {group.moments.some((item) => item.media_type === "VIDEO") && (
                       <em><Play size={10} fill="currentColor" /></em>

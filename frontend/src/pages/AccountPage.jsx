@@ -164,7 +164,7 @@ function InterestItem({ profile, onOpen, language }) {
     <button type="button" className="nk-account-interest" onClick={() => onOpen(profile)}>
       <span className="nk-account-interest__photo">
         {profile.foto_url ? (
-          <img src={profile.foto_url} alt={`${language === "EN" ? "Photo of" : "Foto de"} ${profile.nome_publico}`} />
+          <img src={profile.foto_url} alt={`${language === "EN" ? "Photo of" : "Foto de"} ${profile.nome_publico}`} loading="lazy" decoding="async" />
         ) : (
           <UserRound size={28} />
         )}
@@ -210,7 +210,7 @@ function ProfilePreview({ account, form, imageUrl, language, onClose }) {
         <div className="nk-profile-preview__layout">
           <div className="nk-profile-preview__photo">
             {imageUrl ? (
-              <img src={imageUrl} alt={`${english ? "Preview of" : "Pré-visualização de"} ${form.nome_publico}`} />
+              <img src={imageUrl} alt={`${english ? "Preview of" : "Pré-visualização de"} ${form.nome_publico}`} decoding="async" />
             ) : (
               <UserRound size={70} strokeWidth={1.1} />
             )}
@@ -327,7 +327,7 @@ function ProfileGalleryManager({ language }) {
                   <span className="nk-account-gallery__video"><Play size={17} fill="currentColor" /></span>
                 </>
               ) : (
-                <img src={item.mediaUrl} alt={english ? "Approved publication" : "Publicação aprovada"} loading="lazy" />
+                <img src={item.mediaUrl} alt={english ? "Approved publication" : "Publicação aprovada"} loading="lazy" decoding="async" />
               )}
 
               {item.isCover ? (
@@ -513,7 +513,7 @@ export default function AccountPage({
           <article className="nk-account-card">
             <div className="nk-account-card__photo">
               {displayedPhoto ? (
-                <img src={displayedPhoto} alt={`${english ? "Photo of" : "Foto de"} ${account.nome_publico}`} />
+              <img src={displayedPhoto} alt={`${english ? "Photo of" : "Foto de"} ${account.nome_publico}`} decoding="async" />
               ) : (
                 <UserRound size={52} strokeWidth={1.25} />
               )}
