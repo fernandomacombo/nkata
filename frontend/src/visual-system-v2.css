@@ -487,10 +487,10 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
     max-width: 520px;
     margin-inline: auto;
     padding: 22px 20px 20px;
-    border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 26px;
-    background: #1d1715;
-    box-shadow: 0 22px 55px rgba(0, 0, 0, 0.28);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .nk-hero--cover .nk-eyebrow--hero {
@@ -542,5 +542,345 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
 @media (max-width: 350px) {
   .nk-hero--cover .nk-hero__actions {
     grid-template-columns: 1fr;
+  }
+}
+
+.nk-request-status__help-trigger,
+.nk-request-status__help-close,
+.nk-request-status__help-backdrop {
+  display: none;
+}
+
+/* Formulários móveis: só navegação, campos e ação principal. */
+@media (max-width: 820px) {
+  /* A tab bar já identifica o ecrã ativo; esta segunda barra era redundante. */
+  .nk-page-header {
+    display: none;
+  }
+
+  .nk-discover__content,
+  .nk-member-home__layout,
+  .nk-matches__content,
+  .nk-notifications-page__content,
+  .nk-library__content,
+  .nk-account__layout,
+  .nk-moments-page__content {
+    padding-top: 8px;
+  }
+
+  /* Entrada */
+  .nk-login-page {
+    padding: 14px 0 calc(34px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-login-page__layout {
+    gap: 10px;
+  }
+
+  .nk-login-page__intro {
+    display: block;
+  }
+
+  .nk-login-page__intro > :not(.nk-profile-detail__back) {
+    display: none;
+  }
+
+  .nk-login-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 12px 4px 20px;
+    box-shadow: none;
+  }
+
+  .nk-login-card__heading > span {
+    display: none;
+  }
+
+  .nk-login-card__heading h2 {
+    margin: 0;
+    font-family: inherit;
+    font-size: 1.45rem;
+    font-weight: 800;
+  }
+
+  .nk-login-form {
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .nk-login-card__footer {
+    margin-top: 18px;
+    padding-top: 16px;
+  }
+
+  /* Recuperação e alteração de palavra-passe */
+  .nk-password-topbar,
+  .nk-password-change-topbar {
+    display: none;
+  }
+
+  .nk-password-layout,
+  .nk-password-change-layout {
+    gap: 10px;
+    width: min(100% - 28px, 620px);
+    padding: 16px 0 calc(34px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-password-intro > :not(.nk-password-back),
+  .nk-password-change-intro > :not(.nk-password-change-back) {
+    display: none;
+  }
+
+  .nk-password-back,
+  .nk-password-change-back {
+    margin: 0;
+  }
+
+  .nk-password-card,
+  .nk-password-change-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 14px 4px 22px;
+    box-shadow: none;
+  }
+
+  .nk-password-card__heading > span,
+  .nk-password-card__heading > p,
+  .nk-password-change-card__heading > span,
+  .nk-password-change-card__heading > p {
+    display: none;
+  }
+
+  .nk-password-card__heading h2,
+  .nk-password-change-card__heading h2 {
+    margin: 0 0 16px;
+    font-family: inherit;
+    font-size: 1.4rem;
+    font-weight: 800;
+  }
+
+  /* Pedido de acesso */
+  .nk-access-intro {
+    border: 0;
+    background: transparent;
+    padding: 10px 0 4px;
+  }
+
+  .nk-access-intro__inner {
+    display: block;
+  }
+
+  .nk-access-intro__inner > :not(.nk-access-back) {
+    display: none;
+  }
+
+  .nk-access-workspace {
+    padding-top: 8px;
+  }
+
+  .nk-access-progress {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow: hidden;
+    border-radius: 15px;
+  }
+
+  .nk-access-progress > div {
+    min-width: 0;
+    min-height: 46px;
+  }
+
+  .nk-access-progress small,
+  .nk-access-help,
+  .nk-access-step > header p {
+    display: none;
+  }
+
+  .nk-access-layout {
+    display: block;
+  }
+
+  .nk-access-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .nk-access-step {
+    padding: 18px 4px;
+  }
+
+  .nk-access-step > header h2 {
+    margin-top: 4px;
+    font-size: 1.4rem;
+  }
+
+  /* Questionário */
+  .nk-questionnaire-topbar {
+    display: none;
+  }
+
+  .nk-questionnaire-layout {
+    gap: 12px;
+    width: min(100% - 28px, 650px);
+    padding: 16px 0 36px;
+  }
+
+  .nk-questionnaire-intro h1,
+  .nk-questionnaire-intro > p,
+  .nk-questionnaire-steps {
+    display: none;
+  }
+
+  .nk-questionnaire-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 14px 4px 22px;
+    box-shadow: none;
+  }
+
+  .nk-questionnaire-card__heading > span,
+  .nk-questionnaire-card__heading > p {
+    display: none;
+  }
+
+  .nk-questionnaire-card__heading h2 {
+    margin: 0 0 16px;
+    font-family: inherit;
+    font-size: 1.4rem;
+    font-weight: 800;
+  }
+
+  /* Acompanhamento do pedido */
+  .nk-request-status__hero {
+    border: 0;
+    background: transparent;
+    padding: 10px 0 2px;
+  }
+
+  .nk-request-status__hero-inner {
+    display: block;
+  }
+
+  .nk-request-status__intro,
+  .nk-request-status__hero aside {
+    display: none;
+  }
+
+  .nk-request-status__workspace {
+    padding-top: 8px;
+    padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-request-status__layout {
+    display: block;
+  }
+
+  .nk-request-status__form {
+    gap: 16px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 12px 4px 20px;
+    box-shadow: none;
+  }
+
+  .nk-request-status__form > header {
+    display: none;
+  }
+
+  .nk-request-status__help-trigger {
+    display: inline-flex;
+    width: max-content;
+    align-items: center;
+    gap: 7px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: #7d2638;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .nk-request-status__help-backdrop {
+    position: fixed;
+    z-index: 900;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+    background: rgba(20, 16, 15, 0.48);
+  }
+
+  .nk-request-status__help {
+    position: fixed;
+    z-index: 910;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: min(50dvh, 460px);
+    min-height: 0;
+    overflow-y: auto;
+    border: 0;
+    border-radius: 26px 26px 0 0;
+    padding: 22px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(105%);
+    transition: transform 220ms ease, opacity 180ms ease;
+  }
+
+  .nk-request-status__help.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .nk-request-status__help-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+
+  .nk-request-status__help > span {
+    width: 42px;
+    height: 42px;
+  }
+
+  .nk-request-status__help h3 {
+    margin: 18px 0 7px;
+    font-size: 1.45rem;
+  }
+
+  .nk-request-status__help > p {
+    margin-bottom: 14px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .nk-request-status__help > div {
+    padding: 8px 0;
+    font-size: 0.76rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-request-status__help {
+    transition: none;
   }
 }

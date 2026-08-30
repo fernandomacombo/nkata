@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   Check,
   ClipboardCopy,
+  CircleHelp,
   Clock3,
   FileSearch,
   LoaderCircle,
@@ -15,6 +16,7 @@ import {
   SearchCheck,
   ShieldCheck,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import { fetchAccessRequestStatus, requestAccessCodeRecovery } from "../services/api.js";
 
@@ -54,6 +56,7 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
   const [copied, setCopied] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const lookup = async (values = { email, code }) => {
     const normalizedEmail = String(values.email || "").trim().toLowerCase();
@@ -106,6 +109,20 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
     // Executa apenas ao abrir a página.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!helpOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setHelpOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [helpOpen]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -243,6 +260,14 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
                 </div>
               </label>
 
+              <button
+                type="button"
+                className="nk-request-status__help-trigger"
+                onClick={() => setHelpOpen(true)}
+              >
+                <CircleHelp size={17} /> Onde encontro o código?
+              </button>
+
               {error && <div className="nk-request-status__error" role="alert">{error}</div>}
 
               <button type="submit" className="nk-button nk-button--wine" disabled={loading}>
@@ -255,7 +280,28 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
               </button>
             </form>
 
-            <aside className="nk-request-status__help">
+            {helpOpen && (
+              <button
+                type="button"
+                className="nk-request-status__help-backdrop"
+                onClick={() => setHelpOpen(false)}
+                aria-label="Fechar ajuda"
+              />
+            )}
+
+            <aside
+              className={`nk-request-status__help ${helpOpen ? "is-open" : ""}`}
+              role={helpOpen ? "dialog" : undefined}
+              aria-label="Onde encontrar o código privado"
+            >
+              <button
+                type="button"
+                className="nk-request-status__help-close"
+                onClick={() => setHelpOpen(false)}
+                aria-label="Fechar ajuda"
+              >
+                <X size={20} />
+              </button>
               <span><ShieldCheck size={24} /></span>
               <h3>Onde encontro o código?</h3>
               <p>
