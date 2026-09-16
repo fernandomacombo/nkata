@@ -1,0 +1,44 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block submit_buttons_bottom %}
+  {% if original %}
+    <div class="submit-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      {% if original.moderacao_status != "APROVADO" %}
+        <input
+          type="submit"
+          value="Aprovar Momento"
+          name="_aprovar_momento"
+          class="default"
+          style="background:#2f6f58;"
+        >
+      {% endif %}
+
+      {% if original.moderacao_status != "REJEITADO" %}
+        <input
+          type="submit"
+          value="Rejeitar"
+          name="_rejeitar_momento"
+          style="background:#8b293f;color:#fff;"
+        >
+
+        <input
+          type="submit"
+          value="Rejeitar e pausar perfil"
+          name="_rejeitar_pausar_momento"
+          style="background:#4d171f;color:#fff;"
+        >
+      {% endif %}
+
+      <a
+        href="{% url opts|admin_urlname:'changelist' %}"
+        class="button"
+        style="margin-left:auto;"
+      >
+        Voltar à lista
+      </a>
+    </div>
+  {% else %}
+    {{ block.super }}
+  {% endif %}
+{% endblock %}

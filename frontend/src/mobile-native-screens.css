@@ -1,0 +1,290 @@
+/* Ajustes de ecrãs específicos para o NKATA App Mode. */
+
+@media (max-width: 820px) {
+  /* Home: landing com ritmo de aplicação, sem rodapé de website. */
+  .nk-hero--cover {
+    min-height: 100dvh;
+  }
+
+  .nk-hero__cover-content {
+    min-height: 100dvh;
+    padding-top: calc(88px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(.nk-header__member) .nk-hero__cover-content {
+    padding-bottom: calc(var(--nk-mobile-tabbar) + env(safe-area-inset-bottom, 0px) + 34px);
+  }
+
+  .nk-hero__copy {
+    align-self: end;
+  }
+
+  .nk-hero__copy h1 {
+    font-size: clamp(2.8rem, 14vw, 4.15rem);
+    line-height: 0.94;
+  }
+
+  .nk-hero__copy > p {
+    max-width: 34rem;
+    font-size: 0.96rem;
+    line-height: 1.65;
+  }
+
+  .nk-hero__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+    width: 100%;
+  }
+
+  .nk-hero__actions .nk-button {
+    width: 100%;
+    min-height: 50px;
+    justify-content: center;
+  }
+
+  .nk-hero__trust {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin-inline: calc(var(--nk-mobile-gutter) * -1);
+    padding: 2px var(--nk-mobile-gutter) 6px;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .nk-hero__trust::-webkit-scrollbar,
+  .nk-trust-strip__inner::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nk-hero__trust > span {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .nk-hero__scroll {
+    display: none;
+  }
+
+  .nk-trust-strip {
+    overflow: hidden;
+    border-bottom: 1px solid rgba(57, 45, 40, 0.08);
+    background: #f6f1eb;
+    padding-block: 14px;
+  }
+
+  .nk-trust-strip__inner {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-inline: var(--nk-mobile-gutter);
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
+  }
+
+  .nk-trust-strip__inner article {
+    flex: 0 0 min(82vw, 330px);
+    min-height: 104px;
+    border: 1px solid rgba(57, 45, 40, 0.08);
+    border-radius: 20px;
+    background: rgba(255, 253, 249, 0.86);
+    padding: 17px;
+    scroll-snap-align: start;
+  }
+
+  .nk-section {
+    padding-block: 34px;
+  }
+
+  .nk-section-heading {
+    display: grid;
+    gap: 13px;
+    margin-bottom: 18px;
+  }
+
+  .nk-section-heading h2 {
+    font-size: clamp(2rem, 10vw, 2.8rem);
+    line-height: 1;
+  }
+
+  .nk-text-action {
+    width: fit-content;
+    min-height: 42px;
+  }
+
+  .nk-process__grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .nk-process__grid article {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    column-gap: 12px;
+    border-radius: 20px;
+    padding: 16px;
+  }
+
+  .nk-process__number {
+    display: none;
+  }
+
+  .nk-process__icon {
+    grid-row: 1 / span 2;
+  }
+
+  .nk-process__grid h3,
+  .nk-process__grid p {
+    grid-column: 2;
+  }
+
+  .nk-process__grid h3 {
+    margin-top: 1px;
+  }
+
+  .nk-process__grid p {
+    margin-top: 5px;
+  }
+
+  .nk-footer {
+    display: none;
+  }
+
+  /* Guardados: biblioteca em formato de app. */
+  .nk-library {
+    min-height: calc(100dvh - var(--nk-mobile-topbar));
+    background: #f6f1eb;
+  }
+
+  .nk-library__intro {
+    border-bottom: 1px solid rgba(57, 45, 40, 0.08);
+    background: rgba(255, 253, 249, 0.56);
+    padding: 24px 0 20px;
+  }
+
+  .nk-library__intro h1 {
+    margin-top: 10px;
+    font-size: clamp(2rem, 9vw, 2.75rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+  }
+
+  .nk-library__intro p {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .nk-library__content {
+    padding-top: 18px;
+    padding-bottom: 28px;
+  }
+
+  .nk-library__section + .nk-library__section {
+    margin-top: 30px;
+  }
+
+  .nk-library__empty {
+    border-radius: var(--nk-mobile-radius);
+    padding: 34px 20px;
+  }
+
+  .nk-library__clear {
+    min-height: 42px;
+    border-radius: 14px;
+  }
+
+  /* Notificações: uma caixa de entrada nativa, sem cartões flutuantes. */
+  .nk-notifications-page {
+    min-height: calc(100dvh - var(--nk-mobile-topbar));
+    background: #f6f1eb;
+  }
+
+  .nk-notifications-page__intro {
+    border-bottom: 1px solid rgba(57, 45, 40, 0.08);
+    background: rgba(255, 253, 249, 0.56);
+    padding: 24px 0 18px;
+  }
+
+  .nk-notifications-page__intro-inner {
+    display: grid;
+    gap: 14px;
+  }
+
+  .nk-notifications-page__intro h1 {
+    margin-top: 10px;
+    font-size: clamp(2rem, 9vw, 2.75rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+  }
+
+  .nk-notifications-page__intro p {
+    margin-top: 9px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .nk-notifications-page__intro-actions {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+  }
+
+  .nk-notifications-page__intro-actions button {
+    min-height: 42px;
+    flex: 0 0 auto;
+    border-radius: 14px;
+  }
+
+  .nk-notifications-page__content {
+    padding-top: 14px;
+    padding-bottom: 26px;
+  }
+
+  .nk-notifications-page__toolbar {
+    margin-bottom: 12px;
+  }
+
+  .nk-notifications-page__toolbar > div {
+    width: 100%;
+    border-radius: 16px;
+    background: rgba(232, 224, 216, 0.7);
+    padding: 4px;
+  }
+
+  .nk-notifications-page__toolbar button {
+    min-height: 40px;
+    border-radius: 12px;
+  }
+
+  .nk-notifications-list {
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid rgba(57, 45, 40, 0.08);
+    border-radius: var(--nk-mobile-radius);
+    background: rgba(255, 253, 249, 0.92);
+  }
+
+  .nk-notification {
+    border: 0;
+    border-bottom: 1px solid rgba(57, 45, 40, 0.07);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .nk-notification:last-child {
+    border-bottom: 0;
+  }
+
+  .nk-notification.is-unread {
+    background: rgba(125, 38, 56, 0.045);
+  }
+
+  .nk-notifications-page__empty,
+  .nk-notifications-page__error {
+    border-radius: var(--nk-mobile-radius);
+  }
+}

@@ -117,19 +117,27 @@ class PedidoEntradaAdmin(admin.ModelAdmin):
         }),
     )
 
+    def media_url(self, obj, field_name):
+        return reverse(
+            "entradas_api:pedido_media_admin",
+            kwargs={"pedido_id": obj.pk, "field_name": field_name},
+        )
+
     def foto_preview_pequena(self, obj):
         if obj.foto_perfil:
             return format_html(
                 '<img src="{}" style="width:55px;height:55px;object-fit:cover;border-radius:50%;" />',
-                obj.foto_perfil.url
+                self.media_url(obj, "foto_perfil"),
             )
 
         return "Sem foto"
 
     foto_preview_pequena.short_description = "Foto"
 
-    def imagem_preview(self, imagem):
+    def imagem_preview(self, obj, field_name):
+        imagem = getattr(obj, field_name, None)
         if imagem:
+            url = self.media_url(obj, field_name)
             return format_html(
                 """
                 <a href="{0}" target="_blank">
@@ -144,43 +152,43 @@ class PedidoEntradaAdmin(admin.ModelAdmin):
                     " />
                 </a>
                 """,
-                imagem.url
+                url,
             )
 
         return "Nenhuma imagem enviada"
 
     def foto_perfil_preview(self, obj):
-        return self.imagem_preview(obj.foto_perfil)
+        return self.imagem_preview(obj, "foto_perfil")
 
     foto_perfil_preview.short_description = "Pré-visualização da foto principal"
 
     def foto_extra_1_preview(self, obj):
-        return self.imagem_preview(obj.foto_extra_1)
+        return self.imagem_preview(obj, "foto_extra_1")
 
     foto_extra_1_preview.short_description = "Pré-visualização da foto adicional 1"
 
     def foto_extra_2_preview(self, obj):
-        return self.imagem_preview(obj.foto_extra_2)
+        return self.imagem_preview(obj, "foto_extra_2")
 
     foto_extra_2_preview.short_description = "Pré-visualização da foto adicional 2"
 
     def foto_extra_3_preview(self, obj):
-        return self.imagem_preview(obj.foto_extra_3)
+        return self.imagem_preview(obj, "foto_extra_3")
 
     foto_extra_3_preview.short_description = "Pré-visualização da foto adicional 3"
 
     def bi_frente_preview(self, obj):
-        return self.imagem_preview(obj.bi_frente)
+        return self.imagem_preview(obj, "bi_frente")
 
     bi_frente_preview.short_description = "Pré-visualização do BI - Frente"
 
     def bi_verso_preview(self, obj):
-        return self.imagem_preview(obj.bi_verso)
+        return self.imagem_preview(obj, "bi_verso")
 
     bi_verso_preview.short_description = "Pré-visualização do BI - Verso"
 
     def selfie_com_bi_preview(self, obj):
-        return self.imagem_preview(obj.selfie_com_bi)
+        return self.imagem_preview(obj, "selfie_com_bi")
 
     selfie_com_bi_preview.short_description = "Pré-visualização da selfie com BI"
 
@@ -231,7 +239,23 @@ class PedidoEntradaAdmin(admin.ModelAdmin):
 
     @admin.action(description="Aprovar pedidos selecionados")
     def marcar_como_aprovado(self, request, queryset):
-        queryset.update(status="APROVADO")
+        legacy_ids = []
+        verified_ids = []
+        for pedido in queryset.select_related("verificacao_identidade"):
+            verification = getattr(pedido, "verificacao_identidade", None)
+            if verification is None:
+                legacy_ids.append(pedido.pk)
+            elif verification.status == "APROVADA":
+                verified_ids.append(pedido.pk)
+        allowed_ids = legacy_ids + verified_ids
+        PedidoEntrada.objects.filter(pk__in=allowed_ids).update(status="APROVADO")
+        blocked = queryset.count() - len(allowed_ids)
+        if blocked:
+            self.message_user(
+                request,
+                f"{blocked} pedido(s) não foram aprovados porque o NKATA ID ainda não foi aprovado.",
+                level="warning",
+            )
 
     @admin.action(description="Marcar como precisa corrigir")
     def marcar_como_precisa_corrigir(self, request, queryset):
@@ -328,6 +352,9 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
         "objetivo",
         "status",
         "visivel",
+        "destaque_publico",
+        "foto_destaque_publico_aprovada",
+        "destaque_publico_exibicoes",
         "usuario",
         "criado_em",
     )
@@ -335,6 +362,8 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
     list_filter = (
         "status",
         "visivel",
+        "destaque_publico",
+        "foto_destaque_publico_aprovada",
         "genero",
         "objetivo",
         "cidade",
@@ -354,6 +383,9 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
         "pedido",
         "usuario",
         "owner_session_key",
+        "destaque_publico_consentido_em",
+        "destaque_publico_exibicoes",
+        "destaque_publico_ultima_exibicao_em",
         "criado_em",
         "atualizado_em",
     )
@@ -362,12 +394,14 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
         "pausar_perfis",
         "reativar_perfis",
         "bloquear_perfis",
+        "aprovar_fotos_para_destaque_publico",
     ]
 
     def pausar_perfis(self, request, queryset):
         atualizados = queryset.exclude(status="BLOQUEADO").update(
             status="PAUSADO",
-            visivel=False
+            visivel=False,
+            destaque_publico=False,
         )
 
         self.message_user(
@@ -393,7 +427,8 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
     def bloquear_perfis(self, request, queryset):
         atualizados = queryset.update(
             status="BLOQUEADO",
-            visivel=False
+            visivel=False,
+            destaque_publico=False,
         )
 
         self.message_user(
@@ -402,6 +437,21 @@ class PerfilNKATAAdmin(admin.ModelAdmin):
         )
 
     bloquear_perfis.short_description = "Bloquear perfis selecionados"
+
+    def aprovar_fotos_para_destaque_publico(self, request, queryset):
+        elegiveis = queryset.filter(
+            pedido__status="APROVADO",
+            status="ATIVO",
+        ).exclude(pedido__foto_perfil="")
+        atualizados = elegiveis.update(foto_destaque_publico_aprovada=True)
+        self.message_user(
+            request,
+            f"{atualizados} fotografia/fotografias aprovadas para apresentação pública.",
+        )
+
+    aprovar_fotos_para_destaque_publico.short_description = (
+        "Aprovar fotografia para apresentação pública"
+    )
 
 
 @admin.register(AcaoPerfil)

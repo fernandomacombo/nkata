@@ -1,0 +1,656 @@
+/* NKATA — revisão final de contraste, recorte de imagens e comportamento mobile. */
+
+.nk-security-page {
+  min-height: calc(100dvh - 76px);
+  background: var(--nk-cream);
+}
+
+.nk-security-page__content .nk-security {
+  min-height: calc(100dvh - 154px);
+}
+
+/* A fotografia mantém sempre um recorte quadrado; o selo permanece fora do círculo. */
+.nk-following-person__photo {
+  width: 56px;
+  min-width: 56px;
+  height: auto;
+  aspect-ratio: 1;
+  flex: 0 0 56px;
+  isolation: isolate;
+}
+
+.nk-following-person__photo img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 24%;
+}
+
+.nk-following-person__photo em {
+  z-index: 2;
+}
+
+html[data-nkata-theme="NOITE"],
+html[data-nkata-theme="NOITE"] body,
+html[data-nkata-theme="NOITE"] body.nk-app-mode {
+  background-color: var(--nk-cream);
+  color: var(--nk-ink);
+}
+
+/* O tema Noite passa a controlar também os ecrãs carregados depois das preferências. */
+html[data-nkata-theme="NOITE"] :is(
+  .nk-member-home,
+  .nk-notifications-page,
+  .nk-moments-page,
+  .nk-library,
+  .nk-matches,
+  .nk-discover,
+  .nk-account,
+  .nk-security-page
+) {
+  background: var(--nk-cream);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-page-header {
+  border-bottom-color: var(--nk-line);
+  background: rgba(23, 19, 19, 0.92);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-page-header h1,
+  .nk-notification__topline strong,
+  .nk-feed-composer strong,
+  .nk-feed-card strong,
+  .nk-moment-composer strong,
+  .nk-match-card strong,
+  .nk-library h1,
+  .nk-library h2,
+  .nk-results-heading strong
+) {
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-notifications-list,
+  .nk-notifications-page__toolbar > div,
+  .nk-feed-composer,
+  .nk-feed-card,
+  .nk-feed-review-list,
+  .nk-feed-empty,
+  .nk-moment-composer,
+  .nk-moments-page__empty,
+  .nk-moment-review,
+  .nk-match-card,
+  .nk-matches__empty,
+  .nk-filters,
+  .nk-library__empty
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+  color: var(--nk-ink);
+  box-shadow: var(--nk-shadow-sm);
+}
+
+/* Momentos: todos os controlos e estados seguem a superfície escura. */
+html[data-nkata-theme="NOITE"] :is(
+  .nk-moment-composer__caption select,
+  .nk-moment-composer__media,
+  .nk-moments-page__heading > button,
+  .nk-moment-review-item
+) {
+  border-color: var(--nk-line);
+  background: #302725;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-moment-composer__caption select {
+  color-scheme: dark;
+}
+
+html[data-nkata-theme="NOITE"] .nk-moment-composer__caption select option {
+  background: #302725;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-moments-page__heading h2,
+  .nk-moments-page__empty h2,
+  .nk-moment-review__heading h2,
+  .nk-moment-review-item strong
+) {
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-moments-page__empty p,
+  .nk-moment-review__heading p,
+  .nk-moment-review-item p
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] .nk-moments-page__empty > svg {
+  color: #d7bb89;
+}
+
+html[data-nkata-theme="NOITE"] .nk-moment-review-item.is-pending {
+  border-color: rgba(215, 187, 137, 0.2);
+  background: rgba(215, 187, 137, 0.07);
+}
+
+html[data-nkata-theme="NOITE"] .nk-moment-review-item.is-rejected {
+  border-color: rgba(213, 138, 154, 0.22);
+  background: rgba(213, 138, 154, 0.07);
+}
+
+html[data-nkata-theme="NOITE"] .nk-moment-composer__controls > .nk-button:disabled {
+  background: rgba(213, 138, 154, 0.42);
+  color: rgba(248, 240, 233, 0.72);
+  opacity: 1;
+}
+
+/* Conversa: a moldura da aplicação acompanha o tema; o fundo escolhido do chat permanece independente. */
+html[data-nkata-theme="NOITE"] .nk-conversation {
+  background:
+    radial-gradient(circle at 10% 8%, rgba(213, 138, 154, 0.08), transparent 25rem),
+    radial-gradient(circle at 92% 86%, rgba(130, 179, 159, 0.055), transparent 24rem),
+    var(--nk-cream);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__shell {
+  border-color: var(--nk-line);
+  background: #211b1a;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-conversation__header,
+  .nk-chat-dock
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-conversation__person strong,
+  .nk-conversation__options-trigger,
+  .nk-call-launcher,
+  .nk-conversation__first-message h2,
+  .nk-call-history__content > strong
+) {
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-conversation__back,
+  .nk-conversation__person small,
+  .nk-composer__count,
+  .nk-call-history__meta,
+  .nk-call-history__status
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-conversation__options-trigger,
+  .nk-call-launcher,
+  .nk-composer__mic,
+  .nk-message-bubble,
+  .nk-call-history,
+  .nk-conversation__safety-menu
+) {
+  border-color: var(--nk-line);
+  background: #302725;
+}
+
+html[data-nkata-theme="NOITE"] .nk-message-bubble > span {
+  color: #ad9e97;
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__safety-menu {
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.34);
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__safety-menu button {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__safety-menu button:hover {
+  background: #3a302e;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__safety-menu button.is-danger {
+  color: #ef9aac;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-composer textarea,
+  .nk-composer textarea:focus
+) {
+  border-color: var(--nk-line);
+  background: #302725;
+  color: var(--nk-ink);
+  box-shadow: none;
+}
+
+html[data-nkata-theme="NOITE"] .nk-composer__mic-lock {
+  background: #302725;
+  box-shadow: 0 0 0 3px #302725;
+}
+
+html[data-nkata-theme="NOITE"] .nk-chat-dock__notice {
+  border-color: rgba(213, 138, 154, 0.16);
+  background: rgba(213, 138, 154, 0.1);
+  color: #efb0be;
+}
+
+html[data-nkata-theme="NOITE"] .nk-composer__send:disabled {
+  background: rgba(213, 138, 154, 0.42);
+  color: rgba(248, 240, 233, 0.72);
+  opacity: 1;
+}
+
+html[data-nkata-theme="NOITE"] .nk-conversation__loading span {
+  background: #302725;
+}
+
+/*
+ * O tema do perfil pertence ao seu dono e não deve herdar cores incompatíveis
+ * do visitante. O clássico é também a base segura durante a troca de perfil,
+ * antes de os dados detalhados chegarem da API.
+ */
+.nk-profile-detail {
+  --nk-ink: #241b18;
+  --nk-charcoal: #241b18;
+  --nk-wine: #7d2638;
+  --nk-wine-dark: #681f30;
+  --nk-wine-soft: #f1e0e4;
+  --nk-paper: #fffdfa;
+  --nk-cream: #f7f2ec;
+  --nk-muted: #756b65;
+  --nk-line: rgba(57, 44, 40, 0.12);
+  color-scheme: light;
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail--theme-areia {
+  --nk-ink: #352821;
+  --nk-charcoal: #352821;
+  --nk-wine: #8a3e48;
+  --nk-wine-dark: #672d35;
+  --nk-wine-soft: #ecd9d6;
+  --nk-paper: #fff9f0;
+  --nk-cream: #eee0ce;
+  --nk-muted: #79685d;
+  --nk-line: rgba(83, 61, 48, 0.15);
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail--theme-noite {
+  --nk-ink: #f8f0e9;
+  --nk-charcoal: #f2e7df;
+  --nk-wine: #d58a9a;
+  --nk-wine-dark: #efb0be;
+  --nk-wine-soft: rgba(190, 92, 113, 0.2);
+  --nk-paper: #2d2523;
+  --nk-cream: #171313;
+  --nk-muted: #baaaa3;
+  --nk-line: rgba(255, 245, 238, 0.12);
+  color-scheme: dark;
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail .nk-profile-detail__heading h1,
+.nk-profile-detail .nk-profile-gallery h2,
+.nk-profile-detail .nk-profile-signals__heading h2,
+.nk-profile-detail .nk-profile-signals__grid > button > strong {
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail .nk-profile-detail__block p,
+.nk-profile-detail .nk-profile-signals__heading p,
+.nk-profile-detail .nk-profile-signals__grid > button > small {
+  color: var(--nk-muted);
+}
+
+/*
+ * A ficha visitada conserva o seu próprio tema mesmo quando o visitante usa
+ * o modo Noite. Estas cores explícitas evitam que texto claro herdado do
+ * cabeçalho escuro desapareça sobre a superfície clara do perfil.
+ */
+.nk-profile-detail--theme-classico :is(
+  .nk-profile-detail__heading h1,
+  .nk-profile-detail__block p,
+  .nk-profile-signals__heading h2,
+  .nk-profile-signals__grid > button > strong
+) {
+  color: #241b18;
+  opacity: 1;
+}
+
+.nk-profile-detail--theme-classico :is(
+  .nk-profile-detail__heading p,
+  .nk-profile-detail__block > span,
+  .nk-profile-signals__heading > div > span
+) {
+  color: #7d2638;
+  opacity: 1;
+}
+
+.nk-profile-detail--theme-classico :is(
+  .nk-profile-signals__heading p,
+  .nk-profile-signals__grid > button > small,
+  .nk-profile-detail__back,
+  .nk-profile-safety > span
+) {
+  color: #685d57;
+}
+
+.nk-profile-detail--theme-classico .nk-button--quiet {
+  border-color: rgba(57, 44, 40, 0.18);
+  background: rgba(255, 253, 249, 0.88);
+  color: #4f4540;
+  opacity: 1;
+}
+
+.nk-profile-detail--theme-areia :is(
+  .nk-profile-detail__heading h1,
+  .nk-profile-detail__block p,
+  .nk-profile-signals__heading h2,
+  .nk-profile-signals__grid > button > strong
+) {
+  color: #352821;
+  opacity: 1;
+}
+
+.nk-profile-detail--theme-areia :is(
+  .nk-profile-signals__heading p,
+  .nk-profile-signals__grid > button > small,
+  .nk-profile-safety > span
+) {
+  color: #68584e;
+}
+
+.nk-profile-detail--theme-classico .nk-profile-detail__content {
+  background-color: transparent;
+}
+
+.nk-profile-detail--theme-areia .nk-profile-detail__content {
+  background-color: transparent;
+}
+
+.nk-profile-detail--theme-noite .nk-profile-detail__content {
+  background-color: transparent;
+}
+
+.nk-profile-detail--theme-noite :is(
+  .nk-profile-gallery,
+  .nk-profile-detail__assurance,
+  .nk-profile-signals
+) {
+  border-color: var(--nk-line);
+  background: rgba(255, 253, 249, 0.065);
+}
+
+.nk-profile-detail--theme-noite .nk-profile-signals__grid > button {
+  border-color: var(--nk-line);
+  background: rgba(255, 253, 249, 0.055);
+  color: var(--nk-ink);
+}
+
+.nk-profile-detail--theme-noite .nk-profile-signals__grid > button:hover:not(:disabled) {
+  border-color: rgba(213, 138, 154, 0.35);
+  background: rgba(255, 253, 249, 0.09);
+}
+
+.nk-profile-detail--theme-noite :is(
+  .nk-profile-follow,
+  .nk-profile-follow__message
+) {
+  border-color: var(--nk-line);
+  background: #2d2523;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification {
+  border-bottom-color: var(--nk-line);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification:hover {
+  background: #302725;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification.is-unread {
+  background: linear-gradient(90deg, rgba(213, 138, 154, 0.14), rgba(37, 30, 29, 0.96) 64%);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-notification__text,
+  .nk-notification__topline time,
+  .nk-notification__content small,
+  .nk-feed-composer small,
+  .nk-feed-card p,
+  .nk-match-card p,
+  .nk-match-card small
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-notification__icon,
+  .nk-feed-composer__pick,
+  .nk-feed-composer__policy,
+  .nk-feed-composer__toggle,
+  .nk-search-field,
+  .nk-select-field,
+  .nk-filters__advanced input,
+  .nk-filters__advanced select,
+  .nk-feed-composer__options select
+) {
+  border-color: var(--nk-line);
+  background: #302725;
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification__icon.is-interesse {
+  background: rgba(213, 138, 154, 0.16);
+  color: #efb0be;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification__icon.is-match {
+  background: rgba(215, 187, 137, 0.14);
+  color: #d7bb89;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification__icon.is-mensagem {
+  background: rgba(130, 179, 159, 0.14);
+  color: #9fcdbb;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notification__person {
+  border-color: #403432;
+  background: #302725;
+}
+
+html[data-nkata-theme="NOITE"] .nk-notifications-page__toolbar button.is-active {
+  background: var(--nk-wine);
+  color: #171313;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-notifications-page__empty,
+  .nk-notifications-page__error,
+  .nk-notifications-page__loading
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-member-home__status,
+  .nk-member-home__error
+) {
+  border-color: var(--nk-line);
+}
+
+html[data-nkata-theme="NOITE"] .nk-following-person__photo em {
+  border-color: #211b1a;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-following-person__remove,
+  .nk-account-card button,
+  .nk-account-summary button,
+  .nk-account-gallery button,
+  .nk-profile-preview__dialog button
+) {
+  border-color: var(--nk-line);
+}
+
+html[data-nkata-theme="NOITE"] .nk-following-person__remove {
+  color: #efb0be;
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-account-summary,
+  .nk-account-gallery,
+  .nk-account-gallery__item,
+  .nk-profile-preview__dialog,
+  .nk-account__stats article
+) {
+  border-color: var(--nk-line);
+  background: rgba(37, 30, 29, 0.96);
+  color: var(--nk-ink);
+}
+
+html[data-nkata-theme="NOITE"] :is(
+  .nk-account-summary p,
+  .nk-account-summary small,
+  .nk-account-gallery p,
+  .nk-account-gallery small
+) {
+  color: var(--nk-muted);
+}
+
+html[data-nkata-theme="NOITE"] :is(input, textarea)::placeholder {
+  color: #8f7e77;
+}
+
+/* Hero público: altura previsível e ações sempre visíveis em telefones. */
+@media (max-width: 820px) {
+  .nk-hero.nk-hero--cover {
+    min-height: max(620px, 100svh);
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .nk-hero__cover-content {
+    display: flex;
+    min-height: max(620px, 100svh);
+    box-sizing: border-box;
+    align-items: flex-end;
+    padding-top: calc(82px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-hero--cover .nk-hero__copy {
+    align-self: flex-end;
+    width: min(100%, 560px);
+    padding: 0;
+  }
+
+  .nk-hero--cover .nk-hero__copy h1 {
+    margin-top: 15px;
+    font-size: clamp(2.55rem, 11.8vw, 4rem);
+    line-height: 0.93;
+  }
+
+  .nk-hero--cover .nk-hero__copy > p {
+    margin-top: 14px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .nk-hero--cover .nk-hero__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 17px;
+  }
+
+  .nk-hero--cover .nk-hero__actions .nk-button {
+    min-height: 48px;
+    padding-inline: 13px;
+    font-size: 0.74rem;
+  }
+
+  .nk-hero--cover .nk-hero__trust {
+    margin-top: 13px;
+  }
+
+  .nk-security-page__content .nk-security {
+    min-height: calc(100dvh - 126px);
+    padding: 48px 0 calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 390px), (max-height: 680px) and (max-width: 820px) {
+  .nk-hero__cover-content {
+    min-height: max(568px, 100svh);
+    padding-top: calc(70px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-hero--cover .nk-eyebrow--hero {
+    min-height: 32px;
+    font-size: 0.58rem;
+  }
+
+  .nk-hero--cover .nk-hero__copy h1 {
+    font-size: clamp(2.25rem, 12.2vw, 3rem);
+  }
+
+  .nk-hero--cover .nk-hero__copy > p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .nk-hero--cover .nk-hero__actions {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .nk-hero--cover .nk-hero__trust {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .nk-page-header__inner {
+    min-height: 62px;
+  }
+
+  .nk-page-header h1 {
+    font-size: 1.35rem;
+  }
+
+  .nk-following-person__identity {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+  }
+
+  .nk-following-person__photo {
+    width: 52px;
+    min-width: 52px;
+    flex-basis: 52px;
+  }
+}

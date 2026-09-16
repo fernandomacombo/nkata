@@ -1,0 +1,100 @@
+/* Seguir / deixar de seguir — integrado nas ações do perfil. */
+
+.nk-profile-follow-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nk-profile-follow {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(54, 42, 39, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.9);
+  padding: 0 14px;
+  color: #4b3b38;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.nk-profile-follow:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(125, 38, 56, 0.36);
+  color: #7d2638;
+}
+
+.nk-profile-follow.is-active {
+  border-color: rgba(125, 38, 56, 0.26);
+  background: #7d2638;
+  color: #fff;
+}
+
+.nk-profile-follow:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.nk-profile-follow__remove {
+  margin-left: 1px;
+  opacity: 0.72;
+}
+
+.nk-profile-follow__message {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 7px);
+  right: 0;
+  width: max-content;
+  max-width: min(280px, 70vw);
+  border: 1px solid rgba(54, 42, 39, 0.12);
+  border-radius: 12px;
+  background: #fffdf9;
+  box-shadow: 0 12px 30px rgba(42, 28, 25, 0.12);
+  padding: 8px 10px;
+  color: #5d4c48;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.nk-profile-follow .is-spinning {
+  animation: nk-profile-follow-spin 900ms linear infinite;
+}
+
+@keyframes nk-profile-follow-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 820px) {
+  .nk-profile-detail__quick-actions .nk-profile-follow-wrap {
+    flex: 1 1 auto;
+  }
+
+  .nk-profile-detail__quick-actions .nk-profile-follow {
+    width: 100%;
+    min-height: 46px;
+    padding-inline: 12px;
+    font-size: 0.74rem;
+  }
+
+  .nk-profile-follow__message {
+    right: auto;
+    left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-profile-follow {
+    transition: none;
+  }
+
+  .nk-profile-follow .is-spinning {
+    animation: none;
+  }
+}

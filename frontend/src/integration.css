@@ -1,0 +1,57 @@
+.nk-api-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin: 22px 0 4px;
+  border: 1px solid rgba(179, 148, 95, 0.24);
+  border-radius: 20px;
+  background: rgba(179, 148, 95, 0.1);
+  padding: 16px 18px;
+  color: #715d3f;
+}
+
+.nk-api-notice > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.nk-api-notice strong,
+.nk-api-notice span {
+  display: block;
+}
+
+.nk-api-notice strong {
+  margin-bottom: 3px;
+  font-size: 0.82rem;
+}
+
+.nk-api-notice span {
+  color: #7d6c50;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.nk-hero__visual {
+  padding: 0;
+  text-align: left;
+}
+
+.nk-hero__visual:not(:disabled) {
+  cursor: pointer;
+}
+
+.nk-hero__visual:not(:disabled):hover img {
+  transform: scale(1.018);
+}
+
+.nk-hero__visual > img {
+  transition: transform 500ms ease;
+}
+
+@media (max-width: 640px) {
+  .nk-api-notice {
+    margin-top: 16px;
+    border-radius: 17px;
+    padding: 14px;
+  }
+}

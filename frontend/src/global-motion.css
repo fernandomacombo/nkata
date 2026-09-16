@@ -1,0 +1,93 @@
+@keyframes nk-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nk-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.nk-app > main,
+.nk-access-page,
+.nk-login-page {
+  animation: nk-page-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.nk-profile-grid > *,
+.nk-process__grid > *,
+.nk-notifications-list > *,
+.nk-library__section,
+.nk-account-card,
+.nk-profile-detail__layout {
+  animation: nk-card-enter 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.nk-profile-grid > *:nth-child(2),
+.nk-process__grid > *:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.nk-profile-grid > *:nth-child(3),
+.nk-process__grid > *:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+.nk-profile-card,
+.nk-notification,
+.nk-access-upload {
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+button:not(:disabled):active,
+a:active {
+  transform: scale(0.985);
+}
+
+.nk-profile-card:hover,
+.nk-access-upload:hover {
+  transform: translateY(-3px);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(125, 38, 56, 0.18);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
