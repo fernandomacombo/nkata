@@ -9,7 +9,7 @@ class HttpSecurityTests(TestCase):
     )
     def test_https_response_has_security_headers(self):
         response = self.client.get(
-            "/",
+            "/api/status/",
             secure=True,
             HTTP_HOST="nkata-temporario.example.test",
         )
