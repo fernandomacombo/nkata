@@ -40,7 +40,7 @@ PLAN_DEFINITIONS = {
             "status_media": True,
             "feed_view": True,
             "feed_media_publish": True,
-            "advanced_filters": True,
+            "advanced_filters": False,
             "priority_discovery": False,
         },
     },
@@ -57,8 +57,8 @@ PLAN_DEFINITIONS = {
             "status_media": True,
             "feed_view": True,
             "feed_media_publish": True,
-            "advanced_filters": True,
-            "priority_discovery": True,
+            "advanced_filters": False,
+            "priority_discovery": False,
         },
     },
 }
@@ -68,6 +68,10 @@ RECHARGE_PACKS = {
     30: {"credits": 30, "db_type": "RECARGA_SINAIS_30"},
     80: {"credits": 80, "db_type": "RECARGA_SINAIS_80"},
 }
+# Keep historical grants readable even when a pack is no longer sold.
+PLAN_PRICES_MZN = {"LIVRE": 0, "ESSENCIAL": 250, "PREMIUM": 500}
+ACTIVE_RECHARGE_PRICES_MZN = {10: 50}
+
 RECHARGE_TYPE_CREDITS = {
     pack["db_type"]: pack["credits"] for pack in RECHARGE_PACKS.values()
 }
@@ -169,8 +173,10 @@ def public_plan_catalog():
     return [
         {
             **definition,
-            "price_mzn": None,
-            "price_status": "A definir",
+            "price_mzn": PLAN_PRICES_MZN[definition["code"]],
+            "price_status": f'{PLAN_PRICES_MZN[definition["code"]]} MT',
+            "pricing_status": "proposed",
+            "billing_period": None,
             "purchase_enabled": False,
         }
         for definition in PLAN_DEFINITIONS.values()
@@ -181,11 +187,13 @@ def public_recharge_catalog():
     return [
         {
             "credits": pack["credits"],
-            "price_mzn": None,
-            "price_status": "A definir",
+            "price_mzn": ACTIVE_RECHARGE_PRICES_MZN[pack["credits"]],
+            "price_status": f'{ACTIVE_RECHARGE_PRICES_MZN[pack["credits"]]} MT',
+            "pricing_status": "proposed",
             "purchase_enabled": False,
         }
         for pack in RECHARGE_PACKS.values()
+        if pack["credits"] in ACTIVE_RECHARGE_PRICES_MZN
     ]
 
 

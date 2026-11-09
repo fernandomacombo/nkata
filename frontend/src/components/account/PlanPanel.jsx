@@ -189,7 +189,7 @@ export default function PlanPanel({ language = "PT" }) {
             </button>
           ))}
         </div>
-        <small>{english ? "Payments are not available yet." : "Pagamentos ainda não disponíveis."}</small>
+        <small>{english ? "Proposed prices. Plan duration to be confirmed. Payments are not available yet." : "Preços propostos. Duração dos planos por confirmar. Pagamentos ainda não disponíveis."}</small>
       </div>
     </section>
   );

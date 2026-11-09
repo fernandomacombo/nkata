@@ -33,3 +33,21 @@ class PlanRulesTests(SimpleTestCase):
         quota = build_quota_snapshot("ESSENCIAL", sent_today=15, recharge_balance=0)
         self.assertIsNone(quota["next_source"])
         self.assertTrue(quota["limit_reached"])
+
+
+class CommercialCatalogTests(SimpleTestCase):
+    def test_public_offer_has_at_most_four_options_and_requested_price_bounds(self):
+        from .plan_service import public_plan_catalog, public_recharge_catalog
+        offers = public_plan_catalog() + public_recharge_catalog()
+        self.assertLessEqual(len(offers), 4)
+        paid_prices = [offer["price_mzn"] for offer in offers if offer["price_mzn"]]
+        self.assertEqual(min(paid_prices), 50)
+        self.assertEqual(max(paid_prices), 500)
+        self.assertTrue(all(50 <= price <= 500 for price in paid_prices))
+        self.assertTrue(all(not offer["purchase_enabled"] for offer in offers))
+
+    def test_retired_recharges_remain_readable_but_are_not_advertised(self):
+        from .plan_service import public_recharge_catalog, RECHARGE_TYPE_CREDITS
+        self.assertEqual([pack["credits"] for pack in public_recharge_catalog()], [10])
+        self.assertEqual(RECHARGE_TYPE_CREDITS["RECARGA_SINAIS_30"], 30)
+        self.assertEqual(RECHARGE_TYPE_CREDITS["RECARGA_SINAIS_80"], 80)

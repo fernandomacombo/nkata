@@ -4,6 +4,7 @@ from rest_framework.response import Response
 
 from .plan_service import (
     plan_for_user,
+    PLAN_PRICES_MZN,
     public_plan_catalog,
     public_recharge_catalog,
     signal_quota_for_user,
@@ -19,8 +20,10 @@ def api_plano_da_conta(request):
     return Response({
         "current_plan": {
             **plan,
-            "price_mzn": None,
-            "price_status": "A definir",
+            "price_mzn": PLAN_PRICES_MZN[plan["code"]],
+            "price_status": f'{PLAN_PRICES_MZN[plan["code"]]} MT',
+            "pricing_status": "proposed",
+            "billing_period": None,
         },
         "signal_quota": quota,
         "recharge": {
