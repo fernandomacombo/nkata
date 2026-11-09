@@ -1,9 +1,12 @@
 import uuid
+from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import transaction
 from django.utils import timezone
 
-from .models import AcaoPerfil
+from .models import AcaoPerfil, AcessoPlanoNKATA
 
 
 PLAN_GROUP_ESSENCIAL = "NKATA_PLANO_ESSENCIAL"
@@ -69,6 +72,7 @@ RECHARGE_PACKS = {
     80: {"credits": 80, "db_type": "RECARGA_SINAIS_80"},
 }
 # Keep historical grants readable even when a pack is no longer sold.
+PLAN_DURATION_DAYS = 30
 PLAN_PRICES_MZN = {"LIVRE": 0, "ESSENCIAL": 250, "PREMIUM": 500}
 ACTIVE_RECHARGE_PRICES_MZN = {10: 50}
 
@@ -89,16 +93,18 @@ def plan_code_for_user(user):
     if not user or not getattr(user, "is_authenticated", False):
         return "LIVRE"
 
-    group_names = set(
-        user.groups.filter(
-            name__in=[PLAN_GROUP_ESSENCIAL, PLAN_GROUP_PREMIUM]
-        ).values_list("name", flat=True)
-    )
-    if PLAN_GROUP_PREMIUM in group_names:
-        return "PREMIUM"
-    if PLAN_GROUP_ESSENCIAL in group_names:
-        return "ESSENCIAL"
-    return "LIVRE"
+    access = active_plan_access(user)
+    return access.plano if access else "LIVRE"
+
+
+def active_plan_access(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return None
+    now = timezone.now()
+    return AcessoPlanoNKATA.objects.filter(
+        usuario=user, inicio__lte=now, fim__gt=now,
+        plano__in=["ESSENCIAL", "PREMIUM"],
+    ).first()
 
 
 def plan_for_user(user):
@@ -176,7 +182,8 @@ def public_plan_catalog():
             "price_mzn": PLAN_PRICES_MZN[definition["code"]],
             "price_status": f'{PLAN_PRICES_MZN[definition["code"]]} MT',
             "pricing_status": "proposed",
-            "billing_period": None,
+            "billing_period": "30_days" if definition["paid"] else None,
+            "duration_days": PLAN_DURATION_DAYS if definition["paid"] else None,
             "purchase_enabled": False,
         }
         for definition in PLAN_DEFINITIONS.values()
@@ -197,11 +204,27 @@ def public_recharge_catalog():
     ]
 
 
+@transaction.atomic
 def assign_plan(user, plan_code):
+    """Administrative grant only. A future payment service must verify settlement."""
     plan_code = str(plan_code or "").strip().upper()
     if plan_code not in PLAN_DEFINITIONS:
         raise ValueError("Plano NKATA inválido.")
 
+    get_user_model().objects.select_for_update().get(pk=user.pk)
+    now = timezone.now()
+    if plan_code == "LIVRE":
+        AcessoPlanoNKATA.objects.filter(usuario=user).delete()
+    else:
+        access = AcessoPlanoNKATA.objects.filter(usuario=user).first()
+        # Same-plan renewal preserves unused time; switching starts a fresh term.
+        base = access.fim if access and access.plano == plan_code and access.inicio <= now < access.fim else now
+        AcessoPlanoNKATA.objects.update_or_create(
+            usuario=user,
+            defaults={"plano": plan_code, "inicio": now,
+                      "fim": base + timedelta(days=PLAN_DURATION_DAYS),
+                      "origem": "ADMINISTRATIVA"},
+        )
     essencial, premium = ensure_plan_groups()
     user.groups.remove(essencial, premium)
     if plan_code == "ESSENCIAL":

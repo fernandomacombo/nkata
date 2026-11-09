@@ -55,3 +55,14 @@ class PaidFeatureApiTests(TestCase):
         for plan in public_plan_catalog():
             self.assertFalse(plan["features"]["advanced_filters"])
             self.assertFalse(plan["features"]["priority_discovery"])
+
+    def test_expired_subscription_blocks_audio_without_cleanup_job(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import AcessoPlanoNKATA
+        assign_plan(self.user, "ESSENCIAL")
+        now = timezone.now()
+        AcessoPlanoNKATA.objects.filter(usuario=self.user).update(inicio=now - timedelta(days=31), fim=now - timedelta(days=1))
+        with patch("entradas.chat_media_api._match_do_utilizador", return_value=object()):
+            response = api_audios_match(self.request({}), 1)
+        self.assertEqual(response.status_code, 403)

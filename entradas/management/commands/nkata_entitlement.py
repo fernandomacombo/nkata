@@ -5,6 +5,7 @@ from entradas.plan_service import (
     PLAN_DEFINITIONS,
     RECHARGE_PACKS,
     assign_plan,
+    active_plan_access,
     grant_recharge,
     recharge_balance_for_user,
 )
@@ -37,8 +38,10 @@ class Command(BaseCommand):
             if value not in PLAN_DEFINITIONS:
                 raise CommandError("Use LIVRE, ESSENCIAL ou PREMIUM.")
             plan = assign_plan(user, value)
+            access = active_plan_access(user)
+            validity = f" Validade até {access.fim.isoformat()}. Concessão administrativa, não pagamento." if access else ""
             self.stdout.write(self.style.SUCCESS(
-                f"{email} agora está no {plan['label']}."
+                f"{email} agora está no {plan['label']}.{validity}"
             ))
             return
 

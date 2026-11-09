@@ -117,6 +117,7 @@ export default function PlanPanel({ language = "PT" }) {
             <small>{english ? "Current plan" : "Plano atual"}</small>
             <strong>{planLabel(current, english)}</strong>
             <em>{current.paid ? (english ? "Paid plan" : "Plano pago") : (english ? "Free access" : "Acesso gratuito")}</em>
+            {current.expires_at && <small>{english ? "Valid until: " : "Válido até: "}{new Date(current.expires_at).toLocaleString(english ? "en-GB" : "pt-PT")}</small>}
           </div>
         </div>
 
@@ -157,7 +158,7 @@ export default function PlanPanel({ language = "PT" }) {
               </div>
               <h3>{planLabel(plan, english)}</h3>
               <strong className="nk-plan-card__price">
-                {plan.code === "LIVRE" ? "0 MT" : plan.price_status}
+                {plan.code === "LIVRE" ? "0 MT" : `${plan.price_status} / 30 ${english ? "days" : "dias"}`}
               </strong>
               <ul>
                 {featureLabels(plan, english).map((feature) => (
@@ -189,7 +190,7 @@ export default function PlanPanel({ language = "PT" }) {
             </button>
           ))}
         </div>
-        <small>{english ? "Proposed prices. Plan duration to be confirmed. Payments are not available yet." : "Preços propostos. Duração dos planos por confirmar. Pagamentos ainda não disponíveis."}</small>
+        <small>{english ? "Plans are valid for 30 days. No automatic charge. Payments are not available yet." : "Planos válidos por 30 dias. Sem cobrança automática. Pagamentos ainda não disponíveis."}</small>
       </div>
     </section>
   );

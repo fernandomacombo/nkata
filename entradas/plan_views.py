@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from .plan_service import (
     plan_for_user,
     PLAN_PRICES_MZN,
+    PLAN_DURATION_DAYS,
+    active_plan_access,
     public_plan_catalog,
     public_recharge_catalog,
     signal_quota_for_user,
@@ -16,6 +18,7 @@ from .plan_service import (
 def api_plano_da_conta(request):
     plan = plan_for_user(request.user)
     quota = signal_quota_for_user(request.user)
+    access = active_plan_access(request.user)
 
     return Response({
         "current_plan": {
@@ -23,7 +26,9 @@ def api_plano_da_conta(request):
             "price_mzn": PLAN_PRICES_MZN[plan["code"]],
             "price_status": f'{PLAN_PRICES_MZN[plan["code"]]} MT',
             "pricing_status": "proposed",
-            "billing_period": None,
+            "billing_period": "30_days" if plan["paid"] else None,
+            "duration_days": PLAN_DURATION_DAYS if plan["paid"] else None,
+            "expires_at": access.fim if access else None,
         },
         "signal_quota": quota,
         "recharge": {

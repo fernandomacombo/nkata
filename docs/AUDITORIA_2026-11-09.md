@@ -76,3 +76,13 @@ Resultados finais registados abaixo após a execução. Chamadas em redes móvei
 3. Rever vivacidade/identidade e operação de moderação/retenção.
 4. Validar produção, dispositivos, pagamentos de teste e recuperação de backups.
 5. Validar custos e duração dos planos, sem prometer benefícios não implementados.
+
+## Atualização: validade de 30 dias aprovada
+
+O utilizador confirmou 30 dias para Essencial/Premium. A implementação posterior acrescenta `AcessoPlanoNKATA` com início/fim e valida a expiração em cada consulta de permissões, sem depender de tarefa agendada. O catálogo informa 30 dias e a conta apresenta a data/hora de fim. Esta secção substitui as referências anteriores a duração por definir e controlo apenas por grupos.
+
+A concessão administrativa passa a durar 30 dias; renovar o mesmo plano antes do fim preserva os dias restantes. Depois da expiração, uma nova concessão começa na data atual. Uma troca administrativa de plano começa novo período de 30 dias; política comercial de upgrades continua pendente e não existe checkout habilitado. Voltar a Livre revoga a concessão. Não há débitos nem renovação financeira automática.
+
+Grupos antigos sem registo de validade deixam de conceder acesso pago. Antes de aplicar a migração a dados reais, rever essas contas e atribuir conscientemente concessões administrativas quando justificadas; não tratar pertença a grupo como prova de pagamento. A migração não inventa pagamentos ou prazos retroativos.
+
+A origem destes registos é ADMINISTRATIVA. A integração futura deve criar um fluxo separado, com registo financeiro, idempotência e confirmação do prestador antes de conceder acesso. O modelo novo não constitui comprovativo de cobrança e não resolve esse bloqueador.

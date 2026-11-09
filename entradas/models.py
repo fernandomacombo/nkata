@@ -335,3 +335,20 @@ class MensagemMatch(models.Model):
 
 # Mantém o NKATA ID num módulo isolado sem deixar de o registar no app Django.
 from .identity_models import VerificacaoIdentidadeNKATA  # noqa: E402,F401
+
+
+class AcessoPlanoNKATA(models.Model):
+    """Entitlement with a fixed validity; not evidence of payment."""
+
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="acesso_plano_nkata")
+    plano = models.CharField(max_length=16, choices=[("ESSENCIAL", "Essencial"), ("PREMIUM", "Premium")])
+    inicio = models.DateTimeField()
+    fim = models.DateTimeField(db_index=True)
+    origem = models.CharField(max_length=32, default="ADMINISTRATIVA", editable=False)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(fim__gt=models.F("inicio")), name="nkata_plano_validade_positiva"),
+            models.CheckConstraint(condition=models.Q(plano__in=["ESSENCIAL", "PREMIUM"]), name="nkata_plano_pago_valido"),
+        ]
