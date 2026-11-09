@@ -86,3 +86,7 @@ A concessão administrativa passa a durar 30 dias; renovar o mesmo plano antes d
 Grupos antigos sem registo de validade deixam de conceder acesso pago. Antes de aplicar a migração a dados reais, rever essas contas e atribuir conscientemente concessões administrativas quando justificadas; não tratar pertença a grupo como prova de pagamento. A migração não inventa pagamentos ou prazos retroativos.
 
 A origem destes registos é ADMINISTRATIVA. A integração futura deve criar um fluxo separado, com registo financeiro, idempotência e confirmação do prestador antes de conceder acesso. O modelo novo não constitui comprovativo de cobrança e não resolve esse bloqueador.
+
+## Atualização: pedidos e confirmação PaySuite
+
+Foi acrescentado um fluxo de checkout, histórico, webhook assinado e consulta autenticada ao prestador com aplicação idempotente de planos/recargas. Ver `PAGAMENTOS_NKATA.md`. Esta secção substitui a afirmação histórica de ausência de integração no código. A integração mantém-se desativada por padrão e não foi homologada na conta real. Marca no prestador, reembolsos, operação de casos incertos, produção e vivacidade continuam pendentes.

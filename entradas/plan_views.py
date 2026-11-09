@@ -2,6 +2,8 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .payment_service import payments_enabled
+
 from .plan_service import (
     plan_for_user,
     PLAN_PRICES_MZN,
@@ -19,6 +21,7 @@ def api_plano_da_conta(request):
     plan = plan_for_user(request.user)
     quota = signal_quota_for_user(request.user)
     access = active_plan_access(request.user)
+    enabled = payments_enabled()
 
     return Response({
         "current_plan": {
@@ -33,12 +36,12 @@ def api_plano_da_conta(request):
         "signal_quota": quota,
         "recharge": {
             "balance": quota["recharge_balance"],
-            "packs": public_recharge_catalog(),
+            "packs": [{**pack, "purchase_enabled": enabled} for pack in public_recharge_catalog()],
         },
-        "available_plans": public_plan_catalog(),
-        "payments_enabled": False,
+        "available_plans": [{**item, "purchase_enabled": enabled and item["paid"]} for item in public_plan_catalog()],
+        "payments_enabled": enabled,
         "message": (
-            "Os planos já controlam permissões e limites. "
-            "Os pagamentos serão ligados numa etapa posterior."
+            "Os benefícios são ativados após confirmação do pagamento." if enabled else
+            "Os pagamentos ainda não estão disponíveis."
         ),
     })

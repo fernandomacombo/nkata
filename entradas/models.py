@@ -352,3 +352,30 @@ class AcessoPlanoNKATA(models.Model):
             models.CheckConstraint(condition=models.Q(fim__gt=models.F("inicio")), name="nkata_plano_validade_positiva"),
             models.CheckConstraint(condition=models.Q(plano__in=["ESSENCIAL", "PREMIUM"]), name="nkata_plano_pago_valido"),
         ]
+
+
+class PedidoPagamentoNKATA(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="pagamentos_nkata")
+    chave = models.UUIDField()
+    referencia = models.CharField(max_length=50, unique=True)
+    produto = models.CharField(max_length=24)
+    valor = models.DecimalField(max_digits=8, decimal_places=2)
+    moeda = models.CharField(max_length=3, default="MZN")
+    dias = models.PositiveSmallIntegerField(default=0)
+    creditos = models.PositiveSmallIntegerField(default=0)
+    estado = models.CharField(max_length=16, default="CRIADO", choices=[(s, s) for s in ("CRIADO", "PENDENTE", "INCERTO", "PAGO", "FALHOU", "REVISAO")])
+    provedor_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    checkout_url = models.URLField(max_length=500, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    confirmado_em = models.DateTimeField(null=True, blank=True)
+    aplicado_em = models.DateTimeField(null=True, blank=True)
+    validade_concedida = models.DateTimeField(null=True, blank=True)
+    ultima_verificacao = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["usuario", "chave"], name="nkata_pagamento_idempotente"),
+            models.CheckConstraint(condition=models.Q(valor__gte=50, valor__lte=500), name="nkata_pagamento_limites"),
+            models.CheckConstraint(condition=models.Q(moeda="MZN"), name="nkata_pagamento_mzn"),
+        ]

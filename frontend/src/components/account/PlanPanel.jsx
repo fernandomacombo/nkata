@@ -10,7 +10,7 @@ import {
   Volume2,
   WalletCards,
 } from "lucide-react";
-import { fetchMyPlan } from "../../services/planApi.js";
+import { fetchMyPlan, fetchPayments, createPayment, checkPayment } from "../../services/planApi.js";
 
 const planIcon = {
   LIVRE: Sparkles,
@@ -43,6 +43,47 @@ export default function PlanPanel({ language = "PT" }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [payments, setPayments] = useState([]);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState("");
+
+  const loadPayments = useCallback(async () => {
+    try { setPayments((await fetchPayments()).results || []); }
+    catch (failure) { setPaymentMessage(failure.message); }
+  }, []);
+
+  useEffect(() => { loadPayments(); }, [loadPayments]);
+
+  async function buy(product) {
+    setPaymentBusy(true);
+    setPaymentMessage("");
+    const storageKey = `nkata-checkout-${product}`;
+    try {
+      let key = sessionStorage.getItem(storageKey);
+      if (!key) { key = crypto.randomUUID(); sessionStorage.setItem(storageKey, key); }
+      const order = await createPayment(product, key);
+      sessionStorage.removeItem(storageKey);
+      await loadPayments();
+      if (order.checkout_url) window.location.assign(order.checkout_url);
+      else setPaymentMessage(english ? "Check the payment status below." : "Consulte o estado do pagamento abaixo.");
+    } catch (failure) { setPaymentMessage(failure.message); await loadPayments(); }
+    finally { setPaymentBusy(false); }
+  }
+
+  async function verifyPayment(order) {
+    setPaymentBusy(true);
+    setPaymentMessage("");
+    try {
+      const result = await checkPayment(order.id);
+      if (["PAGO", "FALHOU"].includes(result.status)) sessionStorage.removeItem(`nkata-checkout-${order.product}`);
+      setPaymentMessage(result.status === "PAGO"
+        ? (english ? "Payment confirmed. Benefits activated." : "Pagamento confirmado. Benefícios ativados.")
+        : (english ? "Payment has not activated benefits yet." : "Este pagamento ainda não ativou benefícios."));
+      await load();
+      await loadPayments();
+    } catch (failure) { setPaymentMessage(failure.message); }
+    finally { setPaymentBusy(false); }
+  }
 
   const load = useCallback(async ({ signal } = {}) => {
     setLoading(true);
@@ -165,8 +206,10 @@ export default function PlanPanel({ language = "PT" }) {
                   <li key={feature}><Check size={15} /> {feature}</li>
                 ))}
               </ul>
-              <button type="button" disabled>
-                {active ? (english ? "Current" : "Atual") : (english ? "Coming soon" : "Em breve")}
+              <button type="button"
+                disabled={!data.payments_enabled || !plan.paid || paymentBusy || (current.paid && !active)}
+                onClick={() => buy(plan.code)}>
+                {!plan.paid ? (english ? "Free" : "Gratuito") : !data.payments_enabled ? (english ? "Coming soon" : "Em breve") : active ? (english ? "Renew for 30 days" : "Renovar por 30 dias") : (english ? "Choose plan" : "Escolher plano")}
               </button>
             </article>
           );
@@ -183,15 +226,30 @@ export default function PlanPanel({ language = "PT" }) {
         </div>
         <div className="nk-recharge-panel__packs">
           {recharge.packs.map((pack) => (
-            <button type="button" key={pack.credits} disabled>
+            <button type="button" key={pack.credits} disabled={!data.payments_enabled || paymentBusy} onClick={() => buy(`RECARGA${pack.credits}`)}>
               <Images size={16} />
               <strong>+{pack.credits}</strong>
               <span>{pack.price_status}</span>
             </button>
           ))}
         </div>
-        <small>{english ? "Plans are valid for 30 days. No automatic charge. Payments are not available yet." : "Planos válidos por 30 dias. Sem cobrança automática. Pagamentos ainda não disponíveis."}</small>
+        <small>{english ? "Plans last 30 days. No automatic charge. Top-ups do not unlock paid features." : "Planos válidos por 30 dias. Sem cobrança automática. Recargas não desbloqueiam recursos pagos."}</small>
+        {!data.payments_enabled && <small>{english ? "Payments are not available yet." : "Pagamentos ainda não disponíveis."}</small>}
       </div>
+      <section aria-label={english ? "NKATA payments" : "Pagamentos NKATA"}>
+        <h3>{english ? "NKATA payment history" : "Histórico de pagamentos NKATA"}</h3>
+        <p>{english ? "Benefits activate only after payment confirmation." : "Os benefícios são ativados apenas após confirmação do pagamento."}</p>
+        {paymentMessage && <p role="status">{paymentMessage}</p>}
+        {payments.map((order) => (
+          <article key={order.id} className="nk-plan-card">
+            <strong>{order.product} · {order.amount_mzn} MT</strong>
+            <small>{order.reference}</small>
+            <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
+            {order.checkout_url && <a href={order.checkout_url}>{english ? "Continue payment" : "Continuar pagamento"}</a>}
+            {!["PAGO", "FALHOU"].includes(order.status) && <button type="button" disabled={paymentBusy} onClick={() => verifyPayment(order)}>{english ? "Check payment" : "Verificar pagamento"}</button>}
+          </article>
+        ))}
+      </section>
     </section>
   );
 }

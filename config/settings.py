@@ -480,3 +480,14 @@ LOGGING = {
         "entradas": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
     },
 }
+
+# Disabled until the company account, branding and sandbox flow are verified.
+NKATA_PAYMENTS_ENABLED = env_bool("NKATA_PAYMENTS_ENABLED", False)
+NKATA_PAYSUITE_TOKEN = os.getenv("NKATA_PAYSUITE_TOKEN", "").strip()
+NKATA_PAYSUITE_WEBHOOK_SECRET = os.getenv("NKATA_PAYSUITE_WEBHOOK_SECRET", "").strip()
+NKATA_PAYMENT_ORIGIN = os.getenv("NKATA_PAYMENT_ORIGIN", "").strip().rstrip("/")
+NKATA_CHECKOUT_HOSTS = env_list("NKATA_CHECKOUT_HOSTS", "paysuite.tech")
+if NKATA_PAYMENTS_ENABLED:
+    validate_public_https_origin("NKATA_PAYMENT_ORIGIN", NKATA_PAYMENT_ORIGIN)
+    if not NKATA_PAYSUITE_TOKEN or not NKATA_PAYSUITE_WEBHOOK_SECRET:
+        raise ImproperlyConfigured("Configure as credenciais PaySuite antes de ativar pagamentos.")
