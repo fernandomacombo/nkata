@@ -1,9 +1,9 @@
 from django.conf import settings
-from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
+from .branded_email import send_branded_email
 from .models import PedidoEntrada
 
 
@@ -109,11 +109,46 @@ def _send_status_email(pedido):
     if not subject or not body or not pedido.email:
         return
 
-    send_mail(
-        subject=subject,
-        message=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[pedido.email],
+    frontend = settings.NKATA_FRONTEND_URL.rstrip("/")
+    action_url = f"{frontend}/acompanhar-pedido/"
+    action_label = "Acompanhar pedido"
+    status_content = {
+        "APROVADO": (
+            "O seu pedido de acesso foi aprovado.",
+            "Para continuar, responda ao questionário e crie a sua palavra-passe. O seu perfil só ficará activo depois de concluir estas etapas.",
+        ),
+        "PRECISA_CORRIGIR": (
+            "Precisamos de rever alguns dados do seu pedido.",
+            "Consulte os próximos passos pelo canal oficial. Por segurança, não enviamos notas internas de análise por email.",
+        ),
+        "RECUSADO": (
+            "A análise do seu pedido foi concluída.",
+            "Neste momento, o pedido de acesso não foi aprovado. Pode consultar o respectivo estado no NKATA.",
+        ),
+        "BLOQUEADO": (
+            "O seu pedido de acesso está indisponível.",
+            "Não é possível continuar neste momento. Para esclarecimentos, utilize apenas os canais oficiais do NKATA.",
+        ),
+    }
+    paragraphs = list(status_content.get(
+        pedido.status,
+        ("O estado do seu pedido NKATA foi actualizado.", "Consulte a sua área de acompanhamento."),
+    ))
+    if pedido.status == "APROVADO":
+        action_url = f"{frontend}/questionario/{pedido.token}/"
+        action_label = "Continuar no NKATA"
+    elif pedido.status == "PRECISA_CORRIGIR":
+        verification = getattr(pedido, "verificacao_identidade", None)
+        if verification and verification.status == "REPETIR":
+            action_url = f"{frontend}/verificar-identidade/{verification.token}/"
+            action_label = "Repetir verificação"
+            paragraphs.append("A sua verificação de identidade precisa de uma nova captura.")
+    send_branded_email(
+        subject=subject, body=body, recipient=pedido.email,
+        title=subject, greeting=f"Olá {_primeiro_nome(pedido.nome_completo)},",
+        paragraphs=paragraphs,
+        action_label=action_label, action_url=action_url,
+        notice="Para sua segurança, o NKATA nunca solicita palavras-passe por email.",
         fail_silently=True,
     )
 
@@ -123,11 +158,18 @@ def send_access_receipt_email(pedido):
     if not pedido.email:
         return
     subject, body = build_access_receipt_email(pedido)
-    send_mail(
-        subject=subject,
-        message=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[pedido.email],
+    send_branded_email(
+        subject=subject, body=body, recipient=pedido.email,
+        title="Recebemos o seu pedido",
+        greeting=f"Olá {_primeiro_nome(pedido.nome_completo)},",
+        paragraphs=[
+            "O seu pedido de entrada no NKATA foi recebido.",
+            f"Código privado de acompanhamento: {pedido.token}",
+            "Guarde este código em segurança. Não o partilhe.",
+        ],
+        action_label="Acompanhar pedido",
+        action_url=f"{settings.NKATA_FRONTEND_URL.rstrip('/')}/acompanhar-pedido/",
+        notice="Se não fez este pedido, pode ignorar esta mensagem.",
         fail_silently=True,
     )
 

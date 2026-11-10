@@ -26,15 +26,16 @@ class PasswordResetSecurityTests(SimpleTestCase):
             username="marta",
         )
 
-    @patch("entradas.password_reset_api.send_mail")
+    @patch("entradas.password_reset_api.send_branded_email")
     def test_email_aponta_para_frontend_e_nao_contem_senha(self, mocked_send):
         _send_reset_email(self.fake_user())
 
         self.assertEqual(mocked_send.call_count, 1)
         kwargs = mocked_send.call_args.kwargs
-        self.assertIn("https://nkata.example/nova-senha/", kwargs["message"])
-        self.assertNotIn("pbkdf2_sha256", kwargs["message"])
-        self.assertEqual(kwargs["recipient_list"], ["membro@example.com"])
+        self.assertIn("https://nkata.example/nova-senha/", kwargs["body"])
+        self.assertNotIn("pbkdf2_sha256", kwargs["body"])
+        self.assertEqual(kwargs["recipient"], "membro@example.com")
+        self.assertEqual(kwargs["action_url"].startswith("https://nkata.example/nova-senha/"), True)
 
     def test_mensagem_publica_nao_confirma_existencia_da_conta(self):
         texto = GENERIC_RESET_MESSAGE.lower()

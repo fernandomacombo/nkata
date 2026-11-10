@@ -3,7 +3,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import permissions
@@ -15,6 +14,7 @@ from rest_framework.decorators import (
 )
 from rest_framework.response import Response
 
+from .branded_email import send_branded_email
 from .throttles import PasswordResetRateThrottle, TokenFlowRateThrottle
 
 
@@ -51,11 +51,19 @@ def _send_reset_email(user):
         "Se não pediu esta alteração, pode ignorar este email.\n\n"
         "NKATA\nRelações sérias começam com intenções claras."
     )
-    send_mail(
+    send_branded_email(
         subject=subject,
-        message=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
+        body=body,
+        recipient=user.email,
+        title="Recupere o acesso à sua conta",
+        greeting=f"Olá {first_name},",
+        paragraphs=[
+            "Recebemos um pedido para criar uma nova palavra-passe para a sua conta NKATA.",
+            "Por segurança, este link é temporário e deixa de funcionar depois de utilizar uma nova palavra-passe.",
+        ],
+        action_label="Criar nova palavra-passe",
+        action_url=link,
+        notice="Se não pediu esta alteração, ignore este email. Nunca partilhe este link com outras pessoas.",
         fail_silently=True,
     )
 
