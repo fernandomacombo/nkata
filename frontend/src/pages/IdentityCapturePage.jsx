@@ -126,6 +126,9 @@ export default function IdentityCapturePage({ token, onExit }) {
   const previewControllerRef = useRef(null);
   const detectionStabilityRef = useRef({ captureType: "", count: 0 });
   const automaticCaptureRef = useRef(false);
+  const captureProofRef = useRef(null);
+  const captureLockRef = useRef(false);
+  const [manualCaptureAvailable, setManualCaptureAvailable] = useState(false);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cameraStarting, setCameraStarting] = useState(false);
@@ -187,6 +190,9 @@ export default function IdentityCapturePage({ token, onExit }) {
   useEffect(() => {
     detectionStabilityRef.current = { captureType, count: 0 };
     automaticCaptureRef.current = false;
+    captureProofRef.current = null;
+    captureLockRef.current = false;
+    setManualCaptureAvailable(false);
     setQualityMessages([]);
     setDetection({
       detected: false,
@@ -255,7 +261,9 @@ export default function IdentityCapturePage({ token, onExit }) {
   }, [captureType, cameraActivated, complete, config?.facingMode]);
 
   const uploadCapture = async (file, requestedCaptureType, liveCaptureProof) => {
-    if (!file || uploading || !requestedCaptureType || !liveCaptureProof) return;
+    if (!file || uploading || !requestedCaptureType || !liveCaptureProof) return false;
+    setManualCaptureAvailable(false);
+    captureProofRef.current = null;
     setUploading(true);
     stopPreviewAnalysis();
     setError("");
@@ -271,18 +279,14 @@ export default function IdentityCapturePage({ token, onExit }) {
         liveCaptureProof,
       });
       setSession(result);
-      if (result.capture_complete) {
-        stopStream(streamRef.current);
-        streamRef.current = null;
-        activeFacingModeRef.current = "";
-        setCameraReady(false);
-      }
+      return true;
     } catch (requestError) {
       const messages = requestError.payload?.quality?.messages || [];
       setQualityMessages(messages);
       setError(requestError.message || "Não foi possível analisar esta fotografia.");
       automaticCaptureRef.current = false;
       detectionStabilityRef.current = { captureType: requestedCaptureType, count: 0 };
+      return false;
     } finally {
       setUploading(false);
     }
@@ -291,12 +295,35 @@ export default function IdentityCapturePage({ token, onExit }) {
   const captureFrame = async (requestedCaptureType, liveCaptureProof) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || !video.videoWidth || uploading) return;
-    const file = await frameFile(video, canvas, requestedCaptureType, {
-      maxSide: MAX_CAPTURE_SIDE,
-      quality: CAPTURE_JPEG_QUALITY,
-    });
-    await uploadCapture(file, requestedCaptureType, liveCaptureProof);
+    if (!video || !canvas || !video.videoWidth || uploading || captureLockRef.current) return false;
+    captureLockRef.current = true;
+    try {
+      const file = await frameFile(video, canvas, requestedCaptureType, {
+        maxSide: MAX_CAPTURE_SIDE,
+        quality: CAPTURE_JPEG_QUALITY,
+      });
+      if (!file) {
+        setError("Não foi possível capturar a imagem. Mantenha a câmara ativa e tente novamente.");
+        automaticCaptureRef.current = false;
+        return false;
+      }
+      return await uploadCapture(file, requestedCaptureType, liveCaptureProof);
+    } finally {
+      captureLockRef.current = false;
+    }
+  };
+
+  const handleAssistedCapture = async () => {
+    const proof = captureProofRef.current;
+    if (!cameraReady || !proof || proof.captureType !== captureType || Date.now() >= proof.expiresAt) {
+      captureProofRef.current = null;
+      setManualCaptureAvailable(false);
+      setError("A validação da imagem expirou. Mantenha o BI enquadrado para uma nova leitura.");
+      return;
+    }
+    automaticCaptureRef.current = true;
+    const succeeded = await captureFrame(captureType, proof.value);
+    if (!succeeded) automaticCaptureRef.current = false;
   };
 
   useEffect(() => {
@@ -328,6 +355,17 @@ export default function IdentityCapturePage({ token, onExit }) {
         });
         if (stopped) return;
         setDetection(result);
+        if (result.ready && result.live_capture_proof) {
+          captureProofRef.current = {
+            value: result.live_capture_proof,
+            captureType,
+            expiresAt: Date.now() + 25000,
+          };
+          setManualCaptureAvailable(true);
+        } else {
+          captureProofRef.current = null;
+          setManualCaptureAvailable(false);
+        }
         const stability = advanceNkataIdDetectionStability(
           detectionStabilityRef.current,
           result,
@@ -337,12 +375,15 @@ export default function IdentityCapturePage({ token, onExit }) {
         if (stability.shouldCapture && result.live_capture_proof) {
           automaticCaptureRef.current = true;
           setDetection({ ...result, message: "Enquadramento confirmado. A capturar…" });
-          await captureFrame(captureType, result.live_capture_proof);
+          const succeeded = await captureFrame(captureType, result.live_capture_proof);
+          if (!succeeded) automaticCaptureRef.current = false;
           return;
         }
         schedule();
       } catch (requestError) {
         if (stopped || requestError.name === "AbortError") return;
+        captureProofRef.current = null;
+        setManualCaptureAvailable(false);
         setDetection((current) => ({
           ...current,
           ready: false,
@@ -494,12 +535,22 @@ export default function IdentityCapturePage({ token, onExit }) {
             {cameraStarting ? "A abrir…" : cameraActivated ? "Retomar câmara" : "Ativar câmara ao vivo"}
           </button>
         ) : (
-          <div className={`nk-id-auto-status ${detection.ready ? "is-ready" : ""}`}>
-            <LoaderCircle className={uploading ? "is-spinning" : "nk-id-scanner"} size={20} />
-            <span>
-              <strong>{uploading ? "A guardar captura" : "Deteção automática ativa"}</strong>
-              <small>{detection.message}</small>
-            </span>
+          <div className="nk-id-capture-controls">
+            <div className={`nk-id-auto-status ${detection.ready ? "is-ready" : ""}`} role="status" aria-live="polite">
+              <LoaderCircle className={uploading ? "is-spinning" : "nk-id-scanner"} size={20} />
+              <span>
+                <strong>{uploading ? "A guardar captura" : detection.ready ? "BI/rosto detectado — a confirmar" : "A analisar o enquadramento"}</strong>
+                <small>{detection.message}</small>
+              </span>
+            </div>
+            {manualCaptureAvailable && !uploading && (
+              <button type="button" className="nk-button nk-button--wine nk-id-assisted-capture" onClick={handleAssistedCapture}>
+                <Camera size={18} /> Capturar agora
+              </button>
+            )}
+            {!manualCaptureAvailable && !uploading && (
+              <small className="nk-id-capture-tip">A captura só começa quando a imagem estiver nítida, iluminada e reconhecida. Ajuste a distância se necessário.</small>
+            )}
           </div>
         )}
       </footer>
