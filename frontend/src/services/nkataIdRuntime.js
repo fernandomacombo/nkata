@@ -1,3 +1,19 @@
+// Match object-fit: cover with object-position: center in the document viewport.
+export function nkataIdCoverCrop(width, height, viewportWidth, viewportHeight) {
+  if (!(width > 0 && height > 0 && viewportWidth > 0 && viewportHeight > 0)) {
+    return { x: 0, y: 0, width, height };
+  }
+  const scale = Math.max(viewportWidth / width, viewportHeight / height);
+  const cropWidth = Math.min(width, viewportWidth / scale);
+  const cropHeight = Math.min(height, viewportHeight / scale);
+  return {
+    x: (width - cropWidth) / 2,
+    y: (height - cropHeight) / 2,
+    width: cropWidth,
+    height: cropHeight,
+  };
+}
+
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 export function fitNkataIdCaptureDimensions(width, height, maxSide = 1280) {

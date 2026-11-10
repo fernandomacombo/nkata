@@ -13,7 +13,6 @@ CAPTURE_ORDER = (
     "bi_frente",
     "bi_verso",
     "selfie_ao_vivo",
-    "selfie_desafio",
 )
 
 CAPTURE_LABELS = {
@@ -342,6 +341,8 @@ def finalize_identity_analysis(session):
         and challenge.get("sha256")
         and neutral.get("sha256") != challenge.get("sha256")
     )
+    # Uma selfie isolada não prova vivacidade: manter revisão humana.
+    # Registos antigos com desafio continuam a preservar a evidência anterior.
     session.vivacidade_confirmada = bool(
         different_selfies
         and neutral.get("metrics", {}).get("faces") == 1
@@ -383,6 +384,7 @@ def finalize_identity_analysis(session):
         face_similarity is not None
         and face_similarity >= threshold
         and session.vivacidade_confirmada
+        and not any(item.get("assisted") for item in checks.values())
     ):
         session.status = "APROVADA"
         session.risco = "BAIXO"

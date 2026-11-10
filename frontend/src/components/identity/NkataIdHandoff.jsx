@@ -77,7 +77,7 @@ export default function NkataIdHandoff({ email, age, value, onChange, error }) {
         <small>NKATA ID</small>
         <h3>Verifique a sua identidade.</h3>
         <p>
-          Vamos confirmar o BI e duas selfies privadas. A câmara do telemóvel
+          Vamos confirmar a frente e o verso do BI e uma selfie privada. A câmara do telemóvel
           ajuda a obter imagens mais nítidas.
         </p>
         <div className="nk-id-start__checks">
@@ -156,7 +156,7 @@ export default function NkataIdHandoff({ email, age, value, onChange, error }) {
           <ol>
             <li><span>1</span> Abra a câmara do telemóvel.</li>
             <li><span>2</span> Leia o código QR.</li>
-            <li><span>3</span> Fotografe o BI e faça as selfies.</li>
+            <li><span>3</span> Fotografe a frente, o verso e faça uma selfie.</li>
           </ol>
           <div className="nk-id-share">
             <a href={`sms:?&body=${smsText}`}><MessageCircle size={16} /> Enviar por SMS</a>

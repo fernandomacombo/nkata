@@ -845,3 +845,37 @@
     transition: none;
   }
 }
+
+/* Feedback accionável quando a captura automática aguarda validação. */
+.nk-id-capture-controls {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+.nk-id-assisted-capture {
+  min-height: 52px;
+}
+.nk-id-capture-tip {
+  display: block;
+  padding: 0 8px;
+  color: var(--nk-muted, #776b6d);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.nk-id-auto-status small {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.45;
+}
+.nk-id-mobile--capture .nk-id-capture-tip {
+  color: rgba(255,255,255,.82);
+  text-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+
+/* O recorte enviado ao analisador acompanha este enquadramento central. */
+.nk-id-camera.is-document video {
+  object-fit: cover;
+  object-position: center;
+}

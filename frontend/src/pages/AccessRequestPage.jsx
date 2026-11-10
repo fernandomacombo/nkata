@@ -133,6 +133,15 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
+  // A página de origem recebe a confirmação do telemóvel por polling.
+  // Avança apenas para a revisão, nunca submete o pedido sem consentimento.
+  useEffect(() => {
+    if (step === 2 && identitySession?.can_submit) {
+      setErrors((current) => ({ ...current, nkata_id_token: undefined }));
+      setStep(3);
+    }
+  }, [step, identitySession?.can_submit]);
+
   const updateValue = (name, value) => {
     setValues((current) => ({ ...current, [name]: value }));
     setErrors((current) => ({ ...current, [name]: undefined }));
