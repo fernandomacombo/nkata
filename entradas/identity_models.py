@@ -43,11 +43,12 @@ class VerificacaoIdentidadeNKATA(models.Model):
         ("AUTOMATICA", "Automática"),
         ("HUMANA", "Humana"),
     ]
+    # O fluxo público pede apenas frente, verso e uma selfie ao vivo.
+    # O campo selfie_desafio continua no modelo para preservar sessões antigas.
     CAPTURE_FIELDS = (
         "bi_frente",
         "bi_verso",
         "selfie_ao_vivo",
-        "selfie_desafio",
     )
 
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
