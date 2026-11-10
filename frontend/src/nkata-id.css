@@ -873,3 +873,8 @@
   color: rgba(255,255,255,.82);
   text-shadow: 0 1px 3px rgba(0,0,0,.5);
 }
+
+/* O analisador recebe a imagem inteira; apresentar o mesmo enquadramento ao utilizador. */
+.nk-id-camera.is-document video {
+  object-fit: contain;
+}
