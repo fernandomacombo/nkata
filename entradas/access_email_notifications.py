@@ -112,6 +112,28 @@ def _send_status_email(pedido):
     frontend = settings.NKATA_FRONTEND_URL.rstrip("/")
     action_url = f"{frontend}/acompanhar-pedido/"
     action_label = "Acompanhar pedido"
+    status_content = {
+        "APROVADO": (
+            "O seu pedido de acesso foi aprovado.",
+            "Para continuar, responda ao questionário e crie a sua palavra-passe. O seu perfil só ficará activo depois de concluir estas etapas.",
+        ),
+        "PRECISA_CORRIGIR": (
+            "Precisamos de rever alguns dados do seu pedido.",
+            "Consulte os próximos passos pelo canal oficial. Por segurança, não enviamos notas internas de análise por email.",
+        ),
+        "RECUSADO": (
+            "A análise do seu pedido foi concluída.",
+            "Neste momento, o pedido de acesso não foi aprovado. Pode consultar o respectivo estado no NKATA.",
+        ),
+        "BLOQUEADO": (
+            "O seu pedido de acesso está indisponível.",
+            "Não é possível continuar neste momento. Para esclarecimentos, utilize apenas os canais oficiais do NKATA.",
+        ),
+    }
+    paragraphs = list(status_content.get(
+        pedido.status,
+        ("O estado do seu pedido NKATA foi actualizado.", "Consulte a sua área de acompanhamento."),
+    ))
     if pedido.status == "APROVADO":
         action_url = f"{frontend}/questionario/{pedido.token}/"
         action_label = "Continuar no NKATA"
@@ -120,13 +142,11 @@ def _send_status_email(pedido):
         if verification and verification.status == "REPETIR":
             action_url = f"{frontend}/verificar-identidade/{verification.token}/"
             action_label = "Repetir verificação"
+            paragraphs.append("A sua verificação de identidade precisa de uma nova captura.")
     send_branded_email(
         subject=subject, body=body, recipient=pedido.email,
         title=subject, greeting=f"Olá {_primeiro_nome(pedido.nome_completo)},",
-        paragraphs=[
-            "O estado do seu pedido NKATA foi atualizado.",
-            "Consulte os próximos passos através do botão abaixo e não partilhe links pessoais.",
-        ],
+        paragraphs=paragraphs,
         action_label=action_label, action_url=action_url,
         notice="Para sua segurança, o NKATA nunca solicita palavras-passe por email.",
         fail_silently=True,
