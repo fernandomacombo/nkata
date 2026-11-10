@@ -44,21 +44,14 @@ const CAPTURES = {
     help: "Evite sombras, dedos sobre o documento e reflexos.",
     facingMode: "environment",
     icon: FileImage,
-    stage: 1,
+    stage: 2,
   },
   selfie_ao_vivo: {
     title: "Faça uma selfie frontal",
     help: "Olhe diretamente para a câmara, sem óculos escuros ou filtros.",
     facingMode: "user",
     icon: UserRoundCheck,
-    stage: 2,
-  },
-  selfie_desafio: {
-    title: "Conclua o desafio ao vivo",
-    help: "Siga a instrução apresentada antes de tirar a fotografia.",
-    facingMode: "user",
-    icon: UserRoundCheck,
-    stage: 2,
+    stage: 3,
   },
 };
 
@@ -150,7 +143,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   const complete = Boolean(session?.capture_complete && session?.can_submit);
   const progress = useMemo(() => {
     const count = session?.completed_captures?.length || 0;
-    return Math.min(100, Math.round((count / 4) * 100));
+    return Math.min(100, Math.round((count / 3) * 100));
   }, [session?.completed_captures]);
 
   useEffect(() => {
@@ -432,7 +425,7 @@ export default function IdentityCapturePage({ token, onExit }) {
       <main className="nk-id-mobile nk-id-mobile--center nk-id-mobile--success">
         <span className="nk-id-mobile__brand"><NkataLogo /> <strong>NKATA ID</strong></span>
         <span className="nk-id-success-icon"><CheckCircle2 size={42} /></span>
-        <small>IDENTIDADE RECEBIDA</small>
+        <small>TRÊS CAPTURAS RECEBIDAS</small>
         <h1>Capturas concluídas</h1>
         <p>
           {session.automatically_approved
@@ -442,17 +435,17 @@ export default function IdentityCapturePage({ token, onExit }) {
         <div className="nk-id-mobile__result">
           <strong>{session.status_label}</strong>
           <span><Check size={15} /> Documento protegido</span>
-          <span><Check size={15} /> Selfies recebidas</span>
+          <span><Check size={15} /> Selfie recebida</span>
         </div>
         <button type="button" className="nk-button nk-button--wine" onClick={onExit}>
-          Voltar ao pedido
+          Concluir
         </button>
       </main>
     );
   }
 
   const Icon = config?.icon || Camera;
-  const selfieChallenge = captureType === "selfie_desafio" ? session.selfie_challenge : "";
+
 
   return (
     <main className={`nk-id-mobile ${isSelfieCapture ? "nk-id-mobile--capture" : ""}`}>
@@ -469,7 +462,7 @@ export default function IdentityCapturePage({ token, onExit }) {
       <section className="nk-id-mobile__copy">
         <small>PASSO {config.stage} DE 3</small>
         <h1>{config.title}</h1>
-        <p>{selfieChallenge || config.help}</p>
+        <p>{config.help}</p>
       </section>
 
       <section className={`nk-id-camera ${config.facingMode === "user" ? "is-selfie" : "is-document"} ${cameraReady ? "has-live-video" : ""} ${detection.detected ? "has-detection" : ""} ${detection.ready ? "is-ready" : ""}`}>
