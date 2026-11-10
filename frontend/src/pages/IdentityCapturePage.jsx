@@ -18,6 +18,7 @@ import {
 import {
   advanceNkataIdDetectionStability,
   fitNkataIdCaptureDimensions,
+  nkataIdCoverCrop,
   nkataIdCameraConstraints,
   optimizeNkataIdCameraTrack,
 } from "../services/nkataIdRuntime.js";
@@ -83,15 +84,18 @@ function frameFile(video, canvas, captureType, { maxSide, quality, suffix = "" }
   if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
     return Promise.resolve(null);
   }
+  const crop = captureType.startsWith("bi_")
+    ? nkataIdCoverCrop(video.videoWidth, video.videoHeight, video.clientWidth, video.clientHeight)
+    : { x: 0, y: 0, width: video.videoWidth, height: video.videoHeight };
   const dimensions = fitNkataIdCaptureDimensions(
-    video.videoWidth,
-    video.videoHeight,
+    crop.width,
+    crop.height,
     maxSide,
   );
   canvas.width = dimensions.width;
   canvas.height = dimensions.height;
   const context = canvas.getContext("2d", { alpha: false });
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  context.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
       if (!blob) {

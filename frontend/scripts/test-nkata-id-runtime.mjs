@@ -5,6 +5,7 @@ import {
   advanceNkataIdDetectionStability,
   createNkataIdStatusPoller,
   fitNkataIdCaptureDimensions,
+  nkataIdCoverCrop,
   isPhoneReachableNkataIdOrigin,
   nkataIdCameraConstraints,
   normalizeNkataIdAppOrigin,
@@ -173,4 +174,23 @@ test("aplica espera maior depois de um limite 429", async () => {
   await first.callback();
   assert.equal(scheduler.next().delay, 60000);
   stop();
+});
+
+
+test("enquadra vídeo vertical na moldura horizontal sem deformação", () => {
+  assert.deepEqual(nkataIdCoverCrop(1080, 1920, 360, 240), {
+    x: 0, y: 600, width: 1080, height: 720,
+  });
+});
+
+test("acompanha rotação e conserva apenas a região visível", () => {
+  assert.deepEqual(nkataIdCoverCrop(1920, 1080, 360, 240), {
+    x: 150, y: 0, width: 1620, height: 1080,
+  });
+  assert.deepEqual(nkataIdCoverCrop(1500, 1000, 360, 240), {
+    x: 0, y: 0, width: 1500, height: 1000,
+  });
+  assert.deepEqual(nkataIdCoverCrop(1080, 1920, 0, 0), {
+    x: 0, y: 0, width: 1080, height: 1920,
+  });
 });

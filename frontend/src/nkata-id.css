@@ -874,7 +874,8 @@
   text-shadow: 0 1px 3px rgba(0,0,0,.5);
 }
 
-/* O analisador recebe a imagem inteira; apresentar o mesmo enquadramento ao utilizador. */
+/* O recorte enviado ao analisador acompanha este enquadramento central. */
 .nk-id-camera.is-document video {
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
 }
