@@ -33,7 +33,7 @@ class PasswordResetSecurityTests(SimpleTestCase):
         self.assertEqual(mocked_send.call_count, 1)
         kwargs = mocked_send.call_args.kwargs
         self.assertIn("https://nkata.example/nova-senha/", kwargs["body"])
-        self.assertNotIn("pbkdf2_sha256", kwargs["message"])
+        self.assertNotIn("pbkdf2_sha256", kwargs["body"])
         self.assertEqual(kwargs["recipient"], "membro@example.com")
         self.assertEqual(kwargs["action_url"].startswith("https://nkata.example/nova-senha/"), True)
 
