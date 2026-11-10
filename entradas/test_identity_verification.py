@@ -187,16 +187,34 @@ class NkataIdApiTests(TestCase):
             "bi_frente",
             "bi_verso",
             "selfie_ao_vivo",
-            "selfie_desafio",
         ):
             response = self.capture(token, capture_type)
             self.assertEqual(response.status_code, 200, response.json())
 
         result = response.json()
         self.assertTrue(result["capture_complete"])
+        self.assertEqual(len(result["completed_captures"]), 3)
         self.assertTrue(result["can_submit"])
         self.assertEqual(result["status"], "REVISAO")
-        self.assertTrue(result["liveness_confirmed"])
+        self.assertFalse(result["liveness_confirmed"])
+
+    @patch("entradas.identity_api.inspect_identity_capture")
+    def test_third_capture_finishes_without_extra_selfie(self, inspect):
+        inspect.side_effect = lambda _upload, kind: accepted_result(kind)
+        data = self.create_session(email="tres-capturas@example.com")
+        token = data["token"]
+        for capture_type in ("bi_frente", "bi_verso"):
+            response = self.capture(token, capture_type)
+            self.assertEqual(response.status_code, 200, response.json())
+            self.assertFalse(response.json()["capture_complete"])
+        response = self.capture(token, "selfie_ao_vivo")
+        self.assertEqual(response.status_code, 200, response.json())
+        result = response.json()
+        self.assertTrue(result["capture_complete"])
+        self.assertTrue(result["can_submit"])
+        self.assertEqual(result["current_capture"], "concluida")
+        self.assertEqual(result["status"], "REVISAO")
+        self.assertFalse(result["liveness_confirmed"])
 
     def test_low_quality_image_is_rejected_with_actionable_feedback(self):
         uniform = BytesIO()
