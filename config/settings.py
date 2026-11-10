@@ -348,6 +348,9 @@ EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("DJANGO_EMAIL_USE_TLS", True)
 EMAIL_USE_SSL = env_bool("DJANGO_EMAIL_USE_SSL", False)
 EMAIL_TIMEOUT = int(os.getenv("DJANGO_EMAIL_TIMEOUT", "15"))
+NKATA_ZOHO_API_KEY = os.getenv("NKATA_ZOHO_API_KEY", "").strip()
+if EMAIL_BACKEND == "entradas.email_backend.ZohoAPIEmailBackend" and not NKATA_ZOHO_API_KEY:
+    raise ImproperlyConfigured("NKATA_ZOHO_API_KEY é obrigatória para o envio HTTPS pelo Zoho.")
 if not DEBUG and EMAIL_BACKEND == "django.core.mail.backends.console.EmailBackend":
     raise ImproperlyConfigured(
         "DJANGO_EMAIL_BACKEND não pode usar o terminal em produção."
