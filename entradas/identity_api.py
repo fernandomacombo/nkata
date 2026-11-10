@@ -24,6 +24,7 @@ from .identity_verification_service import (
     CAPTURE_LABELS,
     CAPTURE_ORDER,
     finalize_identity_analysis,
+    file_sha256,
     inspect_identity_capture,
     inspect_identity_preview,
     next_capture,
@@ -106,15 +107,15 @@ def _capture_url(request, token):
     return f"{base}/verificar-identidade/{token}/"
 
 
-def _live_capture_proof(session, capture_type):
+def _live_capture_proof(session, capture_type, image_hash=None):
     return signing.dumps(
-        {"token": str(session.token), "capture_type": capture_type},
+        {"token": str(session.token), "capture_type": capture_type, "image_hash": image_hash},
         salt=LIVE_CAPTURE_PROOF_SALT,
         compress=True,
     )
 
 
-def _valid_live_capture_proof(raw_proof, session, capture_type):
+def _valid_live_capture_proof(raw_proof, session, capture_type, upload=None):
     if not raw_proof:
         return False
     try:
@@ -128,6 +129,7 @@ def _valid_live_capture_proof(raw_proof, session, capture_type):
     return (
         payload.get("token") == str(session.token)
         and payload.get("capture_type") == capture_type
+        and (not payload.get("image_hash") or (upload is not None and file_sha256(upload) == payload["image_hash"]))
     )
 
 
@@ -215,6 +217,17 @@ def api_previsualizar_nkata_id(request, token, capture_type):
     if error:
         return Response({"detail": error}, status=400)
     try:
+        if request.data.get("assisted") == "true":
+            # Quality validation is independent of the small-frame contour detector.
+            # This token binds the exact image, not proof of identity or liveness.
+            safe_upload = sanitized_image_upload(upload)
+            quality = inspect_identity_capture(safe_upload, capture_type)
+            if not quality["accepted"]:
+                return Response({"detail": "Repita a fotografia.", "quality": quality}, status=422)
+            return Response({
+                "ready": True,
+                "live_capture_proof": _live_capture_proof(session, capture_type, file_sha256(upload)),
+            })
         result = inspect_identity_preview(upload, capture_type)
     except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
         return Response({"detail": "Não foi possível analisar a imagem da câmara."}, status=400)
@@ -250,6 +263,7 @@ def api_capturar_nkata_id(request, token, capture_type):
         request.data.get("live_capture_proof"),
         session,
         capture_type,
+        request.FILES.get("imagem"),
     ):
         return Response({
             "detail": "A fotografia deve ser feita ao vivo pela câmara do NKATA ID."
@@ -271,6 +285,9 @@ def api_capturar_nkata_id(request, token, capture_type):
             "capture": capture_type,
             "quality": result,
         }, status=422)
+
+    proof_data = signing.loads(str(request.data.get("live_capture_proof")), salt=LIVE_CAPTURE_PROOF_SALT)
+    result["assisted"] = bool(proof_data.get("image_hash"))
 
     previous = getattr(session, capture_type)
     if previous:

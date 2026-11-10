@@ -384,6 +384,7 @@ def finalize_identity_analysis(session):
         face_similarity is not None
         and face_similarity >= threshold
         and session.vivacidade_confirmada
+        and not any(item.get("assisted") for item in checks.values())
     ):
         session.status = "APROVADA"
         session.risco = "BAIXO"

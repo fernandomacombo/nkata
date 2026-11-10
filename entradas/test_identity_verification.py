@@ -168,6 +168,38 @@ class NkataIdApiTests(TestCase):
         session = VerificacaoIdentidadeNKATA.objects.get(token=token)
         self.assertFalse(bool(session.bi_frente))
 
+    @patch("entradas.identity_api.inspect_identity_capture")
+    def test_assisted_capture_without_contour_binds_exact_image(self, inspect):
+        inspect.side_effect = lambda _upload, kind: accepted_result(kind)
+        token = self.create_session()["token"]
+        image = textured_image("manual.jpg")
+        raw = image.read()
+        image.seek(0)
+        response = self.client.post(
+            f"/api/nkata-id/sessoes/{token}/previsualizacao/bi_frente/",
+            {"imagem": image, "assisted": "true"},
+        )
+        self.assertEqual(response.status_code, 200, response.json())
+        proof = response.json()["live_capture_proof"]
+        url = f"/api/nkata-id/sessoes/{token}/capturas/bi_frente/"
+        rejected = self.client.post(url, {"imagem": textured_image("different.jpg", 800, 600), "live_capture_proof": proof})
+        self.assertEqual(rejected.status_code, 400)
+        accepted = self.client.post(url, {"imagem": SimpleUploadedFile("manual.jpg", raw, content_type="image/jpeg"), "live_capture_proof": proof})
+        self.assertEqual(accepted.status_code, 200, accepted.json())
+        self.assertEqual(accepted.json()["current_capture"], "bi_verso")
+
+    @patch("entradas.identity_api.inspect_identity_capture")
+    def test_assisted_bad_quality_has_no_proof(self, inspect):
+        inspect.return_value = {"accepted": False, "messages": ["Melhore a luz."]}
+        token = self.create_session()["token"]
+        response = self.client.post(
+            f"/api/nkata-id/sessoes/{token}/previsualizacao/bi_frente/",
+            {"imagem": textured_image("manual.jpg"), "assisted": "true"},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("live_capture_proof", response.json())
+        self.assertFalse(VerificacaoIdentidadeNKATA.objects.get(token=token).bi_frente)
+
     def test_final_capture_rejects_file_without_live_camera_proof(self):
         payload = self.create_session()
         response = self.client.post(
