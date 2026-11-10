@@ -414,9 +414,10 @@ class NkataIdDecisionTests(TestCase):
     @patch("entradas.identity_verification_service._aws_face_similarity")
     def test_high_confidence_provider_can_approve_automatically(self, similarity):
         similarity.return_value = Decimal("96.40")
+        # Uma sessão antiga com duas selfies ainda pode ter prova de vivacidade.
         checks = {
             capture_type: accepted_result(capture_type)
-            for capture_type in VerificacaoIdentidadeNKATA.CAPTURE_FIELDS
+            for capture_type in (*VerificacaoIdentidadeNKATA.CAPTURE_FIELDS, "selfie_desafio")
         }
         verification = VerificacaoIdentidadeNKATA.objects.create(
             email_hash=identity_email_hash("automatic@example.com"),
