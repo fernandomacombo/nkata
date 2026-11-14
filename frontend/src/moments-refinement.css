@@ -41,3 +41,32 @@
 .nk-composer label { min-width: 0; }
 .nk-composer select { width: 100%; min-width: 0; min-height: 44px; border: 0; background: transparent; color: inherit; font: inherit; }
 .nk-moment-viewer__content.is-texto > p { top: 50%; bottom: auto; transform: translateY(-50%); text-align: center; padding: 16px; }
+
+/* Calm, useful home view even before the first feed publication. */
+.nk-member-home .nk-home-shortcuts {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px; margin: 0 0 16px;
+}
+.nk-member-home .nk-home-shortcuts button {
+  display: flex; justify-content: center; align-items: center; gap: 10px;
+  min-height: 52px; padding: 12px 14px;
+  border: 1px solid #63504f; border-radius: 14px;
+  color: inherit; background: transparent; font: inherit;
+  font-weight: 600; cursor: pointer; transition: background .2s ease, border-color .2s ease;
+}
+.nk-member-home .nk-home-shortcuts button:hover,
+.nk-member-home .nk-home-shortcuts button:focus-visible {
+  background: #54273533; border-color: #ac6178;
+}
+.nk-member-home .nk-feed-empty {
+  max-width: 100%; min-height: 0; padding: 34px 20px 26px;
+  text-align: center; background: transparent; box-shadow: none;
+}
+.nk-member-home .nk-feed-empty > span { opacity: .72; }
+.nk-member-home .nk-feed-empty h2 { font-size: clamp(18px, 3vw, 24px); }
+.nk-member-home .nk-feed-empty p { max-width: 38ch; margin-inline: auto; line-height: 1.6; }
+@media (max-width: 480px) {
+  .nk-member-home .nk-home-shortcuts { gap: 8px; }
+  .nk-member-home .nk-home-shortcuts button { min-height: 48px; padding: 10px 8px; font-size: 13px; gap: 6px; }
+  .nk-member-home .nk-feed-empty { padding: 24px 10px; }
+}

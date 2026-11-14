@@ -424,6 +424,16 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
       <section className="nk-shell nk-member-home__layout">
         <div className="nk-member-home__feed-column">
+          <nav className="nk-home-shortcuts" aria-label={english ? "Quick navigation" : "Acesso rápido"}>
+            <button type="button" onClick={() => onNavigate("discover")}>
+              <UserRound size={18} aria-hidden="true" />
+              <span>{english ? "Explore people" : "Explorar perfis"}</span>
+            </button>
+            <button type="button" onClick={() => onNavigate("moments")}>
+              <Sparkles size={18} aria-hidden="true" />
+              <span>{english ? "See Moments" : "Ver Momentos"}</span>
+            </button>
+          </nav>
           <form
             className={`nk-feed-composer ${canPublish ? "" : "is-locked"} ${composerOpen ? "is-open" : "is-collapsed"}`}
             onSubmit={publish}
@@ -561,11 +571,8 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           ) : (
             <div className="nk-feed-empty">
               <span><ImagePlus size={28} /></span>
-              <h2>{english ? "No posts" : "Nenhuma publicação"}</h2>
-              <p>{english ? "New posts will appear here after approval." : "Novas publicações aparecerão aqui após aprovação."}</p>
-              <button type="button" onClick={() => onNavigate("discover")}>
-                <UserRound size={17} /> {english ? "Explore profiles" : "Explorar perfis"}
-              </button>
+              <h2>{english ? "Your feed is just getting started" : "O seu espaço começa aqui"}</h2>
+              <p>{english ? "Discover interesting people and Moments while new posts are being shared and approved." : "Descubra pessoas e Momentos enquanto novas publicações são partilhadas e aprovadas."}</p>
             </div>
           )}
         </div>

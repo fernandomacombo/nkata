@@ -26,15 +26,24 @@ const REACTION_ICONS = {
   APLAUSO: Sparkles,
 };
 
-function remainingLabel(moment, english) {
-  if (!moment?.expires_at) return "";
+function remainingLabel(moment, english, now) {
+  if (!moment?.expires_at) {
+    return moment?.moderation_status === "PENDENTE"
+      ? (english ? "Under review" : "Em análise")
+      : "";
+  }
 
-  const expires = new Date(moment.expires_at);
-  const milliseconds = Math.max(0, expires.getTime() - Date.now());
-  const minutes = Math.ceil(milliseconds / 60000);
-  if (minutes <= 1) return english ? "Ends in under 1 min" : "Termina em menos de 1 min";
-  if (minutes < 60) return english ? `Ends in ${minutes} min` : `Termina em ${minutes} min`;
-  return english ? `Ends in ${Math.ceil(minutes / 60)} h` : `Termina em ${Math.ceil(minutes / 60)} h`;
+  const expiresAt = new Date(moment.expires_at).getTime();
+  if (!Number.isFinite(expiresAt)) return "";
+  const remainingMinutes = Math.ceil((expiresAt - now) / 60000);
+  if (remainingMinutes <= 0) return english ? "Expired" : "Expirado";
+
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+  const duration = hours > 0
+    ? (minutes > 0 ? `${hours}h ${minutes}min` : `${hours}h`)
+    : `${minutes}min`;
+  return english ? `${duration} left` : `Faltam ${duration}`;
 }
 
 function MomentMedia({ moment, onVideoProgress, onVideoEnded }) {
@@ -138,6 +147,13 @@ export default function AutoplayMomentViewer({
   const [groupIndex, setGroupIndex] = useState(safeInitialGroup);
   const [momentIndex, setMomentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 10000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const [reactions, setReactions] = useState(null);
   const [reactionsLoading, setReactionsLoading] = useState(false);
   const [reactionBusy, setReactionBusy] = useState("");
@@ -318,7 +334,7 @@ export default function AutoplayMomentViewer({
             </span>
             <div>
               <strong>{moment.mine ? (english ? "Your Moment" : "O seu Momento") : moment.profile.nome_publico}</strong>
-              <small><Clock3 size={12} /> {remainingLabel(moment, english)}</small>
+              <small><Clock3 size={12} /> {remainingLabel(moment, english, now)}</small>
             </div>
           </button>
 
