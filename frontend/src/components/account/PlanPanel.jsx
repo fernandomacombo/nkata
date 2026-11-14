@@ -289,11 +289,6 @@ export default function PlanPanel({ language = "PT" }) {
             <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
             {order.checkout_url && <a href={order.checkout_url}>{english ? "Continue payment" : "Continuar pagamento"}</a>}
             {!["PAGO", "FALHOU"].includes(order.status) && <button type="button" disabled={paymentBusy} onClick={() => verifyPayment(order)}>{english ? "Check payment" : "Verificar pagamento"}</button>}
-            {["CRIADO", "PENDENTE", "INCERTO"].includes(order.status) && (
-              <button type="button" disabled={paymentBusy} onClick={() => closeIfTerminal(order)}>
-                {english ? "Check whether PaySuite cancelled it" : "Verificar se a PaySuite cancelou"}
-              </button>
-            )}
           </article>
         ))}
       </section>
