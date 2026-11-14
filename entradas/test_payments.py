@@ -92,6 +92,45 @@ class PaymentTests(TestCase):
         with self.assertRaises(PaymentError):
             start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
 
+    def test_cannot_close_pending_payment_without_provider_terminal_confirmation(self):
+        order = self.order("RECARGA10")
+        pending = {"id": order.provedor_id, "amount": str(order.valor),
+                   "reference": order.referencia, "status": "pending"}
+        with patch("entradas.payment_service.provider_request", return_value=pending):
+            response = self.client.post(f"/api/minha-conta/pagamentos/{order.pk}/encerrar/", {}, format="json")
+        self.assertEqual(response.status_code, 409)
+        order.refresh_from_db()
+        self.assertEqual(order.estado, "PENDENTE")
+
+    def test_close_after_verified_cancelled_state_preserves_history(self):
+        order = self.order("RECARGA10")
+        cancelled = {"id": order.provedor_id, "amount": str(order.valor),
+                     "reference": order.referencia, "status": "cancelled"}
+        with patch("entradas.payment_service.provider_request", return_value=cancelled):
+            response = self.client.post(f"/api/minha-conta/pagamentos/{order.pk}/encerrar/", {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "FALHOU")
+        order.refresh_from_db()
+        self.assertEqual(order.estado, "FALHOU")
+        self.assertIsNone(order.aplicado_em)
+        self.assertEqual(PedidoPagamentoNKATA.objects.filter(pk=order.pk).count(), 1)
+
+    def test_paid_payment_cannot_be_closed(self):
+        order = self.order("RECARGA10")
+        self.settle(order)
+        with patch("entradas.payment_service.provider_request") as provider:
+            response = self.client.post(f"/api/minha-conta/pagamentos/{order.pk}/encerrar/", {}, format="json")
+        self.assertEqual(response.status_code, 409)
+        provider.assert_not_called()
+
+    def test_provider_failure_leaves_payment_open(self):
+        order = self.order("RECARGA10")
+        with patch("entradas.payment_service.provider_request", side_effect=PaymentError("timeout", 503)):
+            response = self.client.post(f"/api/minha-conta/pagamentos/{order.pk}/encerrar/", {}, format="json")
+        self.assertEqual(response.status_code, 503)
+        order.refresh_from_db()
+        self.assertEqual(order.estado, "PENDENTE")
+
     def test_checkout_url_must_belong_to_approved_https_host(self):
         for url in ("javascript:alert(1)", "https://paysuite.tech.evil.test/x", "http://paysuite.tech/x", "https://user@paysuite.tech/x", "https://paysuite.tech:444/x"):
             self.assertFalse(valid_checkout_url(url))
