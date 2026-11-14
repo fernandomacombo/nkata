@@ -208,6 +208,7 @@ export default function ConversationPage({
 }) {
   const english = useInterfaceLanguage() === "EN";
   const [draft, setDraft] = useState("");
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [safetyMode, setSafetyMode] = useState("");
   const [safetyLoading, setSafetyLoading] = useState(false);
@@ -811,6 +812,20 @@ export default function ConversationPage({
                 />}
               </label>
 
+              {textEnabled && (
+                <div className="nk-emoji-control">
+                  <button type="button" className="nk-emoji-trigger" aria-label={english ? "Choose emoji" : "Escolher emoji"} aria-expanded={emojiPickerOpen} onClick={() => setEmojiPickerOpen((open) => !open)}>😊</button>
+                  {emojiPickerOpen && <div className="nk-emoji-picker" role="group" aria-label={english ? "Emoji" : "Emojis"}>
+                    {["😊", "❤️", "🥰", "😍", "😂", "😘", "💕", "👋", "👍", "🙏", "🌹", "✨", "🎉", "🤗", "😎", "💬"].map((emoji) => (
+                      <button key={emoji} type="button" aria-label={emoji} onClick={() => {
+                        setDraft((current) => (current + emoji).slice(0, 1200));
+                        setEmojiPickerOpen(false);
+                        composerTextareaRef.current?.focus();
+                      }}>{emoji}</button>
+                    ))}
+                  </div>}
+                </div>
+              )}
               {textEnabled && <span className="nk-composer__count">{draft.length}/1200</span>}
 
               <button
