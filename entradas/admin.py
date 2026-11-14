@@ -16,6 +16,9 @@ from .models import (
 
 @admin.register(PedidoEntrada)
 class PedidoEntradaAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False  # New requests must pass the public account-limit service.
+
     list_display = (
         "nome_completo",
         "idade",
@@ -43,6 +46,10 @@ class PedidoEntradaAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = (
+        "status",
+        "documento_confirmado",
+        "telefone",
+        "email",
         "criado_em",
         "atualizado_em",
         "foto_perfil_preview",
@@ -104,6 +111,7 @@ class PedidoEntradaAdmin(admin.ModelAdmin):
         ("Análise interna", {
             "fields": (
                 "status",
+                "documento_confirmado",
                 "observacao_admin",
                 "link_questionario",
             )

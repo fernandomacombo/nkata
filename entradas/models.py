@@ -32,6 +32,9 @@ class PedidoEntrada(models.Model):
     nome_completo = models.CharField(max_length=160)
     email = models.EmailField(unique=True)
     telefone = models.CharField(max_length=30)
+    telefone_normalizado = models.CharField(max_length=16, blank=True, db_index=True, editable=False)
+    documento_chave = models.CharField(max_length=64, blank=True, db_index=True, editable=False)
+    documento_confirmado = models.BooleanField(default=False, editable=False)
     idade = models.PositiveIntegerField()
     cidade = models.CharField(max_length=100)
     genero = models.CharField(max_length=30, choices=GENERO_CHOICES)
@@ -80,6 +83,18 @@ class PedidoEntrada(models.Model):
 
     def __str__(self):
         return f"{self.nome_completo} - {self.get_status_display()}"
+
+    def save(self, *args, **kwargs):
+        from .account_limits import normalize_phone
+        self.telefone_normalizado = normalize_phone(self.telefone)
+        if kwargs.get("update_fields") and "telefone" in kwargs["update_fields"]:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"telefone_normalizado"}
+        super().save(*args, **kwargs)
+
+
+class ChaveLimiteContaNKATA(models.Model):
+    """One lockable row per identity, including while its first account is created."""
+    chave = models.CharField(max_length=80, unique=True, editable=False)
 
 
 class QuestionarioEntrada(models.Model):

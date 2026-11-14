@@ -15,6 +15,8 @@ def nkata_id_expires_at():
 
 def pedido_tem_identidade_verificada(pedido):
     """Usa o NKATA ID novo e mantém perfis legados aprovados compatíveis."""
+    if getattr(pedido, "documento_chave", "") and not pedido.documento_confirmado:
+        return False
     verification = getattr(pedido, "verificacao_identidade", None)
     if verification is None:
         return getattr(pedido, "status", "") == "APROVADO"

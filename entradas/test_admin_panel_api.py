@@ -1,4 +1,5 @@
 from datetime import timedelta
+import hashlib
 from types import SimpleNamespace
 
 from django.contrib.auth.models import User
@@ -25,7 +26,7 @@ def create_request(email, status="APROVADO"):
     return PedidoEntrada.objects.create(
         nome_completo="Membro de Teste",
         email=email,
-        telefone="840000000",
+        telefone=f"84{int(hashlib.sha256(email.encode()).hexdigest()[:8], 16) % 10000000:07d}",
         idade=31,
         cidade="Maputo",
         genero="FEMININO",
@@ -161,12 +162,23 @@ class AdminPanelApiTests(TestCase):
         self.client.force_authenticate(self.staff)
         response = self.client.post(
             reverse("entradas_api:admin_action"),
-            {"resource": "access", "action": "approve", "id": pending.id},
+            {"resource": "access", "action": "approve", "id": pending.id, "document_number": "110100000001A"},
             format="json",
         )
         self.assertEqual(response.status_code, 200)
         pending.refresh_from_db()
         self.assertEqual(pending.status, "APROVADO")
+        self.assertTrue(pending.documento_confirmado)
+
+    def test_approval_requires_number_read_from_bi(self):
+        pending = create_request("sem-numero@nkata.test", status="PENDENTE")
+        self.client.force_authenticate(self.staff)
+        response = self.client.post(reverse("entradas_api:admin_action"),
+            {"resource":"access", "action":"approve", "id":pending.id}, format="json")
+        self.assertEqual(response.status_code, 400)
+        pending.refresh_from_db()
+        self.assertEqual(pending.status, "PENDENTE")
+        self.assertFalse(pending.documento_confirmado)
 
     def test_staff_can_review_private_identity_evidence_in_panel(self):
         pending = create_request("identidade@nkata.test", status="PENDENTE")
@@ -233,7 +245,7 @@ class AdminPanelApiTests(TestCase):
 
         response = self.client.post(
             reverse("entradas_api:admin_action"),
-            {"resource": "access", "action": "approve", "id": pending.id},
+            {"resource": "access", "action": "approve", "id": pending.id, "document_number": "110100000001A"},
             format="json",
         )
 
@@ -259,7 +271,7 @@ class AdminPanelApiTests(TestCase):
 
         response = self.client.post(
             reverse("entradas_api:admin_action"),
-            {"resource": "access", "action": "approve", "id": pending.id},
+            {"resource": "access", "action": "approve", "id": pending.id, "document_number": "110100000001A"},
             format="json",
         )
 

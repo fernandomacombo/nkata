@@ -29,6 +29,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-placeholder-change-in-productio
 if not DEBUG and SECRET_KEY == "dev-placeholder-change-in-production":
     raise ImproperlyConfigured("DJANGO_SECRET_KEY é obrigatória em produção.")
 NKATA_FRONTEND_URL = os.getenv("NKATA_FRONTEND_URL", "http://localhost:5173").rstrip("/")
+NKATA_IDENTITY_HASH_KEY = os.getenv("NKATA_IDENTITY_HASH_KEY", "").strip()
 
 
 def validate_public_https_origin(name: str, value: str) -> None:

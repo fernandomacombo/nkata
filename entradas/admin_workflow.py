@@ -102,13 +102,9 @@ def aplicar_fluxo_de_aprovacao_admin():
 
     @admin.action(description="Aprovar pedidos selecionados")
     def marcar_como_aprovado(self, request, queryset):
-        _alterar_status(
-            self,
-            request,
-            queryset,
-            "APROVADO",
-            "{total} pedido(s) aprovado(s). O questionário fica disponível; a conta só será ativada depois de a pessoa criar a própria palavra-passe.",
-        )
+        self.message_user(request,
+            "Aprove cada pedido no painel NKATA, conferindo o número do BI. A aprovação em lote está desativada.",
+            level="warning")
 
     @admin.action(description="Marcar como precisa corrigir")
     def marcar_como_precisa_corrigir(self, request, queryset):

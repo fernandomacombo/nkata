@@ -28,6 +28,7 @@ const initialValues = {
   nome_completo: "",
   email: "",
   telefone: "",
+  numero_bi: "",
   idade: "",
   cidade: "",
   genero: "",
@@ -161,6 +162,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
       if (values.nome_completo.trim().length < 3) nextErrors.nome_completo = "Escreva o seu nome completo.";
       if (!/^\S+@\S+\.\S+$/.test(values.email)) nextErrors.email = "Informe um email válido.";
       if (values.telefone.replace(/\D/g, "").length < 8) nextErrors.telefone = "Informe um número de telefone válido.";
+      if (!/^[A-Za-z0-9\s.-]{6,40}$/.test(values.numero_bi.trim())) nextErrors.numero_bi = "Informe o número do seu BI.";
       if (!values.idade || Number(values.idade) < 18) nextErrors.idade = "O NKATA é apenas para maiores de 18 anos.";
       if (values.cidade.trim().length < 2) nextErrors.cidade = "Informe a sua cidade.";
       if (!values.genero) nextErrors.genero = "Escolha uma opção.";
@@ -329,6 +331,12 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
                     <span>Telefone</span>
                     <input value={values.telefone} onChange={(event) => updateValue("telefone", event.target.value)} autoComplete="tel" placeholder="+258 84 000 0000" />
                     {fieldError(errors, "telefone") && <em>{fieldError(errors, "telefone")}</em>}
+                  </label>
+                  <label className="is-wide">
+                    <span>Número do BI</span>
+                    <input value={values.numero_bi} onChange={(event) => updateValue("numero_bi", event.target.value)} maxLength={40} autoComplete="off" />
+                    <small>Privado. Será conferido com o documento pela equipa.</small>
+                    {fieldError(errors, "numero_bi") && <em>{fieldError(errors, "numero_bi")}</em>}
                   </label>
                   <label>
                     <span>Idade</span>

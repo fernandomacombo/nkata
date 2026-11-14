@@ -5,6 +5,7 @@ from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, transaction
 from django.db.models import Count, Q
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -823,11 +824,19 @@ def _action_access(request, object_id, action):
 
     verification = getattr(item, "verificacao_identidade", None)
     if action == "approve":
+        from .account_limits import confirm_document
         if verification:
             if not verification.capturas_completas:
-                return None, "As quatro capturas do NKATA ID são obrigatórias.", 400
+                return None, "A frente, o verso e a selfie do NKATA ID são obrigatórios.", 400
             if verification.status not in {"REVISAO", "APROVADA"}:
                 return None, "A identidade ainda não está pronta para aprovação.", 400
+        elif not all(bool(getattr(item, name)) for name, _label in LEGACY_IDENTITY_MEDIA_LABELS):
+            return None, "Os documentos de identidade estão incompletos.", 400
+        try:
+            confirm_document(item, request.data.get("document_number", ""))
+        except ValidationError as error:
+            return None, " ".join(error.messages), 400
+        if verification:
             if verification.status == "REVISAO":
                 verification.status = "APROVADA"
                 verification.decisao_origem = "HUMANA"
@@ -839,11 +848,6 @@ def _action_access(request, object_id, action):
                     "status", "decisao_origem", "analisado_por", "analisado_em",
                     "nota_interna", "atualizado_em",
                 ])
-        elif not all(
-            bool(getattr(item, field_name))
-            for field_name, _label in LEGACY_IDENTITY_MEDIA_LABELS
-        ):
-            return None, "Os documentos de identidade estão incompletos.", 400
         next_status = "APROVADO"
     elif action == "correction":
         next_status = "PRECISA_CORRIGIR"

@@ -4,6 +4,20 @@ from .models import PedidoEntrada, QuestionarioEntrada, PerfilNKATA
 
 
 class PedidoEntradaForm(forms.ModelForm):
+    numero_bi = forms.CharField(max_length=40, label="Número do BI")
+
+    def clean_numero_bi(self):
+        from .account_limits import document_key
+        value = self.cleaned_data["numero_bi"]
+        document_key(value)
+        return value
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if PedidoEntrada.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("Já existe um pedido associado a este email.")
+        return email
+
     class Meta:
         model = PedidoEntrada
         fields = [
