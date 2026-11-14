@@ -50,3 +50,4 @@ async function paymentRequest(path, body) {
 export const fetchPayments = () => paymentRequest("/api/minha-conta/pagamentos/");
 export const createPayment = (product, key) => paymentRequest("/api/minha-conta/pagamentos/", { product, key });
 export const checkPayment = (id) => paymentRequest(`/api/minha-conta/pagamentos/${encodeURIComponent(id)}/verificar/`, {});
+export const closePaymentIfTerminal = (id) => paymentRequest(`/api/minha-conta/pagamentos/${encodeURIComponent(id)}/encerrar/`, {});

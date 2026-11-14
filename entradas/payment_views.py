@@ -50,6 +50,33 @@ def api_payment_check(request, payment_id):
 
 
 @api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+@throttle_classes([PaymentThrottle])
+def api_payment_close_if_terminal(request, payment_id):
+    """Close only after independent PaySuite confirmation of failure/cancellation.
+
+    Never assume an unpaid *pending* checkout is cancelled: the provider has no
+    documented cancellation endpoint, and a payment may still arrive later.
+    """
+    order = PedidoPagamentoNKATA.objects.filter(pk=payment_id, usuario=request.user).first()
+    if not order:
+        return Response({"detail": "Pagamento não encontrado."}, status=404)
+    if order.estado in ("PAGO", "REVISAO") or order.confirmado_em or order.aplicado_em:
+        return Response({"detail": "Este pagamento já foi confirmado ou exige revisão. Não pode ser encerrado."}, status=409)
+    if order.estado == "FALHOU":
+        return Response(serialize_order(order))
+    try:
+        checked = reconcile(order)
+    except PaymentError as error:
+        return Response({"detail": str(error)}, status=error.status)
+    if checked.estado != "FALHOU":
+        return Response({
+            "detail": "A PaySuite ainda não confirmou o cancelamento. O pedido permanece pendente para evitar cobranças duplicadas."
+        }, status=409)
+    return Response(serialize_order(checked))
+
+
+@api_view(["POST"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([])
