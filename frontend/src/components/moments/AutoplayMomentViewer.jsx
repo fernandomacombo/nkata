@@ -32,20 +32,18 @@ function remainingLabel(moment, english, now) {
       ? (english ? "Under review" : "Em análise")
       : "";
   }
-  const expiry = new Date(moment.expires_at).getTime();
-  if (!Number.isFinite(expiry)) return "";
-  const remaining = Math.max(0, Math.ceil((expiry - now) / 1000));
-  if (remaining === 0) return english ? "Expired" : "Expirado";
 
-  const hours = Math.floor(remaining / 3600);
-  const minutes = Math.floor((remaining % 3600) / 60);
-  const seconds = remaining % 60;
-  const countdown = [
-    hours > 0 ? `${hours}h` : null,
-    `${minutes}min`,
-    `${String(seconds).padStart(2, "0")}s`,
-  ].filter(Boolean).join(" ");
-  return english ? `${countdown} remaining` : `${countdown} restantes`;
+  const expiresAt = new Date(moment.expires_at).getTime();
+  if (!Number.isFinite(expiresAt)) return "";
+  const remainingMinutes = Math.ceil((expiresAt - now) / 60000);
+  if (remainingMinutes <= 0) return english ? "Expired" : "Expirado";
+
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+  const duration = hours > 0
+    ? (minutes > 0 ? `${hours}h ${minutes}min` : `${hours}h`)
+    : `${minutes}min`;
+  return english ? `${duration} left` : `Faltam ${duration}`;
 }
 
 function MomentMedia({ moment, onVideoProgress, onVideoEnded }) {
@@ -152,7 +150,7 @@ export default function AutoplayMomentViewer({
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    const timer = window.setInterval(() => setNow(Date.now()), 10000);
     return () => window.clearInterval(timer);
   }, []);
 
