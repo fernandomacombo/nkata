@@ -10,7 +10,7 @@ import {
   Volume2,
   WalletCards,
 } from "lucide-react";
-import { fetchMyPlan, fetchPayments, createPayment, checkPayment } from "../../services/planApi.js";
+import { fetchMyPlan, fetchPayments, createPayment, checkPayment, closePaymentIfTerminal } from "../../services/planApi.js";
 
 const planIcon = {
   LIVRE: Sparkles,
@@ -84,6 +84,23 @@ export default function PlanPanel({ language = "PT" }) {
       await loadPayments();
     } catch (failure) { setPaymentMessage(failure.message); }
     finally { setPaymentBusy(false); }
+  }
+
+  async function closeIfTerminal(order) {
+    setPaymentBusy(true);
+    setPaymentMessage("");
+    try {
+      const result = await closePaymentIfTerminal(order.id);
+      setPaymentMessage(result.status === "FALHOU"
+        ? (english ? "PaySuite confirmed this request is closed. You can choose another plan." : "A PaySuite confirmou o encerramento. Pode escolher outro plano.")
+        : (english ? "Check the payment status." : "Verifique o estado do pagamento."));
+      await loadPayments();
+    } catch (failure) {
+      setPaymentMessage(failure.message);
+      await loadPayments();
+    } finally {
+      setPaymentBusy(false);
+    }
   }
 
   const load = useCallback(async ({ signal } = {}) => {
@@ -251,6 +268,12 @@ export default function PlanPanel({ language = "PT" }) {
             <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
             {order.checkout_url && <a href={order.checkout_url}>{english ? "Continue payment" : "Continuar pagamento"}</a>}
             {!["PAGO", "FALHOU"].includes(order.status) && <button type="button" disabled={paymentBusy} onClick={() => verifyPayment(order)}>{english ? "Check payment" : "Verificar pagamento"}</button>}
+            {["CRIADO", "PENDENTE", "INCERTO"].includes(order.status) && (
+              <button type="button" disabled={paymentBusy}
+                onClick={() => closeIfTerminal(order)}>
+                {english ? "Confirm cancellation with PaySuite" : "Confirmar cancelamento na PaySuite"}
+              </button>
+            )}
           </article>
         ))}
       </section>
