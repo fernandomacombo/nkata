@@ -192,7 +192,7 @@ class PaymentTests(TestCase):
     def webhook(self, order, signature=True):
         raw = json.dumps({"event": "payment.success", "data": {"id": order.provedor_id, "reference": order.referencia}}).encode()
         digest = hmac.new(b"test-secret", raw, hashlib.sha256).hexdigest() if signature else "forged"
-        return self.client.post("/api/pagamentos/paysuite/webhook/", raw, content_type="application/json", HTTP_X_SIGNATURE=digest)
+        return self.client.post("/api/pagamentos/paysuite/webhook/", raw, content_type="application/json", HTTP_X_WEBHOOK_SIGNATURE=digest)
 
     def test_webhook_requires_signature_before_contacting_provider(self):
         order = self.order()
@@ -247,7 +247,7 @@ class PaymentTests(TestCase):
     def test_malformed_signed_json_is_rejected(self):
         raw = b"[]"
         digest = hmac.new(b"test-secret", raw, hashlib.sha256).hexdigest()
-        response = self.client.post("/api/pagamentos/paysuite/webhook/", raw, content_type="application/json", HTTP_X_SIGNATURE=digest)
+        response = self.client.post("/api/pagamentos/paysuite/webhook/", raw, content_type="application/json", HTTP_X_WEBHOOK_SIGNATURE=digest)
         self.assertEqual(response.status_code, 400)
 
     def test_untrusted_checkout_address_does_not_reach_client(self):
