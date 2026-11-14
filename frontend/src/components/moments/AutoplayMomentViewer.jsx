@@ -27,14 +27,24 @@ const REACTION_ICONS = {
 };
 
 function remainingLabel(moment, english) {
-  if (!moment?.expires_at) return "";
+  if (!moment?.expires_at) {
+    return moment?.moderation_status === "PENDENTE"
+      ? (english ? "Under review" : "Em análise")
+      : "";
+  }
 
   const expires = new Date(moment.expires_at);
-  const milliseconds = Math.max(0, expires.getTime() - Date.now());
-  const minutes = Math.ceil(milliseconds / 60000);
-  if (minutes <= 1) return english ? "Ends in under 1 min" : "Termina em menos de 1 min";
-  if (minutes < 60) return english ? `Ends in ${minutes} min` : `Termina em ${minutes} min`;
-  return english ? `Ends in ${Math.ceil(minutes / 60)} h` : `Termina em ${Math.ceil(minutes / 60)} h`;
+  if (Number.isNaN(expires.getTime())) return "";
+  if (expires.getTime() <= Date.now()) return english ? "Expired" : "Expirado";
+
+  const locale = english ? "en-GB" : "pt-MZ";
+  const date = new Intl.DateTimeFormat(locale, {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  }).format(expires);
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(expires);
+  return english ? `Expires on ${date} at ${time}` : `Expira em ${date} às ${time}`;
 }
 
 function MomentMedia({ moment, onVideoProgress, onVideoEnded }) {
