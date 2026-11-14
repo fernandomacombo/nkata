@@ -19,7 +19,7 @@ PLAN_DEFINITIONS = {
         "paid": False,
         "daily_signal_limit": 3,
         "features": {
-            "chat_text": True,
+            "chat_text": False,
             "chat_audio": False,
             "chat_video": False,
             "status_text": True,
@@ -66,6 +66,27 @@ PLAN_DEFINITIONS = {
     },
 }
 
+PLAN_DEFINITIONS["QUINZENAL"] = {
+    **PLAN_DEFINITIONS["ESSENCIAL"], "code": "QUINZENAL", "label": "NKATA Quinzenal",
+    "features": dict(PLAN_DEFINITIONS["ESSENCIAL"]["features"]),
+}
+PLAN_DURATIONS = {"LIVRE": 0, "QUINZENAL": 14, "ESSENCIAL": 30, "PREMIUM": 30}
+CHAT_PHRASES = (
+    "Olá, tudo bem?",
+    "Olá, gostei de conhecer o seu perfil. Como está?",
+    "Gostaria de conhecer melhor os seus interesses.",
+    "Obrigado pelo seu interesse!",
+    "Hello, how are you?",
+    "Hello, I enjoyed reading your profile. How are you?",
+    "I would like to learn more about your interests.",
+    "Thank you for your interest!",
+)
+
+
+def can_send_chat_text(user, text):
+    return plan_for_user(user)["features"]["chat_text"] or text in CHAT_PHRASES
+
+
 RECHARGE_PACKS = {
     10: {"credits": 10, "db_type": "RECARGA_SINAIS_10"},
     30: {"credits": 30, "db_type": "RECARGA_SINAIS_30"},
@@ -73,7 +94,7 @@ RECHARGE_PACKS = {
 }
 # Keep historical grants readable even when a pack is no longer sold.
 PLAN_DURATION_DAYS = 30
-PLAN_PRICES_MZN = {"LIVRE": 0, "ESSENCIAL": 250, "PREMIUM": 500}
+PLAN_PRICES_MZN = {"LIVRE": 0, "ESSENCIAL": 250, "PREMIUM": 500, "QUINZENAL": 100}
 ACTIVE_RECHARGE_PRICES_MZN = {10: 50}
 
 RECHARGE_TYPE_CREDITS = {
@@ -103,7 +124,7 @@ def active_plan_access(user):
     now = timezone.now()
     return AcessoPlanoNKATA.objects.filter(
         usuario=user, inicio__lte=now, fim__gt=now,
-        plano__in=["ESSENCIAL", "PREMIUM"],
+        plano__in=["ESSENCIAL", "PREMIUM", "QUINZENAL"],
     ).first()
 
 
@@ -182,8 +203,8 @@ def public_plan_catalog():
             "price_mzn": PLAN_PRICES_MZN[definition["code"]],
             "price_status": f'{PLAN_PRICES_MZN[definition["code"]]} MT',
             "pricing_status": "proposed",
-            "billing_period": "30_days" if definition["paid"] else None,
-            "duration_days": PLAN_DURATION_DAYS if definition["paid"] else None,
+            "billing_period": f'{PLAN_DURATIONS[definition["code"]]}_days' if definition["paid"] else None,
+            "duration_days": PLAN_DURATIONS[definition["code"]] if definition["paid"] else None,
             "purchase_enabled": False,
         }
         for definition in PLAN_DEFINITIONS.values()
@@ -222,12 +243,12 @@ def assign_plan(user, plan_code):
         AcessoPlanoNKATA.objects.update_or_create(
             usuario=user,
             defaults={"plano": plan_code, "inicio": now,
-                      "fim": base + timedelta(days=PLAN_DURATION_DAYS),
+                      "fim": base + timedelta(days=PLAN_DURATIONS[plan_code]),
                       "origem": "ADMINISTRATIVA"},
         )
     essencial, premium = ensure_plan_groups()
     user.groups.remove(essencial, premium)
-    if plan_code == "ESSENCIAL":
+    if plan_code in ("ESSENCIAL", "QUINZENAL"):
         user.groups.add(essencial)
     elif plan_code == "PREMIUM":
         user.groups.add(premium)

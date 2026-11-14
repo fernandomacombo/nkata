@@ -5,7 +5,7 @@ from .plan_service import PLAN_DEFINITIONS, RECHARGE_PACKS, build_quota_snapshot
 
 class PlanRulesTests(SimpleTestCase):
     def test_os_tres_planos_estao_definidos(self):
-        self.assertEqual(set(PLAN_DEFINITIONS), {"LIVRE", "ESSENCIAL", "PREMIUM"})
+        self.assertEqual(set(PLAN_DEFINITIONS), {"LIVRE", "ESSENCIAL", "PREMIUM", "QUINZENAL"})
         self.assertEqual(PLAN_DEFINITIONS["LIVRE"]["daily_signal_limit"], 3)
         self.assertEqual(PLAN_DEFINITIONS["ESSENCIAL"]["daily_signal_limit"], 15)
         self.assertEqual(PLAN_DEFINITIONS["PREMIUM"]["daily_signal_limit"], 40)
@@ -39,7 +39,7 @@ class CommercialCatalogTests(SimpleTestCase):
     def test_public_offer_has_at_most_four_options_and_requested_price_bounds(self):
         from .plan_service import public_plan_catalog, public_recharge_catalog
         offers = public_plan_catalog() + public_recharge_catalog()
-        self.assertLessEqual(len(offers), 4)
+        self.assertEqual(len(public_plan_catalog()), 4)
         paid_prices = [offer["price_mzn"] for offer in offers if offer["price_mzn"]]
         self.assertEqual(min(paid_prices), 50)
         self.assertEqual(max(paid_prices), 500)

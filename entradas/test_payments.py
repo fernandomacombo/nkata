@@ -109,6 +109,17 @@ class PaymentTests(TestCase):
         self.assertEqual(access.fim, now + timedelta(days=30))
         self.assertEqual(access.origem, "PAYSUITE")
 
+    def test_fortnight_payment_activates_fourteen_days_once(self):
+        order = self.order("QUINZENAL")
+        now = timezone.now()
+        with patch("entradas.payment_service.timezone.now", return_value=now):
+            self.settle(order)
+            self.settle(order)
+        access = AcessoPlanoNKATA.objects.get(usuario=self.user)
+        self.assertEqual(access.plano, "QUINZENAL")
+        self.assertEqual(access.fim, now + timedelta(days=14))
+        self.assertEqual(order.valor, 100)
+
     def test_wrong_reference_amount_currency_or_id_never_unlocks(self):
         order = self.order()
         for changes in ({"amount": "1"}, {"amount": "NaN"}, {"reference": "OTHER"}, {"currency": "USD"}, {"id": "OTHER"}):

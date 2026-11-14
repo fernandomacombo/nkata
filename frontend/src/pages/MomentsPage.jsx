@@ -231,7 +231,9 @@ export default function MomentsPage({ onOpenProfile }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [caption, setCaption] = useState("SEM_LEGENDA");
+  const [caption, setCaption] = useState("DIA_TRANQUILO");
+  const [theme, setTheme] = useState("wine");
+  const [font, setFont] = useState("serif");
   const [media, setMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState("");
   const [composerOpen, setComposerOpen] = useState(false);
@@ -289,7 +291,7 @@ export default function MomentsPage({ onOpenProfile }) {
     if (!file) return;
 
     if (!mediaEnabled) {
-      setError(english ? "Photos and videos in Moments require NKATA Essential or Premium." : "Fotografias e vídeos nos Momentos exigem NKATA Essencial ou Premium.");
+      setError(english ? "Photos and videos in Moments require NKATA Fortnightly, Essential or Premium." : "Fotografias e vídeos nos Momentos exigem NKATA Quinzenal, Essencial ou Premium.");
       event.target.value = "";
       return;
     }
@@ -308,24 +310,25 @@ export default function MomentsPage({ onOpenProfile }) {
     setStatus("");
 
     try {
-      const result = await createMoment({ caption, visibility: "TODOS", media });
+      const result = await createMoment({ caption, visibility: "TODOS", media, theme, font });
+      const publishedMoment = result.moment || result;
       setData((current) => {
         const base = current || {};
-        if (result.pending_review) {
+        if (publishedMoment.moderation_status === "PENDENTE") {
           return {
             ...base,
-            review_items: [result.moment, ...(base.review_items || [])],
+            review_items: [publishedMoment, ...(base.review_items || [])],
             capabilities: result.capabilities || base.capabilities,
           };
         }
         return {
           ...base,
-          results: [result.moment, ...(base.results || [])],
-          mine: [result.moment, ...(base.mine || [])],
+          results: [publishedMoment, ...(base.results || [])],
+          mine: [publishedMoment, ...(base.mine || [])],
           capabilities: result.capabilities || base.capabilities,
         };
       });
-      setCaption("SEM_LEGENDA");
+      setCaption("DIA_TRANQUILO");
       clearMedia();
       setComposerOpen(false);
       setStatus(result.message || (english ? "Moment posted." : "Momento enviado."));
@@ -378,6 +381,15 @@ export default function MomentsPage({ onOpenProfile }) {
 
           {composerOpen && (
             <div className="nk-moment-composer__body">
+              {!mediaPreview && <div className={`nk-moment-draft nk-moment-theme-${theme} nk-moment-font-${font}`} aria-label={english ? "Moment preview" : "Pré-visualização do Momento"}>
+                <p>{caption === "SEM_LEGENDA" ? (english ? "Choose a phrase" : "Escolha uma frase") : (english ? EN_CAPTIONS[caption] : captionOptions.find((item) => item.value === caption)?.label)}</p>
+              </div>}
+              <div className="nk-moment-style-tools">
+                <div role="group" aria-label={english ? "Background colour" : "Cor do fundo"}>
+                  {[["wine", "Vinho"], ["forest", "Floresta"], ["midnight", "Noite"], ["sand", "Areia"]].map(([value, label]) => <button key={value} type="button" className={`nk-moment-swatch nk-moment-theme-${value}`} aria-label={label} aria-pressed={theme === value} onClick={() => setTheme(value)} />)}
+                </div>
+                <button type="button" className="nk-moment-font-toggle" onClick={() => setFont((current) => ({ serif: "sans", sans: "italic", italic: "serif" })[current])} aria-label={english ? "Change font" : "Mudar fonte"}>Aa <span>{font === "serif" ? (english ? "Classic" : "Clássica") : font === "sans" ? (english ? "Simple" : "Simples") : (english ? "Italic" : "Itálica")}</span></button>
+              </div>
               <label className="nk-moment-composer__caption">
                 <span className="sr-only">{english ? "Caption" : "Frase"}</span>
                 <select
@@ -400,6 +412,7 @@ export default function MomentsPage({ onOpenProfile }) {
                 </div>
               )}
 
+              {!mediaEnabled && <small className="nk-moment-plan-note">{english ? "Phrases are free. Photos and videos: Fortnightly, Essential or Premium." : "Frases gratuitas. Fotos e vídeos: Quinzenal, Essencial ou Premium."}</small>}
               <div className="nk-moment-composer__controls">
                 <input
                   ref={fileRef}
@@ -413,7 +426,7 @@ export default function MomentsPage({ onOpenProfile }) {
                   className="nk-moment-composer__media"
                   onClick={() => mediaEnabled
                     ? fileRef.current?.click()
-                    : setError(english ? "Photos and videos require NKATA Essential or Premium." : "Fotografias e vídeos exigem NKATA Essencial ou Premium.")}
+                    : setError(english ? "Photos and videos require NKATA Fortnightly, Essential or Premium." : "Fotografias e vídeos exigem NKATA Quinzenal, Essencial ou Premium.")}
                 >
                   {mediaEnabled ? <ImagePlus size={18} /> : <LockKeyhole size={17} />}
                   {english ? "Photo or video" : "Foto ou vídeo"}

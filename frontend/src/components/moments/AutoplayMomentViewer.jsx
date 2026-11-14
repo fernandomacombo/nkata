@@ -334,14 +334,14 @@ export default function AutoplayMomentViewer({
           </div>
         </header>
 
-        <div className={`nk-moment-viewer__content is-${moment.media_type.toLowerCase()}`}>
+        <div className={`nk-moment-viewer__content is-${moment.media_type.toLowerCase()} nk-moment-theme-${moment.theme || "wine"} nk-moment-font-${moment.font || "serif"}`}>
           <MomentMedia
             moment={moment}
             onVideoProgress={setProgress}
             onVideoEnded={goNext}
           />
           <div className="nk-moment-viewer__shade" />
-          {moment.text && <p>{moment.text}</p>}
+          {(moment.text || moment.media_type === "TEXTO") && <p>{moment.text || (english ? "This Moment has no phrase." : "Este Momento ficou sem frase.")}</p>}
 
           <ReactionTray
             moment={moment}

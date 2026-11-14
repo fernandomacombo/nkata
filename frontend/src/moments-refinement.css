@@ -1,0 +1,43 @@
+/* Quiet, compact surfaces and a shared appearance for preview and published moments. */
+.nk-moment-theme-wine { --moment-bg: #542735; --moment-fg: #fff8ef; background: var(--moment-bg); color: var(--moment-fg); }
+.nk-moment-theme-forest { --moment-bg: #24483e; --moment-fg: #f5f3e8; background: var(--moment-bg); color: var(--moment-fg); }
+.nk-moment-theme-midnight { --moment-bg: #283342; --moment-fg: #f6f0e7; background: var(--moment-bg); color: var(--moment-fg); }
+.nk-moment-theme-sand { --moment-bg: #e7dac6; --moment-fg: #382b24; background: var(--moment-bg); color: var(--moment-fg); }
+.nk-moment-font-serif { --moment-font: Georgia, serif; }
+.nk-moment-font-sans { --moment-font: Arial, sans-serif; }
+.nk-moment-font-italic { --moment-font: Georgia, serif; }
+.nk-moment-draft { min-height: 220px; display: grid; place-items: center; border-radius: 12px; padding: 28px; text-align: center; }
+.nk-moment-draft p { font-family: var(--moment-font); font-size: clamp(24px, 5vw, 34px); line-height: 1.35; max-width: 24ch; margin: 0; color: var(--moment-fg); }
+.nk-moment-font-italic > p { font-style: italic; }
+.nk-moment-style-tools, .nk-moment-style-tools > div { display: flex; align-items: center; gap: 10px; }
+.nk-moment-style-tools { justify-content: space-between; padding: 12px 0; }
+.nk-moment-swatch { width: 32px; height: 32px; border-radius: 50%; border: 3px solid #fff; outline: 1px solid #ddd3cb; cursor: pointer; }
+.nk-moment-swatch[aria-pressed="true"] { outline: 2px solid #7d2638; outline-offset: 2px; }
+.nk-moment-font-toggle { border: 0; background: transparent; color: inherit; min-height: 44px; padding: 8px; font-size: 22px; cursor: pointer; }
+.nk-moment-font-toggle span { font-size: 12px; margin-left: 5px; }
+.nk-moment-plan-note { display: block; font-size: 12px; line-height: 1.5; color: #756960; margin: 10px 0; }
+.nk-moment-viewer__content.is-texto .nk-moment-viewer__text-only { background: var(--moment-bg); }
+.nk-moment-viewer__content.is-texto .nk-moment-viewer__shade { background: linear-gradient(#0005, transparent 25%, transparent 70%, #0008); }
+.nk-moment-viewer__content.is-texto > p { font-family: var(--moment-font); color: var(--moment-fg); text-shadow: none; font-size: clamp(26px, 6vw, 38px); line-height: 1.4; }
+.nk-desktop-nav > button { display: inline-flex; align-items: center; gap: 6px; }
+.nk-desktop-nav { gap: 18px; }
+.nk-moments-page .nk-moment-composer, .nk-member-home .nk-feed-composer, .nk-member-home .nk-feed-empty, .nk-member-home .nk-feed-card { box-shadow: none; border: 1px solid #ded5cd; border-radius: 14px; }
+.nk-moments-page .nk-moment-composer { max-width: 580px; }
+.nk-member-home .nk-feed-empty { background: transparent; padding: 32px 20px; border: 0; border-top: 1px solid #ded5cd; border-radius: 0; }
+.nk-member-home .nk-feed-composer__locked-copy { background: transparent; padding: 8px 0; }
+.nk-member-home .nk-feed-composer__locked-copy strong { font-weight: 500; }
+.nk-member-home .nk-feed-composer > header { margin-bottom: 8px; }
+@media (min-width: 821px) and (max-width: 1250px) { .nk-private-status { display: none; } .nk-desktop-nav { gap: 12px; } }
+@media (max-width: 820px) {
+ .nk-moments-page .nk-moment-composer, .nk-member-home .nk-feed-composer { padding: 12px; border-radius: 12px; }
+ .nk-moment-draft { min-height: 200px; padding: 24px; }
+ .nk-moment-composer__controls { display: flex; flex-wrap: wrap; gap: 8px; }
+ .nk-moment-composer__controls > button { min-height: 44px; flex: 1 1 120px; }
+ .nk-mobile-menu__nav small { display: none; }
+ .nk-mobile-menu__nav button { min-height: 48px; }
+ .nk-member-home .nk-feed-composer__locked-copy { display: flex; flex-wrap: wrap; gap: 10px; }
+ .nk-member-home .nk-feed-composer__locked-copy > div { flex: 1 1 180px; }
+}
+.nk-composer label { min-width: 0; }
+.nk-composer select { width: 100%; min-width: 0; min-height: 44px; border: 0; background: transparent; color: inherit; font: inherit; }
+.nk-moment-viewer__content.is-texto > p { top: 50%; bottom: auto; transform: translateY(-50%); text-align: center; padding: 16px; }

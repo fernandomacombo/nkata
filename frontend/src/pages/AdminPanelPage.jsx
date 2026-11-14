@@ -830,6 +830,7 @@ function actionsFor(section, item) {
       item.status === "ATIVO" && { action: "pause", label: "Pausar", description: `Retirar temporariamente ${item.name} da descoberta.`, icon: PauseCircle },
       item.status !== "BLOQUEADO" && { action: "block", label: "Bloquear", description: `Bloquear ${item.name} e desativar o acesso à conta.`, danger: true, icon: Ban },
       item.plan_code !== "LIVRE" && { action: "plan_livre", label: "Plano Livre", description: `Alterar o plano de ${item.name} para NKATA Livre.`, icon: CheckCircle2 },
+      item.plan_code !== "QUINZENAL" && { action: "plan_quinzenal", label: "Plano Quinzenal", description: `Ativar 14 dias de NKATA Quinzenal para ${item.name}.`, icon: CheckCircle2 },
       item.plan_code !== "ESSENCIAL" && { action: "plan_essencial", label: "Plano Essencial", description: `Alterar o plano de ${item.name} para NKATA Essencial.`, icon: CheckCircle2 },
       item.plan_code !== "PREMIUM" && { action: "plan_premium", label: "Plano Premium", description: `Alterar o plano de ${item.name} para NKATA Premium.`, icon: CheckCircle2 },
     ].filter(Boolean);

@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from .models import AcessoPlanoNKATA, PedidoPagamentoNKATA
 from .plan_service import (
-    PLAN_PRICES_MZN, PLAN_DURATION_DAYS, ACTIVE_RECHARGE_PRICES_MZN,
+    PLAN_PRICES_MZN, PLAN_DURATIONS, ACTIVE_RECHARGE_PRICES_MZN,
     active_plan_access, grant_recharge,
 )
 
@@ -64,8 +64,8 @@ def valid_checkout_url(url):
 
 
 def snapshot(product):
-    if product in ("ESSENCIAL", "PREMIUM"):
-        return Decimal(PLAN_PRICES_MZN[product]), PLAN_DURATION_DAYS, 0
+    if product in ("ESSENCIAL", "PREMIUM", "QUINZENAL"):
+        return Decimal(PLAN_PRICES_MZN[product]), PLAN_DURATIONS[product], 0
     if product == "RECARGA10":
         return Decimal(ACTIVE_RECHARGE_PRICES_MZN[10]), 0, 10
     raise PaymentError("Escolha um pacote NKATA disponível.")

@@ -109,14 +109,14 @@ export default function AppHeader({
             className={activePage === "home" ? "is-active" : ""}
             onClick={() => navigate("home")}
           >
-            {tr("Início", "Home")}
+            <Home size={18} strokeWidth={1.5} aria-hidden="true" /> {tr("Início", "Home")}
           </button>}
           {!operator && <button
             type="button"
             className={activePage === "discover" ? "is-active" : ""}
             onClick={() => navigate("discover")}
           >
-            {tr("Perfis", "Profiles")}
+            <Search size={18} strokeWidth={1.5} aria-hidden="true" /> {tr("Perfis", "Profiles")}
           </button>}
           {member && (
             <button
@@ -124,7 +124,7 @@ export default function AppHeader({
               className={activePage === "moments" ? "is-active" : ""}
               onClick={() => navigate("moments")}
             >
-              {tr("Momentos", "Moments")}
+              <CirclePlay size={18} strokeWidth={1.5} aria-hidden="true" /> {tr("Momentos", "Moments")}
             </button>
           )}
           {session?.user?.is_staff && (
@@ -133,7 +133,7 @@ export default function AppHeader({
               className={activePage === "admin" ? "is-active" : ""}
               onClick={() => navigate("admin")}
             >
-              {tr("Painel", "Admin")}
+              <PanelsTopLeft size={18} strokeWidth={1.5} aria-hidden="true" /> {tr("Painel", "Admin")}
             </button>
           )}
           {member && (
@@ -142,7 +142,7 @@ export default function AppHeader({
               className={activePage === "saved" ? "is-active" : ""}
               onClick={() => navigate("saved")}
             >
-              {tr("Guardados", "Saved")} {savedCount > 0 ? `(${savedCount})` : ""}
+              <Bookmark size={18} strokeWidth={1.5} aria-hidden="true" /> {tr("Guardados", "Saved")} {savedCount > 0 ? `(${savedCount})` : ""}
             </button>
           )}
           {member && (
@@ -151,7 +151,7 @@ export default function AppHeader({
               className={activePage === "matches" ? "is-active" : ""}
               onClick={() => navigate("matches")}
             >
-              Matches {unreadMatches > 0 ? `(${unreadMatches})` : ""}
+              <HeartHandshake size={18} strokeWidth={1.5} aria-hidden="true" /> Matches {unreadMatches > 0 ? `(${unreadMatches})` : ""}
             </button>
           )}
           {!operator && <button
@@ -159,7 +159,7 @@ export default function AppHeader({
             className={activePage === "security" ? "is-active" : ""}
             onClick={() => navigate("security")}
           >
-            {tr("Segurança", "Safety")}
+            <ShieldCheck size={18} strokeWidth={1.5} aria-hidden="true" /> {tr("Segurança", "Safety")}
           </button>}
           {!authenticated && (
             <button type="button" onClick={() => goTo("/acompanhar-pedido/")}>

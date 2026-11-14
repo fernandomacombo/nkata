@@ -47,10 +47,12 @@ export async function fetchMoments({ signal } = {}) {
   return payload;
 }
 
-export async function createMoment({ caption, visibility, media }) {
+export async function createMoment({ caption, visibility, media, theme = "wine", font = "serif" }) {
   const form = new FormData();
-  form.append("legenda", caption || "SEM_LEGENDA");
+  form.append("caption", caption || "SEM_LEGENDA");
   form.append("visibilidade", visibility || "TODOS");
+  form.append("theme", theme);
+  form.append("font", font);
   if (media) form.append("media", media);
 
   const response = await fetch(`${API_BASE_URL}/api/momentos/`, {
@@ -64,7 +66,7 @@ export async function createMoment({ caption, visibility, media }) {
     throw new MomentsApiError(
       payload?.detail
         || payload?.media?.[0]
-        || payload?.legenda?.[0]
+        || payload?.caption?.[0]
         || "Não foi possível publicar o Momento.",
       response.status,
       payload,
