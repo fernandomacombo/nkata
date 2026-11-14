@@ -59,7 +59,7 @@ export default function PlanPanel({ language = "PT" }) {
     const existing = payments.find((order) => ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status));
     if (existing) {
       if (existing.product === product && existing.checkout_url) {
-        window.location.assign(`/pagamento/?pedido=${encodeURIComponent(existing.id)}`);
+        window.location.assign(existing.checkout_url);
         return;
       }
       setPaymentMessage(english
@@ -77,7 +77,7 @@ export default function PlanPanel({ language = "PT" }) {
       const order = await createPayment(product, key);
       sessionStorage.removeItem(storageKey);
       await loadPayments();
-      if (order.checkout_url) window.location.assign(`/pagamento/?pedido=${encodeURIComponent(order.id)}`);
+      if (order.checkout_url) window.location.assign(order.checkout_url);
       else setPaymentMessage(english ? "Check the payment status below." : "Consulte o estado do pagamento abaixo.");
     } catch (failure) {
       setPaymentMessage(failure.message || (english ? "Could not start payment." : "Não foi possível iniciar o pagamento."));
@@ -287,7 +287,7 @@ export default function PlanPanel({ language = "PT" }) {
             <strong>{order.product} · {order.amount_mzn} MT</strong>
             <small>{order.reference}</small>
             <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
-            {order.checkout_url && <a href={`/pagamento/?pedido=${encodeURIComponent(order.id)}`}>{english ? "Continue payment" : "Continuar pagamento"}</a>}
+            {order.checkout_url && <a href={order.checkout_url}>{english ? "Continue payment" : "Continuar pagamento"}</a>}
             {!["PAGO", "FALHOU"].includes(order.status) && <button type="button" disabled={paymentBusy} onClick={() => verifyPayment(order)}>{english ? "Check payment" : "Verificar pagamento"}</button>}
             {["CRIADO", "PENDENTE", "INCERTO"].includes(order.status) && (
               <button type="button" disabled={paymentBusy} onClick={() => closeIfTerminal(order)}>
