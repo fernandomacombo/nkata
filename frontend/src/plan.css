@@ -426,3 +426,35 @@
   .nk-plan-catalog { flex-wrap: nowrap; margin-inline: -16px; padding-inline: 16px; scrollbar-width: thin; }
   .nk-plan-catalog .nk-plan-card { width: auto; flex: 0 0 min(77vw, 260px); min-width: 210px; }
 }
+
+
+/* Pending payment action — clear, accessible NKATA primary button */
+.nk-plan-payment-continue {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 12px 18px;
+  border: 1px solid var(--nk-wine);
+  border-radius: 13px;
+  background: var(--nk-wine);
+  color: #fff !important;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.nk-plan-payment-continue:hover {
+  background: #641b2d;
+  box-shadow: 0 8px 20px rgba(125, 38, 56, .18);
+  transform: translateY(-1px);
+}
+.nk-plan-payment-continue:focus-visible {
+  outline: 3px solid rgba(125, 38, 56, .28);
+  outline-offset: 3px;
+}
