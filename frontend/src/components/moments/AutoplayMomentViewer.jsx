@@ -26,25 +26,26 @@ const REACTION_ICONS = {
   APLAUSO: Sparkles,
 };
 
-function remainingLabel(moment, english) {
+function remainingLabel(moment, english, now) {
   if (!moment?.expires_at) {
     return moment?.moderation_status === "PENDENTE"
       ? (english ? "Under review" : "Em análise")
       : "";
   }
+  const expiry = new Date(moment.expires_at).getTime();
+  if (!Number.isFinite(expiry)) return "";
+  const remaining = Math.max(0, Math.ceil((expiry - now) / 1000));
+  if (remaining === 0) return english ? "Expired" : "Expirado";
 
-  const expires = new Date(moment.expires_at);
-  if (Number.isNaN(expires.getTime())) return "";
-  if (expires.getTime() <= Date.now()) return english ? "Expired" : "Expirado";
-
-  const locale = english ? "en-GB" : "pt-MZ";
-  const date = new Intl.DateTimeFormat(locale, {
-    day: "2-digit", month: "2-digit", year: "numeric",
-  }).format(expires);
-  const time = new Intl.DateTimeFormat(locale, {
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  }).format(expires);
-  return english ? `Expires on ${date} at ${time}` : `Expira em ${date} às ${time}`;
+  const hours = Math.floor(remaining / 3600);
+  const minutes = Math.floor((remaining % 3600) / 60);
+  const seconds = remaining % 60;
+  const countdown = [
+    hours > 0 ? `${hours}h` : null,
+    `${minutes}min`,
+    `${String(seconds).padStart(2, "0")}s`,
+  ].filter(Boolean).join(" ");
+  return english ? `${countdown} remaining` : `${countdown} restantes`;
 }
 
 function MomentMedia({ moment, onVideoProgress, onVideoEnded }) {
@@ -148,6 +149,13 @@ export default function AutoplayMomentViewer({
   const [groupIndex, setGroupIndex] = useState(safeInitialGroup);
   const [momentIndex, setMomentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const [reactions, setReactions] = useState(null);
   const [reactionsLoading, setReactionsLoading] = useState(false);
   const [reactionBusy, setReactionBusy] = useState("");
@@ -328,7 +336,7 @@ export default function AutoplayMomentViewer({
             </span>
             <div>
               <strong>{moment.mine ? (english ? "Your Moment" : "O seu Momento") : moment.profile.nome_publico}</strong>
-              <small><Clock3 size={12} /> {remainingLabel(moment, english)}</small>
+              <small><Clock3 size={12} /> {remainingLabel(moment, english, now)}</small>
             </div>
           </button>
 
