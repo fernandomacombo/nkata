@@ -314,9 +314,10 @@ export async function uploadNkataIdCapture(
   });
 }
 
-export async function previewNkataIdCapture(token, captureType, file, { signal } = {}) {
+export async function previewNkataIdCapture(token, captureType, file, { signal, assisted = false } = {}) {
   const form = new FormData();
   form.append("imagem", file, file?.name || `${captureType}-preview.jpg`);
+  if (assisted) form.append("assisted", "true");
   return request(`/api/nkata-id/sessoes/${token}/previsualizacao/${captureType}/`, {
     method: "POST",
     body: form,

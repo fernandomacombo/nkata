@@ -12,6 +12,7 @@ from .chat_media_models import MensagemAudioMatchNKATA
 from .models import MatchPerfil
 from .plan_service import plan_for_user
 from .user_roles import active_member_profile_for_user
+from .audio_validation import prepare_voice_note, InvalidVoiceNote, AudioDecoderUnavailable
 
 
 MAX_AUDIO_SIZE = 12 * 1024 * 1024
@@ -147,12 +148,19 @@ def api_audios_match(request, match_id):
     audio = request.FILES.get("audio")
     try:
         duration_seconds = int(round(float(request.data.get("duracao_segundos", 0) or 0)))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         duration_seconds = 0
 
     error = _validate_audio(audio, duration_seconds)
     if error:
         return Response({"audio": [error]}, status=400)
+
+    try:
+        audio, duration_seconds = prepare_voice_note(audio, MAX_AUDIO_DURATION_SECONDS)
+    except InvalidVoiceNote as error:
+        return Response({"audio": [str(error)]}, status=400)
+    except AudioDecoderUnavailable as error:
+        return Response({"detail": str(error)}, status=503)
 
     try:
         message = MensagemAudioMatchNKATA.objects.create(

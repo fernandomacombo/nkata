@@ -21,6 +21,7 @@ from . import (
     notification_views,
     password_reset_api,
     plan_views,
+    payment_views,
     post_safety_api,
     posts_api,
     profile_api,
@@ -241,6 +242,10 @@ urlpatterns = [
         account_preferences_api.api_preferencias_da_conta,
         name="preferencias_da_conta",
     ),
+    path("minha-conta/pagamentos/", payment_views.api_payments, name="pagamentos"),
+    path("minha-conta/pagamentos/<uuid:payment_id>/verificar/", payment_views.api_payment_check, name="verificar_pagamento"),
+    path("minha-conta/pagamentos/<uuid:payment_id>/encerrar/", payment_views.api_payment_close_if_terminal, name="encerrar_pagamento"),
+    path("pagamentos/paysuite/webhook/", payment_views.api_paysuite_webhook, name="paysuite_webhook"),
     path(
         "minha-conta/plano/",
         plan_views.api_plano_da_conta,

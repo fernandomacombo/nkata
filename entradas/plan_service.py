@@ -1,9 +1,12 @@
 import uuid
+from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import transaction
 from django.utils import timezone
 
-from .models import AcaoPerfil
+from .models import AcaoPerfil, AcessoPlanoNKATA
 
 
 PLAN_GROUP_ESSENCIAL = "NKATA_PLANO_ESSENCIAL"
@@ -16,7 +19,7 @@ PLAN_DEFINITIONS = {
         "paid": False,
         "daily_signal_limit": 3,
         "features": {
-            "chat_text": True,
+            "chat_text": False,
             "chat_audio": False,
             "chat_video": False,
             "status_text": True,
@@ -40,7 +43,7 @@ PLAN_DEFINITIONS = {
             "status_media": True,
             "feed_view": True,
             "feed_media_publish": True,
-            "advanced_filters": True,
+            "advanced_filters": False,
             "priority_discovery": False,
         },
     },
@@ -57,17 +60,43 @@ PLAN_DEFINITIONS = {
             "status_media": True,
             "feed_view": True,
             "feed_media_publish": True,
-            "advanced_filters": True,
-            "priority_discovery": True,
+            "advanced_filters": False,
+            "priority_discovery": False,
         },
     },
 }
+
+PLAN_DEFINITIONS["QUINZENAL"] = {
+    **PLAN_DEFINITIONS["ESSENCIAL"], "code": "QUINZENAL", "label": "NKATA Quinzenal",
+    "features": dict(PLAN_DEFINITIONS["ESSENCIAL"]["features"]),
+}
+PLAN_DURATIONS = {"LIVRE": 0, "QUINZENAL": 14, "ESSENCIAL": 30, "PREMIUM": 30}
+CHAT_PHRASES = (
+    "Olá, tudo bem?",
+    "Olá, gostei de conhecer o seu perfil. Como está?",
+    "Gostaria de conhecer melhor os seus interesses.",
+    "Obrigado pelo seu interesse!",
+    "Hello, how are you?",
+    "Hello, I enjoyed reading your profile. How are you?",
+    "I would like to learn more about your interests.",
+    "Thank you for your interest!",
+)
+
+
+def can_send_chat_text(user, text):
+    return plan_for_user(user)["features"]["chat_text"] or text in CHAT_PHRASES
+
 
 RECHARGE_PACKS = {
     10: {"credits": 10, "db_type": "RECARGA_SINAIS_10"},
     30: {"credits": 30, "db_type": "RECARGA_SINAIS_30"},
     80: {"credits": 80, "db_type": "RECARGA_SINAIS_80"},
 }
+# Keep historical grants readable even when a pack is no longer sold.
+PLAN_DURATION_DAYS = 30
+PLAN_PRICES_MZN = {"LIVRE": 0, "ESSENCIAL": 250, "PREMIUM": 500, "QUINZENAL": 100}
+ACTIVE_RECHARGE_PRICES_MZN = {10: 50}
+
 RECHARGE_TYPE_CREDITS = {
     pack["db_type"]: pack["credits"] for pack in RECHARGE_PACKS.values()
 }
@@ -85,16 +114,18 @@ def plan_code_for_user(user):
     if not user or not getattr(user, "is_authenticated", False):
         return "LIVRE"
 
-    group_names = set(
-        user.groups.filter(
-            name__in=[PLAN_GROUP_ESSENCIAL, PLAN_GROUP_PREMIUM]
-        ).values_list("name", flat=True)
-    )
-    if PLAN_GROUP_PREMIUM in group_names:
-        return "PREMIUM"
-    if PLAN_GROUP_ESSENCIAL in group_names:
-        return "ESSENCIAL"
-    return "LIVRE"
+    access = active_plan_access(user)
+    return access.plano if access else "LIVRE"
+
+
+def active_plan_access(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return None
+    now = timezone.now()
+    return AcessoPlanoNKATA.objects.filter(
+        usuario=user, inicio__lte=now, fim__gt=now,
+        plano__in=["ESSENCIAL", "PREMIUM", "QUINZENAL"],
+    ).first()
 
 
 def plan_for_user(user):
@@ -169,8 +200,11 @@ def public_plan_catalog():
     return [
         {
             **definition,
-            "price_mzn": None,
-            "price_status": "A definir",
+            "price_mzn": PLAN_PRICES_MZN[definition["code"]],
+            "price_status": f'{PLAN_PRICES_MZN[definition["code"]]} MT',
+            "pricing_status": "proposed",
+            "billing_period": f'{PLAN_DURATIONS[definition["code"]]}_days' if definition["paid"] else None,
+            "duration_days": PLAN_DURATIONS[definition["code"]] if definition["paid"] else None,
             "purchase_enabled": False,
         }
         for definition in PLAN_DEFINITIONS.values()
@@ -181,22 +215,40 @@ def public_recharge_catalog():
     return [
         {
             "credits": pack["credits"],
-            "price_mzn": None,
-            "price_status": "A definir",
+            "price_mzn": ACTIVE_RECHARGE_PRICES_MZN[pack["credits"]],
+            "price_status": f'{ACTIVE_RECHARGE_PRICES_MZN[pack["credits"]]} MT',
+            "pricing_status": "proposed",
             "purchase_enabled": False,
         }
         for pack in RECHARGE_PACKS.values()
+        if pack["credits"] in ACTIVE_RECHARGE_PRICES_MZN
     ]
 
 
+@transaction.atomic
 def assign_plan(user, plan_code):
+    """Administrative grant only. A future payment service must verify settlement."""
     plan_code = str(plan_code or "").strip().upper()
     if plan_code not in PLAN_DEFINITIONS:
         raise ValueError("Plano NKATA inválido.")
 
+    get_user_model().objects.select_for_update().get(pk=user.pk)
+    now = timezone.now()
+    if plan_code == "LIVRE":
+        AcessoPlanoNKATA.objects.filter(usuario=user).delete()
+    else:
+        access = AcessoPlanoNKATA.objects.filter(usuario=user).first()
+        # Same-plan renewal preserves unused time; switching starts a fresh term.
+        base = access.fim if access and access.plano == plan_code and access.inicio <= now < access.fim else now
+        AcessoPlanoNKATA.objects.update_or_create(
+            usuario=user,
+            defaults={"plano": plan_code, "inicio": now,
+                      "fim": base + timedelta(days=PLAN_DURATIONS[plan_code]),
+                      "origem": "ADMINISTRATIVA"},
+        )
     essencial, premium = ensure_plan_groups()
     user.groups.remove(essencial, premium)
-    if plan_code == "ESSENCIAL":
+    if plan_code in ("ESSENCIAL", "QUINZENAL"):
         user.groups.add(essencial)
     elif plan_code == "PREMIUM":
         user.groups.add(premium)

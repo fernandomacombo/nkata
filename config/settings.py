@@ -29,6 +29,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-placeholder-change-in-productio
 if not DEBUG and SECRET_KEY == "dev-placeholder-change-in-production":
     raise ImproperlyConfigured("DJANGO_SECRET_KEY é obrigatória em produção.")
 NKATA_FRONTEND_URL = os.getenv("NKATA_FRONTEND_URL", "http://localhost:5173").rstrip("/")
+NKATA_IDENTITY_HASH_KEY = os.getenv("NKATA_IDENTITY_HASH_KEY", "").strip()
 
 
 def validate_public_https_origin(name: str, value: str) -> None:
@@ -348,6 +349,9 @@ EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("DJANGO_EMAIL_USE_TLS", True)
 EMAIL_USE_SSL = env_bool("DJANGO_EMAIL_USE_SSL", False)
 EMAIL_TIMEOUT = int(os.getenv("DJANGO_EMAIL_TIMEOUT", "15"))
+NKATA_ZOHO_API_KEY = os.getenv("NKATA_ZOHO_API_KEY", "").strip()
+if EMAIL_BACKEND == "entradas.email_backend.ZohoAPIEmailBackend" and not NKATA_ZOHO_API_KEY:
+    raise ImproperlyConfigured("NKATA_ZOHO_API_KEY é obrigatória para o envio HTTPS pelo Zoho.")
 if not DEBUG and EMAIL_BACKEND == "django.core.mail.backends.console.EmailBackend":
     raise ImproperlyConfigured(
         "DJANGO_EMAIL_BACKEND não pode usar o terminal em produção."
@@ -480,3 +484,14 @@ LOGGING = {
         "entradas": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
     },
 }
+
+# Disabled until the company account, branding and sandbox flow are verified.
+NKATA_PAYMENTS_ENABLED = env_bool("NKATA_PAYMENTS_ENABLED", False)
+NKATA_PAYSUITE_TOKEN = os.getenv("NKATA_PAYSUITE_TOKEN", "").strip()
+NKATA_PAYSUITE_WEBHOOK_SECRET = os.getenv("NKATA_PAYSUITE_WEBHOOK_SECRET", "").strip()
+NKATA_PAYMENT_ORIGIN = os.getenv("NKATA_PAYMENT_ORIGIN", "").strip().rstrip("/")
+NKATA_CHECKOUT_HOSTS = env_list("NKATA_CHECKOUT_HOSTS", "paysuite.tech")
+if NKATA_PAYMENTS_ENABLED:
+    validate_public_https_origin("NKATA_PAYMENT_ORIGIN", NKATA_PAYMENT_ORIGIN)
+    if not NKATA_PAYSUITE_TOKEN or not NKATA_PAYSUITE_WEBHOOK_SECRET:
+        raise ImproperlyConfigured("Configure as credenciais PaySuite antes de ativar pagamentos.")

@@ -1,6 +1,8 @@
 import json
 
 from django.db import DatabaseError, transaction
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions
@@ -16,6 +18,8 @@ from .user_roles import active_member_profile_for_user
 
 
 CALL_RING_TIMEOUT_SECONDS = 45
+CALL_CONNECT_TIMEOUT_SECONDS = 60
+CALL_HEARTBEAT_TIMEOUT_SECONDS = 90
 MAX_SIGNAL_PAYLOAD_CHARS = 65536
 LIVE_CALL_STATES = {
     ChamadaMatchNKATA.ESTADO_CHAMANDO,
@@ -44,7 +48,7 @@ def _match_do_utilizador(user, match_id, *, for_update=False):
         "perfil_2__usuario",
     )
     if for_update:
-        qs = qs.select_for_update()
+        qs = qs.select_for_update(of=("self",))
     return qs.first()
 
 
@@ -74,16 +78,46 @@ def _purge_signals(call):
         pass
 
 
+def _heartbeat_key(call, user_id):
+    return f"nkata:call:{call.pk}:presence:{user_id}"
+
+
+def _touch_call(call, user):
+    cache.set(_heartbeat_key(call, user.pk), timezone.now().timestamp(),
+              timeout=CALL_HEARTBEAT_TIMEOUT_SECONDS * 3)
+
+
 def _expire_ringing_call(call, now=None):
-    if not call or call.estado != ChamadaMatchNKATA.ESTADO_CHAMANDO:
+    """Recover abandoned calls as well as unanswered ringing calls."""
+    if not call or call.estado not in LIVE_CALL_STATES:
         return call
     now = now or timezone.now()
-    age_seconds = (now - call.criada_em).total_seconds()
-    if age_seconds <= CALL_RING_TIMEOUT_SECONDS:
+    if call.estado == ChamadaMatchNKATA.ESTADO_CHAMANDO:
+        expired = (now - call.criada_em).total_seconds() > CALL_RING_TIMEOUT_SECONDS
+    elif call.estado == ChamadaMatchNKATA.ESTADO_CONECTANDO:
+        expired = (now - call.atualizada_em).total_seconds() > CALL_CONNECT_TIMEOUT_SECONDS
+    else:
+        baseline = (call.atendida_em or call.atualizada_em).timestamp()
+        participants = (call.match.perfil_1.usuario_id, call.match.perfil_2.usuario_id)
+        expired = any(
+            now.timestamp() - cache.get(_heartbeat_key(call, user_id), baseline)
+            > CALL_HEARTBEAT_TIMEOUT_SECONDS for user_id in participants
+        )
+    if not expired:
         return call
-    call.estado = ChamadaMatchNKATA.ESTADO_PERDIDA
+    terminal_state = (ChamadaMatchNKATA.ESTADO_PERDIDA
+                      if call.estado == ChamadaMatchNKATA.ESTADO_CHAMANDO
+                      else ChamadaMatchNKATA.ESTADO_FALHOU)
+    # A concurrent accept/end must not be overwritten by an old polling snapshot.
+    changed = ChamadaMatchNKATA.objects.filter(
+        pk=call.pk, estado=call.estado, atualizada_em=call.atualizada_em,
+    ).update(estado=terminal_state, terminada_em=now, atualizada_em=now)
+    if not changed:
+        call.refresh_from_db()
+        return call
+    call.estado = terminal_state
     call.terminada_em = now
-    call.save(update_fields=["estado", "terminada_em", "atualizada_em"])
+    call.atualizada_em = now
     _purge_signals(call)
     return call
 
@@ -99,7 +133,8 @@ def _active_call_for_match(match):
         )
     except DatabaseError:
         return None
-    return _expire_ringing_call(call)
+    call = _expire_ringing_call(call)
+    return call if call and call.estado in LIVE_CALL_STATES else None
 
 
 def _active_call_for_user(user):
@@ -160,6 +195,7 @@ def _call_setup_required_response():
 
 @api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
+@transaction.atomic
 def api_chamada_match(request, match_id):
     match = _match_do_utilizador(request.user, match_id)
     if not match:
@@ -174,6 +210,8 @@ def api_chamada_match(request, match_id):
 
         try:
             call = _active_call_for_match(match)
+            if call and call.estado in LIVE_CALL_STATES:
+                _touch_call(call, request.user)
             signals = []
             if call and call.estado in LIVE_CALL_STATES:
                 signals = [
@@ -223,6 +261,11 @@ def api_chamada_match(request, match_id):
 
         try:
             with transaction.atomic():
+                # Different matches can share a participant: lock both accounts
+                # in a stable order before checking occupancy.
+                list(get_user_model().objects.select_for_update().filter(
+                    pk__in=[request.user.pk, other_user.pk]
+                ).order_by("pk").values_list("pk", flat=True))
                 locked_match = _match_do_utilizador(request.user, match_id, for_update=True)
                 existing_match_call = _active_call_for_match(locked_match)
                 existing_user_call = _active_call_for_user(request.user)
@@ -260,7 +303,7 @@ def api_chamada_match(request, match_id):
         return Response({"call_id": ["Chamada inválida."]}, status=400)
 
     try:
-        call = ChamadaMatchNKATA.objects.select_related("iniciador").filter(
+        call = ChamadaMatchNKATA.objects.select_for_update().select_related("iniciador").filter(
             id=call_id,
             match=match,
         ).first()
@@ -271,6 +314,8 @@ def api_chamada_match(request, match_id):
         return Response({"detail": "Chamada não encontrada."}, status=404)
 
     call = _expire_ringing_call(call)
+    if call.estado in LIVE_CALL_STATES:
+        _touch_call(call, request.user)
 
     if action == "signal":
         if call.estado not in LIVE_CALL_STATES:
@@ -326,7 +371,6 @@ def api_chamada_match(request, match_id):
 
     elif action == "active":
         if call.estado not in {
-            ChamadaMatchNKATA.ESTADO_CHAMANDO,
             ChamadaMatchNKATA.ESTADO_CONECTANDO,
             ChamadaMatchNKATA.ESTADO_ATIVA,
         }:

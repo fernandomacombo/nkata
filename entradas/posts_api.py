@@ -303,7 +303,7 @@ def api_publicacoes(request):
     if not capabilities["publish_media_enabled"]:
         return Response(
             {
-                "detail": "Publicar fotografias e vídeos exige NKATA Essencial ou Premium.",
+                "detail": "Publicar fotografias e vídeos exige NKATA Quinzenal, Essencial ou Premium.",
                 "code": "paid_plan_required_for_publication",
                 "capabilities": capabilities,
             },

@@ -1,3 +1,4 @@
+from .plan_service import can_send_chat_text
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -97,7 +98,13 @@ def solicitar_entrada(request):
         form = PedidoEntradaForm(request.POST, request.FILES)
 
         if form.is_valid():
-            form.save()
+            from .account_limits import save_limited_request
+            from django.core.exceptions import ValidationError
+            try:
+                save_limited_request(form)
+            except ValidationError as error:
+                form.add_error(None, error)
+                return render(request, "entradas/solicitar_entrada.html", {"form": form})
             messages.success(
                 request,
                 "Recebemos o seu pedido de entrada. A equipa NKATA irá analisar os seus dados."
@@ -830,6 +837,10 @@ def conversa_match(request, match_id):
 
         if len(texto) > 1200:
             messages.error(request, "A mensagem é muito longa.")
+            return redirect("entradas:conversa_match", match_id=match.id)
+
+        if not can_send_chat_text(request.user, texto):
+            messages.error(request, "Escolha uma mensagem predefinida ou ative um pacote para escrever livremente.")
             return redirect("entradas:conversa_match", match_id=match.id)
 
         MensagemMatch.objects.create(

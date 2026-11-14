@@ -15,6 +15,8 @@ def nkata_id_expires_at():
 
 def pedido_tem_identidade_verificada(pedido):
     """Usa o NKATA ID novo e mantém perfis legados aprovados compatíveis."""
+    if getattr(pedido, "documento_chave", "") and not pedido.documento_confirmado:
+        return False
     verification = getattr(pedido, "verificacao_identidade", None)
     if verification is None:
         return getattr(pedido, "status", "") == "APROVADO"
@@ -43,11 +45,12 @@ class VerificacaoIdentidadeNKATA(models.Model):
         ("AUTOMATICA", "Automática"),
         ("HUMANA", "Humana"),
     ]
+    # O fluxo público pede apenas frente, verso e uma selfie ao vivo.
+    # O campo selfie_desafio continua no modelo para preservar sessões antigas.
     CAPTURE_FIELDS = (
         "bi_frente",
         "bi_verso",
         "selfie_ao_vivo",
-        "selfie_desafio",
     )
 
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)

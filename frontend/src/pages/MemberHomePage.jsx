@@ -370,7 +370,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
     setError("");
     if (!file) return;
     if (!canPublish) {
-      setError(english ? "Posting photos and videos requires NKATA Essential or Premium." : "Publicar fotografias e vídeos exige NKATA Essencial ou Premium.");
+      setError(english ? "Posting photos and videos requires NKATA Fortnightly, Essential or Premium." : "Publicar fotografias e vídeos exige NKATA Quinzenal, Essencial ou Premium.");
       event.target.value = "";
       return;
     }
@@ -503,10 +503,9 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
               </div>
             ) : (
               <div className="nk-feed-composer__locked-copy">
-                <LockKeyhole size={22} />
                 <div>
-                  <strong>{english ? "Posting requires a paid plan." : "Publicar exige um plano pago."}</strong>
-                  <p>{english ? "Essential and Premium include photos and videos." : "Essencial e Premium permitem fotos e vídeos."}</p>
+                  <strong>{english ? "Share a photo or video." : "Partilhe uma foto ou vídeo."}</strong>
+                  <p>{english ? "Fortnightly, Essential and Premium include photos and videos." : "Quinzenal, Essencial e Premium permitem fotos e vídeos."}</p>
                 </div>
                 <button type="button" onClick={() => onNavigate("account")}>{english ? "View plans" : "Ver planos"}</button>
               </div>

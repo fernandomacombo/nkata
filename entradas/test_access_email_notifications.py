@@ -1,10 +1,11 @@
 from types import SimpleNamespace
 from uuid import UUID
+from unittest.mock import patch
 
 from django.core import mail
 from django.test import SimpleTestCase, TestCase, override_settings
 
-from .access_email_notifications import build_access_receipt_email, build_access_status_email
+from .access_email_notifications import build_access_receipt_email, build_access_status_email, _send_status_email
 from .models import PedidoEntrada
 
 
@@ -53,6 +54,22 @@ class AccessEmailNotificationsTests(SimpleTestCase):
             body,
         )
         self.assertNotIn("NOTA INTERNA", body)
+
+    @override_settings(NKATA_FRONTEND_URL="https://www.nkata.date")
+    @patch("entradas.access_email_notifications.send_branded_email")
+    def test_html_descreve_o_estado_verdadeiro_sem_notas_internas(self, mock_send):
+        for status, texto in (
+            ("APROVADO", "foi aprovado"),
+            ("PRECISA_CORRIGIR", "rever alguns dados"),
+            ("RECUSADO", "não foi aprovado"),
+            ("BLOQUEADO", "indisponível"),
+        ):
+            with self.subTest(status=status):
+                _send_status_email(self.pedido(status))
+                kwargs = mock_send.call_args.kwargs
+                self.assertIn(texto, " ".join(kwargs["paragraphs"]))
+                self.assertNotIn("NOTA INTERNA", " ".join(kwargs["paragraphs"]))
+        self.assertEqual(mock_send.call_count, 4)
 
     def test_recusa_nao_inclui_detalhes_internos(self):
         subject, body = build_access_status_email(self.pedido("RECUSADO"))

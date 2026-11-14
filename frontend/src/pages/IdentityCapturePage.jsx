@@ -8,8 +8,6 @@ import {
   LoaderCircle,
   LockKeyhole,
   ShieldCheck,
-  Smartphone,
-  Sun,
   UserRoundCheck,
 } from "lucide-react";
 import {
@@ -20,6 +18,7 @@ import {
 import {
   advanceNkataIdDetectionStability,
   fitNkataIdCaptureDimensions,
+  nkataIdCoverCrop,
   nkataIdCameraConstraints,
   optimizeNkataIdCameraTrack,
 } from "../services/nkataIdRuntime.js";
@@ -44,21 +43,14 @@ const CAPTURES = {
     help: "Evite sombras, dedos sobre o documento e reflexos.",
     facingMode: "environment",
     icon: FileImage,
-    stage: 1,
+    stage: 2,
   },
   selfie_ao_vivo: {
     title: "Faça uma selfie frontal",
     help: "Olhe diretamente para a câmara, sem óculos escuros ou filtros.",
     facingMode: "user",
     icon: UserRoundCheck,
-    stage: 2,
-  },
-  selfie_desafio: {
-    title: "Conclua o desafio ao vivo",
-    help: "Siga a instrução apresentada antes de tirar a fotografia.",
-    facingMode: "user",
-    icon: UserRoundCheck,
-    stage: 2,
+    stage: 3,
   },
 };
 
@@ -92,15 +84,18 @@ function frameFile(video, canvas, captureType, { maxSide, quality, suffix = "" }
   if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
     return Promise.resolve(null);
   }
+  const crop = captureType.startsWith("bi_")
+    ? nkataIdCoverCrop(video.videoWidth, video.videoHeight, video.clientWidth, video.clientHeight)
+    : { x: 0, y: 0, width: video.videoWidth, height: video.videoHeight };
   const dimensions = fitNkataIdCaptureDimensions(
-    video.videoWidth,
-    video.videoHeight,
+    crop.width,
+    crop.height,
     maxSide,
   );
   canvas.width = dimensions.width;
   canvas.height = dimensions.height;
   const context = canvas.getContext("2d", { alpha: false });
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  context.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
       if (!blob) {
@@ -126,6 +121,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   const previewControllerRef = useRef(null);
   const detectionStabilityRef = useRef({ captureType: "", count: 0 });
   const automaticCaptureRef = useRef(false);
+  const captureLockRef = useRef(false);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cameraStarting, setCameraStarting] = useState(false);
@@ -147,7 +143,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   const complete = Boolean(session?.capture_complete && session?.can_submit);
   const progress = useMemo(() => {
     const count = session?.completed_captures?.length || 0;
-    return Math.min(100, Math.round((count / 4) * 100));
+    return Math.min(100, Math.round((count / 3) * 100));
   }, [session?.completed_captures]);
 
   useEffect(() => {
@@ -187,6 +183,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   useEffect(() => {
     detectionStabilityRef.current = { captureType, count: 0 };
     automaticCaptureRef.current = false;
+    captureLockRef.current = false;
     setQualityMessages([]);
     setDetection({
       detected: false,
@@ -255,7 +252,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   }, [captureType, cameraActivated, complete, config?.facingMode]);
 
   const uploadCapture = async (file, requestedCaptureType, liveCaptureProof) => {
-    if (!file || uploading || !requestedCaptureType || !liveCaptureProof) return;
+    if (!file || uploading || !requestedCaptureType || !liveCaptureProof) return false;
     setUploading(true);
     stopPreviewAnalysis();
     setError("");
@@ -271,18 +268,14 @@ export default function IdentityCapturePage({ token, onExit }) {
         liveCaptureProof,
       });
       setSession(result);
-      if (result.capture_complete) {
-        stopStream(streamRef.current);
-        streamRef.current = null;
-        activeFacingModeRef.current = "";
-        setCameraReady(false);
-      }
+      return true;
     } catch (requestError) {
       const messages = requestError.payload?.quality?.messages || [];
       setQualityMessages(messages);
       setError(requestError.message || "Não foi possível analisar esta fotografia.");
       automaticCaptureRef.current = false;
       detectionStabilityRef.current = { captureType: requestedCaptureType, count: 0 };
+      return false;
     } finally {
       setUploading(false);
     }
@@ -291,12 +284,51 @@ export default function IdentityCapturePage({ token, onExit }) {
   const captureFrame = async (requestedCaptureType, liveCaptureProof) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || !video.videoWidth || uploading) return;
-    const file = await frameFile(video, canvas, requestedCaptureType, {
-      maxSide: MAX_CAPTURE_SIDE,
-      quality: CAPTURE_JPEG_QUALITY,
-    });
-    await uploadCapture(file, requestedCaptureType, liveCaptureProof);
+    if (!video || !canvas || !video.videoWidth || uploading || captureLockRef.current) return false;
+    captureLockRef.current = true;
+    try {
+      const file = await frameFile(video, canvas, requestedCaptureType, {
+        maxSide: MAX_CAPTURE_SIDE,
+        quality: CAPTURE_JPEG_QUALITY,
+      });
+      if (!file) {
+        setError("Não foi possível capturar a imagem. Mantenha a câmara ativa e tente novamente.");
+        automaticCaptureRef.current = false;
+        return false;
+      }
+      return await uploadCapture(file, requestedCaptureType, liveCaptureProof);
+    } finally {
+      captureLockRef.current = false;
+    }
+  };
+
+  const handleAssistedCapture = async () => {
+    if (!cameraReady || uploading || captureLockRef.current) return;
+    captureLockRef.current = true;
+    automaticCaptureRef.current = true;
+    stopPreviewAnalysis();
+    setUploading(true);
+    setError("");
+    setQualityMessages([]);
+    try {
+      const file = await frameFile(videoRef.current, canvasRef.current, captureType, {
+        maxSide: MAX_CAPTURE_SIDE, quality: CAPTURE_JPEG_QUALITY,
+      });
+      if (!file) throw new Error("Não foi possível fotografar. Tente novamente.");
+      const validation = await previewNkataIdCapture(token, captureType, file, { assisted: true });
+      if (!validation.live_capture_proof) throw new Error("Não foi possível validar a fotografia.");
+      const result = await uploadNkataIdCapture(token, captureType, file, {
+        liveCaptureProof: validation.live_capture_proof,
+        useAsProfilePhoto: captureType === "selfie_ao_vivo" && useAsProfilePhoto,
+      });
+      setSession(result);
+    } catch (requestError) {
+      setError(requestError.payload?.quality?.messages?.[0] || requestError.message || "Tente novamente.");
+    } finally {
+      captureLockRef.current = false;
+      automaticCaptureRef.current = false;
+      setUploading(false);
+    }
   };
 
   useEffect(() => {
@@ -326,7 +358,7 @@ export default function IdentityCapturePage({ token, onExit }) {
         const result = await previewNkataIdCapture(token, captureType, file, {
           signal: controller.signal,
         });
-        if (stopped) return;
+        if (stopped || captureLockRef.current || automaticCaptureRef.current) return;
         setDetection(result);
         const stability = advanceNkataIdDetectionStability(
           detectionStabilityRef.current,
@@ -337,7 +369,11 @@ export default function IdentityCapturePage({ token, onExit }) {
         if (stability.shouldCapture && result.live_capture_proof) {
           automaticCaptureRef.current = true;
           setDetection({ ...result, message: "Enquadramento confirmado. A capturar…" });
-          await captureFrame(captureType, result.live_capture_proof);
+          const succeeded = await captureFrame(captureType, result.live_capture_proof);
+          if (!succeeded) {
+            automaticCaptureRef.current = false;
+            schedule();
+          }
           return;
         }
         schedule();
@@ -365,6 +401,15 @@ export default function IdentityCapturePage({ token, onExit }) {
     };
   }, [cameraReady, captureType, uploading, complete, token]);
 
+  useEffect(() => {
+    if (!complete) return;
+    stopPreviewAnalysis();
+    stopStream(streamRef.current);
+    streamRef.current = null;
+    activeFacingModeRef.current = "";
+    setCameraReady(false);
+  }, [complete]);
+
   if (loading) {
     return (
       <main className="nk-id-mobile nk-id-mobile--center">
@@ -391,7 +436,7 @@ export default function IdentityCapturePage({ token, onExit }) {
       <main className="nk-id-mobile nk-id-mobile--center nk-id-mobile--success">
         <span className="nk-id-mobile__brand"><NkataLogo /> <strong>NKATA ID</strong></span>
         <span className="nk-id-success-icon"><CheckCircle2 size={42} /></span>
-        <small>IDENTIDADE RECEBIDA</small>
+        <small>TRÊS CAPTURAS RECEBIDAS</small>
         <h1>Capturas concluídas</h1>
         <p>
           {session.automatically_approved
@@ -401,17 +446,17 @@ export default function IdentityCapturePage({ token, onExit }) {
         <div className="nk-id-mobile__result">
           <strong>{session.status_label}</strong>
           <span><Check size={15} /> Documento protegido</span>
-          <span><Check size={15} /> Selfies recebidas</span>
+          <span><Check size={15} /> Selfie recebida</span>
         </div>
         <button type="button" className="nk-button nk-button--wine" onClick={onExit}>
-          Voltar ao pedido
+          Concluir
         </button>
       </main>
     );
   }
 
   const Icon = config?.icon || Camera;
-  const selfieChallenge = captureType === "selfie_desafio" ? session.selfie_challenge : "";
+
 
   return (
     <main className={`nk-id-mobile ${isSelfieCapture ? "nk-id-mobile--capture" : ""}`}>
@@ -428,7 +473,7 @@ export default function IdentityCapturePage({ token, onExit }) {
       <section className="nk-id-mobile__copy">
         <small>PASSO {config.stage} DE 3</small>
         <h1>{config.title}</h1>
-        <p>{selfieChallenge || config.help}</p>
+
       </section>
 
       <section className={`nk-id-camera ${config.facingMode === "user" ? "is-selfie" : "is-document"} ${cameraReady ? "has-live-video" : ""} ${detection.detected ? "has-detection" : ""} ${detection.ready ? "is-ready" : ""}`}>
@@ -452,19 +497,11 @@ export default function IdentityCapturePage({ token, onExit }) {
         {cameraReady && (
           <div className="nk-id-camera__status" role="status" aria-live="polite">
             <span />
-            {detection.message}
+            {uploading ? "A validar…" : detection.message}
           </div>
         )}
       </section>
       <canvas ref={canvasRef} hidden />
-
-      {!isSelfieCapture && (
-        <div className="nk-id-quality-hints">
-          <span><Sun size={15} /> Boa iluminação</span>
-          <span><Smartphone size={15} /> Telefone firme</span>
-          <span><Check size={15} /> Sem reflexos</span>
-        </div>
-      )}
 
       {captureType === "selfie_ao_vivo" && (
         <label className="nk-id-photo-choice">
@@ -494,13 +531,10 @@ export default function IdentityCapturePage({ token, onExit }) {
             {cameraStarting ? "A abrir…" : cameraActivated ? "Retomar câmara" : "Ativar câmara ao vivo"}
           </button>
         ) : (
-          <div className={`nk-id-auto-status ${detection.ready ? "is-ready" : ""}`}>
-            <LoaderCircle className={uploading ? "is-spinning" : "nk-id-scanner"} size={20} />
-            <span>
-              <strong>{uploading ? "A guardar captura" : "Deteção automática ativa"}</strong>
-              <small>{detection.message}</small>
-            </span>
-          </div>
+          <button type="button" className="nk-button nk-button--wine nk-id-assisted-capture" onClick={handleAssistedCapture} disabled={uploading}>
+            {uploading ? <LoaderCircle className="is-spinning" size={18} /> : <Camera size={18} />}
+            {uploading ? "A guardar…" : "Fotografar"}
+          </button>
         )}
       </footer>
     </main>

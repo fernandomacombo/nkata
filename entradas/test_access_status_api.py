@@ -46,6 +46,7 @@ class AccessStatusApiTests(TestCase):
                 "nome_completo": "Nova Pessoa",
                 "email": "nova@example.com",
                 "telefone": "+258850000000",
+                "numero_bi": "110100000001A",
                 "idade": 29,
                 "cidade": "Matola",
                 "genero": "MASCULINO",

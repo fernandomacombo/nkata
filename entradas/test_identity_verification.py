@@ -168,6 +168,38 @@ class NkataIdApiTests(TestCase):
         session = VerificacaoIdentidadeNKATA.objects.get(token=token)
         self.assertFalse(bool(session.bi_frente))
 
+    @patch("entradas.identity_api.inspect_identity_capture")
+    def test_assisted_capture_without_contour_binds_exact_image(self, inspect):
+        inspect.side_effect = lambda _upload, kind: accepted_result(kind)
+        token = self.create_session()["token"]
+        image = textured_image("manual.jpg")
+        raw = image.read()
+        image.seek(0)
+        response = self.client.post(
+            f"/api/nkata-id/sessoes/{token}/previsualizacao/bi_frente/",
+            {"imagem": image, "assisted": "true"},
+        )
+        self.assertEqual(response.status_code, 200, response.json())
+        proof = response.json()["live_capture_proof"]
+        url = f"/api/nkata-id/sessoes/{token}/capturas/bi_frente/"
+        rejected = self.client.post(url, {"imagem": textured_image("different.jpg", 800, 600), "live_capture_proof": proof})
+        self.assertEqual(rejected.status_code, 400)
+        accepted = self.client.post(url, {"imagem": SimpleUploadedFile("manual.jpg", raw, content_type="image/jpeg"), "live_capture_proof": proof})
+        self.assertEqual(accepted.status_code, 200, accepted.json())
+        self.assertEqual(accepted.json()["current_capture"], "bi_verso")
+
+    @patch("entradas.identity_api.inspect_identity_capture")
+    def test_assisted_bad_quality_has_no_proof(self, inspect):
+        inspect.return_value = {"accepted": False, "messages": ["Melhore a luz."]}
+        token = self.create_session()["token"]
+        response = self.client.post(
+            f"/api/nkata-id/sessoes/{token}/previsualizacao/bi_frente/",
+            {"imagem": textured_image("manual.jpg"), "assisted": "true"},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("live_capture_proof", response.json())
+        self.assertFalse(VerificacaoIdentidadeNKATA.objects.get(token=token).bi_frente)
+
     def test_final_capture_rejects_file_without_live_camera_proof(self):
         payload = self.create_session()
         response = self.client.post(
@@ -187,16 +219,34 @@ class NkataIdApiTests(TestCase):
             "bi_frente",
             "bi_verso",
             "selfie_ao_vivo",
-            "selfie_desafio",
         ):
             response = self.capture(token, capture_type)
             self.assertEqual(response.status_code, 200, response.json())
 
         result = response.json()
         self.assertTrue(result["capture_complete"])
+        self.assertEqual(len(result["completed_captures"]), 3)
         self.assertTrue(result["can_submit"])
         self.assertEqual(result["status"], "REVISAO")
-        self.assertTrue(result["liveness_confirmed"])
+        self.assertFalse(result["liveness_confirmed"])
+
+    @patch("entradas.identity_api.inspect_identity_capture")
+    def test_third_capture_finishes_without_extra_selfie(self, inspect):
+        inspect.side_effect = lambda _upload, kind: accepted_result(kind)
+        data = self.create_session(email="tres-capturas@example.com")
+        token = data["token"]
+        for capture_type in ("bi_frente", "bi_verso"):
+            response = self.capture(token, capture_type)
+            self.assertEqual(response.status_code, 200, response.json())
+            self.assertFalse(response.json()["capture_complete"])
+        response = self.capture(token, "selfie_ao_vivo")
+        self.assertEqual(response.status_code, 200, response.json())
+        result = response.json()
+        self.assertTrue(result["capture_complete"])
+        self.assertTrue(result["can_submit"])
+        self.assertEqual(result["current_capture"], "concluida")
+        self.assertEqual(result["status"], "REVISAO")
+        self.assertFalse(result["liveness_confirmed"])
 
     def test_low_quality_image_is_rejected_with_actionable_feedback(self):
         uniform = BytesIO()
@@ -281,6 +331,7 @@ class NkataIdApiTests(TestCase):
                 "nome_completo": "Pessoa Novo Fluxo",
                 "email": "novo-fluxo@example.com",
                 "telefone": "+258840000001",
+                "numero_bi": "110100000001A",
                 "idade": 29,
                 "cidade": "Vilankulo",
                 "genero": "FEMININO",
@@ -394,11 +445,12 @@ class NkataIdApiTests(TestCase):
 
 class NkataIdDecisionTests(TestCase):
     @patch("entradas.identity_verification_service._aws_face_similarity")
-    def test_high_confidence_provider_can_approve_automatically(self, similarity):
+    def test_face_similarity_and_two_photos_do_not_prove_liveness(self, similarity):
         similarity.return_value = Decimal("96.40")
+        # Even old sessions with two different selfies require human review.
         checks = {
             capture_type: accepted_result(capture_type)
-            for capture_type in VerificacaoIdentidadeNKATA.CAPTURE_FIELDS
+            for capture_type in (*VerificacaoIdentidadeNKATA.CAPTURE_FIELDS, "selfie_desafio")
         }
         verification = VerificacaoIdentidadeNKATA.objects.create(
             email_hash=identity_email_hash("automatic@example.com"),
@@ -413,9 +465,10 @@ class NkataIdDecisionTests(TestCase):
         )
         finalize_identity_analysis(verification)
         verification.refresh_from_db()
-        self.assertEqual(verification.status, "APROVADA")
-        self.assertEqual(verification.decisao_origem, "AUTOMATICA")
-        self.assertEqual(verification.risco, "BAIXO")
+        self.assertEqual(verification.status, "REVISAO")
+        self.assertEqual(verification.decisao_origem, "")
+        self.assertFalse(verification.vivacidade_confirmada)
+        self.assertEqual(verification.risco, "MEDIO")
 
     def test_public_badge_uses_nkata_id_decision_when_present(self):
         pedido = PedidoEntrada.objects.create(

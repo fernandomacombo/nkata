@@ -10,24 +10,25 @@ import {
   Volume2,
   WalletCards,
 } from "lucide-react";
-import { fetchMyPlan } from "../../services/planApi.js";
+import { fetchMyPlan, fetchPayments, createPayment } from "../../services/planApi.js";
 
 const planIcon = {
   LIVRE: Sparkles,
   ESSENCIAL: Gem,
+  QUINZENAL: Gem,
   PREMIUM: Crown,
 };
 
 function planLabel(plan, english) {
   if (!english) return plan?.label;
-  return ({ LIVRE: "Free", ESSENCIAL: "Essential", PREMIUM: "Premium" })[plan?.code] || plan?.label;
+  return ({ LIVRE: "Free", ESSENCIAL: "Essential", PREMIUM: "Premium", QUINZENAL: "Fortnightly" })[plan?.code] || plan?.label;
 }
 
 function featureLabels(plan, english) {
   const features = plan?.features || {};
   const labels = [
     `${plan?.daily_signal_limit || 0} ${english ? "signals per day" : "sinais por dia"}`,
-    english ? "Text chat after a match" : "Chat de texto após match",
+    features.chat_text ? (english ? "Text chat after a match" : "Mensagens livres após match") : (english ? "Preset messages after a match" : "Mensagens predefinidas após match"),
   ];
   if (features.chat_audio) labels.push(english ? "Audio in chat" : "Áudio no chat");
   if (features.chat_video) labels.push(english ? "Video in chat" : "Vídeo no chat");
@@ -43,6 +44,47 @@ export default function PlanPanel({ language = "PT" }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [payments, setPayments] = useState([]);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState("");
+
+  const loadPayments = useCallback(async () => {
+    try { setPayments((await fetchPayments()).results || []); }
+    catch (failure) { setPaymentMessage(failure.message); }
+  }, []);
+
+  useEffect(() => { loadPayments(); }, [loadPayments]);
+
+  async function buy(product) {
+    const existing = payments.find((order) => ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status));
+    if (existing) {
+      if (existing.product === product && existing.checkout_url) {
+        window.location.assign(existing.checkout_url);
+        return;
+      }
+      setPaymentMessage(english
+        ? "You already have a payment awaiting confirmation. Review it below before starting another purchase."
+        : "Já existe um pagamento por confirmar. Consulte-o abaixo antes de iniciar outra compra.");
+      document.getElementById("nkata-payment-history")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    setPaymentBusy(true);
+    setPaymentMessage("");
+    const storageKey = `nkata-checkout-${product}`;
+    try {
+      let key = sessionStorage.getItem(storageKey);
+      if (!key) { key = crypto.randomUUID(); sessionStorage.setItem(storageKey, key); }
+      const order = await createPayment(product, key);
+      sessionStorage.removeItem(storageKey);
+      await loadPayments();
+      if (order.checkout_url) window.location.assign(order.checkout_url);
+      else setPaymentMessage(english ? "Check the payment status below." : "Consulte o estado do pagamento abaixo.");
+    } catch (failure) {
+      setPaymentMessage(failure.message || (english ? "Could not start payment." : "Não foi possível iniciar o pagamento."));
+      await loadPayments();
+      document.getElementById("nkata-payment-history")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } finally { setPaymentBusy(false); }
+  }
 
   const load = useCallback(async ({ signal } = {}) => {
     setLoading(true);
@@ -109,6 +151,9 @@ export default function PlanPanel({ language = "PT" }) {
           <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
         </button>
       </header>
+      <p>{english
+        ? "Calls require an active Essential or Premium plan for both people. Renewals are manual. A different plan can be selected when the current one expires."
+        : "As chamadas exigem Essencial ou Premium ativo nas duas contas. A renovação é manual. Pode escolher outro plano quando o atual terminar."}</p>
 
       <div className="nk-plan-current">
         <div className="nk-plan-current__identity">
@@ -117,6 +162,7 @@ export default function PlanPanel({ language = "PT" }) {
             <small>{english ? "Current plan" : "Plano atual"}</small>
             <strong>{planLabel(current, english)}</strong>
             <em>{current.paid ? (english ? "Paid plan" : "Plano pago") : (english ? "Free access" : "Acesso gratuito")}</em>
+            {current.expires_at && <small>{english ? "Valid until: " : "Válido até: "}{new Date(current.expires_at).toLocaleString(english ? "en-GB" : "pt-PT")}</small>}
           </div>
         </div>
 
@@ -145,27 +191,32 @@ export default function PlanPanel({ language = "PT" }) {
         </div>
       </div>
 
-      <div className="nk-plan-catalog">
-        {data.available_plans.map((plan) => {
+      <div className="nk-plan-catalog" aria-label={english ? "Subscription plans, swipe to compare" : "Planos de subscrição, deslize para comparar"}>
+        {[...data.available_plans].sort((a, b) => ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[a.code] ?? 9) - ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[b.code] ?? 9)).map((plan) => {
           const Icon = planIcon[plan.code] || Sparkles;
           const active = plan.code === current.code;
           return (
-            <article key={plan.code} className={`nk-plan-card ${active ? "is-current" : ""}`}>
+            <article key={plan.code} className={`nk-plan-card ${active ? "is-current" : ""} ${plan.code === "ESSENCIAL" ? "is-popular" : ""}`}>
               <div className="nk-plan-card__top">
                 <span><Icon size={21} /></span>
-                {active && <em>{english ? "Current" : "Atual"}</em>}
+                <div className="nk-plan-card__badges">
+                  {plan.code === "ESSENCIAL" && <em className="nk-plan-card__popular">{english ? "Most popular" : "Mais popular"}</em>}
+                  {active && <em>{english ? "Current" : "Atual"}</em>}
+                </div>
               </div>
               <h3>{planLabel(plan, english)}</h3>
               <strong className="nk-plan-card__price">
-                {plan.code === "LIVRE" ? "0 MT" : plan.price_status}
+                {plan.code === "LIVRE" ? "0 MT" : `${plan.price_status} / ${plan.duration_days} ${english ? "days" : "dias"}`}
               </strong>
               <ul>
                 {featureLabels(plan, english).map((feature) => (
                   <li key={feature}><Check size={15} /> {feature}</li>
                 ))}
               </ul>
-              <button type="button" disabled>
-                {active ? (english ? "Current" : "Atual") : (english ? "Coming soon" : "Em breve")}
+              <button type="button"
+                disabled={!data.payments_enabled || !plan.paid || paymentBusy || (current.paid && !active)}
+                onClick={() => buy(plan.code)}>
+                {!plan.paid ? (english ? "Free" : "Gratuito") : !data.payments_enabled ? (english ? "Coming soon" : "Em breve") : active ? (english ? `Renew for ${plan.duration_days} days` : `Renovar por ${plan.duration_days} dias`) : (english ? "Choose plan" : "Escolher plano")}
               </button>
             </article>
           );
@@ -182,15 +233,36 @@ export default function PlanPanel({ language = "PT" }) {
         </div>
         <div className="nk-recharge-panel__packs">
           {recharge.packs.map((pack) => (
-            <button type="button" key={pack.credits} disabled>
+            <button type="button" key={pack.credits} disabled={!data.payments_enabled || paymentBusy} onClick={() => buy(`RECARGA${pack.credits}`)}>
               <Images size={16} />
               <strong>+{pack.credits}</strong>
               <span>{pack.price_status}</span>
             </button>
           ))}
         </div>
-        <small>{english ? "Payments are not available yet." : "Pagamentos ainda não disponíveis."}</small>
+        <small>{english ? "Plans last 14 or 30 days. No automatic charge. Top-ups do not unlock paid features." : "Planos válidos por 14 ou 30 dias. Sem cobrança automática. Recargas não desbloqueiam recursos pagos."}</small>
+        {!data.payments_enabled && <small>{english ? "Payments are not available yet." : "Pagamentos ainda não disponíveis."}</small>}
       </div>
+      <section id="nkata-payment-history" aria-label={english ? "NKATA payments" : "Pagamentos NKATA"}>
+        <h3>{english ? "NKATA payment history" : "Histórico de pagamentos NKATA"}</h3>
+        <p>{english ? "Benefits activate only after payment confirmation." : "Os benefícios são ativados apenas após confirmação do pagamento."}</p>
+        {payments.some((order) => ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status)) && (
+          <p role="status">{english ? "A payment is pending. Continue it before choosing another plan." : "Existe um pagamento pendente. Continue-o antes de escolher outro plano."}</p>
+        )}
+        {paymentMessage && <p role="status">{paymentMessage}</p>}
+        {payments.map((order) => (
+          <article key={order.id} className="nk-plan-card">
+            <strong>{order.product} · {order.amount_mzn} MT</strong>
+            <small>{order.reference}</small>
+            <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
+            {order.checkout_url && !["PAGO", "FALHOU"].includes(order.status) && (
+              <a className="nk-plan-payment-continue" href={order.checkout_url}>
+                {english ? "Continue payment" : "Continuar pagamento"}
+              </a>
+            )}
+          </article>
+        ))}
+      </section>
     </section>
   );
 }
