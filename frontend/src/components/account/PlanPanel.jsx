@@ -191,15 +191,18 @@ export default function PlanPanel({ language = "PT" }) {
         </div>
       </div>
 
-      <div className="nk-plan-catalog">
-        {data.available_plans.map((plan) => {
+      <div className="nk-plan-catalog" aria-label={english ? "Subscription plans, swipe to compare" : "Planos de subscrição, deslize para comparar"}>
+        {[...data.available_plans].sort((a, b) => ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[a.code] ?? 9) - ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[b.code] ?? 9)).map((plan) => {
           const Icon = planIcon[plan.code] || Sparkles;
           const active = plan.code === current.code;
           return (
-            <article key={plan.code} className={`nk-plan-card ${active ? "is-current" : ""}`}>
+            <article key={plan.code} className={`nk-plan-card ${active ? "is-current" : ""} ${plan.code === "ESSENCIAL" ? "is-popular" : ""}`}>
               <div className="nk-plan-card__top">
                 <span><Icon size={21} /></span>
-                {active && <em>{english ? "Current" : "Atual"}</em>}
+                <div className="nk-plan-card__badges">
+                  {plan.code === "ESSENCIAL" && <em className="nk-plan-card__popular">{english ? "Most popular" : "Mais popular"}</em>}
+                  {active && <em>{english ? "Current" : "Atual"}</em>}
+                </div>
               </div>
               <h3>{planLabel(plan, english)}</h3>
               <strong className="nk-plan-card__price">
