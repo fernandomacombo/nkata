@@ -61,7 +61,7 @@ def api_paysuite_webhook(request):
     if len(raw) > 16384:
         return Response(status=413)
     expected = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, request.headers.get("X-Signature", "")):
+    if not hmac.compare_digest(expected, request.headers.get("X-Webhook-Signature", "")):
         return Response(status=403)
     try:
         payload = json.loads(raw)
