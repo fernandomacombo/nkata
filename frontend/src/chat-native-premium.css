@@ -369,3 +369,18 @@
     animation: none;
   }
 }
+
+/* Paid-plan emoji picker within the chat composer. */
+.nk-emoji-control { position: relative; flex: 0 0 auto; }
+.nk-emoji-trigger { display: grid; place-items: center; min-width: 40px; min-height: 44px; border: 0; border-radius: 12px; background: transparent; font-size: 23px; cursor: pointer; }
+.nk-emoji-trigger:focus-visible { outline: 2px solid var(--nk-wine); outline-offset: 2px; }
+.nk-emoji-picker {
+  position: absolute; z-index: 30; bottom: calc(100% + 12px); right: 0;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: 220px;
+  max-width: calc(100vw - 24px); padding: 8px; border: 1px solid var(--nk-line);
+  border-radius: 16px; background: #fffdfa; box-shadow: 0 12px 35px #0002;
+}
+.nk-emoji-picker button { display: grid; place-items: center; min-height: 42px; border: 0; border-radius: 9px; background: transparent; font-size: 23px; cursor: pointer; }
+.nk-emoji-picker button:hover,.nk-emoji-picker button:focus-visible { background: #f3e6e8; }
+.nk-chat-dock .nk-composer { grid-template-columns: auto minmax(0,1fr) auto auto auto; }
+@media(max-width: 600px) { .nk-emoji-trigger { min-width: 36px; } .nk-chat-dock .nk-composer { gap: 4px; } }

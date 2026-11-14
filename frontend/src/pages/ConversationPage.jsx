@@ -208,6 +208,8 @@ export default function ConversationPage({
 }) {
   const english = useInterfaceLanguage() === "EN";
   const [draft, setDraft] = useState("");
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const chatEmojis = [String.fromCodePoint(0x1F60A), String.fromCodePoint(0x2764, 0xFE0F), String.fromCodePoint(0x1F970), String.fromCodePoint(0x1F60D), String.fromCodePoint(0x1F602), String.fromCodePoint(0x1F618), String.fromCodePoint(0x1F495), String.fromCodePoint(0x1F44B), String.fromCodePoint(0x1F44D), String.fromCodePoint(0x1F64F), String.fromCodePoint(0x1F339), String.fromCodePoint(0x2728), String.fromCodePoint(0x1F389), String.fromCodePoint(0x1F917), String.fromCodePoint(0x1F60E), String.fromCodePoint(0x1F4AC)];
   const [menuOpen, setMenuOpen] = useState(false);
   const [safetyMode, setSafetyMode] = useState("");
   const [safetyLoading, setSafetyLoading] = useState(false);
@@ -811,6 +813,20 @@ export default function ConversationPage({
                 />}
               </label>
 
+              {textEnabled && (
+                <div className="nk-emoji-control">
+                  <button type="button" className="nk-emoji-trigger" aria-label={english ? "Choose emoji" : "Escolher emoji"} aria-expanded={emojiPickerOpen} onClick={() => setEmojiPickerOpen((open) => !open)}><span aria-hidden="true">{String.fromCodePoint(0x1F60A)}</span></button>
+                  {emojiPickerOpen && <div className="nk-emoji-picker" role="group" aria-label={english ? "Emoji" : "Emojis"}>
+                    {chatEmojis.map((emoji) => (
+                      <button key={emoji} type="button" aria-label={emoji} onClick={() => {
+                        setDraft((current) => (current + emoji).slice(0, 1200));
+                        setEmojiPickerOpen(false);
+                        composerTextareaRef.current?.focus();
+                      }}>{emoji}</button>
+                    ))}
+                  </div>}
+                </div>
+              )}
               {textEnabled && <span className="nk-composer__count">{draft.length}/1200</span>}
 
               <button

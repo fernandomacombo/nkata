@@ -56,6 +56,18 @@ export default function PlanPanel({ language = "PT" }) {
   useEffect(() => { loadPayments(); }, [loadPayments]);
 
   async function buy(product) {
+    const existing = payments.find((order) => ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status));
+    if (existing) {
+      if (existing.product === product && existing.checkout_url) {
+        window.location.assign(existing.checkout_url);
+        return;
+      }
+      setPaymentMessage(english
+        ? "You already have a payment awaiting confirmation. Review it below before starting another purchase."
+        : "Já existe um pagamento por confirmar. Consulte-o abaixo antes de iniciar outra compra.");
+      document.getElementById("nkata-payment-history")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     setPaymentBusy(true);
     setPaymentMessage("");
     const storageKey = `nkata-checkout-${product}`;
@@ -67,8 +79,11 @@ export default function PlanPanel({ language = "PT" }) {
       await loadPayments();
       if (order.checkout_url) window.location.assign(order.checkout_url);
       else setPaymentMessage(english ? "Check the payment status below." : "Consulte o estado do pagamento abaixo.");
-    } catch (failure) { setPaymentMessage(failure.message); await loadPayments(); }
-    finally { setPaymentBusy(false); }
+    } catch (failure) {
+      setPaymentMessage(failure.message || (english ? "Could not start payment." : "Não foi possível iniciar o pagamento."));
+      await loadPayments();
+      document.getElementById("nkata-payment-history")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } finally { setPaymentBusy(false); }
   }
 
   async function verifyPayment(order) {
@@ -191,15 +206,18 @@ export default function PlanPanel({ language = "PT" }) {
         </div>
       </div>
 
-      <div className="nk-plan-catalog">
-        {data.available_plans.map((plan) => {
+      <div className="nk-plan-catalog" aria-label={english ? "Subscription plans, swipe to compare" : "Planos de subscrição, deslize para comparar"}>
+        {[...data.available_plans].sort((a, b) => ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[a.code] ?? 9) - ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[b.code] ?? 9)).map((plan) => {
           const Icon = planIcon[plan.code] || Sparkles;
           const active = plan.code === current.code;
           return (
-            <article key={plan.code} className={`nk-plan-card ${active ? "is-current" : ""}`}>
+            <article key={plan.code} className={`nk-plan-card ${active ? "is-current" : ""} ${plan.code === "ESSENCIAL" ? "is-popular" : ""}`}>
               <div className="nk-plan-card__top">
                 <span><Icon size={21} /></span>
-                {active && <em>{english ? "Current" : "Atual"}</em>}
+                <div className="nk-plan-card__badges">
+                  {plan.code === "ESSENCIAL" && <em className="nk-plan-card__popular">{english ? "Most popular" : "Mais popular"}</em>}
+                  {active && <em>{english ? "Current" : "Atual"}</em>}
+                </div>
               </div>
               <h3>{planLabel(plan, english)}</h3>
               <strong className="nk-plan-card__price">
@@ -240,9 +258,12 @@ export default function PlanPanel({ language = "PT" }) {
         <small>{english ? "Plans last 14 or 30 days. No automatic charge. Top-ups do not unlock paid features." : "Planos válidos por 14 ou 30 dias. Sem cobrança automática. Recargas não desbloqueiam recursos pagos."}</small>
         {!data.payments_enabled && <small>{english ? "Payments are not available yet." : "Pagamentos ainda não disponíveis."}</small>}
       </div>
-      <section aria-label={english ? "NKATA payments" : "Pagamentos NKATA"}>
+      <section id="nkata-payment-history" aria-label={english ? "NKATA payments" : "Pagamentos NKATA"}>
         <h3>{english ? "NKATA payment history" : "Histórico de pagamentos NKATA"}</h3>
         <p>{english ? "Benefits activate only after payment confirmation." : "Os benefícios são ativados apenas após confirmação do pagamento."}</p>
+        {payments.some((order) => ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status)) && (
+          <p role="status">{english ? "A payment is awaiting confirmation. Continue or verify it before buying another plan." : "Existe um pagamento por confirmar. Continue ou verifique esse pedido antes de escolher outro plano."}</p>
+        )}
         {paymentMessage && <p role="status">{paymentMessage}</p>}
         {payments.map((order) => (
           <article key={order.id} className="nk-plan-card">
