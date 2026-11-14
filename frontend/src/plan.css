@@ -393,3 +393,36 @@
     transition: none;
   }
 }
+
+/* One ordered, non-wrapping pricing rail for four plans. */
+.nk-plan-catalog {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 6px 2px 16px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 38, 56, .4) transparent;
+}
+.nk-plan-catalog .nk-plan-card {
+  flex: 0 0 clamp(205px, 26%, 245px);
+  min-width: 205px;
+  scroll-snap-align: start;
+  padding: 16px;
+  border-radius: 18px;
+}
+.nk-plan-card.is-popular {
+  border: 2px solid var(--nk-wine);
+  background: #fffaf9;
+}
+.nk-plan-card__badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.nk-plan-card__top .nk-plan-card__badges em { font-size: .58rem; }
+.nk-plan-card__top .nk-plan-card__badges .nk-plan-card__popular { background: #f4dfe5; color: var(--nk-wine); }
+.nk-plan-catalog .nk-plan-card h3 { font-size: 1.12rem; }
+.nk-plan-catalog .nk-plan-card li { font-size: .72rem; }
+@media (max-width: 820px) {
+  .nk-plan-catalog { flex-wrap: nowrap; margin-inline: -16px; padding-inline: 16px; scrollbar-width: thin; }
+  .nk-plan-catalog .nk-plan-card { width: auto; flex: 0 0 min(77vw, 260px); min-width: 210px; }
+}
