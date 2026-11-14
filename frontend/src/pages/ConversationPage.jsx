@@ -213,6 +213,7 @@ export default function ConversationPage({
   const [safetyLoading, setSafetyLoading] = useState(false);
   const [safetyError, setSafetyError] = useState("");
   const [safetyStatus, setSafetyStatus] = useState("");
+  const [textEnabled, setTextEnabled] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [audioPlanLabel, setAudioPlanLabel] = useState("NKATA Livre");
   const [audioNotice, setAudioNotice] = useState("");
@@ -303,6 +304,7 @@ export default function ConversationPage({
       .then((payload) => {
         const currentPlan = payload?.current_plan || {};
         setAudioEnabled(Boolean(currentPlan?.features?.chat_audio));
+        setTextEnabled(Boolean(currentPlan?.features?.chat_text));
         setAudioPlanLabel(currentPlan?.label || "NKATA Livre");
       })
       .catch(() => {
@@ -782,7 +784,7 @@ export default function ConversationPage({
                 className={`nk-composer__mic ${audioEnabled ? "" : "is-locked"}`}
                 onClick={startRecording}
                 aria-label={audioEnabled ? (english ? "Record voice note" : "Gravar nota de voz") : (english ? "Voice notes require a paid plan" : "Notas de voz exigem plano pago")}
-                title={audioEnabled ? (english ? "Record voice note" : "Gravar nota de voz") : "NKATA Essential or Premium"}
+                title={audioEnabled ? (english ? "Record voice note" : "Gravar nota de voz") : "NKATA Fortnightly, Essential or Premium"}
               >
                 <Mic size={20} />
                 {!audioEnabled && <LockKeyhole className="nk-composer__mic-lock" size={10} />}
@@ -790,7 +792,10 @@ export default function ConversationPage({
 
               <label>
                 <span className="sr-only">{english ? "Message" : "Mensagem"}</span>
-                <textarea
+                {!textEnabled ? <select value={draft} onChange={(event) => setDraft(event.target.value)} aria-label={english ? "Preset message" : "Mensagem predefinida"} disabled={sending}>
+                  <option value="">{english ? "Choose a message" : "Escolha uma mensagem"}</option>
+                  {(english ? ["Hello, how are you?", "Hello, I enjoyed reading your profile. How are you?", "I would like to learn more about your interests.", "Thank you for your interest!"] : ["Olá, tudo bem?", "Olá, gostei de conhecer o seu perfil. Como está?", "Gostaria de conhecer melhor os seus interesses.", "Obrigado pelo seu interesse!"]).map((phrase) => <option key={phrase} value={phrase}>{phrase}</option>)}
+                </select> : <textarea
                   ref={composerTextareaRef}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value.slice(0, 1200))}
@@ -803,10 +808,10 @@ export default function ConversationPage({
                       handleSubmit(event);
                     }
                   }}
-                />
+                />}
               </label>
 
-              <span className="nk-composer__count">{draft.length}/1200</span>
+              {textEnabled && <span className="nk-composer__count">{draft.length}/1200</span>}
 
               <button
                 type="submit"

@@ -1,3 +1,4 @@
+from .plan_service import can_send_chat_text
 from PIL import Image, UnidentifiedImageError
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -753,6 +754,9 @@ def api_conversa_match(request, match_id):
                 {"detail": "A mensagem deve ter no máximo 1200 caracteres."},
                 status=400,
             )
+
+        if not can_send_chat_text(request.user, texto):
+            return Response({"detail": "No plano Livre, escolha uma mensagem predefinida. Ative um pacote para escrever livremente.", "code": "paid_plan_required_for_chat_text"}, status=403)
 
         mensagem = MensagemMatch.objects.create(
             match=match,

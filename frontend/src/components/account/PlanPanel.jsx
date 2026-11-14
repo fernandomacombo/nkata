@@ -15,19 +15,20 @@ import { fetchMyPlan, fetchPayments, createPayment, checkPayment } from "../../s
 const planIcon = {
   LIVRE: Sparkles,
   ESSENCIAL: Gem,
+  QUINZENAL: Gem,
   PREMIUM: Crown,
 };
 
 function planLabel(plan, english) {
   if (!english) return plan?.label;
-  return ({ LIVRE: "Free", ESSENCIAL: "Essential", PREMIUM: "Premium" })[plan?.code] || plan?.label;
+  return ({ LIVRE: "Free", ESSENCIAL: "Essential", PREMIUM: "Premium", QUINZENAL: "Fortnightly" })[plan?.code] || plan?.label;
 }
 
 function featureLabels(plan, english) {
   const features = plan?.features || {};
   const labels = [
     `${plan?.daily_signal_limit || 0} ${english ? "signals per day" : "sinais por dia"}`,
-    english ? "Text chat after a match" : "Chat de texto após match",
+    features.chat_text ? (english ? "Text chat after a match" : "Mensagens livres após match") : (english ? "Preset messages after a match" : "Mensagens predefinidas após match"),
   ];
   if (features.chat_audio) labels.push(english ? "Audio in chat" : "Áudio no chat");
   if (features.chat_video) labels.push(english ? "Video in chat" : "Vídeo no chat");
@@ -202,7 +203,7 @@ export default function PlanPanel({ language = "PT" }) {
               </div>
               <h3>{planLabel(plan, english)}</h3>
               <strong className="nk-plan-card__price">
-                {plan.code === "LIVRE" ? "0 MT" : `${plan.price_status} / 30 ${english ? "days" : "dias"}`}
+                {plan.code === "LIVRE" ? "0 MT" : `${plan.price_status} / ${plan.duration_days} ${english ? "days" : "dias"}`}
               </strong>
               <ul>
                 {featureLabels(plan, english).map((feature) => (
@@ -212,7 +213,7 @@ export default function PlanPanel({ language = "PT" }) {
               <button type="button"
                 disabled={!data.payments_enabled || !plan.paid || paymentBusy || (current.paid && !active)}
                 onClick={() => buy(plan.code)}>
-                {!plan.paid ? (english ? "Free" : "Gratuito") : !data.payments_enabled ? (english ? "Coming soon" : "Em breve") : active ? (english ? "Renew for 30 days" : "Renovar por 30 dias") : (english ? "Choose plan" : "Escolher plano")}
+                {!plan.paid ? (english ? "Free" : "Gratuito") : !data.payments_enabled ? (english ? "Coming soon" : "Em breve") : active ? (english ? `Renew for ${plan.duration_days} days` : `Renovar por ${plan.duration_days} dias`) : (english ? "Choose plan" : "Escolher plano")}
               </button>
             </article>
           );
@@ -236,7 +237,7 @@ export default function PlanPanel({ language = "PT" }) {
             </button>
           ))}
         </div>
-        <small>{english ? "Plans last 30 days. No automatic charge. Top-ups do not unlock paid features." : "Planos válidos por 30 dias. Sem cobrança automática. Recargas não desbloqueiam recursos pagos."}</small>
+        <small>{english ? "Plans last 14 or 30 days. No automatic charge. Top-ups do not unlock paid features." : "Planos válidos por 14 ou 30 dias. Sem cobrança automática. Recargas não desbloqueiam recursos pagos."}</small>
         {!data.payments_enabled && <small>{english ? "Payments are not available yet." : "Pagamentos ainda não disponíveis."}</small>}
       </div>
       <section aria-label={english ? "NKATA payments" : "Pagamentos NKATA"}>

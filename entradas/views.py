@@ -1,3 +1,4 @@
+from .plan_service import can_send_chat_text
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -836,6 +837,10 @@ def conversa_match(request, match_id):
 
         if len(texto) > 1200:
             messages.error(request, "A mensagem é muito longa.")
+            return redirect("entradas:conversa_match", match_id=match.id)
+
+        if not can_send_chat_text(request.user, texto):
+            messages.error(request, "Escolha uma mensagem predefinida ou ative um pacote para escrever livremente.")
             return redirect("entradas:conversa_match", match_id=match.id)
 
         MensagemMatch.objects.create(

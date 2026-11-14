@@ -68,6 +68,8 @@ def _moment_payload(request, momento):
         "id": momento.id,
         "profile": _profile_payload(request, momento.perfil),
         "text": momento.texto,
+        "theme": momento.tema,
+        "font": momento.fonte,
         "media_url": media_url,
         "media_type": momento.tipo_media,
         "visibility": momento.visibilidade,
@@ -271,10 +273,17 @@ def api_momentos(request):
             status=400,
         )
 
-    caption_code = str(request.data.get("caption", "SEM_LEGENDA") or "SEM_LEGENDA").upper()
+    caption_code = str(request.data.get("caption", request.data.get("legenda", "SEM_LEGENDA")) or "SEM_LEGENDA").upper()
     caption = CAPTION_BY_CODE.get(caption_code)
     if not caption:
         return Response({"caption": ["Escolha uma frase NKATA válida."]}, status=400)
+
+    theme = str(request.data.get("theme", "wine"))
+    font = str(request.data.get("font", "serif"))
+    if theme not in {"wine", "forest", "midnight", "sand"} or font not in {"serif", "sans", "italic"}:
+        return Response({"detail": "Escolha um estilo de Momento válido."}, status=400)
+    if not request.FILES.get("media") and not caption["text"]:
+        return Response({"detail": "Escolha uma frase ou adicione uma foto ou vídeo."}, status=400)
 
     visibility = str(request.data.get("visibilidade", "TODOS") or "TODOS").upper()
     if visibility not in VALID_VISIBILITIES:
@@ -287,7 +296,7 @@ def api_momentos(request):
     if media and not capabilities["media_enabled"]:
         return Response(
             {
-                "detail": "Fotografias e vídeos nos Momentos exigem NKATA Essencial ou Premium.",
+                "detail": "Fotografias e vídeos nos Momentos exigem NKATA Quinzenal, Essencial ou Premium.",
                 "code": "paid_plan_required_for_status_media",
                 "capabilities": capabilities,
             },
@@ -312,6 +321,8 @@ def api_momentos(request):
             usuario=request.user,
             perfil=perfil,
             texto=caption["text"],
+            tema=theme,
+            fonte=font,
             visibilidade=visibility,
             tipo_media=media_type or "TEXTO",
             media=media,

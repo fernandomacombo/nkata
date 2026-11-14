@@ -42,6 +42,8 @@ class MomentoNKATA(models.Model):
     # O texto é preenchido apenas a partir de frases predefinidas no backend.
     # Texto livre não é aceite pela API dos Momentos.
     texto = models.CharField(max_length=500, blank=True)
+    tema = models.CharField(max_length=16, default="wine")
+    fonte = models.CharField(max_length=16, default="serif")
     media = models.FileField(
         storage=private_content_storage,
         upload_to="moments/%Y/%m/%d/",
