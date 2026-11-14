@@ -10,7 +10,7 @@ import {
   Volume2,
   WalletCards,
 } from "lucide-react";
-import { fetchMyPlan, fetchPayments, createPayment, checkPayment, closePaymentIfTerminal } from "../../services/planApi.js";
+import { fetchMyPlan, fetchPayments, createPayment } from "../../services/planApi.js";
 
 const planIcon = {
   LIVRE: Sparkles,
@@ -84,38 +84,6 @@ export default function PlanPanel({ language = "PT" }) {
       await loadPayments();
       document.getElementById("nkata-payment-history")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } finally { setPaymentBusy(false); }
-  }
-
-  async function verifyPayment(order) {
-    setPaymentBusy(true);
-    setPaymentMessage("");
-    try {
-      const result = await checkPayment(order.id);
-      if (["PAGO", "FALHOU"].includes(result.status)) sessionStorage.removeItem(`nkata-checkout-${order.product}`);
-      setPaymentMessage(result.status === "PAGO"
-        ? (english ? "Payment confirmed. Benefits activated." : "Pagamento confirmado. Benefícios ativados.")
-        : (english ? "Payment has not activated benefits yet." : "Este pagamento ainda não ativou benefícios."));
-      await load();
-      await loadPayments();
-    } catch (failure) { setPaymentMessage(failure.message); }
-    finally { setPaymentBusy(false); }
-  }
-
-  async function closeIfTerminal(order) {
-    setPaymentBusy(true);
-    setPaymentMessage("");
-    try {
-      const result = await closePaymentIfTerminal(order.id);
-      setPaymentMessage(result.status === "FALHOU"
-        ? (english ? "PaySuite confirmed this request is closed. You can choose another plan." : "A PaySuite confirmou o encerramento. Pode escolher outro plano.")
-        : (english ? "Check the payment status." : "Verifique o estado do pagamento."));
-      await loadPayments();
-    } catch (failure) {
-      setPaymentMessage(failure.message);
-      await loadPayments();
-    } finally {
-      setPaymentBusy(false);
-    }
   }
 
   const load = useCallback(async ({ signal } = {}) => {
@@ -279,7 +247,7 @@ export default function PlanPanel({ language = "PT" }) {
         <h3>{english ? "NKATA payment history" : "Histórico de pagamentos NKATA"}</h3>
         <p>{english ? "Benefits activate only after payment confirmation." : "Os benefícios são ativados apenas após confirmação do pagamento."}</p>
         {payments.some((order) => ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status)) && (
-          <p role="status">{english ? "A payment is awaiting confirmation. Continue or verify it before buying another plan." : "Existe um pagamento por confirmar. Continue ou verifique esse pedido antes de escolher outro plano."}</p>
+          <p role="status">{english ? "A payment is pending. Continue it before choosing another plan." : "Existe um pagamento pendente. Continue-o antes de escolher outro plano."}</p>
         )}
         {paymentMessage && <p role="status">{paymentMessage}</p>}
         {payments.map((order) => (
@@ -287,8 +255,9 @@ export default function PlanPanel({ language = "PT" }) {
             <strong>{order.product} · {order.amount_mzn} MT</strong>
             <small>{order.reference}</small>
             <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
-            {order.checkout_url && <a href={order.checkout_url}>{english ? "Continue payment" : "Continuar pagamento"}</a>}
-            {!["PAGO", "FALHOU"].includes(order.status) && <button type="button" disabled={paymentBusy} onClick={() => verifyPayment(order)}>{english ? "Check payment" : "Verificar pagamento"}</button>}
+            {order.checkout_url && !["PAGO", "FALHOU"].includes(order.status) && (
+              <a href={order.checkout_url}>{english ? "Continue payment" : "Continuar pagamento"}</a>
+            )}
           </article>
         ))}
       </section>
