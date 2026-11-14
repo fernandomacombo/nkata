@@ -18,6 +18,7 @@ import PasswordChangePage from "./pages/PasswordChangePage.jsx";
 import PasswordResetConfirmPage from "./pages/PasswordResetConfirmPage.jsx";
 import PasswordResetPage from "./pages/PasswordResetPage.jsx";
 import QuestionnairePage from "./pages/QuestionnairePage.jsx";
+import PaymentBrandPage from "./pages/PaymentBrandPage.jsx";
 import "./styles.css";
 import "./profile-detail.css";
 import "./profile-signals.css";
@@ -76,6 +77,7 @@ import "./device-experience.css";
 import "./appearance-polish.css";
 import "./visual-system-v2.css";
 import "./moments-refinement.css";
+import "./payment-brand.css";
 import "./mobile-app-contract.css";
 import { registerServiceWorker } from "./services/pwa.js";
 
@@ -98,6 +100,7 @@ if (typeof appModeMedia.addEventListener === "function") {
 const normalizedPath = window.location.pathname.endsWith("/")
   ? window.location.pathname
   : `${window.location.pathname}/`;
+const paymentMode = normalizedPath === "/pagamento/";
 const accessMode = normalizedPath === "/pedir-acesso/";
 const accessStatusMode = normalizedPath === "/acompanhar-pedido/";
 const identityVerificationMatch = normalizedPath.match(
@@ -126,6 +129,8 @@ createRoot(document.getElementById("root")).render(
           else go("/");
         }}
       />
+    ) : paymentMode ? (
+      <PaymentBrandPage />
     ) : accessMode ? (
       <AccessRequestPage
         onBack={() => go("/")}
