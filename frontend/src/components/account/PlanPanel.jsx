@@ -256,7 +256,9 @@ export default function PlanPanel({ language = "PT" }) {
             <small>{order.reference}</small>
             <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
             {order.checkout_url && !["PAGO", "FALHOU"].includes(order.status) && (
-              <a href={order.checkout_url}>{english ? "Continue payment" : "Continuar pagamento"}</a>
+              <a className="nk-plan-payment-continue" href={order.checkout_url}>
+                {english ? "Continue payment" : "Continuar pagamento"}
+              </a>
             )}
           </article>
         ))}
