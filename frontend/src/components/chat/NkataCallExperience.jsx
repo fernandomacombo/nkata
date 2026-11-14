@@ -16,6 +16,7 @@ import {
   sendCallSignal,
   startMatchCall,
   updateMatchCall,
+  endTrackedCall,
 } from "../../services/callApi.js";
 import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
@@ -58,6 +59,7 @@ export default function NkataCallExperience({
   const [cameraOff, setCameraOff] = useState(false);
   const [speakerOff, setSpeakerOff] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [playbackBlocked, setPlaybackBlocked] = useState(false);
 
   const callRef = useRef(null);
   const peerRef = useRef(null);
@@ -71,6 +73,19 @@ export default function NkataCallExperience({
   const pendingIceRef = useRef([]);
   const pollingBusyRef = useRef(false);
   const connectedAtRef = useRef(0);
+  const operationRef = useRef(0);
+  const preparingRef = useRef(false);
+
+  const playRemoteMedia = async () => {
+    const media = callRef.current?.tipo === "VIDEO" ? remoteVideoRef.current : remoteAudioRef.current;
+    if (!media?.srcObject) return;
+    try {
+      await media.play();
+      setPlaybackBlocked(false);
+    } catch {
+      setPlaybackBlocked(true);
+    }
+  };
 
   const callType = call?.tipo || "AUDIO";
   const isVideoCall = callType === "VIDEO";
@@ -89,6 +104,7 @@ export default function NkataCallExperience({
       remoteAudioRef.current.srcObject = remoteStreamRef.current;
       remoteAudioRef.current.muted = speakerOff;
     }
+    if (remoteStreamRef.current?.getTracks().length) void playRemoteMedia();
   };
 
   useEffect(syncVideoElements, [localStream, remoteStream, speakerOff, callType]);
@@ -103,6 +119,8 @@ export default function NkataCallExperience({
   };
 
   const resetCall = ({ notice = "" } = {}) => {
+    operationRef.current += 1;
+    preparingRef.current = false;
     peerRef.current?.close?.();
     peerRef.current = null;
     stopMedia();
@@ -117,10 +135,14 @@ export default function NkataCallExperience({
     setCameraOff(false);
     setSpeakerOff(false);
     setElapsed(0);
+    setPlaybackBlocked(false);
     if (notice) onNotice?.(notice);
   };
 
-  useEffect(() => () => resetCall(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => {
+    void endTrackedCall(match.id);
+    resetCall();
+  }, [match.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (phase !== "active") return undefined;
@@ -133,7 +155,7 @@ export default function NkataCallExperience({
     return () => window.clearInterval(id);
   }, [phase]);
 
-  const prepareLocalMedia = async (type) => {
+  const prepareLocalMedia = async (type, operation) => {
     if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") {
       throw new Error("WEBRTC_UNAVAILABLE");
     }
@@ -150,6 +172,10 @@ export default function NkataCallExperience({
           }
         : false,
     });
+    if (operation !== operationRef.current) {
+      stream.getTracks().forEach((track) => track.stop());
+      throw new Error("CALL_CANCELLED");
+    }
     localStreamRef.current = stream;
     setLocalStream(stream);
     return stream;
@@ -262,7 +288,7 @@ export default function NkataCallExperience({
   };
 
   const pollCall = async () => {
-    if (!match?.id || pollingBusyRef.current || document.visibilityState !== "visible") return;
+    if (!match?.id || pollingBusyRef.current || (document.visibilityState !== "visible" && !callRef.current)) return;
     pollingBusyRef.current = true;
     try {
       const result = await fetchCallState(match.id, {
@@ -286,8 +312,8 @@ export default function NkataCallExperience({
       } else {
         callRef.current = { ...current, ...result.call };
         setCall(callRef.current);
-        if (result.call.estado === "ATIVA") setPhase("active");
-        if (result.call.estado === "CONECTANDO" && phase !== "active") setPhase("connecting");
+        if (peerRef.current?.connectionState === "connected") setPhase("active");
+        else if (result.call.estado === "CONECTANDO") setPhase("connecting");
       }
 
       if (result.signals.length) {
@@ -326,6 +352,7 @@ export default function NkataCallExperience({
   }, [match?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startCall = async (type) => {
+    if (preparingRef.current || callRef.current) return;
     setError("");
     const permitted = type === "VIDEO" ? videoEnabled : audioEnabled;
     if (!permitted) {
@@ -334,9 +361,15 @@ export default function NkataCallExperience({
     }
 
     let stream;
+    preparingRef.current = true;
+    const operation = ++operationRef.current;
     try {
-      stream = await prepareLocalMedia(type);
+      stream = await prepareLocalMedia(type, operation);
       const result = await startMatchCall(match.id, type);
+      if (operation !== operationRef.current) {
+        void endTrackedCall(match.id);
+        return;
+      }
       const activeCall = result.call;
       callRef.current = activeCall;
       setCall(activeCall);
@@ -352,8 +385,10 @@ export default function NkataCallExperience({
         sdp: offer.sdp,
       });
     } catch (requestError) {
+      if (operation !== operationRef.current) return;
+      if (callRef.current) void endTrackedCall(match.id);
       stream?.getTracks?.().forEach((track) => track.stop());
-      stopMedia();
+      resetCall();
       setError(
         requestError?.message && requestError.name !== "NotAllowedError"
           ? requestError.message
@@ -362,19 +397,24 @@ export default function NkataCallExperience({
       if (requestError?.message === "WEBRTC_UNAVAILABLE") {
         setError(english ? "This browser does not support WebRTC calls." : "Este navegador não suporta chamadas WebRTC.");
       }
+    } finally {
+      if (operation === operationRef.current) preparingRef.current = false;
     }
   };
 
   const acceptCall = async () => {
     const activeCall = callRef.current;
-    if (!activeCall) return;
+    if (!activeCall || preparingRef.current) return;
     setError("");
-
+    preparingRef.current = true;
+    const operation = ++operationRef.current;
     try {
-      const stream = await prepareLocalMedia(activeCall.tipo);
+      const stream = await prepareLocalMedia(activeCall.tipo, operation);
       await updateMatchCall(match.id, activeCall.id, "accept");
+      if (operation !== operationRef.current) return;
       setPhase("connecting");
       const state = await fetchCallState(match.id, { sinceSignalId: 0 });
+      if (operation !== operationRef.current) return;
       setIceServers(state.iceServers || []);
       const peer = createPeer(activeCall, stream, state.iceServers || []);
       void peer;
@@ -388,8 +428,11 @@ export default function NkataCallExperience({
       }
       await processSignals(allSignals, activeCall);
     } catch (requestError) {
-      stopMedia();
-      setError(mediaErrorMessage(requestError, activeCall.tipo, english));
+      if (operation !== operationRef.current) return;
+      void endTrackedCall(match.id);
+      resetCall({ notice: mediaErrorMessage(requestError, activeCall.tipo, english) });
+    } finally {
+      if (operation === operationRef.current) preparingRef.current = false;
     }
   };
 
@@ -461,6 +504,8 @@ export default function NkataCallExperience({
         </button>
       </div>
 
+      {!overlayOpen && error && <p role="status">{error}</p>}
+
       {overlayOpen && (
         <div className={`nk-call-screen ${isVideoCall ? "is-video" : "is-audio"}`} role="dialog" aria-modal="true">
           {isVideoCall && (
@@ -508,6 +553,11 @@ export default function NkataCallExperience({
                       : (english ? "Preparing call…" : "A preparar chamada…")}
             </p>
             {error && <div className="nk-call-screen__error" role="status">{error}</div>}
+            {playbackBlocked && (
+              <button type="button" onClick={playRemoteMedia}>
+                <Volume2 size={18} /> {english ? "Play call audio" : "Ativar som da chamada"}
+              </button>
+            )}
           </div>
 
           {isVideoCall && localStream && (

@@ -97,7 +97,13 @@ def solicitar_entrada(request):
         form = PedidoEntradaForm(request.POST, request.FILES)
 
         if form.is_valid():
-            form.save()
+            from .account_limits import save_limited_request
+            from django.core.exceptions import ValidationError
+            try:
+                save_limited_request(form)
+            except ValidationError as error:
+                form.add_error(None, error)
+                return render(request, "entradas/solicitar_entrada.html", {"form": form})
             messages.success(
                 request,
                 "Recebemos o seu pedido de entrada. A equipa NKATA irá analisar os seus dados."

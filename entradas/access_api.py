@@ -6,6 +6,7 @@ from PIL import Image, UnidentifiedImageError
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
 from rest_framework import permissions
 from rest_framework.decorators import (
     api_view,
@@ -20,6 +21,7 @@ from .access_email_notifications import send_access_receipt_email
 from .identity_models import VerificacaoIdentidadeNKATA
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .models import PedidoEntrada, PerfilNKATA
+from .account_limits import save_limited_request
 from .throttles import (
     AccessCodeRecoveryRateThrottle,
     AccessRequestRateThrottle,
@@ -138,7 +140,7 @@ def _resolve_identity_session(raw_token, email):
     except (ValueError, TypeError, AttributeError):
         return None, "A sessão NKATA ID não é válida. Inicie novamente a verificação."
 
-    session = VerificacaoIdentidadeNKATA.objects.filter(token=token).first()
+    session = VerificacaoIdentidadeNKATA.objects.select_for_update().filter(token=token).first()
     if (
         not session
         or session.expirada
@@ -238,6 +240,7 @@ def _status_payload(pedido):
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([AccessRequestRateThrottle])
+@transaction.atomic
 def api_pedir_acesso(request):
     email = str(request.data.get("email", "")).strip().lower()
     identity_session, identity_error = _resolve_identity_session(
@@ -294,7 +297,12 @@ def api_pedir_acesso(request):
             "errors": _normalizar_erros(form),
         }, status=400)
 
-    pedido = form.save()
+    try:
+        pedido = save_limited_request(form)
+    except ValidationError as error:
+        return Response({"detail": " ".join(error.messages), "errors": {"__all__": error.messages}}, status=409)
+    except IntegrityError:
+        return Response({"detail": "Já existe um pedido com estes dados. Consulte o pedido anterior."}, status=409)
     if identity_session:
         identity_session.pedido = pedido
         identity_session.save(update_fields=["pedido", "atualizado_em"])

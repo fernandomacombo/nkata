@@ -150,6 +150,9 @@ export default function PlanPanel({ language = "PT" }) {
           <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
         </button>
       </header>
+      <p>{english
+        ? "Calls require an active Essential or Premium plan for both people. Renewals are manual. A different plan can be selected when the current one expires."
+        : "As chamadas exigem Essencial ou Premium ativo nas duas contas. A renovação é manual. Pode escolher outro plano quando o atual terminar."}</p>
 
       <div className="nk-plan-current">
         <div className="nk-plan-current__identity">

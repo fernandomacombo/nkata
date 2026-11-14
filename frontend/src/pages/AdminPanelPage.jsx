@@ -645,7 +645,10 @@ function EmptyState({ loading, error, onRetry }) {
 
 function ActionDialog({ pending, busy, onClose, onConfirm }) {
   const [note, setNote] = useState("");
+  const [documentNumber, setDocumentNumber] = useState("");
+  useEffect(() => { setNote(""); setDocumentNumber(""); }, [pending]);
   if (!pending) return null;
+  const needsDocument = pending.section === "access" && pending.action === "approve";
   return (
     <AdminDialogLayer onClose={onClose} confirmation>
       <section className="nk-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-action-title">
@@ -659,6 +662,13 @@ function ActionDialog({ pending, busy, onClose, onConfirm }) {
           <small>Confirmar ação administrativa</small>
           <h2 id="admin-action-title">{pending.label}</h2>
           <p>{pending.description}</p>
+          {needsDocument && (
+            <label>
+              <span>Número do BI conferido no documento</span>
+              <input value={documentNumber} onChange={(event) => setDocumentNumber(event.target.value)} maxLength={40} autoComplete="off" />
+              <small>Leia o número na imagem do BI. Este número prevalece sobre o declarado e impede que o mesmo BI seja usado noutra conta.</small>
+            </label>
+          )}
           {pending.acceptsNote && (
             <label>
               <span>Observação interna {pending.noteRequired ? "" : "(opcional)"}</span>
@@ -677,8 +687,8 @@ function ActionDialog({ pending, busy, onClose, onConfirm }) {
           <button
             type="button"
             className={`nk-admin-button ${pending.danger ? "is-danger" : "is-primary"}`}
-            onClick={() => onConfirm(note)}
-            disabled={busy || (pending.noteRequired && !note.trim())}
+            onClick={() => onConfirm(note, documentNumber)}
+            disabled={busy || (pending.noteRequired && !note.trim()) || (needsDocument && !documentNumber.trim())}
           >
             {busy ? <Loader2 className="nk-spin" size={17} /> : <Check size={17} />}
             Confirmar
@@ -1094,7 +1104,7 @@ export default function AdminPanelPage({ session }) {
     }
   };
 
-  const confirmAction = async (note) => {
+  const confirmAction = async (note, documentNumber = "") => {
     if (!pendingAction) return;
     const { section, item, action } = pendingAction;
     const resourceMap = {
@@ -1111,6 +1121,7 @@ export default function AdminPanelPage({ session }) {
         action,
         id: item.id,
         note: note.trim(),
+        ...(section === "access" && action === "approve" ? { document_number: documentNumber } : {}),
         content_type: item.content_type,
         report_type: item.report_type,
       });

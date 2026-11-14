@@ -343,11 +343,9 @@ def finalize_identity_analysis(session):
     )
     # Uma selfie isolada não prova vivacidade: manter revisão humana.
     # Registos antigos com desafio continuam a preservar a evidência anterior.
-    session.vivacidade_confirmada = bool(
-        different_selfies
-        and neutral.get("metrics", {}).get("faces") == 1
-        and challenge.get("metrics", {}).get("faces") == 1
-    )
+    # Neither a single selfie nor two different photographs demonstrate liveness.
+    # Until a real liveness provider is integrated, every result requires review.
+    session.vivacidade_confirmada = False
 
     face_similarity = _aws_face_similarity(session)
     session.correspondencia_facial = face_similarity

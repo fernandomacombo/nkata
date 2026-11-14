@@ -331,6 +331,7 @@ class NkataIdApiTests(TestCase):
                 "nome_completo": "Pessoa Novo Fluxo",
                 "email": "novo-fluxo@example.com",
                 "telefone": "+258840000001",
+                "numero_bi": "110100000001A",
                 "idade": 29,
                 "cidade": "Vilankulo",
                 "genero": "FEMININO",
@@ -444,9 +445,9 @@ class NkataIdApiTests(TestCase):
 
 class NkataIdDecisionTests(TestCase):
     @patch("entradas.identity_verification_service._aws_face_similarity")
-    def test_high_confidence_provider_can_approve_automatically(self, similarity):
+    def test_face_similarity_and_two_photos_do_not_prove_liveness(self, similarity):
         similarity.return_value = Decimal("96.40")
-        # Uma sessão antiga com duas selfies ainda pode ter prova de vivacidade.
+        # Even old sessions with two different selfies require human review.
         checks = {
             capture_type: accepted_result(capture_type)
             for capture_type in (*VerificacaoIdentidadeNKATA.CAPTURE_FIELDS, "selfie_desafio")
@@ -464,9 +465,10 @@ class NkataIdDecisionTests(TestCase):
         )
         finalize_identity_analysis(verification)
         verification.refresh_from_db()
-        self.assertEqual(verification.status, "APROVADA")
-        self.assertEqual(verification.decisao_origem, "AUTOMATICA")
-        self.assertEqual(verification.risco, "BAIXO")
+        self.assertEqual(verification.status, "REVISAO")
+        self.assertEqual(verification.decisao_origem, "")
+        self.assertFalse(verification.vivacidade_confirmada)
+        self.assertEqual(verification.risco, "MEDIO")
 
     def test_public_badge_uses_nkata_id_decision_when_present(self):
         pedido = PedidoEntrada.objects.create(
