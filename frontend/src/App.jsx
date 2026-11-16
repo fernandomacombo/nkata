@@ -18,6 +18,8 @@ import NotificationsPage from "./pages/NotificationsPage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
 import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
 import SecurityPage from "./pages/SecurityPage.jsx";
+import HelpCenterPage from "./pages/HelpCenterPage.jsx";
+import "./help-center.css";
 import useAppRoute from "./routing.js";
 import {
   fetchMatchConversation,
@@ -800,6 +802,10 @@ export default function App() {
           onClearRecent={clearRecent}
           onDiscover={() => handleNavigate("discover")}
         />
+      )}
+
+      {activePage === "help" && (
+        <HelpCenterPage authenticated={authenticated} email={session?.user?.email || ""} onNavigate={handleNavigate} />
       )}
 
       {activePage === "security" && (
