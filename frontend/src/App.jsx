@@ -290,7 +290,7 @@ export default function App() {
       return;
     }
 
-    if (memberPaused && !["account", "security"].includes(activePage)) {
+    if (memberPaused && !["account", "security", "help"].includes(activePage)) {
       setActivePage("account", { replace: true });
     }
   }, [activePage, authenticated, memberPaused, operator, sessionLoading, setActivePage]);
