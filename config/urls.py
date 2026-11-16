@@ -7,6 +7,7 @@ from .frontend import frontend_index
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("entradas.api_urls")),
+    path("api/ajuda/", include("helpdesk.urls")),
 ]
 
 if settings.DEBUG:
