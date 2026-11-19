@@ -65,10 +65,10 @@ def tickets(request):
         send_branded_email(
             subject="NKATA · Recebemos o seu pedido de ajuda",
             body=(
-                "Olá,\\n\\nRecebemos o seu pedido de suporte.\\n"
-                f"Referência: {ticket.id}\\n"
-                "A nossa equipa analisará o assunto.\\n\\n"
-                "Se não pediu ajuda, pode ignorar esta mensagem.\\nNKATA"
+                "Olá,\n\nRecebemos o seu pedido de suporte.\n"
+                f"Referência: {ticket.id}\n"
+                "A nossa equipa analisará o assunto.\n\n"
+                "Se não pediu ajuda, pode ignorar esta mensagem.\nNKATA"
             ),
             recipient=ticket.email,
             title="Pedido de ajuda recebido",
