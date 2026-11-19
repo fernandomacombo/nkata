@@ -36,3 +36,15 @@ class SupportTicket(models.Model):
 
     def __str__(self):
         return f"{self.subject} ({self.get_status_display()})"
+
+
+class SupportReply(models.Model):
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name="replies")
+    staff = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="nkata_support_replies")
+    body = models.TextField(max_length=4000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Resposta de suporte"
+        verbose_name_plural = "Respostas de suporte"
