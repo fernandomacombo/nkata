@@ -80,3 +80,78 @@ class SupportTicketTests(TestCase):
         self.assertTrue(model_admin.has_view_permission(request))
         self.assertTrue(model_admin.has_change_permission(request))
         self.assertFalse(model_admin.has_delete_permission(request))
+
+    def test_member_email_cannot_be_spoofed_by_form(self):
+        member = get_user_model().objects.create_user(
+            username="memberemail", email="real@example.org", password="safe-password-123",
+        )
+        self.client.force_authenticate(user=member)
+        response = self.client.post(
+            "/api/ajuda/pedidos/",
+            {**self.data, "email": "attacker@example.org"}, format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        ticket = SupportTicket.objects.get()
+        self.assertEqual(ticket.email, "real@example.org")
+        self.assertEqual(ticket.user, member)
+
+    def test_non_superuser_staff_cannot_reply(self):
+        operator = get_user_model().objects.create_user(
+            username="helpstaff", email="helpstaff@example.org",
+            password="safe-password-123", is_staff=True,
+        )
+        ticket = SupportTicket.objects.create(
+            email="guest@example.org", category="conta",
+            subject="Dificuldade de acesso", description="Descrição suficientemente detalhada.",
+        )
+        self.client.force_authenticate(user=operator)
+        with patch("helpdesk.api.send_branded_email") as send:
+            response = self.client.post(
+                f"/api/ajuda/painel/pedidos/{ticket.pk}/responder/",
+                {"body": "Estamos a verificar o problema."}, format="json",
+            )
+        self.assertEqual(response.status_code, 403)
+        send.assert_not_called()
+        self.assertFalse(SupportReply.objects.filter(ticket=ticket).exists())
+
+    def test_invalid_reply_status_does_not_send_email(self):
+        administrator = get_user_model().objects.create_superuser(
+            username="adminstatus", email="adminstatus@example.org",
+            password="safe-password-123",
+        )
+        ticket = SupportTicket.objects.create(
+            email="guest@example.org", category="conta",
+            subject="Problema no acesso", description="Descrição suficientemente detalhada.",
+        )
+        self.client.force_authenticate(user=administrator)
+        with patch("helpdesk.api.send_branded_email") as send:
+            response = self.client.post(
+                f"/api/ajuda/painel/pedidos/{ticket.pk}/responder/",
+                {"body": "Vamos verificar o assunto.", "status": "falso"}, format="json",
+            )
+        self.assertEqual(response.status_code, 400)
+        send.assert_not_called()
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_reply_generates_real_django_email(self):
+        from django.core import mail
+        administrator = get_user_model().objects.create_superuser(
+            username="adminmail", email="adminmail@example.org",
+            password="safe-password-123",
+        )
+        ticket = SupportTicket.objects.create(
+            email="recipient@example.org", category="conta",
+            subject="Ajuda para entrar", description="Descrição suficientemente detalhada.",
+        )
+        self.client.force_authenticate(user=administrator)
+        response = self.client.post(
+            f"/api/ajuda/painel/pedidos/{ticket.pk}/responder/",
+            {"body": "Vamos analisar o seu problema.", "status": "em_analise"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["recipient@example.org"])
+        self.assertEqual(SupportReply.objects.filter(ticket=ticket).count(), 1)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, "em_analise")
