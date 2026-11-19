@@ -543,7 +543,9 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
           <div className="nk-admin-review__body">
             <div className="nk-admin-review__evidence">
               <EvidenceGroup title="Fotografias do perfil" items={detail.profile_media} onPreview={setPreview} />
-              <EvidenceGroup title="Identidade enviada" items={detail.identity_media} onPreview={setPreview} />
+              {detail.identity_media.length > 0 && (
+                <EvidenceGroup title="Identidade enviada" items={detail.identity_media} onPreview={setPreview} />
+              )}
             </div>
 
             <aside className="nk-admin-review__summary">
@@ -552,7 +554,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
                 <ul className="nk-admin-review__checks">
                   <li className={identity.captures_complete ? "is-ok" : "is-alert"}>
                     {identity.captures_complete ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}
-                    <span><strong>Capturas obrigatórias</strong><small>{identity.captures_complete ? "Completas" : "Incompletas"}</small></span>
+                    <span><strong>Capturas obrigatórias</strong><small>{identity.mode === "PENDING" ? "Por iniciar" : identity.captures_complete ? "Completas" : "Incompletas"}</small></span>
                   </li>
                   {identity.mode === "NKATA_ID" && (
                     <>
