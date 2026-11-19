@@ -39,6 +39,7 @@ class SupportTicket(models.Model):
 
 
 class SupportReply(models.Model):
+    id = models.BigAutoField(primary_key=True)
     ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name="replies")
     staff = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="nkata_support_replies")
     body = models.TextField(max_length=4000)
