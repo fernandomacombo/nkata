@@ -1,6 +1,7 @@
 import hashlib
 from io import BytesIO
 import random
+import uuid
 from urllib.parse import urlparse
 
 import qrcode
@@ -8,6 +9,7 @@ from PIL import Image, UnidentifiedImageError
 from django.conf import settings
 from django.core import signing
 from django.http import HttpResponse
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.decorators import (
@@ -19,7 +21,9 @@ from rest_framework.decorators import (
 from rest_framework.response import Response
 
 from .access_api import _validar_imagem
-from .identity_models import VerificacaoIdentidadeNKATA
+from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
+from .models import PedidoEntrada
+from .user_roles import active_member_profile_for_user
 from .identity_verification_service import (
     CAPTURE_LABELS,
     CAPTURE_ORDER,
@@ -53,6 +57,8 @@ def identity_email_hash(email):
 
 
 def _expire_if_needed(session):
+    if session.status == "REVISAO" and session.pedido_id and session.pedido.verificacao_apos_entrada:
+        return False
     if session.expirada and session.status not in {"APROVADA", "REJEITADA", "EXPIRADA"}:
         session.status = "EXPIRADA"
         session.save(update_fields=["status", "atualizado_em"])
@@ -66,6 +72,7 @@ def serialize_identity_session(session):
     completed = [field for field in CAPTURE_ORDER if bool(getattr(session, field))]
     return {
         "token": str(session.token),
+        "after_entry": bool(session.pedido_id and session.pedido.verificacao_apos_entrada),
         "status": session.status,
         "status_label": session.get_status_display(),
         "risk": session.risco,
@@ -166,6 +173,42 @@ def api_criar_sessao_nkata_id(request):
     return Response(serialize_identity_session(session), status=201)
 
 
+@api_view(["GET", "POST"])
+@permission_classes([permissions.IsAuthenticated])
+@throttle_classes([IdentitySessionRateThrottle])
+@transaction.atomic
+def api_sessao_identidade_do_membro(request):
+    profile = active_member_profile_for_user(request.user)
+    if not profile:
+        return Response({"detail": "A conta ainda não está activa."}, status=403)
+
+    pedido = PedidoEntrada.objects.select_for_update().get(pk=profile.pedido_id)
+    if pedido.status != "APROVADO" or not pedido.verificacao_apos_entrada:
+        return Response({"detail": "A verificação desta conta não está disponível aqui."}, status=403)
+    if request.method == "GET":
+        session = VerificacaoIdentidadeNKATA.objects.filter(pedido=pedido).first()
+        return Response(serialize_identity_session(session) if session else None)
+    if request.data.get("aceita_biometria") is not True:
+        return Response({"detail": "Autorize a verificação do documento e do rosto."}, status=400)
+
+    session, created = VerificacaoIdentidadeNKATA.objects.select_for_update().get_or_create(
+        pedido=pedido,
+        defaults={
+            "email_hash": identity_email_hash(pedido.email),
+            "idade_declarada": pedido.idade,
+            "aceita_biometria": True,
+            "desafio_selfie": random.choice(SELFIE_CHALLENGES),
+            "status": "EM_CAPTURA",
+        },
+    )
+    if session.expirada and session.status in {"EM_CAPTURA", "REPETIR", "EXPIRADA"}:
+        session.token = uuid.uuid4()
+        session.expira_em = nkata_id_expires_at()
+        session.status = "EM_CAPTURA"
+        session.save(update_fields=["token", "expira_em", "status", "atualizado_em"])
+    return Response(serialize_identity_session(session), status=201 if created else 200)
+
+
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
@@ -242,10 +285,11 @@ def api_previsualizar_nkata_id(request, token, capture_type):
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([IdentityCaptureRateThrottle])
+@transaction.atomic
 def api_capturar_nkata_id(request, token, capture_type):
     if capture_type not in CAPTURE_ORDER:
         return Response({"detail": "Tipo de captura inválido."}, status=404)
-    session = VerificacaoIdentidadeNKATA.objects.filter(token=token).first()
+    session = VerificacaoIdentidadeNKATA.objects.select_for_update().filter(token=token).first()
     if not session:
         return Response({"detail": "Sessão NKATA ID não encontrada."}, status=404)
     if _expire_if_needed(session):
@@ -299,7 +343,8 @@ def api_capturar_nkata_id(request, token, capture_type):
     session.verificacoes_imagem = image_checks
     session.status = "EM_CAPTURA"
     session.etapa_atual = next_capture(session)
-    if request.data.get("usar_foto_verificada") in {True, "true", "on", "1", 1}:
+    after_entry = bool(session.pedido_id and session.pedido.verificacao_apos_entrada)
+    if not after_entry and request.data.get("usar_foto_verificada") in {True, "true", "on", "1", 1}:
         session.usar_foto_verificada = True
     session.save()
 

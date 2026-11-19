@@ -14,12 +14,13 @@ import {
   canOpenNkataIdOnPhone,
   createNkataIdSession,
   fetchNkataIdSession,
+  fetchMemberNkataIdSession,
   nkataIdCaptureUrl,
   nkataIdQrUrl,
 } from "../../services/api.js";
 import { createNkataIdStatusPoller } from "../../services/nkataIdRuntime.js";
 
-export default function NkataIdHandoff({ email, age, value, onChange, error }) {
+export default function NkataIdHandoff({ email, age, member = false, value, onChange, error }) {
   const [accepted, setAccepted] = useState(Boolean(value?.token));
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -30,6 +31,20 @@ export default function NkataIdHandoff({ email, age, value, onChange, error }) {
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    if (!member) return undefined;
+    const controller = new AbortController();
+    fetchMemberNkataIdSession({ signal: controller.signal }).then((result) => {
+      if (result && !controller.signal.aborted) {
+        setAccepted(true);
+        onChangeRef.current?.(result);
+      }
+    }).catch((requestError) => {
+      if (!controller.signal.aborted) setLocalError(requestError.message);
+    });
+    return () => controller.abort();
+  }, [member]);
 
   useEffect(() => {
     if (!token || value?.can_submit || value?.expired) return undefined;
@@ -47,7 +62,7 @@ export default function NkataIdHandoff({ email, age, value, onChange, error }) {
         );
       },
     });
-  }, [token]);
+  }, [token, value?.can_submit, value?.expired]);
 
   const begin = async () => {
     if (!accepted || loading) return;
@@ -61,7 +76,7 @@ export default function NkataIdHandoff({ email, age, value, onChange, error }) {
     setLoading(true);
     setLocalError("");
     try {
-      const result = await createNkataIdSession({ email, age });
+      const result = await createNkataIdSession({ email, age, member });
       onChange?.(result);
     } catch (requestError) {
       setLocalError(requestError.message || "Não foi possível iniciar o NKATA ID.");
@@ -110,14 +125,30 @@ export default function NkataIdHandoff({ email, age, value, onChange, error }) {
     );
   }
 
-  if (value?.can_submit) {
+  if (value?.expired) {
+    return (
+      <section className="nk-id-start">
+        <p>A sessão expirou. Prepare uma nova ligação para continuar.</p>
+        <button type="button" className="nk-button nk-button--wine" onClick={begin} disabled={loading}>
+          {loading ? "A preparar…" : "Continuar verificação"}
+        </button>
+        {localError && <div className="nk-id-error">{localError}</div>}
+      </section>
+    );
+  }
+
+  if (value?.can_submit || value?.status === "REJEITADA") {
     return (
       <section className="nk-id-complete">
         <span><CheckCircle2 size={34} /></span>
         <small>NKATA ID</small>
-        <h3>Capturas concluídas.</h3>
+        <h3>{value.status === "REJEITADA" ? "Verificação recusada." : "Capturas concluídas."}</h3>
         <p>
-          {value.automatically_approved
+          {member
+            ? (value.status === "REJEITADA"
+              ? "Contacte a equipa NKATA para esclarecer a decisão."
+              : "A equipa vai confirmar o BI. O chat ficará disponível após a aprovação.")
+            : value.automatically_approved
             ? "A identidade passou pelas verificações automáticas."
             : "As imagens passaram pelo controlo de qualidade e seguiram para a análise final."}
         </p>
@@ -141,7 +172,9 @@ export default function NkataIdHandoff({ email, age, value, onChange, error }) {
         <div>
           <small>NKATA ID</small>
           <h3>Continue no seu telemóvel.</h3>
-          <p>Use a câmara traseira para fotografar o BI com mais nitidez.</p>
+          <p>{value?.status === "REPETIR"
+            ? "A equipa pediu novas capturas. Fotografe a frente e o verso do BI e faça uma nova selfie."
+            : "Use a câmara traseira para fotografar o BI com mais nitidez."}</p>
         </div>
       </header>
 

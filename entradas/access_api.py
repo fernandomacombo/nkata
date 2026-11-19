@@ -53,7 +53,7 @@ STATUS_CONTENT = {
     },
     "EM_ANALISE": {
         "title": "A análise está em andamento.",
-        "message": "A equipa está a confirmar os dados, fotografias e documentos enviados.",
+        "message": "A equipa está a rever os dados e as fotografias do pedido.",
         "tone": "review",
         "stage": 2,
     },
@@ -247,7 +247,10 @@ def api_pedir_acesso(request):
         request.data.get("nkata_id_token"),
         email,
     )
-    uses_legacy_identity = not request.data.get("nkata_id_token")
+    uses_legacy_identity = not identity_session and any(
+        request.FILES.get(field) for field in LEGACY_IDENTITY_IMAGE_FIELDS
+    )
+    deferred_identity = not identity_session and not uses_legacy_identity
     if identity_error:
         return Response({
             "detail": identity_error,
@@ -258,6 +261,8 @@ def api_pedir_acesso(request):
     safe_files = request.FILES.copy()
     fields_to_validate = IMAGE_FIELDS if uses_legacy_identity else PROFILE_IMAGE_FIELDS
     for field in fields_to_validate:
+        if deferred_identity and field in PROFILE_IMAGE_FIELDS[2:] and field not in safe_files:
+            continue
         upload = request.FILES.get(field)
         error = _validar_imagem(upload)
         if error:
@@ -290,13 +295,14 @@ def api_pedir_acesso(request):
     if email:
         data["email"] = email
 
-    form = PedidoEntradaForm(data, safe_files)
+    form = PedidoEntradaForm(data, safe_files, two_profile_photos=deferred_identity)
     if not form.is_valid():
         return Response({
             "detail": "Há alguns campos que precisam da sua atenção.",
             "errors": _normalizar_erros(form),
         }, status=400)
 
+    form.instance.verificacao_apos_entrada = deferred_identity
     try:
         pedido = save_limited_request(form)
     except ValidationError as error:
@@ -314,7 +320,9 @@ def api_pedir_acesso(request):
         "pedido_id": pedido.id,
         "codigo": codigo,
         "email": pedido.email,
-        "nkata_id_status": identity_session.status if identity_session else "LEGADO",
+        "nkata_id_status": (
+            identity_session.status if identity_session else ("PENDENTE" if deferred_identity else "LEGADO")
+        ),
         "message": (
             "Recebemos o seu pedido. Guarde este código privado para acompanhar "
             f"a análise: {codigo}"

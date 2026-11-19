@@ -8,6 +8,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .chat_permissions import ChatIdentityPermission
 from .chat_media_models import MensagemAudioMatchNKATA
 from .models import MatchPerfil
 from .plan_service import plan_for_user
@@ -105,7 +106,7 @@ def _validate_audio(file_obj, duration_seconds):
 
 
 @api_view(["GET", "POST"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 def api_audios_match(request, match_id):
     match = _match_do_utilizador(request.user, match_id)
     if not match:
@@ -183,7 +184,7 @@ def api_audios_match(request, match_id):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 def api_media_audio_match(request, match_id, audio_id):
     match = _match_do_utilizador(request.user, match_id)
     if not match:

@@ -33,7 +33,10 @@ def perfil_pronto_para_publicar(perfil):
     if perfil.pedido.status != "APROVADO":
         return False
 
-    if not pedido_tem_identidade_verificada(perfil.pedido):
+    if (
+        not getattr(perfil.pedido, "verificacao_apos_entrada", False)
+        and not pedido_tem_identidade_verificada(perfil.pedido)
+    ):
         return False
 
     return pedido_tem_questionario(perfil.pedido)

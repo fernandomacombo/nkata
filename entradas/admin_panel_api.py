@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from .call_models import ChamadaMatchNKATA
 from .content_moderation_models import AnaliseAutomaticaConteudoNKATA
 from .content_moderation_service import moderation_provider_label, record_human_decision
-from .identity_models import nkata_id_expires_at
+from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
 from .models import (
     DenunciaPerfil,
     MatchPerfil,
@@ -134,7 +134,10 @@ def _summary_payload(request):
                 Q(status__in=["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"])
                 | (
                     Q(status="APROVADO", verificacao_identidade__isnull=False)
-                    & ~Q(verificacao_identidade__status="APROVADA")
+                    & (
+                        ~Q(verificacao_identidade__status="APROVADA")
+                        | Q(verificacao_apos_entrada=True, documento_confirmado=False)
+                    )
                 )
             ).distinct().count(),
             "content_pending": pending_posts + pending_moments,
@@ -234,14 +237,20 @@ def _access_rows(request, limit):
     valid_statuses = {value for value, _label in PedidoEntrada.STATUS_CHOICES}
     identity_review = (
         Q(status="APROVADO", verificacao_identidade__isnull=False)
-        & ~Q(verificacao_identidade__status="APROVADA")
+        & (
+            ~Q(verificacao_identidade__status="APROVADA")
+            | Q(verificacao_apos_entrada=True, documento_confirmado=False)
+        )
     )
     if status_filter == "EM_ANALISE":
         queryset = queryset.filter(Q(status="EM_ANALISE") | identity_review)
     elif status_filter == "APROVADO":
         queryset = queryset.filter(status="APROVADO").filter(
             Q(verificacao_identidade__isnull=True)
-            | Q(verificacao_identidade__status="APROVADA")
+            | (
+                Q(verificacao_identidade__status="APROVADA")
+                & (Q(verificacao_apos_entrada=False) | Q(documento_confirmado=True))
+            )
         )
     elif status_filter in valid_statuses:
         queryset = queryset.filter(status=status_filter)
@@ -255,7 +264,10 @@ def _access_rows(request, limit):
         identity_pending = bool(
             item.status == "APROVADO"
             and verification
-            and verification.status != "APROVADA"
+            and (
+                verification.status != "APROVADA"
+                or (item.verificacao_apos_entrada and not item.documento_confirmado)
+            )
         )
         results.append({
             "id": item.id,
@@ -284,9 +296,11 @@ def _access_rows(request, limit):
                 profile and profile.usuario and profile.usuario.has_usable_password()
             ),
             "note": item.observacao_admin,
-            "identity_status": verification.status if verification else "LEGADO",
+            "identity_status": verification.status if verification else ("PENDENTE" if item.verificacao_apos_entrada else "LEGADO"),
             "identity_status_label": (
-                verification.get_status_display() if verification else "Verificação anterior"
+                verification.get_status_display()
+                if verification
+                else ("Por iniciar" if item.verificacao_apos_entrada else "Verificação anterior")
             ),
             "identity_ready": (
                 verification.capturas_completas
@@ -314,6 +328,8 @@ def _quality_checks(verification):
     results = []
     raw_checks = verification.verificacoes_imagem or {}
     for field_name, label in CAPTURE_CHECK_LABELS.items():
+        if field_name not in verification.CAPTURE_FIELDS and not getattr(verification, field_name):
+            continue
         value = raw_checks.get(field_name) or {}
         results.append({
             "key": field_name,
@@ -327,6 +343,7 @@ def _quality_checks(verification):
 
 def _access_detail_payload(item):
     verification = getattr(item, "verificacao_identidade", None)
+    deferred = item.verificacao_apos_entrada
     profile_media = [
         _media_item(
             item,
@@ -335,6 +352,7 @@ def _access_detail_payload(item):
             f"/api/admin/pedidos/{item.id}/media/{field_name}/",
         )
         for field_name, label in PROFILE_MEDIA_LABELS
+        if not deferred or field_name in {"foto_perfil", "foto_extra_1"} or getattr(item, field_name)
     ]
 
     if verification:
@@ -346,6 +364,7 @@ def _access_detail_payload(item):
                 f"/api/admin/nkata-id/{verification.id}/media/{field_name}/",
             )
             for field_name, label in NKATA_ID_MEDIA_LABELS
+            if field_name in verification.CAPTURE_FIELDS or getattr(verification, field_name)
         ]
         identity = {
             "mode": "NKATA_ID",
@@ -370,13 +389,14 @@ def _access_detail_payload(item):
                 f"/api/admin/pedidos/{item.id}/media/{field_name}/",
             )
             for field_name, label in LEGACY_IDENTITY_MEDIA_LABELS
+            if not deferred
         ]
-        captures_complete = all(entry["available"] for entry in identity_media)
+        captures_complete = bool(identity_media) and all(entry["available"] for entry in identity_media)
         identity = {
-            "mode": "LEGACY",
+            "mode": "PENDING" if deferred else "LEGACY",
             "id": None,
-            "status": "LEGADO",
-            "status_label": "Verificação anterior",
+            "status": "PENDENTE" if deferred else "LEGADO",
+            "status_label": "Por iniciar" if deferred else "Verificação anterior",
             "risk": "INDEFINIDO",
             "risk_label": "Revisão humana",
             "risk_score": None,
@@ -392,7 +412,10 @@ def _access_detail_payload(item):
     identity_pending = bool(
         item.status == "APROVADO"
         and verification
-        and verification.status != "APROVADA"
+        and (
+            verification.status != "APROVADA"
+            or (item.verificacao_apos_entrada and not item.documento_confirmado)
+        )
     )
     return {
         "id": item.id,
@@ -410,6 +433,8 @@ def _access_detail_payload(item):
             "Identidade pendente" if identity_pending else item.get_status_display()
         ),
         "accepted_verification": item.aceita_verificacao,
+        "verify_after_entry": item.verificacao_apos_entrada,
+        "document_confirmed": item.documento_confirmado,
         "has_questionnaire": has_questionnaire,
         "questionnaire_path": (
             f"/questionario/{item.token}/"
@@ -816,14 +841,22 @@ def _action_access(request, object_id, action):
     )
     if not item:
         return None, "Pedido não encontrado.", 404
-    if action not in {"review", "approve", "correction", "reject", "block"}:
+    if action not in {"review", "approve_entry", "approve", "correction", "reject", "block"}:
         return None, "Ação de pedido inválida.", 400
     note = str(request.data.get("note", "")).strip()[:1000]
     if action in {"correction", "reject"} and not note:
         return None, "Indique o motivo desta decisão.", 400
 
-    verification = getattr(item, "verificacao_identidade", None)
-    if action == "approve":
+    verification = VerificacaoIdentidadeNKATA.objects.select_for_update().filter(pedido=item).first()
+    if action == "approve_entry":
+        if not item.verificacao_apos_entrada or item.status not in {
+            "PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR",
+        }:
+            return None, "Este pedido não pode ser aprovado nesta etapa.", 400
+        next_status = "APROVADO"
+    elif action == "approve":
+        if item.verificacao_apos_entrada and (item.status != "APROVADO" or not verification):
+            return None, "Aprove a entrada e aguarde as capturas do NKATA ID.", 400
         from .account_limits import confirm_document
         if verification:
             if not verification.capturas_completas:
@@ -850,7 +883,10 @@ def _action_access(request, object_id, action):
                 ])
         next_status = "APROVADO"
     elif action == "correction":
-        next_status = "PRECISA_CORRIGIR"
+        next_status = (
+            "APROVADO" if item.verificacao_apos_entrada and item.status == "APROVADO"
+            else "PRECISA_CORRIGIR"
+        )
         if verification:
             for field_name in verification.CAPTURE_FIELDS:
                 field = getattr(verification, field_name)

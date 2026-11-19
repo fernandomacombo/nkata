@@ -82,13 +82,17 @@ class PedidoEntradaForm(forms.ModelForm):
             }),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, two_profile_photos=False, **kwargs):
         super().__init__(*args, **kwargs)
 
         # O novo frontend entrega estes ficheiros através da sessão NKATA ID.
         # Permanecem opcionais aqui para compatibilidade com pedidos antigos.
         for field_name in ("bi_frente", "bi_verso", "selfie_com_bi"):
             self.fields[field_name].required = False
+
+        if two_profile_photos:
+            self.fields["foto_extra_2"].required = False
+            self.fields["foto_extra_3"].required = False
 
         self.fields["genero"].choices = [
             ("", "Selecione o género")

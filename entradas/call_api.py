@@ -9,6 +9,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .chat_permissions import ChatIdentityPermission, chat_requires_identity
 from .call_models import ChamadaMatchNKATA, SinalChamadaNKATA
 from .profile_media_api import profile_photo_url
 from .models import MatchPerfil
@@ -194,7 +195,7 @@ def _call_setup_required_response():
 
 
 @api_view(["GET", "POST"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 @transaction.atomic
 def api_chamada_match(request, match_id):
     match = _match_do_utilizador(request.user, match_id)
@@ -250,7 +251,11 @@ def api_chamada_match(request, match_id):
             )
 
         other_user = _outro_utilizador(match, request.user)
-        if not other_user or not _capability_available(other_user, call_type):
+        if (
+            not other_user
+            or chat_requires_identity(other_user)
+            or not _capability_available(other_user, call_type)
+        ):
             return Response(
                 {
                     "detail": "Esta chamada não está disponível nesta ligação neste momento.",
@@ -424,7 +429,7 @@ def api_chamada_match(request, match_id):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 def api_chamada_recebida(request):
     perfil = _perfil_do_utilizador(request.user)
     if not perfil:

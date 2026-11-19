@@ -5,6 +5,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .chat_permissions import ChatIdentityPermission
 from .call_api import _expire_ringing_call
 from .call_models import ChamadaMatchNKATA
 from .models import MatchPerfil
@@ -106,7 +107,7 @@ def serialize_call_message(call, user_id):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 def api_historico_chamadas_match(request, match_id):
     match = _match_do_utilizador(request.user, match_id)
     if not match:

@@ -3,6 +3,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .chat_permissions import chat_requires_identity
 from .notification_models import NotificacaoNKATA
 from .notification_serializers import NotificacaoSerializer
 
@@ -21,10 +22,11 @@ def _notification_setup_response():
 @permission_classes([permissions.IsAuthenticated])
 def api_notificacoes(request):
     try:
+        notificacoes = NotificacaoNKATA.objects.filter(destinatario=request.user)
+        if chat_requires_identity(request.user):
+            notificacoes = notificacoes.exclude(tipo="MENSAGEM")
         notificacoes = (
-            NotificacaoNKATA.objects
-            .filter(destinatario=request.user)
-            .select_related(
+            notificacoes.select_related(
                 "ator",
                 "perfil",
                 "perfil__pedido",
