@@ -1,5 +1,8 @@
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
+from django.contrib.admin.sites import AdminSite
+from django.test import RequestFactory
+from .admin import SupportTicketAdmin
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from .models import SupportTicket, SupportReply
@@ -62,3 +65,18 @@ class SupportTicketTests(TestCase):
             response = self.client.post(f"/api/ajuda/painel/pedidos/{ticket.pk}/responder/", {"body": "Estamos a ajudar com este assunto."}, format="json")
         self.assertEqual(response.status_code, 503)
         self.assertEqual(SupportReply.objects.count(), 0)
+
+    def test_django_admin_restricts_ticket_access_to_superuser(self):
+        User = get_user_model()
+        operator = User.objects.create_user(username="staff4", email="staff4@example.org", password="safe-password-123", is_staff=True)
+        administrator = User.objects.create_superuser(username="admin4", email="admin4@example.org", password="safe-password-123")
+        model_admin = SupportTicketAdmin(SupportTicket, AdminSite())
+        request = RequestFactory().get("/admin/helpdesk/supportticket/")
+        request.user = operator
+        self.assertFalse(model_admin.has_module_permission(request))
+        self.assertFalse(model_admin.has_view_permission(request))
+        self.assertFalse(model_admin.has_change_permission(request))
+        request.user = administrator
+        self.assertTrue(model_admin.has_view_permission(request))
+        self.assertTrue(model_admin.has_change_permission(request))
+        self.assertFalse(model_admin.has_delete_permission(request))
