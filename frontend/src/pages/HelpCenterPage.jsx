@@ -71,11 +71,12 @@ export default function HelpCenterPage({ authenticated, email = "", onNavigate }
       <div className="nk-help__intro">
         <span className="nk-help__eyebrow"><CircleHelp size={17} /> Centro de Ajuda NKATA</span>
         <h1>Como podemos ajudar?</h1>
-        <p>Encontre respostas e contacte a equipa de suporte com tranquilidade.</p>
+        <p>Pesquise nas perguntas frequentes ou contacte a equipa de suporte.</p>
         <label className="nk-help__search">
           <Search size={19} aria-hidden="true" />
           <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar respostas..." aria-label="Pesquisar perguntas frequentes" />
         </label>
+        <a className="nk-help__contact-link" href="#contactar-suporte">Contactar suporte</a>
       </div>
 
       <div className="nk-help__content">
@@ -89,7 +90,7 @@ export default function HelpCenterPage({ authenticated, email = "", onNavigate }
           )) : <p>Não encontrámos uma resposta. Envie-nos um pedido abaixo.</p>}
         </section>
 
-        <section className="nk-help__form-section" aria-label="Contactar suporte">
+        <section id="contactar-suporte" className="nk-help__form-section" aria-label="Contactar suporte">
           <h2><Headset size={21} /> Contactar suporte</h2>
           <p>Descreva o problema. Não envie palavras-passe, dados completos de cartões ou fotografias do BI.</p>
           <form onSubmit={submit} className="nk-help__form">
