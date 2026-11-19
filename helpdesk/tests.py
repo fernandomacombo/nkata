@@ -1,5 +1,6 @@
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory
 from .admin import SupportTicketAdmin
@@ -11,6 +12,8 @@ from .models import SupportTicket, SupportReply
 @override_settings(REST_FRAMEWORK={"DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"]})
 class SupportTicketTests(TestCase):
     def setUp(self):
+        # Isola os contadores de throttling entre cenários independentes.
+        cache.clear()
         self.client = APIClient()
         self.data = {"email": "guest@example.org", "category": "conta", "subject": "Não consigo entrar", "description": "Não consigo entrar na minha conta desde ontem."}
 
