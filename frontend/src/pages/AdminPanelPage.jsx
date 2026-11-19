@@ -17,6 +17,7 @@ import {
   Eye,
   FileCheck2,
   HeartHandshake,
+  Headset,
   History,
   Image,
   LayoutDashboard,
