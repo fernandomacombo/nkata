@@ -19,6 +19,8 @@ import NotificationsPage from "./pages/NotificationsPage.jsx";
 import ProfileDetailPage from "./pages/ProfileDetailPage.jsx";
 import SavedProfilesPage from "./pages/SavedProfilesPage.jsx";
 import SecurityPage from "./pages/SecurityPage.jsx";
+import HelpCenterPage from "./pages/HelpCenterPage.jsx";
+import "./help-center.css";
 import useAppRoute from "./routing.js";
 import {
   fetchMatchConversation,
@@ -290,7 +292,7 @@ export default function App() {
       return;
     }
 
-    if (memberPaused && !["account", "security"].includes(activePage)) {
+    if (memberPaused && !["account", "security", "help"].includes(activePage)) {
       setActivePage("account", { replace: true });
     }
   }, [activePage, authenticated, memberPaused, operator, sessionLoading, setActivePage]);
@@ -807,6 +809,10 @@ export default function App() {
           onClearRecent={clearRecent}
           onDiscover={() => handleNavigate("discover")}
         />
+      )}
+
+      {activePage === "help" && (
+        <HelpCenterPage authenticated={authenticated} email={session?.user?.email || ""} onNavigate={handleNavigate} />
       )}
 
       {activePage === "security" && (

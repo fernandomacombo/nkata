@@ -8,6 +8,7 @@ const STATIC_PATHS = {
   matches: "/matches/",
   notifications: "/notificacoes/",
   security: "/seguranca/",
+  help: "/ajuda/",
   account: "/conta/",
   admin: "/painel/",
   login: "/entrar/",

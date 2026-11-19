@@ -132,6 +132,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "entradas",
+    "helpdesk",
 ]
 
 MIDDLEWARE = [
