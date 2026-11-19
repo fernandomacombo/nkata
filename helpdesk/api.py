@@ -59,7 +59,31 @@ def tickets(request):
         user=request.user if request.user.is_authenticated else None,
         email=email, category=category, subject=subject, description=description,
     )
-    # Do not expose a guest's ticket history with only an email address or a guessed ID.
+    # Best-effort acknowledgment: a mail outage must never discard a saved ticket.
+    # The reference is not an authentication credential and grants no access to history.
+    try:
+        send_branded_email(
+            subject="NKATA · Recebemos o seu pedido de ajuda",
+            body=(
+                "Olá,\\n\\nRecebemos o seu pedido de suporte.\\n"
+                f"Referência: {ticket.id}\\n"
+                "A nossa equipa analisará o assunto.\\n\\n"
+                "Se não pediu ajuda, pode ignorar esta mensagem.\\nNKATA"
+            ),
+            recipient=ticket.email,
+            title="Pedido de ajuda recebido",
+            greeting="Olá,",
+            paragraphs=[
+                "Recebemos o seu pedido de suporte.",
+                f"Referência: {ticket.id}",
+                "A nossa equipa analisará o assunto. Não envie palavras-passe nem fotografias do BI por email.",
+            ],
+            notice="Esta referência identifica o pedido, mas não permite consultar dados privados.",
+            fail_silently=True,
+        )
+    except Exception:
+        # Logged out guest still receives the reference in the HTTP response.
+        pass
     return Response({"id": str(ticket.id), "detail": "Pedido recebido. Guarde esta referência."}, status=201)
 
 
