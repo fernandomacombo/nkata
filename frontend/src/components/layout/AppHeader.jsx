@@ -6,6 +6,7 @@ import {
   CirclePlay,
   FileSearch,
   HeartHandshake,
+  CircleHelp,
   Home,
   LockKeyhole,
   LogIn,
@@ -161,6 +162,9 @@ export default function AppHeader({
           >
             <ShieldCheck size={18} strokeWidth={1.5} aria-hidden="true" /> {tr("Segurança", "Safety")}
           </button>}
+          <button type="button" className={activePage === "help" ? "is-active" : ""} onClick={() => navigate("help")}>
+            <CircleHelp size={18} strokeWidth={1.5} aria-hidden="true" /> {tr("Ajuda", "Help")}
+          </button>
           {!authenticated && (
             <button type="button" onClick={() => goTo("/acompanhar-pedido/")}>
               {tr("Acompanhar pedido", "Track request")}
@@ -391,6 +395,10 @@ export default function AppHeader({
                 <div><strong>{tr("Segurança", "Safety")}</strong><small>{tr("Como protegemos a comunidade", "How we protect the community")}</small></div>
               </button>}
 
+              <button type="button" className={activePage === "help" ? "is-active" : ""} onClick={() => navigate("help")}>
+                <span><CircleHelp size={19} /></span>
+                <div><strong>{tr("Ajuda e Suporte", "Help and Support")}</strong><small>{tr("Perguntas e atendimento", "Questions and support")}</small></div>
+              </button>
               {!authenticated && (
                 <button type="button" onClick={() => goTo("/acompanhar-pedido/")}>
                   <span><FileSearch size={19} /></span>
