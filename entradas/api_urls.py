@@ -83,6 +83,11 @@ urlpatterns = [
     ),
     path("pedir-acesso/", access_api.api_pedir_acesso, name="pedir_acesso"),
     path(
+        "minha-conta/nkata-id/",
+        identity_api.api_sessao_identidade_do_membro,
+        name="sessao_identidade_do_membro",
+    ),
+    path(
         "nkata-id/sessoes/",
         identity_api.api_criar_sessao_nkata_id,
         name="nkata_id_create",

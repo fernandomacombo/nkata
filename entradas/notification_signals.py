@@ -5,6 +5,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .models import AcaoPerfil, MatchPerfil, MensagemMatch
+from .identity_models import pedido_tem_identidade_verificada
 from .notification_models import NotificacaoNKATA
 from .user_roles import member_profile_for_user
 
@@ -207,7 +208,7 @@ def notificar_nova_mensagem(sender, instance, created, **kwargs):
     else:
         return
 
-    if not perfil_destino.usuario_id:
+    if not perfil_destino.usuario_id or not pedido_tem_identidade_verificada(perfil_destino.pedido):
         return
 
     resumo = " ".join(instance.texto.split())

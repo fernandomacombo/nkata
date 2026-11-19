@@ -1,3 +1,4 @@
+from .chat_permissions import ChatIdentityPermission, chat_requires_identity
 from .plan_service import can_send_chat_text
 from PIL import Image, UnidentifiedImageError
 from django.contrib.auth import authenticate, login, logout
@@ -67,6 +68,7 @@ def _dados_da_sessao(request):
                 "status": perfil.status,
                 "status_label": perfil.get_status_display(),
                 "visible": perfil.visivel,
+                "chat_identity_required": chat_requires_identity(request.user),
                 "user_paused": perfil.pausa_iniciada_pelo_usuario,
                 "paused_until": perfil.pausado_ate,
             }
@@ -679,7 +681,7 @@ def api_meus_interesses(request):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 def api_meus_matches(request):
     perfil = _perfil_do_utilizador(request.user)
 
@@ -736,7 +738,7 @@ def api_encerrar_match(request, match_id):
 
 
 @api_view(["GET", "POST"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 def api_conversa_match(request, match_id):
     match = _match_do_utilizador(request, match_id)
 

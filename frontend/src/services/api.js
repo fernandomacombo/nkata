@@ -275,7 +275,17 @@ export async function submitAccessRequest(values, files, identityToken = "") {
   return request("/api/pedir-acesso/", { method: "POST", body: form });
 }
 
-export async function createNkataIdSession({ email, age }) {
+export async function fetchMemberNkataIdSession({ signal } = {}) {
+  return request("/api/minha-conta/nkata-id/", { signal });
+}
+
+export async function createNkataIdSession({ email, age, member }) {
+  if (member) {
+    return request("/api/minha-conta/nkata-id/", {
+      method: "POST",
+      body: { aceita_biometria: true },
+    });
+  }
   return request("/api/nkata-id/sessoes/", {
     method: "POST",
     body: {

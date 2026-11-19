@@ -1,3 +1,4 @@
+from .chat_permissions import IDENTITY_REQUIRED_MESSAGE, chat_requires_identity
 from .plan_service import can_send_chat_text
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -471,6 +472,9 @@ def registrar_acao_perfil(request, perfil_id, tipo):
 
 @require_POST
 def enviar_mensagem_perfil(request, perfil_id, tipo):
+    if chat_requires_identity(request.user):
+        return JsonResponse({"detail": IDENTITY_REQUIRED_MESSAGE}, status=403)
+
     perfil = get_object_or_404(
         PerfilNKATA,
         id=perfil_id,
@@ -755,6 +759,9 @@ def denunciar_perfil(request, perfil_id):
 
 @login_required
 def meus_matches(request):
+    if chat_requires_identity(request.user):
+        return JsonResponse({"detail": IDENTITY_REQUIRED_MESSAGE}, status=403)
+
     perfil = getattr(request.user, "perfil_nkata", None)
 
     if not perfil:
@@ -804,6 +811,9 @@ def meus_matches(request):
 
 @login_required
 def conversa_match(request, match_id):
+    if chat_requires_identity(request.user):
+        return JsonResponse({"detail": IDENTITY_REQUIRED_MESSAGE}, status=403)
+
     perfil = getattr(request.user, "perfil_nkata", None)
 
     if not perfil:

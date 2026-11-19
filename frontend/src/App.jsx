@@ -8,6 +8,7 @@ import useSession from "./hooks/useSession.js";
 import AccountPage from "./pages/AccountPage.jsx";
 import AdminPanelPage from "./pages/AdminPanelPage.jsx";
 import ConversationPage from "./pages/ConversationPage.jsx";
+import ChatIdentityPage from "./pages/ChatIdentityPage.jsx";
 import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
@@ -109,6 +110,7 @@ export default function App() {
 
   const operator = Boolean(authenticated && session?.user?.is_staff);
   const memberAuthenticated = Boolean(authenticated && !operator);
+  const chatIdentityRequired = Boolean(session?.profile?.chat_identity_required);
   const memberPaused = memberAuthenticated && session?.profile?.status === "PAUSADO";
 
   const sessionIdentity = authenticated
@@ -232,9 +234,9 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    loadMatches({ signal: controller.signal });
+    if (!chatIdentityRequired) loadMatches({ signal: controller.signal });
     return () => controller.abort();
-  }, [activePage, authenticated, loadMatches]);
+  }, [activePage, authenticated, chatIdentityRequired, loadMatches]);
 
   useEffect(() => {
     if (activePage !== "account" || !authenticated) return undefined;
@@ -360,6 +362,7 @@ export default function App() {
     if (
       activePage !== "conversation"
       || !authenticated
+      || chatIdentityRequired
       || !routeMatchId
       || String(selectedMatch?.id) === String(routeMatchId)
     ) {
@@ -395,7 +398,7 @@ export default function App() {
       });
 
     return () => controller.abort();
-  }, [activePage, authenticated, routeMatchId, selectedMatch?.id]);
+  }, [activePage, authenticated, chatIdentityRequired, routeMatchId, selectedMatch?.id]);
 
   const openLogin = (returnPage = activePage) => {
     if (authenticated) {
@@ -553,6 +556,10 @@ export default function App() {
   };
 
   const handleOpenConversation = async (match) => {
+    if (chatIdentityRequired) {
+      setActivePage("matches");
+      return;
+    }
     setSelectedMatch(match);
     setConversationMessages([]);
     setConversationError("");
@@ -842,7 +849,15 @@ export default function App() {
         />
       )}
 
-      {activePage === "matches" && memberAuthenticated && (
+      {(activePage === "matches" || activePage === "conversation") && memberAuthenticated && chatIdentityRequired && (
+        <ChatIdentityPage
+          key={sessionIdentity}
+          onBack={() => handleNavigate("discover")}
+          onRefresh={refreshSession}
+        />
+      )}
+
+      {activePage === "matches" && memberAuthenticated && !chatIdentityRequired && (
         <MatchesPage
           matches={matches}
           loading={matchesLoading}
@@ -853,7 +868,7 @@ export default function App() {
         />
       )}
 
-      {activePage === "conversation" && memberAuthenticated && (
+      {activePage === "conversation" && memberAuthenticated && !chatIdentityRequired && (
         <ConversationPage
           match={selectedMatch}
           messages={conversationMessages}

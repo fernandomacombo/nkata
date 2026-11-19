@@ -84,7 +84,7 @@
 
 .nk-access-progress {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   overflow: hidden;
   border: 1px solid var(--nk-line);
   border-radius: 20px;
@@ -650,7 +650,7 @@
 
   .nk-access-progress {
     overflow-x: auto;
-    grid-template-columns: repeat(4, minmax(115px, 1fr));
+    grid-template-columns: repeat(3, minmax(115px, 1fr));
     border-radius: 17px;
   }
 
@@ -730,7 +730,7 @@
   }
 
   .nk-access-progress {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .nk-access-progress > div {

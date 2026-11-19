@@ -439,7 +439,9 @@ export default function IdentityCapturePage({ token, onExit }) {
         <small>TRÊS CAPTURAS RECEBIDAS</small>
         <h1>Capturas concluídas</h1>
         <p>
-          {session.automatically_approved
+          {session.after_entry
+            ? "As capturas foram enviadas. Pode voltar à sua conta enquanto a equipa confirma o BI."
+            : session.automatically_approved
             ? "A verificação automática foi aprovada. Já pode regressar ao pedido de acesso."
             : "A qualidade foi confirmada. O caso seguirá apenas para a análise final necessária."}
         </p>
@@ -503,7 +505,7 @@ export default function IdentityCapturePage({ token, onExit }) {
       </section>
       <canvas ref={canvasRef} hidden />
 
-      {captureType === "selfie_ao_vivo" && (
+      {captureType === "selfie_ao_vivo" && !session.after_entry && (
         <label className="nk-id-photo-choice">
           <input
             type="checkbox"

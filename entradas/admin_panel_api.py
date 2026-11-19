@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from .call_models import ChamadaMatchNKATA
 from .content_moderation_models import AnaliseAutomaticaConteudoNKATA
 from .content_moderation_service import moderation_provider_label, record_human_decision
-from .identity_models import nkata_id_expires_at
+from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
 from .models import (
     DenunciaPerfil,
     MatchPerfil,
@@ -134,7 +134,10 @@ def _summary_payload(request):
                 Q(status__in=["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"])
                 | (
                     Q(status="APROVADO", verificacao_identidade__isnull=False)
-                    & ~Q(verificacao_identidade__status="APROVADA")
+                    & (
+                        ~Q(verificacao_identidade__status="APROVADA")
+                        | Q(verificacao_apos_entrada=True, documento_confirmado=False)
+                    )
                 )
             ).distinct().count(),
             "content_pending": pending_posts + pending_moments,
@@ -234,14 +237,20 @@ def _access_rows(request, limit):
     valid_statuses = {value for value, _label in PedidoEntrada.STATUS_CHOICES}
     identity_review = (
         Q(status="APROVADO", verificacao_identidade__isnull=False)
-        & ~Q(verificacao_identidade__status="APROVADA")
+        & (
+            ~Q(verificacao_identidade__status="APROVADA")
+            | Q(verificacao_apos_entrada=True, documento_confirmado=False)
+        )
     )
     if status_filter == "EM_ANALISE":
         queryset = queryset.filter(Q(status="EM_ANALISE") | identity_review)
     elif status_filter == "APROVADO":
         queryset = queryset.filter(status="APROVADO").filter(
             Q(verificacao_identidade__isnull=True)
-            | Q(verificacao_identidade__status="APROVADA")
+            | (
+                Q(verificacao_identidade__status="APROVADA")
+                & (Q(verificacao_apos_entrada=False) | Q(documento_confirmado=True))
+            )
         )
     elif status_filter in valid_statuses:
         queryset = queryset.filter(status=status_filter)
@@ -255,7 +264,10 @@ def _access_rows(request, limit):
         identity_pending = bool(
             item.status == "APROVADO"
             and verification
-            and verification.status != "APROVADA"
+            and (
+                verification.status != "APROVADA"
+                or (item.verificacao_apos_entrada and not item.documento_confirmado)
+            )
         )
         results.append({
             "id": item.id,
@@ -392,7 +404,10 @@ def _access_detail_payload(item):
     identity_pending = bool(
         item.status == "APROVADO"
         and verification
-        and verification.status != "APROVADA"
+        and (
+            verification.status != "APROVADA"
+            or (item.verificacao_apos_entrada and not item.documento_confirmado)
+        )
     )
     return {
         "id": item.id,
@@ -410,6 +425,8 @@ def _access_detail_payload(item):
             "Identidade pendente" if identity_pending else item.get_status_display()
         ),
         "accepted_verification": item.aceita_verificacao,
+        "verify_after_entry": item.verificacao_apos_entrada,
+        "document_confirmed": item.documento_confirmado,
         "has_questionnaire": has_questionnaire,
         "questionnaire_path": (
             f"/questionario/{item.token}/"
@@ -816,14 +833,22 @@ def _action_access(request, object_id, action):
     )
     if not item:
         return None, "Pedido não encontrado.", 404
-    if action not in {"review", "approve", "correction", "reject", "block"}:
+    if action not in {"review", "approve_entry", "approve", "correction", "reject", "block"}:
         return None, "Ação de pedido inválida.", 400
     note = str(request.data.get("note", "")).strip()[:1000]
     if action in {"correction", "reject"} and not note:
         return None, "Indique o motivo desta decisão.", 400
 
-    verification = getattr(item, "verificacao_identidade", None)
-    if action == "approve":
+    verification = VerificacaoIdentidadeNKATA.objects.select_for_update().filter(pedido=item).first()
+    if action == "approve_entry":
+        if not item.verificacao_apos_entrada or item.status not in {
+            "PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR",
+        }:
+            return None, "Este pedido não pode ser aprovado nesta etapa.", 400
+        next_status = "APROVADO"
+    elif action == "approve":
+        if item.verificacao_apos_entrada and (item.status != "APROVADO" or not verification):
+            return None, "Aprove a entrada e aguarde as capturas do NKATA ID.", 400
         from .account_limits import confirm_document
         if verification:
             if not verification.capturas_completas:
@@ -850,7 +875,10 @@ def _action_access(request, object_id, action):
                 ])
         next_status = "APROVADO"
     elif action == "correction":
-        next_status = "PRECISA_CORRIGIR"
+        next_status = (
+            "APROVADO" if item.verificacao_apos_entrada and item.status == "APROVADO"
+            else "PRECISA_CORRIGIR"
+        )
         if verification:
             for field_name in verification.CAPTURE_FIELDS:
                 field = getattr(verification, field_name)

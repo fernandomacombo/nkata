@@ -34,6 +34,7 @@ class PedidoEntrada(models.Model):
     telefone = models.CharField(max_length=30)
     telefone_normalizado = models.CharField(max_length=16, blank=True, db_index=True, editable=False)
     documento_chave = models.CharField(max_length=64, blank=True, db_index=True, editable=False)
+    verificacao_apos_entrada = models.BooleanField(default=False, editable=False)
     documento_confirmado = models.BooleanField(default=False, editable=False)
     idade = models.PositiveIntegerField()
     cidade = models.CharField(max_length=100)

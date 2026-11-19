@@ -478,16 +478,24 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
 
   const item = detail || selection.item;
   const identity = detail?.identity;
-  const identityPending = detail?.status === "APROVADO" && identity?.status === "REVISAO";
+  const entryPending = detail?.verify_after_entry && ["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"].includes(detail.status);
+  const identityPending = detail?.status === "APROVADO" && (
+    identity?.status === "REVISAO"
+    || (detail?.verify_after_entry && !detail.document_confirmed && identity?.status === "APROVADA")
+  );
   const canDecide = detail && (
     !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || identityPending
   );
   const approve = {
     section: "access",
     item,
-    action: "approve",
-    label: identityPending ? "Confirmar identidade" : "Aprovar identidade e pedido",
-    description: `Confirmar que os documentos e as fotografias de ${item.name} correspondem e libertar o questionário.`,
+    action: entryPending ? "approve_entry" : "approve",
+    label: entryPending ? "Aprovar entrada" : identityPending ? "Confirmar identidade" : "Aprovar identidade e pedido",
+    description: entryPending
+      ? `Aceitar a entrada de ${item.name} e libertar o questionário. O chat ficará bloqueado até à verificação.`
+      : identityPending
+        ? `Confirmar o BI de ${item.name} e permitir o acesso ao chat.`
+        : `Confirmar que os documentos e as fotografias de ${item.name} correspondem e libertar o questionário.`,
     icon: UserCheck,
   };
   const correction = {
@@ -608,9 +616,9 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
           )}
           {canDecide && (
             <div className="nk-admin-review__decisions">
-              <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>
+              {!entryPending && <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>}
               <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> Recusar</button>
-              <button type="button" className="is-primary" onClick={() => onAction(approve)} disabled={!identity?.captures_complete}><UserCheck size={16} /> Aprovar</button>
+              <button type="button" className="is-primary" onClick={() => onAction(approve)} disabled={!entryPending && !identity?.captures_complete}><UserCheck size={16} /> {approve.label}</button>
             </div>
           )}
         </footer>

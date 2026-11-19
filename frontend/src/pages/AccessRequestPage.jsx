@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,12 +15,10 @@ import {
   UserRound,
 } from "lucide-react";
 import { submitAccessRequest } from "../services/api.js";
-import NkataIdHandoff from "../components/identity/NkataIdHandoff.jsx";
 
 const steps = [
   { id: "details", label: "Sobre si", icon: UserRound },
   { id: "photos", label: "Fotografias", icon: Camera },
-  { id: "identity", label: "Identidade", icon: ShieldCheck },
   { id: "review", label: "Confirmar", icon: FileCheck2 },
 ];
 
@@ -39,15 +37,11 @@ const initialValues = {
 const initialFiles = {
   foto_perfil: null,
   foto_extra_1: null,
-  foto_extra_2: null,
-  foto_extra_3: null,
 };
 
 const photoFields = [
   { name: "foto_perfil", title: "Foto principal", text: "Uma fotografia recente, com o rosto bem visível." },
   { name: "foto_extra_1", title: "Fotografia 2", text: "Escolha uma fotografia diferente da principal." },
-  { name: "foto_extra_2", title: "Fotografia 3", text: "Pode ser uma fotografia de corpo inteiro ou num ambiente natural." },
-  { name: "foto_extra_3", title: "Fotografia 4", text: "Evite filtros fortes, óculos escuros e imagens desfocadas." },
 ];
 
 function fieldError(errors, name) {
@@ -123,25 +117,9 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [identitySession, setIdentitySession] = useState(null);
-
-  const handleIdentitySessionChange = useCallback((nextSession) => {
-    setIdentitySession(nextSession);
-    setErrors((current) => ({ ...current, nkata_id_token: undefined }));
-  }, []);
-
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
-
-  // A página de origem recebe a confirmação do telemóvel por polling.
-  // Avança apenas para a revisão, nunca submete o pedido sem consentimento.
-  useEffect(() => {
-    if (step === 2 && identitySession?.can_submit) {
-      setErrors((current) => ({ ...current, nkata_id_token: undefined }));
-      setStep(3);
-    }
-  }, [step, identitySession?.can_submit]);
 
   const updateValue = (name, value) => {
     setValues((current) => ({ ...current, [name]: value }));
@@ -181,11 +159,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
       }
     });
 
-    if (step === 2 && !identitySession?.can_submit) {
-      nextErrors.nkata_id_token = "Conclua as capturas do NKATA ID antes de continuar.";
-    }
-
-    if (step === 3 && !values.aceita_verificacao) {
+    if (step === 2 && !values.aceita_verificacao) {
       nextErrors.aceita_verificacao = "Confirme que aceita a verificação para enviar o pedido.";
     }
 
@@ -215,7 +189,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
     setRequestError("");
 
     try {
-      const result = await submitAccessRequest(values, files, identitySession?.token);
+      const result = await submitAccessRequest(values, files);
       setReceipt({
         codigo: result?.codigo || "",
         email: result?.email || values.email,
@@ -226,9 +200,8 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
       setRequestError(error.message || "Não foi possível enviar o pedido agora.");
 
       const detailFields = Object.keys(payloadErrors);
-      if (detailFields.some((name) => Object.hasOwn(initialValues, name))) setStep(0);
+      if (detailFields.some((name) => name !== "aceita_verificacao" && Object.hasOwn(initialValues, name))) setStep(0);
       else if (detailFields.some((name) => photoFields.some((field) => field.name === name))) setStep(1);
-      else if (detailFields.includes("nkata_id_token")) setStep(2);
     } finally {
       setSubmitting(false);
     }
@@ -291,13 +264,13 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
               <ShieldCheck size={15} /> Entrada mediante aprovação
             </span>
             <h1>Peça acesso com calma.</h1>
-            <p>Precisamos de alguns dados para confirmar que cada pessoa é real e adulta.</p>
+            <p>Envie os seus dados e duas fotos para a equipa analisar o pedido.</p>
           </div>
           <aside>
             <LockKeyhole size={19} />
             <span>
-              <strong>Os documentos são privados.</strong>
-              <small>Não aparecem no perfil e são usados apenas na análise.</small>
+              <strong>Verifique a identidade depois de entrar.</strong>
+              <small>O NKATA ID desbloqueia o chat após a aprovação.</small>
             </span>
           </aside>
         </div>
@@ -311,9 +284,9 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
             {step === 0 && (
               <div className="nk-access-step nk-soft-enter">
                 <header>
-                  <small>Passo 1 de 4</small>
+                  <small>Passo 1 de 3</small>
                   <h2>Conte-nos quem é.</h2>
-                  <p>Use os seus dados reais. Eles serão confirmados antes da aprovação.</p>
+                  <p>Use os seus dados reais, conforme constam no BI.</p>
                 </header>
 
                 <div className="nk-access-fields">
@@ -376,9 +349,9 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
             {step === 1 && (
               <div className="nk-access-step nk-soft-enter">
                 <header>
-                  <small>Passo 2 de 4</small>
+                  <small>Passo 2 de 3</small>
                   <h2>Escolha fotografias naturais.</h2>
-                  <p>Quatro imagens ajudam a equipa a confirmar o pedido e tornam o futuro perfil mais completo.</p>
+                  <p>Envie duas fotos suas. Depois de entrar, pode acrescentar mais no perfil.</p>
                 </header>
                 <div className="nk-access-uploads">
                   {photoFields.map((field) => (
@@ -391,24 +364,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
             {step === 2 && (
               <div className="nk-access-step nk-soft-enter">
                 <header>
-                  <small>Passo 3 de 4</small>
-                  <h2>Confirme com o NKATA ID.</h2>
-                  <p>Comece aqui e continue no telemóvel para obter fotografias mais nítidas.</p>
-                </header>
-                <NkataIdHandoff
-                  email={values.email}
-                  age={values.idade}
-                  value={identitySession}
-                  onChange={handleIdentitySessionChange}
-                  error={fieldError(errors, "nkata_id_token")}
-                />
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="nk-access-step nk-soft-enter">
-                <header>
-                  <small>Passo 4 de 4</small>
+                  <small>Passo 3 de 3</small>
                   <h2>Confirme antes de enviar.</h2>
                   <p>Revise os dados principais. Ainda pode voltar e corrigir alguma informação.</p>
                 </header>
@@ -419,14 +375,14 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
                   <article><span>Telefone</span><strong>{values.telefone}</strong></article>
                   <article><span>Cidade</span><strong>{values.cidade}</strong></article>
                   <article><span>Idade</span><strong>{values.idade} anos</strong></article>
-                  <article><span>Imagens</span><strong>4 fotografias + NKATA ID</strong></article>
+                  <article><span>Imagens</span><strong>2 fotografias</strong></article>
                 </div>
 
                 <label className={`nk-access-consent ${fieldError(errors, "aceita_verificacao") ? "has-error" : ""}`}>
                   <input type="checkbox" checked={values.aceita_verificacao} onChange={(event) => updateValue("aceita_verificacao", event.target.checked)} />
                   <span>
-                    <strong>Aceito passar pela verificação do NKATA.</strong>
-                    <small>Compreendo que o pedido pode ser aprovado, recusado ou devolvido para correção.</small>
+                    <strong>Aceito verificar a minha identidade para usar o chat.</strong>
+                    <small>O NKATA ID estará disponível depois de a conta ser aceite.</small>
                     {fieldError(errors, "aceita_verificacao") && <em>{fieldError(errors, "aceita_verificacao")}</em>}
                   </span>
                 </label>
