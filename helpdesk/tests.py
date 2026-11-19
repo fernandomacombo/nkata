@@ -155,3 +155,18 @@ class SupportTicketTests(TestCase):
         self.assertEqual(SupportReply.objects.filter(ticket=ticket).count(), 1)
         ticket.refresh_from_db()
         self.assertEqual(ticket.status, "em_analise")
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_guest_confirmation_contains_ticket_reference(self):
+        from django.core import mail
+        response = self.client.post("/api/ajuda/pedidos/", self.data, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["guest@example.org"])
+        self.assertIn(response.data["id"], mail.outbox[0].body)
+
+    def test_ticket_is_preserved_if_confirmation_email_fails(self):
+        with patch("helpdesk.api.send_branded_email", return_value=0):
+            response = self.client.post("/api/ajuda/pedidos/", self.data, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(SupportTicket.objects.filter(pk=response.data["id"]).exists())
