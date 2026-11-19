@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import SupportAdminPanel from "./SupportAdminPanel.jsx";
+import "../support-admin.css";
 import {
   Activity,
   Ban,
@@ -53,6 +55,7 @@ const SECTIONS = [
   { id: "operations", label: "Operações", description: "Matches e chamadas", search: "Participante ou estado", columns: ["Operação", "Estado", "Ação"], icon: Activity },
   { id: "audit", label: "Auditoria", description: "Ações dos operadores", search: "Objeto, operador ou descrição", columns: ["Registo", "Operador", "Ação"], icon: History },
   { id: "team", label: "Equipa", description: "Staff e permissões", icon: UserCog },
+  { id: "support", label: "Suporte", description: "Pedidos de ajuda", icon: Headset },
 ];
 
 function TeamPanel() {
@@ -1194,7 +1197,7 @@ export default function AdminPanelPage({ session }) {
                 onRetry={() => loadSummary()}
                 onOpenSection={setActiveSection}
               />
-            ) : activeSection === "team" ? <TeamPanel /> : (
+            ) : activeSection === "team" ? <TeamPanel /> : activeSection === "support" ? <SupportAdminPanel /> : (
               <>
                 <section className="nk-admin-workspace-toolbar">
                   <header className="nk-admin-section-header">
