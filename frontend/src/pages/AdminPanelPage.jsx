@@ -937,7 +937,7 @@ export default function AdminPanelPage({ session }) {
     [session?.user?.admin_capabilities],
   );
   const allowedSections = useMemo(
-    () => SECTIONS.filter((section) => section.id === "team" ? session?.user?.is_superuser : allowedCodes.has(section.id)),
+    () => SECTIONS.filter((section) => ["team", "support"].includes(section.id) ? session?.user?.is_superuser : allowedCodes.has(section.id)),
     [allowedCodes, session?.user?.is_superuser],
   );
   const modalOpen = Boolean(
