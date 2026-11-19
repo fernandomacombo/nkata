@@ -173,3 +173,27 @@ class SupportTicketTests(TestCase):
             response = self.client.post("/api/ajuda/pedidos/", self.data, format="json")
         self.assertEqual(response.status_code, 201)
         self.assertTrue(SupportTicket.objects.filter(pk=response.data["id"]).exists())
+
+    def test_guest_ticket_rate_limit_is_enforced(self):
+        # Three requests per hour per anonymous client, fourth blocked.
+        with patch("helpdesk.api.send_branded_email", return_value=1):
+            for attempt in range(3):
+                response = self.client.post(
+                    "/api/ajuda/pedidos/", self.data, format="json",
+                )
+                self.assertEqual(response.status_code, 201, attempt)
+            blocked = self.client.post(
+                "/api/ajuda/pedidos/", self.data, format="json",
+            )
+        self.assertEqual(blocked.status_code, 429)
+        self.assertEqual(SupportTicket.objects.count(), 3)
+
+    def test_public_ticket_reference_does_not_expose_private_data(self):
+        with patch("helpdesk.api.send_branded_email", return_value=1):
+            response = self.client.post(
+                "/api/ajuda/pedidos/", self.data, format="json",
+            )
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn("email", response.data)
+        self.assertNotIn("description", response.data)
+        self.assertNotIn("replies", response.data)
