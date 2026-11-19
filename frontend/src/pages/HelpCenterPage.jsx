@@ -107,7 +107,7 @@ export default function HelpCenterPage({ authenticated, email = "", onNavigate }
 
       {authenticated && <section className="nk-help__history">
         <h2>Os meus pedidos</h2>
-        {tickets.length ? <ul>{tickets.map((ticket) => <li key={ticket.id}><strong>{ticket.subject}</strong><span>{ticket.status.replaceAll("_", " ")}</span><small>{ticket.id}</small></li>)}</ul> : <p>Ainda não existem pedidos nesta conta.</p>}
+        {tickets.length ? <ul>{tickets.map((ticket) => <li key={ticket.id}><strong>{ticket.subject}</strong><span>{ticket.status.replaceAll("_", " ")}</span><small>{ticket.id}</small>{ticket.replies?.length > 0 && <details><summary>Ver respostas ({ticket.replies.length})</summary>{ticket.replies.map((answer, index) => <p key={index} className="nk-help__reply">{answer.body}</p>)}</details>}</li>)}</ul> : <p>Ainda não existem pedidos nesta conta.</p>}
       </section>}
       <button type="button" className="nk-help__back" onClick={() => onNavigate("home")}><ArrowLeft size={17} /> Voltar ao início</button>
     </main>
