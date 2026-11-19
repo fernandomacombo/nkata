@@ -10,3 +10,17 @@ class SupportTicketAdmin(admin.ModelAdmin):
     readonly_fields = ("id", "user", "email", "category", "subject", "description", "created_at", "updated_at")
     fields = ("id", "user", "email", "category", "subject", "description", "status", "internal_note", "created_at", "updated_at")
     list_select_related = ("user",)
+
+
+class SupportReplyInline(admin.TabularInline):
+    from .models import SupportReply
+    model = SupportReply
+    extra = 0
+    can_delete = False
+    readonly_fields = ("staff", "body", "created_at")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+SupportTicketAdmin.inlines = [SupportReplyInline]
