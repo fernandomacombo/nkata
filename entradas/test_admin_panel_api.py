@@ -89,6 +89,36 @@ class AdminPanelApiTests(TestCase):
             visivel=True,
         )
 
+    def test_approved_entry_without_started_identity_is_pending(self):
+        # Entry approval is separate from completed NKATA ID verification.
+        self.request_record.verificacao_apos_entrada = True
+        self.request_record.documento_confirmado = False
+        self.request_record.save(update_fields=["verificacao_apos_entrada", "documento_confirmado"])
+        self.client.force_authenticate(self.staff)
+        detail = self.client.get(
+            reverse("entradas_api:admin_access_detail"),
+            {"pedido_id": self.request_record.id},
+        )
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.data["status"], "APROVADO")
+        self.assertEqual(detail.data["display_status"], "EM_ANALISE")
+        self.assertEqual(detail.data["identity"]["status_label"], "Por iniciar")
+        pending = self.client.get(
+            reverse("entradas_api:admin_list"),
+            {"section": "access", "status": "EM_ANALISE"},
+        )
+        self.assertEqual(pending.status_code, 200)
+        self.assertIn(self.request_record.id, [row["id"] for row in pending.data["results"]])
+        finished = self.client.get(
+            reverse("entradas_api:admin_list"),
+            {"section": "access", "status": "APROVADO"},
+        )
+        self.assertEqual(finished.status_code, 200)
+        self.assertNotIn(self.request_record.id, [row["id"] for row in finished.data["results"]])
+        summary = self.client.get(reverse("entradas_api:admin_summary"))
+        self.assertEqual(summary.status_code, 200)
+        self.assertGreaterEqual(summary.data["metrics"]["access_pending"], 1)
+
     def test_regular_member_cannot_access_panel(self):
         self.client.force_authenticate(self.member_user)
         response = self.client.get(reverse("entradas_api:admin_summary"))
