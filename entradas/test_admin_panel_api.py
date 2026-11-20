@@ -96,8 +96,7 @@ class AdminPanelApiTests(TestCase):
         self.request_record.save(update_fields=["verificacao_apos_entrada", "documento_confirmado"])
         self.client.force_authenticate(self.staff)
         detail = self.client.get(
-            reverse("entradas_api:admin_access_detail"),
-            {"pedido_id": self.request_record.id},
+            reverse("entradas_api:admin_access_detail", kwargs={"pedido_id": self.request_record.id}),
         )
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.data["status"], "APROVADO")
