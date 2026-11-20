@@ -294,7 +294,13 @@ function DetailsDialog({ pending, onClose, onAction }) {
   if (!pending) return null;
   const { section, item } = pending;
   const actions = actionsFor(section, item);
-  if (section === "members") return <MemberDossier item={item} actions={actions} onClose={onClose} onAction={onAction} />;
+  if (section === "members") {
+    return (
+      <AdminDialogLayer onClose={onClose}>
+        <MemberDossier item={item} actions={actions} onClose={onClose} onAction={onAction} />
+      </AdminDialogLayer>
+    );
+  }
   const sectionLabel = SECTIONS.find((entry) => entry.id === section)?.label || "Detalhes";
   const title = item.name || item.author || item.target || item.title || sectionLabel;
   const previewUrl = item.media_url || item.photo_url;
