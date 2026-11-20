@@ -26,6 +26,7 @@ from . import (
     posts_api,
     profile_api,
     profile_gallery_api,
+    profile_extra_photos_api,
     profile_media_api,
     push_views,
     public_profile_api,
@@ -260,6 +261,21 @@ urlpatterns = [
         "minha-conta/foto/",
         api_views.api_atualizar_foto_perfil,
         name="atualizar_foto_perfil",
+    ),
+    path(
+        "minha-conta/fotografias/",
+        profile_extra_photos_api.api_my_extra_photos,
+        name="minhas_fotografias",
+    ),
+    path(
+        "minha-conta/fotografias/<int:slot>/",
+        profile_extra_photos_api.api_manage_extra_photo,
+        name="gerir_fotografia_extra",
+    ),
+    path(
+        "perfis/<int:profile_id>/fotografias/<int:slot>/",
+        profile_extra_photos_api.api_extra_photo_media,
+        name="fotografia_extra",
     ),
     path(
         "minha-conta/galeria/",
