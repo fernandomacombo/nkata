@@ -46,8 +46,7 @@ export default function MemberDossier({ item, actions, onClose, onAction }) {
     ["billing", "Planos e pagamentos"], ["audit", "Auditoria"],
   ];
 
-  return <div className="nk-dossier__overlay" role="presentation">
-    <button type="button" className="nk-dossier__backdrop" onClick={onClose} aria-label="Fechar ficha"/>
+  return (
     <section role="dialog" aria-modal="true" aria-labelledby="nk-dossier-heading" className="nk-dossier">
       <header className="nk-dossier__header">
         <div><small>NKATA · Centro de gestão do membro</small><h2 id="nk-dossier-heading">{m?.name || item.name}</h2>
@@ -139,5 +138,5 @@ export default function MemberDossier({ item, actions, onClose, onAction }) {
         })}</div>
       </footer>
     </section>
-  </div>;
+  );
 }
