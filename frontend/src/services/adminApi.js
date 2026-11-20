@@ -34,3 +34,7 @@ export function createAdminStaff(payload) {
 export function updateAdminStaff(id, payload) {
   return request(`/api/painel/equipa/${id}/`, { method: "PATCH", body: payload });
 }
+
+export function fetchAdminMemberDossier(id, { signal } = {}) {
+  return request(`/api/painel/membros/${id}/ficha/`, { signal });
+}
