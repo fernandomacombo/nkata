@@ -34,7 +34,7 @@ export default function PhotoReviewPanel() {
     setNotice("");
     try {
       await request(`/api/painel/fotografias/${item.profile_id}/${item.slot}/rever/`, {
-        method: "POST", body: { action },
+        method: "POST", body: { action, version: item.version },
       });
       setNotice(action === "approve" ? "Fotografia aprovada." : "Fotografia rejeitada.");
       await load();
