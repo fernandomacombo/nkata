@@ -982,7 +982,7 @@ export default function AdminPanelPage({ session }) {
   }, []);
 
   const loadList = useCallback(async ({ signal } = {}) => {
-    if (["overview", "team"].includes(activeSection)) return;
+    if (["overview", "team", "support", "photos"].includes(activeSection)) return;
     setListLoading(true);
     setListError("");
     try {
