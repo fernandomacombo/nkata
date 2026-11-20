@@ -3,6 +3,8 @@
 Only staff with the moderation capability may access the queue.
 No identity document is ever exposed by these endpoints.
 """
+import hashlib
+
 from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -40,6 +42,7 @@ def _record(profile, slot):
         "slot": slot,
         "label": "Foto principal (apresentação pública)" if slot == 0 else f"Fotografia {slot + 1}",
         "status": _state_for(profile, slot),
+        "version": hashlib.sha256(_image_for(profile, slot).name.encode()).hexdigest(),
         "image_url": f"/api/painel/fotografias/{profile.pk}/{slot}/media/",
     }
 
@@ -94,6 +97,9 @@ def api_review_photo(request, profile_id, slot):
     ).first()
     if not profile or not _image_for(profile, slot):
         return Response({"detail": "Fotografia não encontrada."}, status=404)
+    current_version = hashlib.sha256(_image_for(profile, slot).name.encode()).hexdigest()
+    if request.data.get("version") != current_version:
+        return Response({"detail": "A fotografia foi alterada. Atualize a lista e reveja a nova imagem."}, status=409)
     new_state = "APROVADO" if action == "approve" else "REJEITADO"
     if slot == 0:
         profile.foto_destaque_publico_estado = new_state
