@@ -59,8 +59,11 @@ class PedidoEntrada(models.Model):
     )
     # As fotografias adicionais do registo começam privadas.
     foto_extra_1_visivel = models.BooleanField(default=False)
+    foto_extra_1_estado = models.CharField(max_length=12, default="PENDENTE", choices=[("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("REJEITADO", "Rejeitado")])
     foto_extra_2_visivel = models.BooleanField(default=False)
+    foto_extra_2_estado = models.CharField(max_length=12, default="PENDENTE", choices=[("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("REJEITADO", "Rejeitado")])
     foto_extra_3_visivel = models.BooleanField(default=False)
+    foto_extra_3_estado = models.CharField(max_length=12, default="PENDENTE", choices=[("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("REJEITADO", "Rejeitado")])
     bi_frente = models.ImageField(
         storage=identity_media_storage,
         upload_to="pedidos/documentos/",
