@@ -245,13 +245,7 @@ def _access_rows(request, limit):
     if status_filter == "EM_ANALISE":
         queryset = queryset.filter(Q(status="EM_ANALISE") | identity_review)
     elif status_filter == "APROVADO":
-        queryset = queryset.filter(status="APROVADO").filter(
-            Q(verificacao_identidade__isnull=True)
-            | (
-                Q(verificacao_identidade__status="APROVADA")
-                & (Q(verificacao_apos_entrada=False) | Q(documento_confirmado=True))
-            )
-        )
+        queryset = queryset.filter(status="APROVADO").exclude(identity_review)
     elif status_filter in valid_statuses:
         queryset = queryset.filter(status=status_filter)
 
