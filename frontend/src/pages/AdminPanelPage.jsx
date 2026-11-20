@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import MemberDossier from "./MemberDossier.jsx";
+import PhotoReviewPanel from "./PhotoReviewPanel.jsx";
 import SupportAdminPanel from "./SupportAdminPanel.jsx";
 import "../support-admin.css";
 import {
@@ -51,6 +53,7 @@ const SECTIONS = [
   { id: "overview", label: "Visão geral", description: "Estado da comunidade", icon: LayoutDashboard },
   { id: "access", label: "Pedidos", description: "Identidade e admissão", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: FileCheck2 },
   { id: "members", label: "Membros", description: "Contas e perfis", search: "Nome, email, telefone ou cidade", columns: ["Membro", "Conta", "Ação"], icon: Users },
+  { id: "photos", label: "Fotografias", description: "Aprovar imagens dos perfis", icon: Image },
   { id: "content", label: "Moderação", description: "Fotos e momentos", search: "Autor, email ou conteúdo", columns: ["Conteúdo", "Moderação", "Ação"], icon: ShieldCheck },
   { id: "reports", label: "Denúncias", description: "Casos reportados", search: "Alvo, denunciante ou motivo", columns: ["Denúncia", "Estado", "Ação"], icon: ShieldAlert },
   { id: "operations", label: "Operações", description: "Matches e chamadas", search: "Participante ou estado", columns: ["Operação", "Estado", "Ação"], icon: Activity },
@@ -291,6 +294,7 @@ function DetailsDialog({ pending, onClose, onAction }) {
   if (!pending) return null;
   const { section, item } = pending;
   const actions = actionsFor(section, item);
+  if (section === "members") return <MemberDossier item={item} actions={actions} onClose={onClose} onAction={onAction} />;
   const sectionLabel = SECTIONS.find((entry) => entry.id === section)?.label || "Detalhes";
   const title = item.name || item.author || item.target || item.title || sectionLabel;
   const previewUrl = item.media_url || item.photo_url;
@@ -550,7 +554,8 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
 
             <aside className="nk-admin-review__summary">
               <section>
-                <header><h3>Verificação</h3><StatusBadge status={identity.status} label={identity.status_label} /></header>
+                <header><h3>Verificação</h3><StatusBadge status={identity.status} label={identity.status === "REVISAO" && identity.captures_complete ? "Capturas concluídas · decisão administrativa pendente" : identity.status_label} /></header>
+                {identity.status === "REVISAO" && identity.captures_complete && <p className="nk-admin-review__decision-notice">As capturas estão concluídas. Confirme cuidadosamente o BI, a selfie e a correspondência dos dados. A qualidade automática não equivale à aprovação humana.</p>}
                 <ul className="nk-admin-review__checks">
                   <li className={identity.captures_complete ? "is-ok" : "is-alert"}>
                     {identity.captures_complete ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}
@@ -948,7 +953,7 @@ export default function AdminPanelPage({ session }) {
     [session?.user?.admin_capabilities],
   );
   const allowedSections = useMemo(
-    () => SECTIONS.filter((section) => ["team", "support"].includes(section.id) ? session?.user?.is_superuser : allowedCodes.has(section.id)),
+    () => SECTIONS.filter((section) => ["team", "support"].includes(section.id) ? session?.user?.is_superuser : section.id === "photos" ? allowedCodes.has("content") : allowedCodes.has(section.id)),
     [allowedCodes, session?.user?.is_superuser],
   );
   const modalOpen = Boolean(
@@ -980,7 +985,7 @@ export default function AdminPanelPage({ session }) {
   }, []);
 
   const loadList = useCallback(async ({ signal } = {}) => {
-    if (["overview", "team"].includes(activeSection)) return;
+    if (["overview", "team", "support", "photos"].includes(activeSection)) return;
     setListLoading(true);
     setListError("");
     try {
@@ -1208,7 +1213,7 @@ export default function AdminPanelPage({ session }) {
                 onRetry={() => loadSummary()}
                 onOpenSection={setActiveSection}
               />
-            ) : activeSection === "team" ? <TeamPanel /> : activeSection === "support" ? <SupportAdminPanel /> : (
+            ) : activeSection === "team" ? <TeamPanel /> : activeSection === "support" ? <SupportAdminPanel /> : activeSection === "photos" ? <PhotoReviewPanel /> : (
               <>
                 <section className="nk-admin-workspace-toolbar">
                   <header className="nk-admin-section-header">
