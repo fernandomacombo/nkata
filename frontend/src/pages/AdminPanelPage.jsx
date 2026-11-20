@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import MemberDossier from "./MemberDossier.jsx";
 import SupportAdminPanel from "./SupportAdminPanel.jsx";
 import "../support-admin.css";
 import {
@@ -291,6 +292,7 @@ function DetailsDialog({ pending, onClose, onAction }) {
   if (!pending) return null;
   const { section, item } = pending;
   const actions = actionsFor(section, item);
+  if (section === "members") return <MemberDossier item={item} actions={actions} onClose={onClose} onAction={onAction} />;
   const sectionLabel = SECTIONS.find((entry) => entry.id === section)?.label || "Detalhes";
   const title = item.name || item.author || item.target || item.title || sectionLabel;
   const previewUrl = item.media_url || item.photo_url;
