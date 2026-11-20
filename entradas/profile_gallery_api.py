@@ -50,7 +50,7 @@ def gallery_for_profile_viewer(request, perfil):
         for slot in (1, 2, 3):
             image = getattr(perfil.pedido, f"foto_extra_{slot}")
             visible = getattr(perfil.pedido, f"foto_extra_{slot}_visivel")
-            if image and visible:
+            if image and visible and getattr(perfil.pedido, f"foto_extra_{slot}_estado") == "APROVADO":
                 items.append({
                     "id": f"registo-{slot}",
                     "media_url": f"/api/perfis/{perfil.pk}/fotografias/{slot}/",
