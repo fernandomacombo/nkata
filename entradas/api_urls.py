@@ -7,6 +7,7 @@ from . import (
     account_security_api,
     account_summary_api,
     admin_panel_api,
+    admin_member_dossier_api,
     admin_staff_api,
     api_views,
     call_api,
@@ -47,6 +48,7 @@ urlpatterns = [
     path("painel/fotografias/", profile_photo_review_api.api_photo_review_queue, name="painel_fotografias"),
     path("painel/fotografias/<int:profile_id>/<int:slot>/media/", profile_photo_review_api.api_photo_review_media, name="painel_fotografias_media"),
     path("painel/fotografias/<int:profile_id>/<int:slot>/rever/", profile_photo_review_api.api_review_photo, name="painel_fotografias_rever"),
+    path("painel/membros/<int:profile_id>/ficha/", admin_member_dossier_api.api_admin_member_dossier, name="admin_member_dossier"),
     path("painel/resumo/", admin_panel_api.api_admin_summary, name="admin_summary"),
     path("painel/lista/", admin_panel_api.api_admin_list, name="admin_list"),
     path(
