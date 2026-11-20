@@ -27,6 +27,7 @@ from . import (
     profile_api,
     profile_gallery_api,
     profile_extra_photos_api,
+    profile_photo_review_api,
     profile_media_api,
     push_views,
     public_profile_api,
@@ -43,6 +44,9 @@ urlpatterns = [
     path("session/", api_views.api_session, name="session"),
     path("auth/login/", api_views.api_login, name="login"),
     path("auth/logout/", api_views.api_logout, name="logout"),
+    path("painel/fotografias/", profile_photo_review_api.api_photo_review_queue, name="painel_fotografias"),
+    path("painel/fotografias/<int:profile_id>/<int:slot>/media/", profile_photo_review_api.api_photo_review_media, name="painel_fotografias_media"),
+    path("painel/fotografias/<int:profile_id>/<int:slot>/rever/", profile_photo_review_api.api_review_photo, name="painel_fotografias_rever"),
     path("painel/resumo/", admin_panel_api.api_admin_summary, name="admin_summary"),
     path("painel/lista/", admin_panel_api.api_admin_list, name="admin_list"),
     path(
