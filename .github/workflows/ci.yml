@@ -68,6 +68,19 @@ jobs:
           DJANGO_SECURE_HSTS_SECONDS: "3600"
         run: python manage.py check --deploy
 
+  profile-photo-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test entradas.test_extra_photo_moderation entradas.test_admin_panel_api
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
