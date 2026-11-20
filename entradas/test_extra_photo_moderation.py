@@ -125,3 +125,28 @@ class ExtraPhotoModerationTests(TestCase):
         response = self.client.delete("/api/minha-conta/fotografias/1/")
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["results"][0]["exists"])
+
+    def test_repeated_filename_cannot_reuse_review_version(self):
+        self.client.force_login(self.moderator)
+        queue = self.client.get("/api/painel/fotografias/").json()["results"]
+        version = next(row["version"] for row in queue if row["slot"] == 1)
+
+        self.client.force_login(self.owner)
+        for _ in range(2):
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    "/api/minha-conta/fotografias/1/",
+                    {"foto": valid_photo("segunda.jpg")},
+                )
+            self.assertEqual(response.status_code, 200)
+
+        self.client.force_login(self.moderator)
+        response = self.client.post(
+            self.moderation_url(),
+            {"action": "approve", "version": version},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 409)
+        self.pedido.refresh_from_db()
+        self.assertEqual(self.pedido.foto_extra_1_estado, "PENDENTE")
+        self.assertFalse(self.pedido.foto_extra_1_visivel)

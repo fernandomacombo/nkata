@@ -2,6 +2,9 @@
 
 These are profile photos, never identity documents. Private by default.
 """
+from pathlib import PurePath
+from uuid import uuid4
+
 from PIL import Image, UnidentifiedImageError
 from django.db import transaction
 from rest_framework import permissions
@@ -54,12 +57,14 @@ def api_my_extra_photos(request):
 
 @api_view(["POST", "PATCH", "DELETE"])
 @permission_classes([permissions.IsAuthenticated])
+@transaction.atomic
 def api_manage_extra_photo(request, slot):
     fields = _fields(slot)
     profile = _own_profile(request.user)
     if not fields or not profile:
         return Response({"detail": "Fotografia não encontrada."}, status=404)
 
+    profile = PerfilNKATA.objects.select_for_update().get(pk=profile.pk)
     image_field, flag_field = fields
     pedido = profile.pedido
     current = getattr(pedido, image_field)
@@ -90,6 +95,7 @@ def api_manage_extra_photo(request, slot):
             image = sanitized_image_upload(upload)
         except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
             return Response({"foto": ["Não foi possível preparar esta fotografia."]}, status=400)
+        image.name = f"{uuid4().hex}{PurePath(image.name).suffix}"
         old_file = current
         setattr(pedido, image_field, image)
         setattr(pedido, flag_field, False)
@@ -97,7 +103,7 @@ def api_manage_extra_photo(request, slot):
         pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", "atualizado_em"])
         if old_file and old_file.name != getattr(pedido, image_field).name:
             # A fotografia anterior é substituída apenas depois do registo guardado.
-            transaction.on_commit(lambda: old_file.delete(save=False))
+            transaction.on_commit(lambda: old_file.delete(save=False), robust=True)
         return Response(_owner_payload(profile))
 
     # DELETE is explicit. It removes only this extra photo, never profile,
@@ -108,7 +114,7 @@ def api_manage_extra_photo(request, slot):
     setattr(pedido, f"foto_extra_{slot}_estado", "PENDENTE")
     pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", "atualizado_em"])
     if old_file:
-        transaction.on_commit(lambda: old_file.delete(save=False))
+        transaction.on_commit(lambda: old_file.delete(save=False), robust=True)
     return Response(_owner_payload(profile))
 
 
