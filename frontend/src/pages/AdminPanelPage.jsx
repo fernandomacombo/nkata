@@ -775,13 +775,21 @@ function Overview({ summary, loading, error, onRetry, onOpenSection }) {
               <StatusBadge status={summary.system.database_ready ? "ATIVO" : "FALHOU"} label={summary.system.database_ready ? "Operacional" : "Indisponível"} />
             </li>
             <li>
-              <span><strong>Chamadas móveis</strong><small>Servidor TURN</small></span>
-              <StatusBadge status={summary.system.turn_configured ? "ATIVO" : "PENDENTE"} label={summary.system.turn_configured ? "Configurado" : "Por configurar"} />
+              <span><strong>Chamadas móveis</strong><small>TURN · configuração, sem teste de conectividade</small></span>
+              <StatusBadge status={summary.system.turn_configured ? "NEUTRAL" : "PENDENTE"} label={summary.system.turn_label || (summary.system.turn_configured ? "Configurado (não testado)" : "Por configurar")} />
             </li>
             <li>
               <span><strong>Moderação</strong><small>{summary.system.moderation_provider}</small></span>
-              <StatusBadge status={summary.system.moderation_automatic ? "ATIVO" : "PENDENTE"} label={summary.system.moderation_automatic ? "Automática" : "Revisão humana"} />
+              <StatusBadge status="NEUTRAL" label={summary.system.moderation_mode || (summary.system.moderation_automatic ? "Automática configurada" : "Revisão humana")} />
             </li>
+            {typeof summary.system.email_configured === "boolean" && <li>
+              <span><strong>Email transacional</strong><small>Configuração do provedor, entrega não testada</small></span>
+              <StatusBadge status={summary.system.email_configured ? "NEUTRAL" : "PENDENTE"} label={summary.system.email_label || "Não verificado"} />
+            </li>}
+            {typeof summary.system.payments_configured === "boolean" && <li>
+              <span><strong>Pagamentos</strong><small>Configuração Paysuite, sem teste financeiro</small></span>
+              <StatusBadge status="NEUTRAL" label={summary.system.payments_label || "Não verificado"} />
+            </li>}
             <li>
               <span><strong>Ambiente</strong><small>Configuração ativa</small></span>
               <StatusBadge status="NEUTRAL" label={summary.system.environment} />
