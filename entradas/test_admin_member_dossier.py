@@ -62,4 +62,4 @@ class MemberDossierTests(TestCase):
         self.assertNotIn("documento_chave", str(payload))
         self.assertNotIn("password", str(payload))
         self.profile.refresh_from_db()
-        self.assertTrue(self.profile.visivel)
+        self.assertEqual(self.profile.status, "ATIVO")
