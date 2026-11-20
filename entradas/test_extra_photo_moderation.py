@@ -33,7 +33,21 @@ class ExtraPhotoModerationTests(TestCase):
             status="ATIVO", visivel=True,
         )
 
+        # A visibilidade para terceiros exige que o observador também seja
+        # membro da comunidade, não apenas um utilizador autenticado.
+        self.viewer_request = PedidoEntrada.objects.create(
+            nome_completo="Observador Exemplo", email="viewer@example.org", telefone="840000235",
+            idade=30, cidade="Maputo", genero="MASCULINO", objetivo="RELACIONAMENTO_SERIO",
+            foto_perfil=valid_photo("observador.jpg"), status="APROVADO",
+        )
+        self.viewer_profile = PerfilNKATA.objects.create(
+            pedido=self.viewer_request, usuario=self.viewer, nome_publico="Observador",
+            cidade="Maputo", idade=30, genero="MASCULINO", objetivo="RELACIONAMENTO_SERIO",
+            status="ATIVO", visivel=True,
+        )
+
     def tearDown(self):
+        self.viewer_request.foto_perfil.delete(save=False)
         self.pedido.refresh_from_db()
         for field_name in ("foto_perfil", "foto_extra_1", "foto_extra_2", "foto_extra_3"):
             photo = getattr(self.pedido, field_name)
@@ -88,6 +102,7 @@ class ExtraPhotoModerationTests(TestCase):
         )
         self.assertEqual(visible.status_code, 200)
         self.client.force_login(self.viewer)
+        PerfilNKATA.objects.filter(pk=self.viewer_profile.pk).update(status="ATIVO", visivel=True)
         photo = self.client.get(self.url())
         self.assertEqual(photo.status_code, 200)
         photo.close()
