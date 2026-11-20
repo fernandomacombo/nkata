@@ -7,6 +7,7 @@ from . import (
     account_security_api,
     account_summary_api,
     admin_panel_api,
+    admin_member_dossier_api,
     admin_staff_api,
     api_views,
     call_api,
@@ -42,6 +43,7 @@ urlpatterns = [
     path("session/", api_views.api_session, name="session"),
     path("auth/login/", api_views.api_login, name="login"),
     path("auth/logout/", api_views.api_logout, name="logout"),
+    path("painel/membros/<int:profile_id>/ficha/", admin_member_dossier_api.api_admin_member_dossier, name="admin_member_dossier"),
     path("painel/resumo/", admin_panel_api.api_admin_summary, name="admin_summary"),
     path("painel/lista/", admin_panel_api.api_admin_list, name="admin_list"),
     path(
