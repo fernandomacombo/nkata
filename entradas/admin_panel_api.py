@@ -28,7 +28,7 @@ from .posts_models import PublicacaoNKATA
 from .profile_media_api import profile_photo_url
 from .plan_service import PLAN_DEFINITIONS, assign_plan, plan_code_for_user
 from .user_roles import has_admin_capability
-from .webrtc_credentials import turn_is_configured
+from .infrastructure_health import infrastructure_configuration
 
 
 SECTION_LIMIT = 50
@@ -154,12 +154,8 @@ def _summary_payload(request):
         },
         "system": {
             "database_ready": _database_ready(),
-            "turn_configured": turn_is_configured(),
+            **infrastructure_configuration(),
             "moderation_provider": moderation_provider_label(),
-            "moderation_automatic": bool(
-                str(getattr(settings, "NKATA_MEDIA_MODERATION_PROVIDER", "manual")).lower()
-                != "manual"
-            ),
             "environment": "Desenvolvimento" if settings.DEBUG else "Produção",
         } if request.user.is_superuser else None,
         "activity": _daily_activity(),
