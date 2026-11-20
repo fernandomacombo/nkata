@@ -112,9 +112,11 @@ def api_review_photo(request, profile_id, slot):
         if action == "reject":
             setattr(pedido, flag, False)
         pedido.save(update_fields=[state, flag, "atualizado_em"])
-    LogEntry.objects.log_actions(
-        user_id=request.user.pk,
-        queryset=[profile],
+    LogEntry.objects.create(
+        user=request.user,
+        content_type=ContentType.objects.get_for_model(profile),
+        object_id=str(profile.pk),
+        object_repr=str(profile)[:200],
         action_flag=CHANGE,
         change_message=f"Moderação da fotografia {slot}: {new_state}",
     )
