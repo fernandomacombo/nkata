@@ -1,9 +1,12 @@
+from pathlib import PurePath
+from uuid import uuid4
+
 from .chat_permissions import ChatIdentityPermission, chat_requires_identity
 from .plan_service import can_send_chat_text
 from PIL import Image, UnidentifiedImageError
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework import permissions
@@ -311,6 +314,7 @@ def api_logout(request):
 
 @api_view(["GET", "PATCH"])
 @permission_classes([permissions.IsAuthenticated])
+@transaction.atomic
 def api_minha_conta(request):
     perfil = _perfil_do_utilizador(request.user)
 
@@ -321,6 +325,7 @@ def api_minha_conta(request):
         )
 
     if request.method == "PATCH":
+        perfil = PerfilNKATA.objects.select_for_update().get(pk=perfil.pk)
         serializer = MinhaContaSerializer(
             perfil,
             data=request.data,
@@ -343,6 +348,7 @@ def api_minha_conta(request):
 
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
+@transaction.atomic
 def api_atualizar_foto_perfil(request):
     perfil = _perfil_do_utilizador(request.user)
 
@@ -361,6 +367,8 @@ def api_atualizar_foto_perfil(request):
     except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
         return Response({"foto": ["Não foi possível preparar esta fotografia."]}, status=400)
 
+    perfil = PerfilNKATA.objects.select_for_update().get(pk=perfil.pk)
+    foto.name = f"{uuid4().hex}{PurePath(foto.name).suffix}"
     public_preview_was_enabled = perfil.destaque_publico
     pedido = perfil.pedido
     foto_anterior = pedido.foto_perfil
@@ -371,14 +379,16 @@ def api_atualizar_foto_perfil(request):
     pedido.save(update_fields=["foto_perfil", "atualizado_em"])
 
     novo_nome = pedido.foto_perfil.name
-    if nome_anterior and nome_anterior != novo_nome and storage.exists(nome_anterior):
-        storage.delete(nome_anterior)
+    if nome_anterior and nome_anterior != novo_nome:
+        transaction.on_commit(lambda: storage.delete(nome_anterior), robust=True)
 
     perfil.destaque_publico = False
     perfil.foto_destaque_publico_aprovada = False
+    perfil.foto_destaque_publico_estado = "PENDENTE"
     perfil.save(update_fields=[
         "destaque_publico",
         "foto_destaque_publico_aprovada",
+        "foto_destaque_publico_estado",
         "atualizado_em",
     ])
 

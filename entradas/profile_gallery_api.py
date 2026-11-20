@@ -45,6 +45,22 @@ def gallery_for_profile_viewer(request, perfil):
         return {"cover_url": None, "gallery": [], "gallery_count": 0}
 
     items = [_gallery_item(item, perfil.capa_publicacao_id) for item in publications]
+    # Fotos adicionais do registo aparecem só se o próprio membro as autorizar.
+    if perfil.pedido.status == "APROVADO":
+        for slot in (1, 2, 3):
+            image = getattr(perfil.pedido, f"foto_extra_{slot}")
+            visible = getattr(perfil.pedido, f"foto_extra_{slot}_visivel")
+            if image and visible and getattr(perfil.pedido, f"foto_extra_{slot}_estado") == "APROVADO":
+                items.append({
+                    "id": f"registo-{slot}",
+                    "media_url": f"/api/perfis/{perfil.pk}/fotografias/{slot}/",
+                    "media_type": "IMAGEM",
+                    "caption": "",
+                    "visibility": "TODOS",
+                    "created_at": perfil.pedido.criado_em,
+                    "is_cover": False,
+                    "can_be_cover": False,
+                })
     cover = next((item for item in items if item["is_cover"]), None)
     return {
         "cover_url": cover["media_url"] if cover else None,
