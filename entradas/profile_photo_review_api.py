@@ -92,10 +92,10 @@ def api_review_photo(request, profile_id, slot):
     action = str(request.data.get("action", "")).strip().lower()
     if action not in ("approve", "reject"):
         return Response({"detail": "Ação inválida."}, status=400)
-    profile = PerfilNKATA.objects.select_related("pedido").select_for_update(of=("self",)).filter(
-        pk=profile_id, pedido__status="APROVADO", status__in=["ATIVO", "PAUSADO"]
+    profile = PerfilNKATA.objects.select_for_update().filter(
+        pk=profile_id, status__in=["ATIVO", "PAUSADO"]
     ).first()
-    if not profile or not _image_for(profile, slot):
+    if not profile or profile.pedido.status != "APROVADO" or not _image_for(profile, slot):
         return Response({"detail": "Fotografia não encontrada."}, status=404)
     current_version = hashlib.sha256(_image_for(profile, slot).name.encode()).hexdigest()
     if request.data.get("version") != current_version:
