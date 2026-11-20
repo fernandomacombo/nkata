@@ -33,6 +33,7 @@ def _owner_payload(profile):
         image = getattr(pedido, image_field)
         entries.append({
             "slot": slot,
+            "review_status": getattr(pedido, f"foto_extra_{slot}_estado"),
             "exists": bool(image),
             "visible": bool(image and getattr(pedido, flag_field)),
             "media_url": (
@@ -69,6 +70,8 @@ def api_manage_extra_photo(request, slot):
         if type(request.data.get("visible")) is not bool:
             return Response({"visible": ["Selecione mostrar ou ocultar."]}, status=400)
         visible = request.data["visible"]
+        if visible and getattr(pedido, f"foto_extra_{slot}_estado") != "APROVADO":
+            return Response({"detail": "A fotografia necessita de aprovação da moderação."}, status=400)
         if visible and (
             profile.status != "ATIVO" or not profile.visivel
             or pedido.status != "APROVADO"
@@ -90,7 +93,8 @@ def api_manage_extra_photo(request, slot):
         old_file = current
         setattr(pedido, image_field, image)
         setattr(pedido, flag_field, False)
-        pedido.save(update_fields=[image_field, flag_field, "atualizado_em"])
+        setattr(pedido, f"foto_extra_{slot}_estado", "PENDENTE")
+        pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", "atualizado_em"])
         if old_file and old_file.name != getattr(pedido, image_field).name:
             # A fotografia anterior é substituída apenas depois do registo guardado.
             transaction.on_commit(lambda: old_file.delete(save=False))
@@ -101,7 +105,8 @@ def api_manage_extra_photo(request, slot):
     old_file = current
     setattr(pedido, image_field, "")
     setattr(pedido, flag_field, False)
-    pedido.save(update_fields=[image_field, flag_field, "atualizado_em"])
+    setattr(pedido, f"foto_extra_{slot}_estado", "PENDENTE")
+    pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", "atualizado_em"])
     if old_file:
         transaction.on_commit(lambda: old_file.delete(save=False))
     return Response(_owner_payload(profile))
@@ -132,6 +137,7 @@ def api_extra_photo_media(request, profile_id, slot):
             and profile.usuario.is_active
             and not _blocked(viewer, profile)
             and getattr(profile.pedido, flag_name)
+            and getattr(profile.pedido, f"foto_extra_{slot}_estado") == "APROVADO"
         ):
             return Response({"detail": "Fotografia não encontrada."}, status=404)
     image = getattr(profile.pedido, field_name)
