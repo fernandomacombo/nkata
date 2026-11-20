@@ -331,7 +331,11 @@ def api_momentos(request):
             expira_em=expires_at,
         )
         if media:
-            queue_content_media_analysis("MOMENTO", momento.id, media_type or "")
+            queue_content_media_analysis(
+                content_type="MOMENTO",
+                content_id=momento.id,
+                media_type=momento.tipo_media,
+            )
     except DatabaseError:
         return Response(
             {

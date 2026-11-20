@@ -1,9 +1,12 @@
 from datetime import timedelta
 from decimal import Decimal
+from tempfile import TemporaryDirectory
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 from .test_governance_rules import create_member
+from .test_extra_photo_moderation import valid_photo
+from .content_moderation_models import AnaliseAutomaticaConteudoNKATA
 from .models import MatchPerfil, MensagemMatch, AcessoPlanoNKATA
 from .moments_models import MomentoNKATA
 from .plan_service import assign_plan, plan_code_for_user
@@ -24,6 +27,24 @@ class MomentChatUpdateTests(TestCase):
         self.assertEqual((moment.tema, moment.fonte), ('sand', 'italic'))
         listing = self.client.get('/api/momentos/')
         self.assertEqual(listing.data['results'][0]['theme'], 'sand')
+
+    def test_photo_moment_enters_moderation_queue(self):
+        assign_plan(self.user, "QUINZENAL")
+        with TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                "/api/momentos/",
+                {"caption": "DIA_TRANQUILO", "media": valid_photo("momento.jpg")},
+                format="multipart",
+            )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        moment = MomentoNKATA.objects.get(pk=response.data["id"])
+        self.assertEqual(moment.moderacao_status, "PENDENTE")
+        analysis = AnaliseAutomaticaConteudoNKATA.objects.get(
+            content_type="MOMENTO", content_id=moment.id
+        )
+        self.assertEqual(analysis.media_type, "IMAGEM")
+        self.assertEqual(analysis.provider, "queue")
 
     def test_blank_and_untrusted_styles_rejected(self):
         self.assertEqual(self.client.post('/api/momentos/', {'caption': 'SEM_LEGENDA'}).status_code, 400)
