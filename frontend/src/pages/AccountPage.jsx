@@ -611,12 +611,13 @@ export default function AccountPage({
                       ? (english ? "Your card can appear before sign-in." : "O seu cartão pode aparecer antes do login.")
                       : account.destaque_publico_elegivel
                         ? (english ? "Allow your card on the public page." : "Autorize o seu cartão na página pública.")
-                        : account.visivel && !account.foto_url
-                          ? (english ? "Add a profile photo first." : "Adicione uma fotografia ao perfil.")
-                          : account.visivel && !account.foto_destaque_publico_aprovada
-                            ? (english ? "The main photo requires approval for public presentation." : "A fotografia principal precisa de aprovação para apresentação pública.")
-                            : (english ? "Public presentation is unavailable; check your account status." : "A apresentação pública não está disponível. Verifique o estado da conta.")
-                          : (english ? "First make the profile visible." : "Primeiro torne o perfil visível.")}
+                        : !account.visivel
+                          ? (english ? "First make the profile visible." : "Primeiro torne o perfil visível.")
+                          : !account.foto_url
+                            ? (english ? "Add a profile photo first." : "Adicione uma fotografia ao perfil.")
+                            : !account.foto_destaque_publico_aprovada
+                              ? (english ? "Your main profile photo requires staff approval for public presentation." : "A fotografia principal precisa de aprovação da equipa para apresentação pública.")
+                              : (english ? "Please check the account approval status." : "Verifique o estado de aprovação da conta.")}
                   </small>
                 </div>
               </div>
