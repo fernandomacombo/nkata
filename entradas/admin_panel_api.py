@@ -133,10 +133,10 @@ def _summary_payload(request):
             "access_pending": PedidoEntrada.objects.filter(
                 Q(status__in=["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"])
                 | (
-                    Q(status="APROVADO", verificacao_identidade__isnull=False)
+                    Q(status="APROVADO")
                     & (
-                        ~Q(verificacao_identidade__status="APROVADA")
-                        | Q(verificacao_apos_entrada=True, documento_confirmado=False)
+                        Q(verificacao_apos_entrada=True, documento_confirmado=False)
+                        | (Q(verificacao_identidade__isnull=False) & ~Q(verificacao_identidade__status="APROVADA"))
                     )
                 )
             ).distinct().count(),
@@ -236,22 +236,16 @@ def _access_rows(request, limit):
         )
     valid_statuses = {value for value, _label in PedidoEntrada.STATUS_CHOICES}
     identity_review = (
-        Q(status="APROVADO", verificacao_identidade__isnull=False)
+        Q(status="APROVADO")
         & (
-            ~Q(verificacao_identidade__status="APROVADA")
-            | Q(verificacao_apos_entrada=True, documento_confirmado=False)
+            Q(verificacao_apos_entrada=True, documento_confirmado=False)
+            | (Q(verificacao_identidade__isnull=False) & ~Q(verificacao_identidade__status="APROVADA"))
         )
     )
     if status_filter == "EM_ANALISE":
         queryset = queryset.filter(Q(status="EM_ANALISE") | identity_review)
     elif status_filter == "APROVADO":
-        queryset = queryset.filter(status="APROVADO").filter(
-            Q(verificacao_identidade__isnull=True)
-            | (
-                Q(verificacao_identidade__status="APROVADA")
-                & (Q(verificacao_apos_entrada=False) | Q(documento_confirmado=True))
-            )
-        )
+        queryset = queryset.filter(status="APROVADO").exclude(identity_review)
     elif status_filter in valid_statuses:
         queryset = queryset.filter(status=status_filter)
 
@@ -263,10 +257,9 @@ def _access_rows(request, limit):
         has_questionnaire = hasattr(item, "questionario")
         identity_pending = bool(
             item.status == "APROVADO"
-            and verification
             and (
-                verification.status != "APROVADA"
-                or (item.verificacao_apos_entrada and not item.documento_confirmado)
+                (item.verificacao_apos_entrada and not item.documento_confirmado)
+                or (verification is not None and verification.status != "APROVADA")
             )
         )
         results.append({
@@ -411,10 +404,9 @@ def _access_detail_payload(item):
     has_questionnaire = hasattr(item, "questionario")
     identity_pending = bool(
         item.status == "APROVADO"
-        and verification
         and (
-            verification.status != "APROVADA"
-            or (item.verificacao_apos_entrada and not item.documento_confirmado)
+            (item.verificacao_apos_entrada and not item.documento_confirmado)
+            or (verification is not None and verification.status != "APROVADA")
         )
     )
     return {
