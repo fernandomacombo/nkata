@@ -376,9 +376,11 @@ def api_atualizar_foto_perfil(request):
 
     perfil.destaque_publico = False
     perfil.foto_destaque_publico_aprovada = False
+    perfil.foto_destaque_publico_estado = "PENDENTE"
     perfil.save(update_fields=[
         "destaque_publico",
         "foto_destaque_publico_aprovada",
+        "foto_destaque_publico_estado",
         "atualizado_em",
     ])
 
