@@ -65,7 +65,7 @@ class ExtraPhotoModerationTests(TestCase):
         self.client.force_login(self.moderator)
         response = self.client.get("/api/painel/fotografias/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(1, [row["slot"] for row in response.json()["results"]], {"payload": response.json(), "photo": self.pedido.foto_extra_1.name, "state": self.pedido.foto_extra_1_estado, "profile_id": self.profile.pk})
+        self.assertIn(1, [row["slot"] for row in response.json()["results"]], {"payload": response.json(), "photo": self.pedido.foto_extra_1.name, "state": self.pedido.foto_extra_1_estado, "profile_id": self.profile.pk, "matches": PerfilNKATA.objects.filter(pedido__status="APROVADO", status="ATIVO", usuario__is_staff=False).count(), "profile_status": self.profile.status, "request_status": self.pedido.status, "staff": self.owner.is_staff})
         item = next(row for row in response.json()["results"] if row["slot"] == 1)
         stale = self.client.post(self.moderation_url(), '{"action": "approve", "version": "old"}', content_type="application/json")
         self.assertEqual(stale.status_code, 409)
