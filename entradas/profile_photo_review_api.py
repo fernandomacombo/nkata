@@ -56,7 +56,7 @@ def api_photo_review_queue(request):
     if status_filter not in ("PENDENTE", "APROVADO", "REJEITADO"):
         return Response({"detail": "Estado inválido."}, status=400)
     profiles = PerfilNKATA.objects.select_related("pedido", "usuario").filter(
-        pedido__status="APROVADO", status="ATIVO", usuario__is_staff=False
+        pedido__status="APROVADO", status__in=["ATIVO", "PAUSADO"], usuario__is_staff=False
     ).order_by("-pk")
     rows = []
     # Limit the number of profiles scanned per page; no unbounded table scans.
@@ -93,7 +93,7 @@ def api_review_photo(request, profile_id, slot):
     if action not in ("approve", "reject"):
         return Response({"detail": "Ação inválida."}, status=400)
     profile = PerfilNKATA.objects.select_related("pedido").select_for_update(of=("self",)).filter(
-        pk=profile_id, pedido__status="APROVADO", status="ATIVO"
+        pk=profile_id, pedido__status="APROVADO", status__in=["ATIVO", "PAUSADO"]
     ).first()
     if not profile or not _image_for(profile, slot):
         return Response({"detail": "Fotografia não encontrada."}, status=404)
