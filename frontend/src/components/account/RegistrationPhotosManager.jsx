@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, ImagePlus, RefreshCw, Trash2 } from "lucide-react";
-import { API_BASE_URL, request } from "../services/api.js";
-import "../profile-photos.css";
+import { API_BASE_URL, request } from "../../services/api.js";
+import "../../profile-photos.css";
 
 const statusLabel = { PENDENTE: "A aguardar aprovação", APROVADO: "Aprovada", REJEITADO: "Rejeitada" };
 
