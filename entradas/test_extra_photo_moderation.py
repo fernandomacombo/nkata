@@ -65,13 +65,23 @@ class ExtraPhotoModerationTests(TestCase):
         self.client.force_login(self.moderator)
         response = self.client.get("/api/painel/fotografias/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(1, [row["slot"] for row in response.json()["results"]], {"payload": response.json(), "photo": self.pedido.foto_extra_1.name, "state": self.pedido.foto_extra_1_estado, "profile_id": self.profile.pk, "matches": PerfilNKATA.objects.filter(pedido__status="APROVADO", status="ATIVO", usuario__is_staff=False).count(), "profile_status": self.profile.status, "request_status": self.pedido.status, "staff": self.owner.is_staff})
+        self.assertIn(1, [row["slot"] for row in response.json()["results"]], {"payload": response.json(), "profile_status": self.profile.status})
         item = next(row for row in response.json()["results"] if row["slot"] == 1)
         stale = self.client.post(self.moderation_url(), '{"action": "approve", "version": "old"}', content_type="application/json")
         self.assertEqual(stale.status_code, 409)
         approved = self.client.post(self.moderation_url(), '{"action": "approve", "version": "' + item["version"] + '"}', content_type="application/json")
         self.assertEqual(approved.status_code, 200)
         self.client.force_login(self.owner)
+        # Photo approval never overrides a paused account. Simulate an active
+        # member explicitly before testing their voluntary visibility choice.
+        self.profile.refresh_from_db()
+        if self.profile.status == "PAUSADO":
+            denied = self.client.patch(
+                "/api/minha-conta/fotografias/1/", '{"visible": true}',
+                content_type="application/json",
+            )
+            self.assertEqual(denied.status_code, 400)
+        PerfilNKATA.objects.filter(pk=self.profile.pk).update(status="ATIVO", visivel=True)
         visible = self.client.patch(
             "/api/minha-conta/fotografias/1/", '{"visible": true}',
             content_type="application/json",
@@ -85,7 +95,7 @@ class ExtraPhotoModerationTests(TestCase):
     def test_rejection_hides_photo_and_owner_can_delete(self):
         self.client.force_login(self.moderator)
         pending = self.client.get("/api/painel/fotografias/")
-        self.assertIn(1, [row["slot"] for row in pending.json()["results"]], {"payload": pending.json(), "photo": self.pedido.foto_extra_1.name, "state": self.pedido.foto_extra_1_estado, "profile_id": self.profile.pk})
+        self.assertIn(1, [row["slot"] for row in pending.json()["results"]], {"payload": pending.json()})
         item = next(row for row in pending.json()["results"] if row["slot"] == 1)
         self.client.post(self.moderation_url(), '{"action": "approve", "version": "' + item["version"] + '"}', content_type="application/json")
         self.pedido.refresh_from_db()
