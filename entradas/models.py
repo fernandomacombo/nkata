@@ -57,6 +57,10 @@ class PedidoEntrada(models.Model):
         storage=profile_media_storage,
         upload_to="pedidos/fotos/",
     )
+    # As fotografias adicionais do registo começam privadas.
+    foto_extra_1_visivel = models.BooleanField(default=False)
+    foto_extra_2_visivel = models.BooleanField(default=False)
+    foto_extra_3_visivel = models.BooleanField(default=False)
     bi_frente = models.ImageField(
         storage=identity_media_storage,
         upload_to="pedidos/documentos/",
