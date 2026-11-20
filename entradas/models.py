@@ -165,6 +165,7 @@ class PerfilNKATA(models.Model):
     destaque_publico = models.BooleanField(default=False, db_index=True)
     destaque_publico_consentido_em = models.DateTimeField(null=True, blank=True)
     foto_destaque_publico_aprovada = models.BooleanField(default=False)
+    foto_destaque_publico_estado = models.CharField(max_length=12, default="PENDENTE", choices=[("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("REJEITADO", "Rejeitado")])
     destaque_publico_exibicoes = models.PositiveBigIntegerField(default=0, editable=False)
     destaque_publico_ultima_exibicao_em = models.DateTimeField(
         null=True,
