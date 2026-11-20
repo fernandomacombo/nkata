@@ -133,10 +133,10 @@ def _summary_payload(request):
             "access_pending": PedidoEntrada.objects.filter(
                 Q(status__in=["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"])
                 | (
-                    Q(status="APROVADO", verificacao_identidade__isnull=False)
+                    Q(status="APROVADO")
                     & (
-                        ~Q(verificacao_identidade__status="APROVADA")
-                        | Q(verificacao_apos_entrada=True, documento_confirmado=False)
+                        Q(verificacao_apos_entrada=True, documento_confirmado=False)
+                        | (Q(verificacao_identidade__isnull=False) & ~Q(verificacao_identidade__status="APROVADA"))
                     )
                 )
             ).distinct().count(),
