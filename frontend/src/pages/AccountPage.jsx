@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import PlanPanel from "../components/account/PlanPanel.jsx";
+import RegistrationPhotosManager from "../components/account/RegistrationPhotosManager.jsx";
 import AccountSummaryPanel from "../components/account/AccountSummaryPanel.jsx";
 import PreferencesPanel from "../components/account/PreferencesPanel.jsx";
 import DeviceExperiencePanel from "../components/account/DeviceExperiencePanel.jsx";
@@ -610,8 +611,11 @@ export default function AccountPage({
                       ? (english ? "Your card can appear before sign-in." : "O seu cartão pode aparecer antes do login.")
                       : account.destaque_publico_elegivel
                         ? (english ? "Allow your card on the public page." : "Autorize o seu cartão na página pública.")
-                        : account.visivel
-                          ? (english ? "The photo is awaiting approval." : "A fotografia aguarda aprovação.")
+                        : account.visivel && !account.foto_url
+                          ? (english ? "Add a profile photo first." : "Adicione uma fotografia ao perfil.")
+                          : account.visivel && !account.foto_destaque_publico_aprovada
+                            ? (english ? "The main photo requires approval for public presentation." : "A fotografia principal precisa de aprovação para apresentação pública.")
+                            : (english ? "Public presentation is unavailable; check your account status." : "A apresentação pública não está disponível. Verifique o estado da conta.")
                           : (english ? "First make the profile visible." : "Primeiro torne o perfil visível.")}
                   </small>
                 </div>
@@ -787,6 +791,7 @@ export default function AccountPage({
               </label>
             </div>
             </form>
+            <RegistrationPhotosManager language={language} />
             <ProfileGalleryManager language={language} />
             </>
           )}
