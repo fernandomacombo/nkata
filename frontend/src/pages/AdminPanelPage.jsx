@@ -552,7 +552,8 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
 
             <aside className="nk-admin-review__summary">
               <section>
-                <header><h3>Verificação</h3><StatusBadge status={identity.status} label={identity.status_label} /></header>
+                <header><h3>Verificação</h3><StatusBadge status={identity.status} label={identity.status === "REVISAO" && identity.captures_complete ? "Capturas concluídas · decisão administrativa pendente" : identity.status_label} /></header>
+                {identity.status === "REVISAO" && identity.captures_complete && <p className="nk-admin-review__decision-notice">As capturas estão concluídas. Confirme cuidadosamente o BI, a selfie e a correspondência dos dados e utilize «Confirmar identidade» para concluir a revisão. A qualidade automática não equivale à aprovação humana.</p>}
                 <ul className="nk-admin-review__checks">
                   <li className={identity.captures_complete ? "is-ok" : "is-alert"}>
                     {identity.captures_complete ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}
