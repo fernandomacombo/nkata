@@ -13,6 +13,7 @@ from rest_framework.response import Response
 
 from .throttles import TokenFlowRateThrottle
 
+from .match_preferences import MatchPreferencesSerializer
 from .forms import QuestionarioEntradaForm
 from .launch_promotion import complete_registration_password
 from .profile_names import public_name_from_registration
@@ -113,7 +114,12 @@ def _questionnaire_payload(pedido):
             "status": pedido.status,
             "status_label": pedido.get_status_display(),
         },
-        "values": values,
+        "values": {
+            **values,
+            "preferencias": perfil.preferencias
+            if password_step_ready and not perfil.usuario.has_usable_password()
+            else {},
+        },
         "choices": {
             "disponibilidade": _choice_payload(QuestionarioEntrada.DISPONIBILIDADE_CHOICES),
             "tem_filhos": _choice_payload(QuestionarioEntrada.FILHOS_CHOICES),
@@ -161,8 +167,19 @@ def api_questionario(request, token):
     if request.method == "GET":
         return Response(_questionnaire_payload(pedido))
 
+    perfil = _perfil_existente(pedido)
+    if perfil and perfil.usuario_id and perfil.usuario.has_usable_password():
+        return Response({"detail": "Pode atualizar as suas respostas em Editar perfil."}, status=409)
+
+    preferences = MatchPreferencesSerializer(data=request.data.get("preferencias", {}))
+    if not preferences.is_valid():
+        return Response({"detail": "Reveja as preferências indicadas.", "errors": preferences.errors}, status=400)
+    answers = request.data.copy()
+    if "ages" in preferences.validated_data:
+        ages = preferences.validated_data["ages"]
+        answers["faixa_etaria_preferida"] = f"{ages[0]} a {ages[1]} anos" if ages else "Sem preferência"
     questionario = _questionario_existente(pedido)
-    form = QuestionarioEntradaForm(request.data, instance=questionario)
+    form = QuestionarioEntradaForm(answers, instance=questionario)
     if not form.is_valid():
         return Response(
             {
@@ -197,6 +214,7 @@ def api_questionario(request, token):
                 },
             )
 
+            perfil.preferencias = {**perfil.preferencias, **preferences.validated_data}
             perfil.usuario = user
             perfil.nome_publico = public_name_from_registration(pedido.nome_completo)[:120]
             perfil.cidade = pedido.cidade

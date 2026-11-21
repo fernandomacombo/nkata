@@ -1,3 +1,4 @@
+import { ProfilePreferences } from "../components/MatchPreferences";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -391,6 +392,7 @@ export default function ProfileDetailPage({
               <DetailBlock title={english ? "About me" : "Sobre mim"}>
                 {profile.sobre_si || (english ? "This person has not added an introduction yet." : "Esta pessoa ainda não acrescentou uma apresentação.")}
               </DetailBlock>
+              <ProfilePreferences values={profile.preferencias} english={english} />
               <DetailBlock title={english ? "What I value" : "O que valorizo"}>
                 {profile.o_que_valoriza || (english ? "Not filled in yet." : "Ainda não foi preenchido.")}
               </DetailBlock>

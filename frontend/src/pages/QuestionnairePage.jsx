@@ -1,3 +1,4 @@
+import { MatchPreferences, legacyAges } from "../components/MatchPreferences";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -76,7 +77,12 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
     fetchQuestionnaire(token, { signal: controller.signal })
       .then((payload) => {
         setData(payload);
-        setValues({ ...emptyValues, ...(payload.values || {}) });
+        const saved = payload.values || {};
+        setValues({
+          ...emptyValues,
+          ...saved,
+          preferencias: { ages: legacyAges(saved.faixa_etaria_preferida), ...saved.preferencias },
+        });
         if (payload.account_ready) setStep("success");
         else if (payload.questionnaire_complete) setStep("password");
       })
@@ -110,7 +116,9 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
       if (!values[field]) next[field] = "Escolha uma opção.";
     });
     if (values.cidade_preferida.trim().length < 2) next.cidade_preferida = "Informe a cidade ou região.";
-    if (values.faixa_etaria_preferida.trim().length < 3) next.faixa_etaria_preferida = "Informe a faixa etária que procura.";
+    const ages = values.preferencias?.ages;
+    if (ages && (!ages[0] || !ages[1] || ages[0] > ages[1])) next.ages = "Reveja a idade mínima e máxima.";
+    if (ages === undefined) next.ages = "Escolha uma opção de idade.";
     if (values.sobre_si.trim().length < 20) next.sobre_si = "Conte um pouco mais sobre si.";
     if (values.o_que_valoriza.trim().length < 10) next.o_que_valoriza = "Diga o que considera importante numa relação.";
     if (values.o_que_nao_aceita.trim().length < 10) next.o_que_nao_aceita = "Explique os limites importantes para si.";
@@ -234,62 +242,85 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
                 <p>Responda com naturalidade. Pode rever tudo antes de continuar.</p>
               </div>
 
-              <div className="nk-questionnaire-grid">
-                <SelectField
-                  label="Está disponível para uma relação?"
-                  name="disponibilidade"
-                  value={values.disponibilidade}
-                  choices={data.choices?.disponibilidade}
+              <fieldset className="nk-questionnaire-section">
+                <legend>Sobre si</legend>
+                <p>Conte um pouco sobre a sua vida e o que quer partilhar no perfil.</p>
+                <div className="nk-questionnaire-grid">
+                  <SelectField
+                    label="Está disponível para uma relação?"
+                    name="disponibilidade"
+                    value={values.disponibilidade}
+                    choices={data.choices?.disponibilidade}
+                    errors={errors}
+                    onChange={updateValue}
+                  />
+                  <SelectField
+                    label="Tem filhos?"
+                    name="tem_filhos"
+                    value={values.tem_filhos}
+                    choices={data.choices?.tem_filhos}
+                    errors={errors}
+                    onChange={updateValue}
+                  />
+                  <label className="nk-questionnaire-field nk-questionnaire-field--full">
+                    <span>Fale um pouco sobre si</span>
+                    <textarea rows="4" value={values.sobre_si} onChange={(event) => updateValue("sobre_si", event.target.value)} placeholder="Conte o que considera importante sobre si, com as suas próprias palavras." />
+                    <FieldError errors={errors} name="sobre_si" />
+                  </label>
+                </div>
+                <MatchPreferences
+                  values={values.preferencias}
+                  onChange={(preferences) => updateValue("preferencias", preferences)}
+                  section="details"
                   errors={errors}
-                  onChange={updateValue}
                 />
-                <SelectField
-                  label="Tem filhos?"
-                  name="tem_filhos"
-                  value={values.tem_filhos}
-                  choices={data.choices?.tem_filhos}
+              </fieldset>
+
+              <fieldset className="nk-questionnaire-section">
+                <legend>Quem gostaria de conhecer</legend>
+                <p>As suas preferências ajudam o NKATA a recomendar perfis.</p>
+                <div className="nk-questionnaire-grid">
+                  <SelectField
+                    label="Aceita conhecer alguém com filhos?"
+                    name="aceita_pessoa_com_filhos"
+                    value={values.aceita_pessoa_com_filhos}
+                    choices={data.choices?.aceita_pessoa_com_filhos}
+                    errors={errors}
+                    onChange={updateValue}
+                  />
+
+                  <label className="nk-questionnaire-field">
+                    <span>Onde gostaria de conhecer pessoas?</span>
+                    <input value={values.cidade_preferida} onChange={(event) => updateValue("cidade_preferida", event.target.value)} placeholder="Ex.: Maputo, Matola, Vilankulo" />
+                    <FieldError errors={errors} name="cidade_preferida" />
+                  </label>
+                </div>
+                <MatchPreferences
+                  values={values.preferencias}
+                  onChange={(preferences) => updateValue("preferencias", preferences)}
+                  section="search"
+                  requireAge
                   errors={errors}
-                  onChange={updateValue}
                 />
-                <SelectField
-                  label="Aceita conhecer alguém com filhos?"
-                  name="aceita_pessoa_com_filhos"
-                  value={values.aceita_pessoa_com_filhos}
-                  choices={data.choices?.aceita_pessoa_com_filhos}
-                  errors={errors}
-                  onChange={updateValue}
-                />
+              </fieldset>
 
-                <label className="nk-questionnaire-field">
-                  <span>Onde gostaria de conhecer pessoas?</span>
-                  <input value={values.cidade_preferida} onChange={(event) => updateValue("cidade_preferida", event.target.value)} placeholder="Ex.: Maputo, Matola, Vilankulo" />
-                  <FieldError errors={errors} name="cidade_preferida" />
-                </label>
+              <fieldset className="nk-questionnaire-section">
+                <legend>O que importa numa relação</legend>
+                <p>Partilhe os seus valores e os limites que considera importantes.</p>
+                <div className="nk-questionnaire-grid">
+                  <label className="nk-questionnaire-field">
+                    <span>O que mais valoriza numa relação?</span>
+                    <textarea rows="3" value={values.o_que_valoriza} onChange={(event) => updateValue("o_que_valoriza", event.target.value)} placeholder="Ex.: respeito, honestidade, comunicação…" />
+                    <FieldError errors={errors} name="o_que_valoriza" />
+                  </label>
 
-                <label className="nk-questionnaire-field nk-questionnaire-field--full">
-                  <span>Faixa etária que procura</span>
-                  <input value={values.faixa_etaria_preferida} onChange={(event) => updateValue("faixa_etaria_preferida", event.target.value)} placeholder="Ex.: 25 a 35 anos" />
-                  <FieldError errors={errors} name="faixa_etaria_preferida" />
-                </label>
-
-                <label className="nk-questionnaire-field nk-questionnaire-field--full">
-                  <span>Fale um pouco sobre si</span>
-                  <textarea rows="4" value={values.sobre_si} onChange={(event) => updateValue("sobre_si", event.target.value)} placeholder="Conte o que considera importante sobre si, com as suas próprias palavras." />
-                  <FieldError errors={errors} name="sobre_si" />
-                </label>
-
-                <label className="nk-questionnaire-field">
-                  <span>O que mais valoriza numa relação?</span>
-                  <textarea rows="3" value={values.o_que_valoriza} onChange={(event) => updateValue("o_que_valoriza", event.target.value)} placeholder="Ex.: respeito, honestidade, comunicação…" />
-                  <FieldError errors={errors} name="o_que_valoriza" />
-                </label>
-
-                <label className="nk-questionnaire-field">
-                  <span>O que não aceita numa relação?</span>
-                  <textarea rows="3" value={values.o_que_nao_aceita} onChange={(event) => updateValue("o_que_nao_aceita", event.target.value)} placeholder="Indique os seus limites essenciais." />
-                  <FieldError errors={errors} name="o_que_nao_aceita" />
-                </label>
-              </div>
+                  <label className="nk-questionnaire-field">
+                    <span>O que não aceita numa relação?</span>
+                    <textarea rows="3" value={values.o_que_nao_aceita} onChange={(event) => updateValue("o_que_nao_aceita", event.target.value)} placeholder="Indique os seus limites essenciais." />
+                    <FieldError errors={errors} name="o_que_nao_aceita" />
+                  </label>
+                </div>
+              </fieldset>
 
               <label className={`nk-questionnaire-consent ${errors.aceita_regras ? "has-error" : ""}`}>
                 <input type="checkbox" checked={values.aceita_regras} onChange={(event) => updateValue("aceita_regras", event.target.checked)} />

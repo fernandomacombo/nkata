@@ -147,6 +147,7 @@ class QuestionarioEntrada(models.Model):
 
 
 class PerfilNKATA(models.Model):
+    preferencias = models.JSONField(default=dict, blank=True)
     STATUS_CHOICES = [
         ("ATIVO", "Ativo"),
         ("PAUSADO", "Pausado"),
