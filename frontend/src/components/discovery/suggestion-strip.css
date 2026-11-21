@@ -14,8 +14,6 @@
 }
 
 .nk-suggestion-strip__create,
-.nk-suggestion-strip__track::-webkit-scrollbar { display: none; }
-
 .nk-suggestion-strip__profile {
   box-sizing: border-box;
   block-size: var(--card-height);
@@ -57,6 +55,8 @@
   overscroll-behavior-inline: contain;
   scroll-snap-type: x proximity;
 }
+
+.nk-suggestion-strip__track::-webkit-scrollbar { display: none; }
 
 .nk-suggestion-strip__profile {
   display: grid;
