@@ -3,9 +3,11 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 
 from .frontend import frontend_index
+from .social_preview import social_preview
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("social-preview.png", social_preview, name="nkata-social-preview"),
     path("api/", include("entradas.api_urls")),
     path("api/ajuda/", include("helpdesk.urls")),
 ]
