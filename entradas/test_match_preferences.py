@@ -61,6 +61,7 @@ class MatchPreferencesTests(TestCase):
     def test_pet_choices_can_be_shared_without_exposing_the_matching_preference(self):
         user, profile = create_member()
         viewer, _ = create_member("pet-viewer@example.test")
+        QuestionarioEntrada.objects.create(pedido=profile.pedido)
         account_url = "/api/minha-conta/"
         detail_url = f"/api/perfis/{profile.pk}/"
         self.client.force_login(user)
