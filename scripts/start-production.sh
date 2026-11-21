@@ -21,6 +21,17 @@ python manage.py migrate --noinput
 python manage.py check_nkata_runtime
 python manage.py collectstatic --noinput
 
+# Run with the web service's existing database and email configuration.
+if [ "${RAILWAY_ENVIRONMENT_NAME:-}" = "production" ]; then
+  (
+    while :; do
+      python manage.py send_nkata_onboarding_reminders ||
+        echo "Falha no envio de lembretes NKATA. Nova tentativa dentro de uma hora." >&2
+      sleep 3600
+    done
+  ) &
+fi
+
 exec gunicorn config.wsgi:application \
   --bind "0.0.0.0:${PORT:-8000}" \
   --workers "${WEB_CONCURRENCY:-2}" \
