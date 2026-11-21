@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play, Plus, UserRound } from "lucide-react";
+import { ArrowRight, Pause, Play, Plus, UserRound } from "lucide-react";
 import "./suggestion-strip.css";
 
 const reasons = {
@@ -8,16 +8,16 @@ const reasons = {
   preferred_age: ["Faixa etária preferida", "Preferred age range"],
 };
 
-export default function SuggestionStrip({ profiles, english, canPublish, composerOpen, onCreate, onOpenProfile }) {
+export default function SuggestionStrip({ profiles, english, canPublish, composerOpen, onCreate, onOpenProfile, onExplore }) {
   const strip = useRef(null);
   const position = useRef(0);
   const [paused, setPaused] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
 
-  const move = useCallback((direction) => {
+  const advance = useCallback(() => {
     const items = strip.current.children;
     if (items.length < 2) return;
-    position.current = (position.current + direction + items.length) % items.length;
+    position.current = (position.current + 1) % items.length;
     const target = items[position.current];
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     strip.current.scrollTo({
@@ -43,14 +43,14 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
       const track = strip.current;
       if (!motion.matches && !document.hidden && track.scrollWidth > track.clientWidth &&
           !track.closest(".nk-suggestion-strip").matches(":hover, :focus-within, :active")) {
-        move(1);
+        advance();
       }
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [composerOpen, move, paused, overflowing]);
+  }, [advance, composerOpen, paused, overflowing]);
 
   return (
-    <section className="nk-suggestion-strip" aria-label={english ? "Recent posts" : "Publicações recentes"}>
+    <section className="nk-suggestion-strip" aria-label={english ? "Profile suggestions" : "Sugestões de perfis"}>
       <div className="nk-suggestion-strip__row">
         <button
           type="button"
@@ -73,14 +73,15 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
               <span className="nk-suggestion-strip__reason">{reasons[profile.reasons?.[0]]?.[english ? 1 : 0]}</span>
             </button>
           ))}
-          {profiles?.length === 0 && <p>{english ? "No suggestions yet." : "Ainda não há sugestões."}</p>}
+          <button type="button" className="nk-suggestion-strip__profile nk-suggestion-strip__explore" onClick={onExplore}>
+            <ArrowRight size={22} aria-hidden="true" />
+            <span>{english ? "Explore more" : "Explorar mais"}</span>
+          </button>
         </div>
       </div>
       {overflowing && (
         <div className="nk-suggestion-strip__controls">
-          <button type="button" aria-label={english ? "Previous profile" : "Perfil anterior"} onClick={() => move(-1)}><ChevronLeft size={17} /></button>
           <button type="button" aria-label={paused ? (english ? "Resume carousel" : "Retomar carrossel") : (english ? "Pause carousel" : "Pausar carrossel")} onClick={() => setPaused((value) => !value)}>{paused ? <Play size={15} /> : <Pause size={15} />}</button>
-          <button type="button" aria-label={english ? "Next profile" : "Perfil seguinte"} onClick={() => move(1)}><ChevronRight size={17} /></button>
         </div>
       )}
     </section>
