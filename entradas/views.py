@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from .launch_promotion import complete_registration_password
 from .forms import EditarPerfilForm, PedidoEntradaForm, QuestionarioEntradaForm
+from .profile_names import public_name_from_registration
 from .models import AcaoPerfil, MensagemPerfil, PedidoEntrada, PerfilNKATA, MatchPerfil, MensagemMatch
 
 from .models import PerfilNKATA, DenunciaPerfil
@@ -142,7 +143,7 @@ def _get_or_create_user_for_pedido(pedido):
         username=username,
         email=pedido.email,
         password=None,
-        first_name=pedido.nome_completo[:150],
+        first_name=public_name_from_registration(pedido.nome_completo)[:150],
     )
     user.set_unusable_password()
     user.save()
@@ -180,7 +181,7 @@ def responder_questionario(request, token):
                 pedido=pedido,
                 defaults={
                     "usuario": usuario,
-                    "nome_publico": pedido.nome_completo,
+                    "nome_publico": public_name_from_registration(pedido.nome_completo)[:120],
                     "cidade": pedido.cidade,
                     "idade": pedido.idade,
                     "genero": pedido.genero,
@@ -197,7 +198,7 @@ def responder_questionario(request, token):
 
             if not criado:
                 perfil.usuario = usuario
-                perfil.nome_publico = pedido.nome_completo
+                perfil.nome_publico = public_name_from_registration(pedido.nome_completo)[:120]
                 perfil.cidade = pedido.cidade
                 perfil.idade = pedido.idade
                 perfil.genero = pedido.genero
