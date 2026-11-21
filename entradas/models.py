@@ -2,6 +2,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from .profile_names import validate_profile_name
 from .storage_backends import identity_media_storage, profile_media_storage
 
 
@@ -29,7 +30,7 @@ class PedidoEntrada(models.Model):
     ]
 
     token = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
-    nome_completo = models.CharField(max_length=160)
+    nome_completo = models.CharField(max_length=160, validators=[validate_profile_name])
     email = models.EmailField(unique=True)
     telefone = models.CharField(max_length=30)
     telefone_normalizado = models.CharField(max_length=16, blank=True, db_index=True, editable=False)
@@ -154,7 +155,7 @@ class PerfilNKATA(models.Model):
     ]
     pedido = models.OneToOneField(PedidoEntrada, on_delete=models.CASCADE, related_name="perfil")
     usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="perfil_nkata")
-    nome_publico = models.CharField(max_length=120)
+    nome_publico = models.CharField(max_length=120, validators=[validate_profile_name])
     cidade = models.CharField(max_length=100)
     idade = models.PositiveIntegerField()
     genero = models.CharField(max_length=30, choices=PedidoEntrada.GENERO_CHOICES)
