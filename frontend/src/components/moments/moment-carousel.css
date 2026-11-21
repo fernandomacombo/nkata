@@ -1,0 +1,116 @@
+.nk-moment-carousel {
+  width: min(980px, 100%);
+  margin-inline: auto;
+  padding: 14px 15px 10px;
+  border: 1px solid var(--nk-line, #e7dbd8);
+  border-radius: 18px;
+  background: var(--nk-paper, #fffdf9);
+}
+
+.nk-moment-carousel + .nk-moment-composer { margin-top: 14px; }
+
+.nk-moment-carousel__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  position: relative;
+}
+
+.nk-moment-carousel__create,
+.nk-moment-carousel__profile {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 3px;
+  background: transparent;
+  color: var(--nk-ink);
+  border-radius: 10px;
+  padding: 4px 3px;
+  cursor: pointer;
+}
+
+.nk-moment-carousel__create {
+  width: 86px;
+  border: 1px solid #e8d6da;
+  background: #faf3f4;
+  align-content: center;
+  align-self: stretch;
+  min-height: 112px;
+  color: #81273e;
+  gap: 6px;
+}
+
+.nk-moment-carousel__create > span {
+  border: 1px solid #dfc5cc;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+}
+
+.nk-moment-carousel__viewport {
+  overflow-x: auto;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.nk-moment-carousel__viewport::-webkit-scrollbar { display: none; }
+.nk-moment-carousel__profile { flex: 0 0 88px; }
+.nk-moment-carousel__profile .nk-moment-rail__ring { width: 64px; height: 64px; }
+.nk-moment-carousel strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .76rem;
+}
+
+.nk-moment-carousel small, .nk-moment-carousel__empty {
+  color: var(--nk-muted, #655c56);
+  font-size: .72rem;
+}
+
+.nk-moment-carousel__empty {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  margin: 0;
+}
+
+.nk-moment-carousel__controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-top: 5px;
+}
+
+.nk-moment-carousel__controls button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  color: #81273e;
+  border: 1px solid var(--nk-line, #e7dbd8);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.nk-moment-carousel button:focus-visible { outline: 2px solid #81273e; outline-offset: -2px; }
+
+@media (max-width: 620px) {
+  .nk-moment-carousel { padding: 9px; border-radius: 14px; }
+  .nk-moment-carousel__row { gap: 7px; }
+  .nk-moment-carousel__create { width: 72px; min-height: 100px; }
+  .nk-moment-carousel__create > span { width: 46px; height: 46px; }
+  .nk-moment-carousel__profile { flex-basis: 73px; }
+  .nk-moment-carousel__profile .nk-moment-rail__ring { width: 55px; height: 55px; }
+  .nk-moment-carousel__viewport { gap: 5px; }
+  .nk-moment-carousel__controls button { width: 44px; height: 44px; }
+}
