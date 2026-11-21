@@ -185,6 +185,7 @@ class PerfilNKATA(models.Model):
     motivo_pausa = models.CharField(max_length=240, blank=True)
     encerramento_solicitado_em = models.DateTimeField(null=True, blank=True)
     motivo_encerramento = models.CharField(max_length=500, blank=True)
+    reativacao_enviada_em = models.DateTimeField(null=True, blank=True, editable=False)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
