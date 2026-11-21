@@ -104,19 +104,20 @@ class AdminPanelApiTests(TestCase):
         self.assertEqual(detail.data["identity"]["status_label"], "Por iniciar")
         pending = self.client.get(
             reverse("entradas_api:admin_list"),
-            {"section": "access", "status": "EM_ANALISE"},
+            {"section": "identity"},
         )
         self.assertEqual(pending.status_code, 200)
-        self.assertIn(self.request_record.id, [row["id"] for row in pending.data["results"]])
+        self.assertNotIn(self.request_record.id, [row["id"] for row in pending.data["results"]])
         finished = self.client.get(
             reverse("entradas_api:admin_list"),
             {"section": "access", "status": "APROVADO"},
         )
         self.assertEqual(finished.status_code, 200)
-        self.assertNotIn(self.request_record.id, [row["id"] for row in finished.data["results"]])
+        self.assertIn(self.request_record.id, [row["id"] for row in finished.data["results"]])
         summary = self.client.get(reverse("entradas_api:admin_summary"))
         self.assertEqual(summary.status_code, 200)
-        self.assertGreaterEqual(summary.data["metrics"]["access_pending"], 1)
+        self.assertEqual(summary.data["metrics"]["access_pending"], 0)
+        self.assertEqual(summary.data["metrics"]["identity_pending"], 0)
 
     def test_regular_member_cannot_access_panel(self):
         self.client.force_authenticate(self.member_user)
@@ -401,7 +402,7 @@ class AdminPanelApiTests(TestCase):
         summary = self.client.get(reverse("entradas_api:admin_summary"))
         queue = self.client.get(
             reverse("entradas_api:admin_list"),
-            {"section": "access", "status": "EM_ANALISE"},
+            {"section": "identity"},
         )
         detail = self.client.get(
             reverse(
@@ -411,14 +412,15 @@ class AdminPanelApiTests(TestCase):
         )
 
         self.assertEqual(summary.status_code, 200)
-        self.assertEqual(summary.data["metrics"]["access_pending"], 1)
+        self.assertEqual(summary.data["metrics"]["access_pending"], 0)
+        self.assertEqual(summary.data["metrics"]["identity_pending"], 1)
         self.assertEqual(queue.status_code, 200)
         row = next(item for item in queue.data["results"] if item["id"] == waiting.id)
         self.assertEqual(row["display_status"], "EM_ANALISE")
         self.assertEqual(row["display_status_label"], "Identidade pendente")
-        self.assertEqual(row["questionnaire_path"], "")
+        self.assertTrue(row["questionnaire_path"])
         self.assertEqual(detail.data["display_status"], "EM_ANALISE")
-        self.assertEqual(detail.data["questionnaire_path"], "")
+        self.assertTrue(detail.data["questionnaire_path"])
 
     def test_staff_can_approve_pending_content(self):
         publication = PublicacaoNKATA.objects.create(

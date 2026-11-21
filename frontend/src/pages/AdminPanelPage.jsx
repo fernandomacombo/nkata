@@ -51,7 +51,8 @@ import {
 
 const SECTIONS = [
   { id: "overview", label: "Visão geral", description: "Estado da comunidade", icon: LayoutDashboard },
-  { id: "access", label: "Pedidos", description: "Identidade e admissão", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: FileCheck2 },
+  { id: "access", label: "Pedidos", description: "Pedidos de admissão", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: FileCheck2 },
+  { id: "identity", label: "NKATA ID", description: "Identidades por rever", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: ShieldCheck },
   { id: "members", label: "Membros", description: "Contas e perfis", search: "Nome, email, telefone ou cidade", columns: ["Membro", "Conta", "Ação"], icon: Users },
   { id: "photos", label: "Fotografias", description: "Aprovar imagens dos perfis", icon: Image },
   { id: "content", label: "Moderação", description: "Fotos e momentos", search: "Autor, email ou conteúdo", columns: ["Conteúdo", "Moderação", "Ação"], icon: ShieldCheck },
@@ -494,7 +495,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
     || (detail?.verify_after_entry && !detail.document_confirmed && identity?.status === "APROVADA")
   );
   const canDecide = detail && (
-    !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || identityPending
+    !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || (selection.section === "identity" && identityPending)
   );
   const approve = {
     section: "access",
@@ -535,7 +536,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
       <section className="nk-admin-review" role="dialog" aria-modal="true" aria-labelledby="admin-review-title">
         <header>
           <div>
-            <small>Revisão do pedido</small>
+            <small>{selection.section === "identity" ? "Revisão de identidade" : "Revisão do pedido"}</small>
             <h2 id="admin-review-title">{item.name}</h2>
             <span>{item.email} · recebido {formatDate(item.created_at)}</span>
           </div>
@@ -611,7 +612,6 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
                 </dl>
               </section>
 
-              <a href={detail.admin_url} target="_blank" rel="noreferrer">Ficha técnica avançada <ExternalLink size={14} /></a>
             </aside>
           </div>
         ) : null}
@@ -808,7 +808,8 @@ function Overview({ summary, loading, error, onRetry, onOpenSection }) {
         </header>
         <div>
           {[
-            ["access", "Pedidos de entrada", summary.metrics.access_pending, "Rever identidade e elegibilidade"],
+            ["access", "Pedidos de entrada", summary.metrics.access_pending, "Rever pedidos de admissão"],
+            ["identity", "NKATA ID", summary.metrics.identity_pending, "Rever identidades submetidas"],
             ["content", "Conteúdo pendente", summary.metrics.content_pending, "Aprovar antes de aparecer no feed"],
             ["reports", "Denúncias abertas", summary.metrics.reports_pending, "Proteger rapidamente a comunidade"],
           ].map(([id, label, count, detail]) => (
@@ -885,7 +886,7 @@ function actionsFor(section, item) {
 
 function AdminRow({ section, item, onDetails }) {
   const title = item.name || item.author || item.target || item.title;
-  const subtitle = section === "access"
+  const subtitle = ["access", "identity"].includes(section)
     ? `${item.email} · ${item.city}`
     : section === "members"
       ? `${item.email} · ${item.city}`
@@ -909,7 +910,7 @@ function AdminRow({ section, item, onDetails }) {
         {section === "audit" && item.detail && <p>{item.detail}</p>}
       </div>
       <div className="nk-admin-row__meta">
-        {section === "access" && <><span>{item.age} anos · {item.gender_label}</span><small>{item.identity_ready ? item.identity_status_label : "Identidade incompleta"}</small></>}
+        {["access", "identity"].includes(section) && <><span>{item.age} anos · {item.gender_label}</span><small>{section === "access" && item.status === "APROVADO" ? (item.has_password ? "Conta criada" : "A aguardar conclusão do cadastro") : item.identity_status_label}</small></>}
         {section === "members" && <><span>{item.age} anos · {item.visible ? "Visível" : "Oculto"}</span><small>{item.plan_label || "NKATA Livre"} · {item.pending_reports ? `${item.pending_reports} denúncia(s)` : "sem denúncias"}</small></>}
         {section === "content" && <><span>Risco: {item.risk_label}</span><small>{item.visibility_label}</small></>}
         {section === "reports" && <><span>Por {item.reporter}</span><small>{formatDate(item.created_at)}</small></>}
@@ -928,7 +929,7 @@ function AdminRow({ section, item, onDetails }) {
       </div>
       <div className="nk-admin-row__actions">
         <button type="button" className={section === "access" ? "is-primary" : ""} onClick={() => onDetails({ section, item })} title={section === "access" ? "Rever pedido" : "Ver detalhes"}>
-          <Eye size={16} /><span>{section === "access" ? "Rever pedido" : "Abrir"}</span>
+          <Eye size={16} /><span>{section === "identity" ? "Rever identidade" : section === "access" ? "Rever pedido" : "Abrir"}</span>
         </button>
       </div>
     </article>
@@ -959,7 +960,7 @@ export default function AdminPanelPage({ session }) {
     [session?.user?.admin_capabilities],
   );
   const allowedSections = useMemo(
-    () => SECTIONS.filter((section) => ["team", "support"].includes(section.id) ? session?.user?.is_superuser : section.id === "photos" ? allowedCodes.has("content") : allowedCodes.has(section.id)),
+    () => SECTIONS.filter((section) => ["team", "support"].includes(section.id) ? session?.user?.is_superuser : section.id === "photos" ? allowedCodes.has("content") : allowedCodes.has(section.id === "identity" ? "access" : section.id)),
     [allowedCodes, session?.user?.is_superuser],
   );
   const modalOpen = Boolean(
@@ -1059,6 +1060,7 @@ export default function AdminPanelPage({ session }) {
     const index = listData.results.findIndex((entry) => entry.id === item.id);
     setAccessReview({
       item,
+      section: activeSection,
       index,
       position: index + 1,
       total: listData.results.length,
@@ -1075,10 +1077,10 @@ export default function AdminPanelPage({ session }) {
     } finally {
       setAccessDetailLoading(false);
     }
-  }, [listData.results]);
+  }, [activeSection, listData.results]);
 
   const openDetails = (pending) => {
-    if (pending.section === "access") {
+    if (["access", "identity"].includes(pending.section)) {
       openAccessReview(pending.item);
       return;
     }
@@ -1193,7 +1195,8 @@ export default function AdminPanelPage({ session }) {
                 const Icon = section.icon;
                 const active = section.id === activeSection;
                 const badge = section.id === "access" ? summary?.metrics?.access_pending
-                  : section.id === "content" ? summary?.metrics?.content_pending
+                  : section.id === "identity" ? summary?.metrics?.identity_pending
+                    : section.id === "content" ? summary?.metrics?.content_pending
                     : section.id === "reports" ? summary?.metrics?.reports_pending : 0;
                 return (
                   <button type="button" key={section.id} className={active ? "is-active" : ""} onClick={() => setActiveSection(section.id)}>
@@ -1245,11 +1248,11 @@ export default function AdminPanelPage({ session }) {
                       <option value="CALLS">Chamadas</option><option value="MATCHES">Matches</option>
                     </select>
                   )}
-                  <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} aria-label="Estado">
+                  {activeSection !== "identity" && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} aria-label="Estado">
                     {(activeSection === "operations" && filters.kind === "MATCHES"
                       ? [["", "Todos os estados"], ["ATIVO", "Ativo"], ["ENCERRADO", "Encerrado"]]
                       : FILTERS[activeSection] || []).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-                  </select>
+                  </select>}
                   <button type="submit" className="nk-admin-button is-primary"><Search size={16} /> Pesquisar</button>
                   </form>
                 </section>

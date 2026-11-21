@@ -131,15 +131,9 @@ def _summary_payload(request):
             "members_active": PerfilNKATA.objects.filter(status="ATIVO").count(),
             "members_new_7d": PerfilNKATA.objects.filter(criado_em__gte=week_ago).count(),
             "access_pending": PedidoEntrada.objects.filter(
-                Q(status__in=["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"])
-                | (
-                    Q(status="APROVADO")
-                    & (
-                        Q(verificacao_apos_entrada=True, documento_confirmado=False)
-                        | (Q(verificacao_identidade__isnull=False) & ~Q(verificacao_identidade__status="APROVADA"))
-                    )
-                )
-            ).distinct().count(),
+                status__in=["PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR"],
+            ).count(),
+            "identity_pending": PedidoEntrada.objects.filter(_identity_review_queue()).count(),
             "content_pending": pending_posts + pending_moments,
             "reports_pending": pending_profile_reports + pending_post_reports,
             "matches_active": MatchPerfil.objects.filter(status="ATIVO").count(),
@@ -219,7 +213,18 @@ def _member_rows(request, limit):
     return {"total": total, "results": results}
 
 
-def _access_rows(request, limit):
+def _identity_review_queue():
+    return Q(status="APROVADO") & (
+        Q(verificacao_identidade__status="REVISAO")
+        | Q(
+            verificacao_apos_entrada=True,
+            documento_confirmado=False,
+            verificacao_identidade__status="APROVADA",
+        )
+    )
+
+
+def _access_rows(request, limit, *, identity=False):
     query = str(request.query_params.get("q", "")).strip()
     status_filter = str(request.query_params.get("status", "")).strip().upper()
     queryset = (
@@ -235,17 +240,8 @@ def _access_rows(request, limit):
             | Q(cidade__icontains=query)
         )
     valid_statuses = {value for value, _label in PedidoEntrada.STATUS_CHOICES}
-    identity_review = (
-        Q(status="APROVADO")
-        & (
-            Q(verificacao_apos_entrada=True, documento_confirmado=False)
-            | (Q(verificacao_identidade__isnull=False) & ~Q(verificacao_identidade__status="APROVADA"))
-        )
-    )
-    if status_filter == "EM_ANALISE":
-        queryset = queryset.filter(Q(status="EM_ANALISE") | identity_review)
-    elif status_filter == "APROVADO":
-        queryset = queryset.filter(status="APROVADO").exclude(identity_review)
+    if identity:
+        queryset = queryset.filter(_identity_review_queue())
     elif status_filter in valid_statuses:
         queryset = queryset.filter(status=status_filter)
 
@@ -273,15 +269,15 @@ def _access_rows(request, limit):
             "objective_label": item.get_objetivo_display(),
             "status": item.status,
             "status_label": item.get_status_display(),
-            "display_status": "EM_ANALISE" if identity_pending else item.status,
+            "display_status": "EM_ANALISE" if identity and identity_pending else item.status,
             "display_status_label": (
-                "Identidade pendente" if identity_pending else item.get_status_display()
+                "Identidade pendente" if identity and identity_pending else item.get_status_display()
             ),
             "accepted_verification": item.aceita_verificacao,
             "has_questionnaire": has_questionnaire,
             "questionnaire_path": (
                 f"/questionario/{item.token}/"
-                if item.status == "APROVADO" and not has_questionnaire and not identity_pending
+                if item.status == "APROVADO" and not has_questionnaire
                 else ""
             ),
             "has_profile": bool(profile),
@@ -430,7 +426,7 @@ def _access_detail_payload(item):
         "has_questionnaire": has_questionnaire,
         "questionnaire_path": (
             f"/questionario/{item.token}/"
-            if item.status == "APROVADO" and not has_questionnaire and not identity_pending
+            if item.status == "APROVADO" and not has_questionnaire
             else ""
         ),
         "has_profile": bool(profile),
@@ -729,6 +725,10 @@ def api_admin_summary(request):
     return Response(_summary_payload(request))
 
 
+def _identity_rows(request, limit):
+    return _access_rows(request, limit, identity=True)
+
+
 @api_view(["GET"])
 @permission_classes([permissions.IsAdminUser])
 def api_admin_list(request):
@@ -737,6 +737,7 @@ def api_admin_list(request):
     handlers = {
         "members": _member_rows,
         "access": _access_rows,
+        "identity": _identity_rows,
         "content": _content_rows,
         "reports": _report_rows,
         "operations": _operation_rows,
@@ -745,7 +746,7 @@ def api_admin_list(request):
     handler = handlers.get(section)
     if not handler:
         return Response({"detail": "Área administrativa inválida."}, status=400)
-    if not has_admin_capability(request.user, section):
+    if not has_admin_capability(request.user, "access" if section == "identity" else section):
         return Response({"detail": "Sem permissão para esta área."}, status=403)
     return Response(handler(request, limit))
 
