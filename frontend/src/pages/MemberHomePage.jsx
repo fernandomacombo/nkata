@@ -19,7 +19,6 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import PublicationStrip from "../components/discovery/PublicationStrip.jsx";
 import DiscoveryPanel from "../components/discovery/DiscoveryPanel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
@@ -429,15 +428,11 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           english={english}
           onOpenProfile={onOpenProfile}
           onExplore={() => onNavigate("discover")}
+          canPublish={canPublish}
+          composerOpen={composerOpen}
+          onCreate={() => setComposerOpen((value) => !value)}
         />
         <div className="nk-member-home__feed-column">
-          <PublicationStrip
-            publications={publications}
-            english={english}
-            canPublish={canPublish}
-            composerOpen={composerOpen}
-            onCreate={() => setComposerOpen((value) => !value)}
-          />
           <form id="nk-feed-composer" hidden={!composerOpen && canPublish}
             className={`nk-feed-composer ${canPublish ? "" : "is-locked"} ${composerOpen ? "is-open" : "is-collapsed"}`}
             onSubmit={publish}
@@ -562,15 +557,14 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           ) : publications.length ? (
             <div className="nk-feed-list">
               {publications.map((publication) => (
-                <div key={publication.id} id={`nk-publication-${publication.id}`} className="nk-publication-anchor">
-                  <PublicationCard
+                <PublicationCard
+                    key={publication.id}
                     publication={publication}
                     onOpenProfile={onOpenProfile}
                     onChanged={() => load({ silent: true })}
                     onDeleted={removeFromState}
                     english={english}
                   />
-                </div>
               ))}
             </div>
           ) : (

@@ -1,0 +1,81 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Pause, Play, Plus, UserRound } from "lucide-react";
+import "./suggestion-strip.css";
+
+const reasons = {
+  same_goal: ["Mesmo objetivo", "Same relationship goal"],
+  preferred_city: ["Cidade preferida", "Preferred city"],
+  preferred_age: ["Faixa etária preferida", "Preferred age range"],
+};
+
+export default function SuggestionStrip({ profiles, english, canPublish, composerOpen, onCreate, onOpenProfile }) {
+  const strip = useRef(null);
+  const position = useRef(0);
+  const [paused, setPaused] = useState(false);
+
+  const move = useCallback((direction) => {
+    const items = strip.current.children;
+    if (items.length < 2) return;
+    position.current = (position.current + direction + items.length) % items.length;
+    const target = items[position.current];
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    strip.current.scrollTo({
+      left: target.offsetLeft,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  }, []);
+
+  useEffect(() => {
+    position.current = 0;
+  }, [profiles?.length]);
+
+  useEffect(() => {
+    if (paused || composerOpen || (profiles?.length ?? 0) < 2) return undefined;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const timer = window.setInterval(() => {
+      const track = strip.current;
+      if (!motion.matches && !document.hidden && track.scrollWidth > track.clientWidth &&
+          !track.closest(".nk-suggestion-strip").matches(":hover, :focus-within, :active")) {
+        move(1);
+      }
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [composerOpen, move, paused, profiles?.length]);
+
+  return (
+    <section className="nk-suggestion-strip" aria-label={english ? "Recent posts" : "Publicações recentes"}>
+      <div className="nk-suggestion-strip__row">
+        <button
+          type="button"
+          className="nk-suggestion-strip__create"
+          disabled={!canPublish}
+          aria-controls="nk-feed-composer"
+          aria-expanded={composerOpen}
+          onClick={onCreate}
+        >
+          <Plus size={25} strokeWidth={1.6} />
+          <span>{english ? "New post" : "Nova publicação"}</span>
+        </button>
+        <div className="nk-suggestion-strip__track" ref={strip}>
+          {profiles?.map((profile) => (
+            <button type="button" className="nk-suggestion-strip__profile" key={profile.id} onClick={() => onOpenProfile(profile)}>
+              {profile.foto_url
+                ? <img src={profile.foto_url} alt="" loading="lazy" decoding="async" />
+                : <span className="nk-suggestion-strip__placeholder"><UserRound size={22} /></span>}
+              <strong title={profile.nome_publico}><span>{profile.nome_publico}</span><small>{profile.idade}</small></strong>
+              <span className="nk-suggestion-strip__reason">{reasons[profile.reasons?.[0]]?.[english ? 1 : 0]}</span>
+            </button>
+          ))}
+          {profiles?.length === 0 && <p>{english ? "No suggestions yet." : "Ainda não há sugestões."}</p>}
+        </div>
+      </div>
+      {profiles?.length > 1 && (
+        <div className="nk-suggestion-strip__controls">
+          <button type="button" aria-label={english ? "Previous profile" : "Perfil anterior"} onClick={() => move(-1)}><ChevronLeft size={17} /></button>
+          <button type="button" aria-label={paused ? (english ? "Resume carousel" : "Retomar carrossel") : (english ? "Pause carousel" : "Pausar carrossel")} onClick={() => setPaused((value) => !value)}>{paused ? <Play size={15} /> : <Pause size={15} />}</button>
+          <button type="button" aria-label={english ? "Next profile" : "Perfil seguinte"} onClick={() => move(1)}><ChevronRight size={17} /></button>
+        </div>
+      )}
+    </section>
+  );
+}

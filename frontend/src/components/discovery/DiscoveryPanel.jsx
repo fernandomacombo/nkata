@@ -1,18 +1,13 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, MessageCircle, UserRound } from "lucide-react";
+import { ArrowRight, MessageCircle } from "lucide-react";
 import { normalizeProfile, request } from "../../services/api.js";
 import "./discovery-panel.css";
+import SuggestionStrip from "./SuggestionStrip.jsx";
 
 const SUGGESTIONS_URL = "/api/descoberta/sugestoes/";
 const QUESTION_URL = "/api/descoberta/pergunta/";
 
-const reasonLabels = {
-  same_goal: ["Procuram o mesmo tipo de relação", "You share a relationship goal"],
-  preferred_city: ["Na cidade que prefere", "In your preferred city"],
-  preferred_age: ["Na faixa etária que prefere", "In your preferred age range"],
-};
-
-export default function DiscoveryPanel({ english, onOpenProfile, onExplore }) {
+export default function DiscoveryPanel({ english, onOpenProfile, onExplore, canPublish, composerOpen, onCreate }) {
   const [profiles, setProfiles] = useState(null);
   const [poll, setPoll] = useState(null);
   const [voting, setVoting] = useState(false);
@@ -46,37 +41,22 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore }) {
   const totalVotes = poll?.counts?.reduce((total, count) => total + count, 0);
   return (
     <>
-      {profiles && (
-        <section className="nk-discovery-panel nk-discovery-panel--profiles" aria-labelledby="nk-suggestions-title">
+      <section className="nk-discovery-panel nk-discovery-panel--profiles" aria-labelledby="nk-suggestions-title">
           <header>
             <h2 id="nk-suggestions-title">{english ? "Profiles for you" : "Perfis para si"}</h2>
             <button type="button" className="nk-discovery-link" onClick={onExplore}>
               {english ? "Explore all profiles" : "Explorar todos os perfis"} <ArrowRight size={16} />
             </button>
           </header>
-          {profiles.length ? (
-            <ul className="nk-discovery-profiles">
-              {profiles.map((profile) => (
-                <li key={profile.id}>
-                  <button type="button" onClick={() => onOpenProfile(profile)}>
-                    <span className="nk-discovery-portrait">
-                      {profile.foto_url
-                        ? <img src={profile.foto_url} loading="lazy" alt="" />
-                        : <UserRound size={22} />}
-                    </span>
-                    <span className="nk-discovery-profile-copy">
-                      <strong><span>{profile.nome_publico}</span><span className="nk-discovery-age">{profile.idade}</span></strong>
-                      <small>{reasonLabels[profile.reasons[0]]?.[english ? 1 : 0]}</small>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>{english ? "There are no suggestions based on your preferences yet." : "Ainda não há sugestões com base nas suas preferências."}</p>
-          )}
+          <SuggestionStrip
+            profiles={profiles}
+            english={english}
+            canPublish={canPublish}
+            composerOpen={composerOpen}
+            onCreate={onCreate}
+            onOpenProfile={onOpenProfile}
+          />
         </section>
-      )}
 
       {poll && (
         <section className="nk-discovery-panel nk-discovery-panel--poll" aria-labelledby="nk-poll-title">
