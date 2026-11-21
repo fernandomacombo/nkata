@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ChevronDown,
@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import AutoplayMomentViewer from "../components/moments/AutoplayMomentViewer.jsx";
+import MomentCarousel from "../components/moments/MomentCarousel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import { createMoment, deleteMoment, fetchMoments } from "../services/momentsApi.js";
@@ -241,27 +242,47 @@ export default function MomentsPage({ onOpenProfile }) {
   const [status, setStatus] = useState("");
   const [viewerGroup, setViewerGroup] = useState(null);
   const fileRef = useRef(null);
+  const activeRequest = useRef(null);
+  const changingMoment = useRef(false);
 
-  const load = async ({ signal } = {}) => {
-    setLoading(true);
-    setError("");
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (changingMoment.current || (silent && activeRequest.current)) return;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    if (!silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
-      const result = await fetchMoments({ signal });
-      setData(result);
+      const result = await fetchMoments({ signal: controller.signal });
+      if (!controller.signal.aborted) setData(result);
     } catch (requestError) {
-      if (requestError.name !== "AbortError") {
+      if (!silent && !controller.signal.aborted) {
         setError(requestError.message || (english ? "Unable to load Moments." : "Não foi possível carregar os Momentos."));
       }
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (activeRequest.current === controller) {
+        activeRequest.current = null;
+        setLoading(false);
+      }
     }
-  };
+  }, [english]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    load({ signal: controller.signal });
-    return () => controller.abort();
-  }, []);
+    load();
+    const refresh = () => {
+      if (!document.hidden) load({ silent: true });
+    };
+    const timer = window.setInterval(refresh, 5000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      activeRequest.current?.abort();
+      activeRequest.current = null;
+    };
+  }, [load]);
 
   useEffect(() => () => {
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
@@ -274,10 +295,6 @@ export default function MomentsPage({ onOpenProfile }) {
   const mediaEnabled = Boolean(capabilities?.media_enabled);
   const captionOptions = capabilities?.caption_options || FALLBACK_CAPTIONS;
   const canPublish = Boolean(media || caption !== "SEM_LEGENDA");
-  const viewerGroupIndex = viewerGroup
-    ? groups.findIndex((group) => String(group.profile.id) === String(viewerGroup.profile.id))
-    : -1;
-
   const clearMedia = () => {
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
     setMedia(null);
@@ -305,6 +322,8 @@ export default function MomentsPage({ onOpenProfile }) {
     event.preventDefault();
     if (publishing || !canPublish) return;
 
+    changingMoment.current = true;
+    activeRequest.current?.abort();
     setPublishing(true);
     setError("");
     setStatus("");
@@ -336,11 +355,15 @@ export default function MomentsPage({ onOpenProfile }) {
     } catch (requestError) {
       setError(requestError.message || (english ? "Unable to post the Moment." : "Não foi possível enviar o Momento."));
     } finally {
+      changingMoment.current = false;
       setPublishing(false);
     }
   };
 
   const handleDelete = async (moment) => {
+    if (changingMoment.current) return;
+    changingMoment.current = true;
+    activeRequest.current?.abort();
     try {
       await deleteMoment(moment.id);
       setData((current) => ({
@@ -354,15 +377,30 @@ export default function MomentsPage({ onOpenProfile }) {
       window.setTimeout(() => setStatus(""), 2400);
     } catch (requestError) {
       setError(requestError.message || (english ? "Unable to delete the Moment." : "Não foi possível remover o Momento."));
+    } finally {
+      changingMoment.current = false;
     }
   };
 
   return (
     <main className="nk-moments-page">
-      <CompactPageHeader title={english ? "Moments" : "Momentos"} />
+      <CompactPageHeader title={english ? "Moments" : "Momentos"}>
+        <button type="button" onClick={() => load()} disabled={loading} aria-label={english ? "Refresh Moments" : "Atualizar Momentos"}>
+          <RefreshCw size={17} className={loading ? "is-spinning" : ""} />
+          {english ? "Refresh" : "Atualizar"}
+        </button>
+      </CompactPageHeader>
 
       <section className="nk-shell nk-moments-page__content">
-        <form
+        <MomentCarousel
+          groups={groups}
+          loading={loading && !data}
+          english={english}
+          composerOpen={composerOpen}
+          onCreate={() => setComposerOpen((value) => !value)}
+          onOpen={(group) => setViewerGroup({ groups, index: groups.indexOf(group) })}
+        />
+        {composerOpen && <form id="nk-moment-composer"
           className={`nk-moment-composer ${composerOpen ? "is-open" : "is-collapsed"}`}
           onSubmit={handlePublish}
         >
@@ -438,7 +476,7 @@ export default function MomentsPage({ onOpenProfile }) {
               </div>
             </div>
           )}
-        </form>
+        </form>}
 
         {error && <div className="nk-moments-page__message is-error">{error}</div>}
         {status && <div className="nk-moments-page__message is-success">{status}</div>}
@@ -457,47 +495,12 @@ export default function MomentsPage({ onOpenProfile }) {
           </section>
         )}
 
-        <div className="nk-moments-page__heading">
-          <h2>{english ? "Recent" : "Recentes"}</h2>
-          <button type="button" onClick={() => load()} disabled={loading}>
-            <RefreshCw size={16} className={loading ? "is-spinning" : ""} /> {english ? "Refresh" : "Atualizar"}
-          </button>
-        </div>
-
-        {loading && !data ? (
-          <div className="nk-moment-rail nk-moment-rail--loading"><span /><span /><span /><span /></div>
-        ) : groups.length ? (
-          <div className="nk-moment-rail" aria-label={english ? "People with Moments" : "Pessoas com Momentos"}>
-            {groups.map((group) => (
-              <button type="button" key={group.profile.id} onClick={() => setViewerGroup(group)}>
-                <span className="nk-moment-rail__ring">
-                  <span>
-                    {group.profile.foto_url
-                      ? <img src={group.profile.foto_url} alt="" loading="lazy" decoding="async" />
-                      : <UserRound size={28} />}
-                    {group.moments.some((item) => item.media_type === "VIDEO") && (
-                      <em><Play size={10} fill="currentColor" /></em>
-                    )}
-                  </span>
-                </span>
-                <strong>{group.mine ? (english ? "Yours" : "O seu") : group.profile.nome_publico}</strong>
-                <small>{group.moments.length} {english ? (group.moments.length === 1 ? "Moment" : "Moments") : (group.moments.length === 1 ? "Momento" : "Momentos")}</small>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="nk-moments-page__empty">
-            <Clock3 size={27} />
-            <h2>{english ? "No active Moments" : "Nenhum Momento ativo"}</h2>
-            <p>{english ? "Post the first one." : "Publique o primeiro."}</p>
-          </div>
-        )}
       </section>
 
-      {viewerGroup && viewerGroupIndex >= 0 && (
+      {viewerGroup && (
         <AutoplayMomentViewer
-          groups={groups}
-          initialGroupIndex={viewerGroupIndex}
+          groups={viewerGroup.groups}
+          initialGroupIndex={viewerGroup.index}
           onClose={() => setViewerGroup(null)}
           onDelete={handleDelete}
           onOpenProfile={(profile) => {

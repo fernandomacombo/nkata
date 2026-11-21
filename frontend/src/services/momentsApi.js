@@ -32,6 +32,7 @@ function csrfHeaders() {
 export async function fetchMoments({ signal } = {}) {
   const response = await fetch(`${API_BASE_URL}/api/momentos/`, {
     method: "GET",
+    cache: "no-store",
     credentials: "include",
     headers: { Accept: "application/json" },
     signal,
