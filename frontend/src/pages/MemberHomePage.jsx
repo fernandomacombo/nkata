@@ -19,7 +19,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import HomeMoments from "../components/moments/HomeMoments.jsx";
+import PublicationStrip from "../components/discovery/PublicationStrip.jsx";
 import DiscoveryPanel from "../components/discovery/DiscoveryPanel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
@@ -316,7 +316,7 @@ function ReviewPublication({ publication, onDeleted, english }) {
   );
 }
 
-export default function MemberHomePage({ onNavigate, onOpenProfile, onCreateMoment }) {
+export default function MemberHomePage({ onNavigate, onOpenProfile }) {
   const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -425,14 +425,20 @@ export default function MemberHomePage({ onNavigate, onOpenProfile, onCreateMome
       </CompactPageHeader>
 
       <section className="nk-shell nk-member-home__layout nk-member-home__layout--discovery">
-        <HomeMoments english={english} onCreate={onCreateMoment} onOpenProfile={onOpenProfile} />
         <DiscoveryPanel
           english={english}
           onOpenProfile={onOpenProfile}
           onExplore={() => onNavigate("discover")}
         />
         <div className="nk-member-home__feed-column">
-          <form
+          <PublicationStrip
+            publications={publications}
+            english={english}
+            canPublish={canPublish}
+            composerOpen={composerOpen}
+            onCreate={() => setComposerOpen((value) => !value)}
+          />
+          <form id="nk-feed-composer" hidden={!composerOpen && canPublish}
             className={`nk-feed-composer ${canPublish ? "" : "is-locked"} ${composerOpen ? "is-open" : "is-collapsed"}`}
             onSubmit={publish}
           >
@@ -556,14 +562,15 @@ export default function MemberHomePage({ onNavigate, onOpenProfile, onCreateMome
           ) : publications.length ? (
             <div className="nk-feed-list">
               {publications.map((publication) => (
-                <PublicationCard
-                  key={publication.id}
-                  publication={publication}
-                  onOpenProfile={onOpenProfile}
-                  onChanged={() => load({ silent: true })}
-                  onDeleted={removeFromState}
-                  english={english}
-                />
+                <div key={publication.id} id={`nk-publication-${publication.id}`} className="nk-publication-anchor">
+                  <PublicationCard
+                    publication={publication}
+                    onOpenProfile={onOpenProfile}
+                    onChanged={() => load({ silent: true })}
+                    onDeleted={removeFromState}
+                    english={english}
+                  />
+                </div>
               ))}
             </div>
           ) : (

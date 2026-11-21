@@ -1,0 +1,96 @@
+.nk-publication-strip {
+  padding: 12px;
+  border: 1px solid var(--nk-line, #e7dbd8);
+  border-radius: 16px;
+  background: var(--nk-paper, #fffdf9);
+  margin-bottom: 14px;
+}
+
+.nk-publication-strip__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+}
+
+.nk-publication-strip__create,
+.nk-publication-strip__post {
+  width: clamp(83px, 17vw, 110px);
+  min-width: 0;
+  border: 1px solid #e8d6da;
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+.nk-publication-strip__create {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  min-height: 116px;
+  padding: 6px;
+  color: #81273e;
+  background: #faf3f4;
+  font-size: .73rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.nk-publication-strip__create:disabled { opacity: .6; cursor: default; }
+
+.nk-publication-strip__track {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+}
+
+.nk-publication-strip__post {
+  flex: none;
+  scroll-snap-align: start;
+  display: block;
+  padding: 0;
+  text-align: left;
+  background: #fffdf9;
+  cursor: pointer;
+  color: var(--nk-ink);
+}
+
+.nk-publication-strip__post img,
+.nk-publication-strip__video {
+  width: 100%;
+  height: 83px;
+  object-fit: cover;
+}
+
+.nk-publication-strip__video { display: grid; place-items: center; background: #f5e9eb; color: #81273e; }
+
+.nk-publication-strip__post strong {
+  display: block;
+  padding: 6px;
+  font-size: .72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-publication-strip__controls { display: flex; justify-content: end; gap: 5px; margin-top: 6px; }
+.nk-publication-strip__controls button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e8d6da;
+  border-radius: 9px;
+  background: transparent;
+  color: #81273e;
+}
+.nk-publication-anchor { scroll-margin-top: 110px; }
+.nk-member-home__feed-column > .nk-feed-composer[hidden] { display: none; }
+
+@media (max-width: 620px) {
+  .nk-publication-strip { padding: 8px; }
+  .nk-publication-strip__controls button { width: 44px; height: 44px; }
+}
