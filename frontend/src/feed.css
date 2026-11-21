@@ -796,6 +796,12 @@
     box-shadow: none;
   }
 
+  .nk-feed-card,
+  .nk-feed-empty,
+  .nk-feed-loading {
+    margin-inline: calc(2px - var(--nk-app-gutter));
+  }
+
   .nk-feed-composer {
     padding: 14px var(--nk-app-gutter);
   }
@@ -900,7 +906,6 @@
   }
 
   .nk-feed-loading {
-    margin-inline: calc(var(--nk-app-gutter) * -1);
     gap: 10px;
   }
 
