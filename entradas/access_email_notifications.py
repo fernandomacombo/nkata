@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from .branded_email import send_branded_email
 from .models import PedidoEntrada
@@ -193,6 +194,11 @@ def notify_access_status_change(sender, instance, created, **kwargs):
     previous = getattr(instance, "_nkata_previous_status", None)
     if previous == instance.status or instance.status not in NOTIFIABLE_STATUSES:
         return
+
+    if instance.status == "APROVADO":
+        sender.objects.filter(pk=instance.pk, onboarding_aprovado_em__isnull=True).update(
+            onboarding_aprovado_em=timezone.now(),
+        )
 
     # Só envia depois do commit da alteração, evitando emails de operações revertidas.
     transaction.on_commit(lambda: _send_status_email(instance))

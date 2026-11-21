@@ -191,7 +191,7 @@ export default function PlanPanel({ language = "PT" }) {
         </div>
       </div>
 
-      <div className="nk-plan-catalog" aria-label={english ? "Subscription plans, swipe to compare" : "Planos de subscrição, deslize para comparar"}>
+      <div className="nk-plan-catalog" aria-label={english ? "Subscription plans" : "Planos de subscrição"}>
         {[...data.available_plans].sort((a, b) => ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[a.code] ?? 9) - ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[b.code] ?? 9)).map((plan) => {
           const Icon = planIcon[plan.code] || Sparkles;
           const active = plan.code === current.code;

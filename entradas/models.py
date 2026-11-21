@@ -81,6 +81,8 @@ class PedidoEntrada(models.Model):
     )
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="PENDENTE")
     observacao_admin = models.TextField(blank=True)
+    onboarding_aprovado_em = models.DateTimeField(null=True, blank=True, editable=False)
+    onboarding_lembrete_em = models.DateTimeField(null=True, blank=True, editable=False)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
