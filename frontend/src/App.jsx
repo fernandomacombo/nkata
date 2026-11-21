@@ -54,6 +54,7 @@ export default function App() {
     setActivePage,
   } = useAppRoute();
 
+  const [openMomentComposer, setOpenMomentComposer] = useState(false);
   const [previousPage, setPreviousPage] = useState("discover");
   const [secondaryReturnPage, setSecondaryReturnPage] = useState("");
   const [returnPageAfterLogin, setReturnPageAfterLogin] = useState("home");
@@ -412,6 +413,10 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  useEffect(() => {
+    if (activePage === "moments") setOpenMomentComposer(false);
+  }, [activePage]);
+
   const handleNavigate = (page) => {
     if (page === "login") {
       openLogin(activePage);
@@ -766,6 +771,10 @@ export default function App() {
       {activePage === "home" && (
         memberAuthenticated ? (
           <MemberHomePage
+            onCreateMoment={() => {
+              setOpenMomentComposer(true);
+              handleNavigate("moments");
+            }}
             onNavigate={handleNavigate}
             onOpenProfile={handleOpenProfile}
           />
@@ -796,7 +805,7 @@ export default function App() {
       )}
 
       {activePage === "moments" && memberAuthenticated && (
-        <MomentsPage onOpenProfile={handleOpenProfile} />
+        <MomentsPage onOpenProfile={handleOpenProfile} initialComposerOpen={openMomentComposer} />
       )}
 
       {activePage === "saved" && (

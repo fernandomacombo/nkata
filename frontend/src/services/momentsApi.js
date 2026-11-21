@@ -1,5 +1,26 @@
 import { API_BASE_URL } from "./api.js";
 
+export const MOMENTS_REFRESH_MS = 5000;
+
+export function groupMomentsByProfile(moments) {
+  const groups = [];
+  const map = new Map();
+
+  moments.forEach((moment) => {
+    const key = String(moment.profile.id);
+    if (!map.has(key)) {
+      const group = { profile: moment.profile, moments: [], mine: moment.mine };
+      map.set(key, group);
+      groups.push(group);
+    }
+    map.get(key).moments.push(moment);
+    if (moment.mine) map.get(key).mine = true;
+  });
+
+  groups.sort((a, b) => Number(b.mine) - Number(a.mine));
+  return groups;
+}
+
 export class MomentsApiError extends Error {
   constructor(message, status, payload = null) {
     super(message);

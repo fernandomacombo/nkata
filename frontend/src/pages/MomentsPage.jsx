@@ -21,7 +21,7 @@ import AutoplayMomentViewer from "../components/moments/AutoplayMomentViewer.jsx
 import MomentCarousel from "../components/moments/MomentCarousel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
-import { createMoment, deleteMoment, fetchMoments } from "../services/momentsApi.js";
+import { createMoment, deleteMoment, fetchMoments, groupMomentsByProfile, MOMENTS_REFRESH_MS } from "../services/momentsApi.js";
 
 const FALLBACK_CAPTIONS = [
   { value: "SEM_LEGENDA", label: "Sem legenda" },
@@ -55,24 +55,7 @@ function remainingLabel(moment, english) {
   return english ? `Ends in ${hours} h` : `Termina em ${hours} h`;
 }
 
-function groupByProfile(moments) {
-  const groups = [];
-  const map = new Map();
 
-  moments.forEach((moment) => {
-    const key = String(moment.profile.id);
-    if (!map.has(key)) {
-      const group = { profile: moment.profile, moments: [], mine: moment.mine };
-      map.set(key, group);
-      groups.push(group);
-    }
-    map.get(key).moments.push(moment);
-    if (moment.mine) map.get(key).mine = true;
-  });
-
-  groups.sort((a, b) => Number(b.mine) - Number(a.mine));
-  return groups;
-}
 
 function MomentMedia({ moment }) {
   if (moment.media_type === "IMAGEM" && moment.media_url) {
@@ -227,7 +210,7 @@ function ReviewItem({ moment, onDelete, english }) {
   );
 }
 
-export default function MomentsPage({ onOpenProfile }) {
+export default function MomentsPage({ onOpenProfile, initialComposerOpen = false }) {
   const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -237,7 +220,7 @@ export default function MomentsPage({ onOpenProfile }) {
   const [font, setFont] = useState("serif");
   const [media, setMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState("");
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(initialComposerOpen);
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState("");
   const [viewerGroup, setViewerGroup] = useState(null);
@@ -274,7 +257,7 @@ export default function MomentsPage({ onOpenProfile }) {
     const refresh = () => {
       if (!document.hidden) load({ silent: true });
     };
-    const timer = window.setInterval(refresh, 5000);
+    const timer = window.setInterval(refresh, MOMENTS_REFRESH_MS);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       window.clearInterval(timer);
@@ -290,7 +273,7 @@ export default function MomentsPage({ onOpenProfile }) {
 
   const moments = data?.results || [];
   const reviewItems = data?.review_items || [];
-  const groups = useMemo(() => groupByProfile(moments), [moments]);
+  const groups = useMemo(() => groupMomentsByProfile(moments), [moments]);
   const capabilities = data?.capabilities || null;
   const mediaEnabled = Boolean(capabilities?.media_enabled);
   const captionOptions = capabilities?.caption_options || FALLBACK_CAPTIONS;

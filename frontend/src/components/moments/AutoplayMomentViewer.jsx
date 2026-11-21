@@ -323,7 +323,7 @@ export default function AutoplayMomentViewer({
           </button>
 
           <div className="nk-moment-viewer__header-actions">
-            {moment.mine && (
+            {moment.mine && onDelete && (
               <button type="button" onClick={() => onDelete(moment)} aria-label={english ? "Delete Moment" : "Remover Momento"}>
                 <Trash2 size={18} />
               </button>
