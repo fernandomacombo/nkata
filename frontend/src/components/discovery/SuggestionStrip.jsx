@@ -12,6 +12,7 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
   const strip = useRef(null);
   const position = useRef(0);
   const [paused, setPaused] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
 
   const move = useCallback((direction) => {
     const items = strip.current.children;
@@ -27,10 +28,16 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
 
   useEffect(() => {
     position.current = 0;
+    const track = strip.current;
+    const measure = () => setOverflowing(track.scrollWidth > track.clientWidth + 1);
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    measure();
+    return () => observer.disconnect();
   }, [profiles?.length]);
 
   useEffect(() => {
-    if (paused || composerOpen || (profiles?.length ?? 0) < 2) return undefined;
+    if (paused || composerOpen || !overflowing) return undefined;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const timer = window.setInterval(() => {
       const track = strip.current;
@@ -40,7 +47,7 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
       }
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [composerOpen, move, paused, profiles?.length]);
+  }, [composerOpen, move, paused, overflowing]);
 
   return (
     <section className="nk-suggestion-strip" aria-label={english ? "Recent posts" : "Publicações recentes"}>
@@ -53,7 +60,7 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
           aria-expanded={composerOpen}
           onClick={onCreate}
         >
-          <Plus size={25} strokeWidth={1.6} />
+          <span className="nk-suggestion-strip__plus"><Plus size={20} strokeWidth={1.7} /></span>
           <span>{english ? "New post" : "Nova publicação"}</span>
         </button>
         <div className="nk-suggestion-strip__track" ref={strip}>
@@ -69,7 +76,7 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
           {profiles?.length === 0 && <p>{english ? "No suggestions yet." : "Ainda não há sugestões."}</p>}
         </div>
       </div>
-      {profiles?.length > 1 && (
+      {overflowing && (
         <div className="nk-suggestion-strip__controls">
           <button type="button" aria-label={english ? "Previous profile" : "Perfil anterior"} onClick={() => move(-1)}><ChevronLeft size={17} /></button>
           <button type="button" aria-label={paused ? (english ? "Resume carousel" : "Retomar carrossel") : (english ? "Pause carousel" : "Pausar carrossel")} onClick={() => setPaused((value) => !value)}>{paused ? <Play size={15} /> : <Pause size={15} />}</button>
