@@ -15,6 +15,7 @@ from . import (
     chat_media_api,
     chat_realtime_api,
     follow_views,
+    discovery_api,
     interest_views,
     identity_api,
     moment_reactions_api,
@@ -140,6 +141,8 @@ urlpatterns = [
         name="questionario_criar_senha",
     ),
     path("perfis/", profile_api.api_perfis, name="perfis"),
+    path("descoberta/sugestoes/", discovery_api.api_suggestions, name="discovery_suggestions"),
+    path("descoberta/pergunta/", discovery_api.api_daily_question, name="discovery_daily_question"),
     path(
         "publico/perfis/",
         public_profile_api.api_destaques_publicos,

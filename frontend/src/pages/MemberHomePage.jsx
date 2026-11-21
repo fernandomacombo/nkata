@@ -19,6 +19,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import DiscoveryPanel from "../components/discovery/DiscoveryPanel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import {
@@ -424,6 +425,11 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
 
       <section className="nk-shell nk-member-home__layout">
         <div className="nk-member-home__feed-column">
+          <DiscoveryPanel
+            english={english}
+            onOpenProfile={onOpenProfile}
+            onExplore={() => onNavigate("discover")}
+          />
           <form
             className={`nk-feed-composer ${canPublish ? "" : "is-locked"} ${composerOpen ? "is-open" : "is-collapsed"}`}
             onSubmit={publish}
