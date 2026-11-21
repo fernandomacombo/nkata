@@ -12,17 +12,22 @@ from ...models import PedidoEntrada
 
 def next_step(pedido):
     if pedido.status == "PRECISA_CORRIGIR":
-        return ("O seu pedido precisa de uma correção. Consulte as instruções da equipa.",
+        return ("Corrija o seu pedido de acesso ao NKATA",
+                "O seu pedido precisa de uma correção. Consulte as instruções da equipa.",
                 "/acompanhar-pedido/")
     if pedido.status != "APROVADO":
         return None
 
     perfil = getattr(pedido, "perfil", None)
     if not hasattr(pedido, "questionario"):
-        return ("A sua entrada foi aprovada. Preencha o questionário e crie a sua palavra-passe.",
+        return ("Conclua o questionário e crie a sua palavra-passe",
+                "O seu pedido de acesso foi aprovado. O questionário ajuda a completar o seu perfil "
+                "e a apresentar o que procura a pessoas com intenções semelhantes. "
+                "Depois de responder, crie a sua palavra-passe para entrar na conta.",
                 f"/questionario/{pedido.token}/")
     if not perfil or not perfil.usuario or not perfil.usuario.has_usable_password():
-        return ("O questionário foi recebido. Crie a sua palavra-passe para entrar.",
+        return ("Crie a sua palavra-passe para entrar no NKATA",
+                "As suas respostas já foram guardadas. Crie uma palavra-passe para proteger a sua conta e poder entrar no NKATA.",
                 f"/questionario/{pedido.token}/")
     if perfil.status == "BLOQUEADO" or not perfil.usuario.is_active:
         return None
@@ -36,7 +41,11 @@ def next_step(pedido):
         message = "A equipa solicitou novas capturas. Entre no NKATA, abra Matches e siga as instruções do NKATA ID."
     else:
         message = "A sua conta já está criada. Entre, abra Matches e conclua o NKATA ID para desbloquear as funções que exigem identidade verificada."
-    return message, "/matches/"
+    message += (
+        " O NKATA ID faz parte da segurança da comunidade. A confirmação da identidade "
+        "ajuda a reduzir perfis falsos e a proteger quem usa o NKATA."
+    )
+    return "Conclua a verificação de identidade no NKATA", message, "/matches/"
 
 
 class Command(BaseCommand):
@@ -73,18 +82,14 @@ class Command(BaseCommand):
                 eligible += 1
                 if options["dry_run"]:
                     continue
-                message, path = step
+                subject, message, path = step
                 url = settings.NKATA_FRONTEND_URL.rstrip("/") + path
-                subject = "Continue o seu registo no NKATA"
-                benefit = (
-                    "O NKATA é uma comunidade para relações sérias. O registo completo "
-                    "e a verificação de identidade ajudam a proteger os membros e a reduzir perfis falsos."
-                )
                 greeting = f"Olá, {pedido.nome_completo.split()[0] if pedido.nome_completo.strip() else 'membro'}."
                 if send_branded_email(
                     subject=subject, title=subject, recipient=pedido.email, greeting=greeting,
-                    body=f"{greeting}\n\n{message}\n\n{benefit}\n\nContinuar no NKATA: {url}",
-                    paragraphs=[message, benefit], action_label="Continuar no NKATA", action_url=url,
+                    body=f"{greeting}\n\n{message}\n\nContinuar no NKATA: {url}",
+                    paragraphs=[message], action_label="Continuar no NKATA", action_url=url,
+                    notice="Faça a verificação apenas dentro do NKATA. Nunca envie a sua palavra-passe, BI ou selfie por email.",
                 ):
                     PedidoEntrada.objects.filter(pk=pk).update(onboarding_lembrete_em=now)
                     sent += 1
