@@ -64,19 +64,6 @@
   background: #f2e5e8;
 }
 
-.nk-discovery-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #81273e;
-  font-size: .8rem;
-  font-weight: 650;
-  background: transparent;
-  border: 0;
-  padding: 7px 0;
-  cursor: pointer;
-}
-
 .nk-discovery-profiles {
   list-style: none;
   display: grid;
@@ -111,7 +98,6 @@
 .nk-discovery-profiles button:hover,
 .nk-discovery-votes button:hover { border-color: #9d5264; }
 
-.nk-discovery-link:focus-visible,
 .nk-discovery-panel button:focus-visible {
   outline: 2px solid #81273e;
   outline-offset: 2px;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { normalizeProfile, request } from "../../services/api.js";
 import "./discovery-panel.css";
 import SuggestionStrip from "./SuggestionStrip.jsx";
@@ -44,9 +44,6 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore, canP
       <section className="nk-discovery-panel nk-discovery-panel--profiles" aria-labelledby="nk-suggestions-title">
           <header>
             <h2 id="nk-suggestions-title">{english ? "Profiles for you" : "Perfis para si"}</h2>
-            <button type="button" className="nk-discovery-link" onClick={onExplore}>
-              {english ? "Explore all profiles" : "Explorar todos os perfis"} <ArrowRight size={16} />
-            </button>
           </header>
           <SuggestionStrip
             profiles={profiles}
@@ -55,6 +52,7 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore, canP
             composerOpen={composerOpen}
             onCreate={onCreate}
             onOpenProfile={onOpenProfile}
+            onExplore={onExplore}
           />
         </section>
 
