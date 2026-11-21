@@ -57,3 +57,31 @@ class MatchPreferencesTests(TestCase):
 
         self.client.force_login(viewer)
         self.assertEqual(self.client.get(detail_url).json()["preferencias"], {"height": 170})
+
+    def test_pet_choices_can_be_shared_without_exposing_the_matching_preference(self):
+        user, profile = create_member()
+        viewer, _ = create_member("pet-viewer@example.test")
+        account_url = "/api/minha-conta/"
+        detail_url = f"/api/perfis/{profile.pk}/"
+        self.client.force_login(user)
+        invalid = self.client.patch(account_url, {
+            "preferencias": {"pets": ["none", "dog"]},
+        }, content_type="application/json")
+        self.assertEqual(invalid.status_code, 400)
+
+        preferences = {"pets": ["dog", "cat"], "preferred_pets": "depends"}
+        saved = self.client.patch(account_url, {
+            "preferencias": preferences,
+        }, content_type="application/json")
+        self.assertEqual(saved.status_code, 200, saved.json())
+        self.assertEqual(saved.json()["preferencias"]["pets"], preferences["pets"])
+
+        self.client.force_login(viewer)
+        self.assertNotIn("pets", self.client.get(detail_url).json()["preferencias"])
+
+        self.client.force_login(user)
+        self.assertEqual(self.client.patch(account_url, {
+            "preferencias": {"show_pets": True},
+        }, content_type="application/json").status_code, 200)
+        self.client.force_login(viewer)
+        self.assertEqual(self.client.get(detail_url).json()["preferencias"], {"pets": ["dog", "cat"]})

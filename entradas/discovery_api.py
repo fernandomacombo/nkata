@@ -72,6 +72,13 @@ def api_suggestions(request):
             candidate_drinking = candidate.preferencias.get("drinking")
             if drinking and (candidate_drinking == "never" or drinking == candidate_drinking):
                 score += 1
+            pets = candidate.preferencias.get("pets")
+            pet_preference = preferences.get("preferred_pets")
+            if pets and (
+                (pet_preference == "none" and pets == ["none"])
+                or (pet_preference == "welcome" and pets != ["none"])
+            ):
+                score += 1
             if score:
                 yield score, candidate, reasons
 

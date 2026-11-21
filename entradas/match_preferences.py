@@ -45,7 +45,20 @@ class MatchPreferencesSerializer(serializers.Serializer):
     )
     preferred_smoking = serializers.ChoiceField(["never"], allow_blank=True, required=False)
     preferred_drinking = serializers.ChoiceField(["never", "occasionally"], allow_blank=True, required=False)
+    pets = serializers.ListField(
+        child=serializers.ChoiceField(["dog", "cat", "other", "none"]),
+        max_length=3, required=False,
+    )
+    preferred_pets = serializers.ChoiceField(
+        ["welcome", "depends", "none"], allow_blank=True, required=False,
+    )
+    show_pets = serializers.BooleanField(required=False)
     show_details = serializers.BooleanField(required=False)
+
+    def validate_pets(self, pets):
+        if "none" in pets and len(pets) > 1:
+            raise serializers.ValidationError("Escolha os animais que tem ou indique que não tem animais.")
+        return list(dict.fromkeys(pets))
 
     def validate_ages(self, ages):
         if ages and ages[0] > ages[1]:

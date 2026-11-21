@@ -117,6 +117,8 @@ class PerfilDetalheSerializer(PerfilResumoSerializer):
                    if data.get("show_details") and data.get(key)}
         if data.get("show_ages") and data.get("ages"):
             visible["ages"] = data["ages"]
+        if data.get("show_pets") and data.get("pets"):
+            visible["pets"] = data["pets"]
         return visible
 
     class Meta(PerfilResumoSerializer.Meta):
