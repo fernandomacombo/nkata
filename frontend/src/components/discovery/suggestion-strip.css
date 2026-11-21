@@ -5,8 +5,9 @@
 
 .nk-suggestion-strip__row {
   display: grid;
-  --card-width: max(109px, calc((100cqw - 108px) / 3 - 5px));
-  --card-height: calc((var(--card-width) + 5px) / 1.32 + 49px);
+  --card-width-reference: max(109px, calc((100cqw - 108px) / 3 - 5px));
+  --card-width: calc(var(--card-width-reference) - 5px);
+  --card-height: calc((var(--card-width-reference) + 5px) / 1.32 + 49px);
   grid-template-columns: var(--card-width) minmax(0, 1fr);
   align-items: start;
   gap: 10px;
@@ -121,7 +122,7 @@
 
 @media (max-width: 620px) {
   .nk-suggestion-strip__row {
-    --card-width: max(103px, calc((100cqw - 83px) / 2.15 - 5px));
+    --card-width-reference: max(103px, calc((100cqw - 83px) / 2.15 - 5px));
     gap: 8px;
   }
   .nk-suggestion-strip__controls button { width: 44px; height: 44px; }
