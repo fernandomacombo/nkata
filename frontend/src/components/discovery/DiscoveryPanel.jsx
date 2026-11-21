@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, UserRound } from "lucide-react";
+import { ArrowRight, MessageCircle, UserRound } from "lucide-react";
 import { normalizeProfile, request } from "../../services/api.js";
 import "./discovery-panel.css";
 
@@ -47,7 +47,7 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore }) {
   return (
     <>
       {profiles && (
-        <section className="nk-discovery-panel" aria-labelledby="nk-suggestions-title">
+        <section className="nk-discovery-panel nk-discovery-panel--profiles" aria-labelledby="nk-suggestions-title">
           <header>
             <h2 id="nk-suggestions-title">{english ? "Profiles for you" : "Perfis para si"}</h2>
             <button type="button" className="nk-discovery-link" onClick={onExplore}>
@@ -64,8 +64,8 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore }) {
                         ? <img src={profile.foto_url} loading="lazy" alt="" />
                         : <UserRound size={22} />}
                     </span>
-                    <span>
-                      <strong>{profile.nome_publico}, {profile.idade}</strong>
+                    <span className="nk-discovery-profile-copy">
+                      <strong><span>{profile.nome_publico}</span><span className="nk-discovery-age">{profile.idade}</span></strong>
                       <small>{reasonLabels[profile.reasons[0]]?.[english ? 1 : 0]}</small>
                     </span>
                   </button>
@@ -79,8 +79,11 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore }) {
       )}
 
       {poll && (
-        <section className="nk-discovery-panel" aria-labelledby="nk-poll-title">
-          <h2 id="nk-poll-title">{english ? "Question of the day" : "Pergunta do dia"}</h2>
+        <section className="nk-discovery-panel nk-discovery-panel--poll" aria-labelledby="nk-poll-title">
+          <header className="nk-discovery-poll-heading">
+            <span aria-hidden="true"><MessageCircle size={17} /></span>
+            <h2 id="nk-poll-title">{english ? "Question of the day" : "Pergunta do dia"}</h2>
+          </header>
           <p>{poll.question[language]}</p>
           <div className="nk-discovery-votes" aria-live="polite">
             {poll.options.map((option, index) => {
@@ -89,7 +92,7 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore }) {
               }
               const percentage = totalVotes ? Math.round(100 * poll.counts[index] / totalVotes) : 0;
               return (
-                <div className={poll.choice === index ? "is-selected" : undefined} key={index}>
+                <div className={poll.choice === index ? "is-selected" : undefined} key={index} style={{ "--nk-vote-share": `${percentage}%` }}>
                   <span>{option[language]}{poll.choice === index && <small> · {english ? "Your vote" : "O seu voto"}</small>}</span>
                   <strong>{percentage}%</strong>
                 </div>

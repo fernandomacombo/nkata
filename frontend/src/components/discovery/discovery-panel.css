@@ -1,8 +1,32 @@
+.nk-member-home .nk-member-home__layout.nk-member-home__layout--discovery {
+  display: grid;
+  grid-template-columns: minmax(0, 680px);
+  grid-template-areas: "profiles" "poll" "feed";
+  align-items: start;
+  gap: 16px;
+}
+
+.nk-member-home__layout--discovery > .nk-member-home__feed-column {
+  grid-area: feed;
+}
+
 .nk-discovery-panel {
-  background: var(--nk-white, #fff);
-  border: 1px solid var(--nk-line, #eadfe0);
+  min-width: 0;
+  border: 1px solid rgba(77, 55, 47, .13);
   border-radius: 18px;
-  padding: clamp(14px, 3vw, 22px);
+  background: #fffdf9;
+  padding: clamp(15px, 2.4vw, 22px);
+}
+
+.nk-discovery-panel--profiles { grid-area: profiles; }
+.nk-discovery-panel--poll { grid-area: poll; background: #fbf7f3; }
+
+@media (min-width: 1000px) {
+  .nk-member-home .nk-member-home__layout.nk-member-home__layout--discovery:has(.nk-discovery-panel--poll) {
+    grid-template-columns: minmax(0, 680px) minmax(245px, 300px);
+    grid-template-areas: "profiles poll" "feed poll";
+    column-gap: 24px;
+  }
 }
 
 .nk-discovery-panel header {
@@ -10,73 +34,129 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 16px;
+  gap: 7px 14px;
 }
 
 .nk-discovery-panel h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-family: Georgia, serif;
+  font-size: 1.37rem;
+  font-weight: 600;
+  line-height: 1.15;
 }
 
 .nk-discovery-panel p {
-  margin: 10px 0;
+  margin: 12px 0;
+  line-height: 1.5;
+}
+
+.nk-discovery-panel .nk-discovery-poll-heading {
+  justify-content: start;
+}
+
+.nk-discovery-poll-heading > span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: #81273e;
+  background: #f2e5e8;
 }
 
 .nk-discovery-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--nk-wine, #70273b);
-  font-size: .875rem;
+  color: #81273e;
+  font-size: .8rem;
+  font-weight: 650;
   background: transparent;
   border: 0;
-  padding: 6px 0;
+  padding: 7px 0;
   cursor: pointer;
 }
 
 .nk-discovery-profiles {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 188px), 1fr));
   gap: 8px;
   padding: 0;
-  margin: 14px 0 0;
+  margin: 15px 0 0;
 }
+
+.nk-discovery-profiles li { min-width: 0; }
 
 .nk-discovery-profiles button,
 .nk-discovery-votes button,
 .nk-discovery-votes > div {
   display: flex;
-  gap: 10px;
+  gap: 9px;
   align-items: center;
   width: 100%;
-  border: 1px solid var(--nk-line, #eadfe0);
-  border-radius: 12px;
-  padding: 9px 12px;
+  border: 1px solid #e7dbd8;
+  border-radius: 11px;
+  padding: 9px 10px;
   color: inherit;
-  background: transparent;
+  background: #fffdfb;
   text-align: left;
 }
 
+.nk-discovery-profiles button { height: 100%; min-height: 73px; }
+
 .nk-discovery-profiles button,
-.nk-discovery-votes button {
-  cursor: pointer;
+.nk-discovery-votes button { cursor: pointer; }
+
+.nk-discovery-profiles button:hover,
+.nk-discovery-votes button:hover { border-color: #9d5264; }
+
+.nk-discovery-link:focus-visible,
+.nk-discovery-panel button:focus-visible {
+  outline: 2px solid #81273e;
+  outline-offset: 2px;
 }
 
-.nk-discovery-profiles strong,
-.nk-discovery-profiles small {
+.nk-discovery-profile-copy { min-width: 0; }
+
+.nk-discovery-profile-copy strong {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: .9rem;
+}
+
+.nk-discovery-profile-copy strong span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-discovery-age {
+  flex: none;
+  color: #655c56;
+  font-size: .78rem;
+  font-weight: 500;
+}
+
+.nk-discovery-profile-copy small {
   display: block;
-  overflow-wrap: anywhere;
+  margin-top: 3px;
+  color: #655c56;
+  font-size: .71rem;
+  line-height: 1.3;
 }
 
 .nk-discovery-portrait {
-  flex: 0 0 44px;
-  height: 44px;
+  flex: 0 0 43px;
+  height: 47px;
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 50%;
-  background: var(--nk-line, #eadfe0);
+  border-radius: 9px;
+  background: #efe6e1;
+  color: #81273e;
 }
 
 .nk-discovery-portrait img {
@@ -87,14 +167,20 @@
 
 .nk-discovery-votes {
   display: grid;
-  gap: 8px;
-  margin: 12px 0;
+  gap: 7px;
+  margin: 12px 0 8px;
+  font-size: .85rem;
 }
 
 .nk-discovery-votes > div {
   justify-content: space-between;
+  background: linear-gradient(to right, #f1e8e4 var(--nk-vote-share), #fffdfb var(--nk-vote-share));
 }
 
 .nk-discovery-votes .is-selected {
-  border-color: var(--nk-wine, #70273b);
+  border-color: #a56675;
+  background: linear-gradient(to right, #f0dfe4 var(--nk-vote-share), #fffdfb var(--nk-vote-share));
 }
+
+.nk-discovery-votes small,
+.nk-discovery-panel--poll > small { color: #655c56; }

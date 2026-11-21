@@ -423,13 +423,13 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
         </button>
       </CompactPageHeader>
 
-      <section className="nk-shell nk-member-home__layout">
+      <section className="nk-shell nk-member-home__layout nk-member-home__layout--discovery">
+        <DiscoveryPanel
+          english={english}
+          onOpenProfile={onOpenProfile}
+          onExplore={() => onNavigate("discover")}
+        />
         <div className="nk-member-home__feed-column">
-          <DiscoveryPanel
-            english={english}
-            onOpenProfile={onOpenProfile}
-            onExplore={() => onNavigate("discover")}
-          />
           <form
             className={`nk-feed-composer ${canPublish ? "" : "is-locked"} ${composerOpen ? "is-open" : "is-collapsed"}`}
             onSubmit={publish}
