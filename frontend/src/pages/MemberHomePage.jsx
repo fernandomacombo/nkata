@@ -19,6 +19,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import HomeMoments from "../components/moments/HomeMoments.jsx";
 import DiscoveryPanel from "../components/discovery/DiscoveryPanel.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
@@ -315,7 +316,7 @@ function ReviewPublication({ publication, onDeleted, english }) {
   );
 }
 
-export default function MemberHomePage({ onNavigate, onOpenProfile }) {
+export default function MemberHomePage({ onNavigate, onOpenProfile, onCreateMoment }) {
   const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -424,6 +425,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
       </CompactPageHeader>
 
       <section className="nk-shell nk-member-home__layout nk-member-home__layout--discovery">
+        <HomeMoments english={english} onCreate={onCreateMoment} onOpenProfile={onOpenProfile} />
         <DiscoveryPanel
           english={english}
           onOpenProfile={onOpenProfile}

@@ -78,7 +78,7 @@ export default function MomentCarousel({ groups, loading, english, composerOpen,
   return (
     <section className="nk-moment-carousel" aria-label={english ? "Recent Moments" : "Momentos recentes"}>
       <div className="nk-moment-carousel__row">
-        <button type="button" className="nk-moment-carousel__create" onClick={onCreate} aria-expanded={composerOpen} aria-controls="nk-moment-composer">
+        <button type="button" className="nk-moment-carousel__create" onClick={onCreate} aria-expanded={composerOpen} aria-controls={composerOpen === undefined ? undefined : "nk-moment-composer"}>
           <span><Plus size={24} strokeWidth={1.7} /></span>
           <strong>{newMoment}</strong>
         </button>
