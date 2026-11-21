@@ -1,13 +1,10 @@
 .nk-member-home .nk-member-home__layout.nk-member-home__layout--discovery {
   display: grid;
   grid-template-columns: minmax(0, 680px);
-  grid-template-areas: "moments" "profiles" "poll" "feed";
+  grid-template-areas: "profiles" "poll" "feed";
   align-items: start;
   gap: 16px;
 }
-
-.nk-home-moments { grid-area: moments; min-width: 0; }
-.nk-home-moments > .nk-moment-carousel { width: 100%; }
 
 .nk-member-home__layout--discovery > .nk-member-home__feed-column {
   grid-area: feed;
@@ -27,7 +24,7 @@
 @media (min-width: 1000px) {
   .nk-member-home .nk-member-home__layout.nk-member-home__layout--discovery:has(.nk-discovery-panel--poll) {
     grid-template-columns: minmax(0, 680px) minmax(245px, 300px);
-    grid-template-areas: "moments moments" "profiles poll" "feed poll";
+    grid-template-areas: "profiles poll" "feed poll";
     column-gap: 24px;
   }
 }

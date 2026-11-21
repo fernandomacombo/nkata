@@ -210,7 +210,7 @@ function ReviewItem({ moment, onDelete, english }) {
   );
 }
 
-export default function MomentsPage({ onOpenProfile, initialComposerOpen = false }) {
+export default function MomentsPage({ onOpenProfile }) {
   const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -220,7 +220,7 @@ export default function MomentsPage({ onOpenProfile, initialComposerOpen = false
   const [font, setFont] = useState("serif");
   const [media, setMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState("");
-  const [composerOpen, setComposerOpen] = useState(initialComposerOpen);
+  const [composerOpen, setComposerOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState("");
   const [viewerGroup, setViewerGroup] = useState(null);
