@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from .launch_promotion import complete_registration_password
 from .forms import EditarPerfilForm, PedidoEntradaForm, QuestionarioEntradaForm
 from .models import AcaoPerfil, MensagemPerfil, PedidoEntrada, PerfilNKATA, MatchPerfil, MensagemMatch
 
@@ -265,8 +266,15 @@ def criar_senha(request, token):
             })
 
         else:
-            usuario.set_password(senha)
-            usuario.save()
+            if not hasattr(pedido, "questionario"):
+                messages.error(request, "Conclua primeiro o questionário.")
+                return redirect("entradas:home")
+            created, promotion_granted = complete_registration_password(usuario, senha)
+            if not created:
+                return redirect("entradas:entrar")
+            usuario.refresh_from_db()
+            if promotion_granted:
+                messages.success(request, "Tem 15 dias grátis de NKATA Quinzenal.")
 
             login(request, usuario)
 

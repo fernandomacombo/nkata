@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from .identity_api import _live_capture_proof
 from .identity_models import VerificacaoIdentidadeNKATA
-from .models import MatchPerfil, PedidoEntrada, PerfilNKATA, QuestionarioEntrada
+from .models import AcessoPlanoNKATA, MatchPerfil, PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 from .test_access_status_api import image_file
 from .test_identity_verification import accepted_result, textured_image
 
@@ -61,6 +61,10 @@ class ChatIdentityFlowTests(TestCase):
         self.assertEqual(response.status_code, 200, response.json())
         member = PerfilNKATA.objects.get(pedido=pedido)
         self.assertEqual(member.status, "ATIVO")
+        self.assertTrue(response.json()["promotion_granted"])
+        access = AcessoPlanoNKATA.objects.get(usuario=member.usuario)
+        self.assertEqual(access.plano, "QUINZENAL")
+        self.assertEqual((access.fim - access.inicio).days, 15)
 
         other = PedidoEntrada.objects.create(
             email="other@example.com", nome_completo="Outro Membro", telefone="+258840000099",

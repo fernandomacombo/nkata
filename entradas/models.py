@@ -380,6 +380,19 @@ class AcessoPlanoNKATA(models.Model):
         ]
 
 
+class PromocaoLancamentoNKATA(models.Model):
+    codigo = models.CharField(max_length=32, primary_key=True)
+    vagas_atribuidas = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(vagas_atribuidas__lte=100),
+                name="nkata_promocao_lancamento_ate_100",
+            ),
+        ]
+
+
 class PedidoPagamentoNKATA(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="pagamentos_nkata")

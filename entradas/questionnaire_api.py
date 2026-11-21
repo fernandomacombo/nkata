@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from .throttles import TokenFlowRateThrottle
 
 from .forms import QuestionarioEntradaForm
+from .launch_promotion import complete_registration_password
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 
 
@@ -275,8 +276,13 @@ def api_criar_senha_questionario(request, token):
             status=400,
         )
 
-    user.set_password(password)
-    user.save(update_fields=["password"])
+    created, promotion_granted = complete_registration_password(user, password)
+    if not created:
+        return Response({
+            "ok": True,
+            "already_ready": True,
+            "message": "A sua palavra-passe já foi criada. Pode entrar na sua conta.",
+        })
     perfil.refresh_from_db()
 
     return Response(
@@ -284,5 +290,6 @@ def api_criar_senha_questionario(request, token):
             "ok": True,
             "message": "A sua conta está pronta. Já pode entrar no NKATA.",
             "profile_active": perfil.status == "ATIVO" and perfil.visivel,
+            "promotion_granted": promotion_granted,
         }
     )

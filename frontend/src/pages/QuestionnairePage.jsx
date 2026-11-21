@@ -60,6 +60,7 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
   const [data, setData] = useState(null);
   const [values, setValues] = useState(emptyValues);
   const [step, setStep] = useState("questionnaire");
+  const [promotionGranted, setPromotionGranted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [requestError, setRequestError] = useState("");
@@ -150,7 +151,8 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
     setRequestError("");
     setErrors({});
     try {
-      await createQuestionnairePassword(token, { password, confirmation });
+      const result = await createQuestionnairePassword(token, { password, confirmation });
+      setPromotionGranted(Boolean(result.promotion_granted));
       setStep("success");
     } catch (error) {
       setRequestError(error.message);
@@ -357,6 +359,7 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
               <small>Conta preparada</small>
               <h2>Bem-vindo ao NKATA{firstName ? `, ${firstName}` : ""}.</h2>
               <p>O seu questionário foi concluído e a conta está pronta. Agora já pode entrar e gerir o seu perfil.</p>
+              {promotionGranted && <p><strong>Já tem 15 dias grátis de NKATA Quinzenal.</strong></p>}
               <div className="nk-questionnaire-success__actions">
                 <button type="button" className="nk-button nk-button--wine" onClick={onLogin}>Entrar na minha conta <ArrowRight size={17} /></button>
                 <button type="button" className="nk-button nk-button--quiet" onClick={onBack}>Voltar ao início</button>
