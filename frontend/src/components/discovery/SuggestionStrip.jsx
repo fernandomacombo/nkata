@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Pause, Play, Plus, UserRound } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
+import { ArrowRight, Plus, UserRound } from "lucide-react";
 import "./suggestion-strip.css";
 
 const reasons = {
@@ -11,8 +11,6 @@ const reasons = {
 export default function SuggestionStrip({ profiles, english, canPublish, composerOpen, onCreate, onOpenProfile, onExplore }) {
   const strip = useRef(null);
   const position = useRef(0);
-  const [paused, setPaused] = useState(false);
-  const [overflowing, setOverflowing] = useState(false);
 
   const advance = useCallback(() => {
     const items = strip.current.children;
@@ -28,16 +26,10 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
 
   useEffect(() => {
     position.current = 0;
-    const track = strip.current;
-    const measure = () => setOverflowing(track.scrollWidth > track.clientWidth + 1);
-    const observer = new ResizeObserver(measure);
-    observer.observe(track);
-    measure();
-    return () => observer.disconnect();
   }, [profiles?.length]);
 
   useEffect(() => {
-    if (paused || composerOpen || !overflowing) return undefined;
+    if (composerOpen) return undefined;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const timer = window.setInterval(() => {
       const track = strip.current;
@@ -47,7 +39,7 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
       }
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [advance, composerOpen, paused, overflowing]);
+  }, [advance, composerOpen]);
 
   return (
     <section className="nk-suggestion-strip" aria-label={english ? "Profile suggestions" : "Sugestões de perfis"}>
@@ -79,11 +71,6 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
           </button>
         </div>
       </div>
-      {overflowing && (
-        <div className="nk-suggestion-strip__controls">
-          <button type="button" aria-label={paused ? (english ? "Resume carousel" : "Retomar carrossel") : (english ? "Pause carousel" : "Pausar carrossel")} onClick={() => setPaused((value) => !value)}>{paused ? <Play size={15} /> : <Pause size={15} />}</button>
-        </div>
-      )}
     </section>
   );
 }
