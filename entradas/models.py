@@ -419,3 +419,15 @@ class PedidoPagamentoNKATA(models.Model):
             models.CheckConstraint(condition=models.Q(valor__gte=50, valor__lte=500), name="nkata_pagamento_limites"),
             models.CheckConstraint(condition=models.Q(moeda="MZN"), name="nkata_pagamento_mzn"),
         ]
+
+
+class VotoPerguntaDiaria(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    data = models.DateField()
+    opcao = models.PositiveSmallIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["data", "usuario"], name="nkata_um_voto_por_dia"),
+            models.CheckConstraint(condition=models.Q(opcao__in=[0, 1]), name="nkata_voto_diario_valido"),
+        ]

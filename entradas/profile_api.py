@@ -60,35 +60,28 @@ def _bloqueio_entre_perfis(perfil_a, perfil_b):
     return bool(conditions) and AcaoPerfil.objects.filter(conditions).exists()
 
 
+def discovery_profiles(user, profile):
+    """Shared visibility and block rules for discovery and recommendations."""
+    outgoing_blocks = AcaoPerfil.objects.filter(usuario=user, tipo="BLOQUEIO")
+    incoming_blocks = AcaoPerfil.objects.filter(
+        perfil=profile, tipo="BLOQUEIO",
+    ).exclude(usuario=None)
+    return (
+        PerfilNKATA.objects.filter(status="ATIVO", visivel=True, usuario__is_staff=False)
+        .exclude(_filtro_perfil_proprio(user))
+        .exclude(pk__in=outgoing_blocks.values("perfil_id"))
+        .exclude(usuario_id__in=incoming_blocks.values("usuario_id"))
+        .select_related("pedido", "usuario", "usuario__preferencias_nkata")
+    )
+
+
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def api_perfis(request):
-    if not active_member_profile_for_user(request.user):
+    profile = active_member_profile_for_user(request.user)
+    if not profile:
         return Response({"detail": "Esta área está disponível apenas para membros."}, status=403)
-    perfis = PerfilNKATA.objects.filter(
-        status="ATIVO",
-        visivel=True,
-        usuario__is_staff=False,
-    ).select_related("pedido", "usuario", "usuario__preferencias_nkata")
-
-    if request.user.is_authenticated:
-        # Regra principal: a pessoa nunca se descobre a si própria.
-        perfis = perfis.exclude(_filtro_perfil_proprio(request.user))
-
-        bloqueados = AcaoPerfil.objects.filter(
-            usuario=request.user,
-            tipo="BLOQUEIO",
-        ).values_list("perfil_id", flat=True)
-        perfis = perfis.exclude(id__in=bloqueados)
-
-        perfil_atual = _perfil_do_utilizador(request.user)
-        if perfil_atual:
-            bloqueadores = AcaoPerfil.objects.filter(
-                perfil=perfil_atual,
-                tipo="BLOQUEIO",
-            ).exclude(usuario=None).values_list("usuario_id", flat=True)
-            perfis = perfis.exclude(usuario_id__in=bloqueadores)
-
+    perfis = discovery_profiles(request.user, profile)
     serializer = PerfilResumoSerializer(
         perfis,
         many=True,

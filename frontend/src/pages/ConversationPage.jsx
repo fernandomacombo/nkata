@@ -723,6 +723,18 @@ export default function ConversationPage({
               >
                 {english ? "Use a suggestion" : "Usar uma sugestão"}
               </button>
+              {textEnabled && (
+                <button
+                  type="button"
+                  disabled={Boolean(draft.trim()) || sending}
+                  onClick={() => {
+                    setDraft(english ? "What would your ideal date be like?" : "Como seria o seu encontro ideal?");
+                    composerTextareaRef.current?.focus();
+                  }}
+                >
+                  {english ? "Use an icebreaker" : "Usar um quebra-gelo"}
+                </button>
+              )}
             </div>
           )}
         </section>
