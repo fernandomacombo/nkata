@@ -14,6 +14,8 @@
 }
 
 .nk-suggestion-strip__create,
+.nk-suggestion-strip__track::-webkit-scrollbar { display: none; }
+
 .nk-suggestion-strip__profile {
   box-sizing: border-box;
   block-size: var(--card-height);
@@ -51,7 +53,7 @@
   display: flex;
   gap: 9px;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   overscroll-behavior-inline: contain;
   scroll-snap-type: x proximity;
 }
@@ -117,19 +119,6 @@
   font-weight: 650;
 }
 
-.nk-suggestion-strip__controls { display: flex; justify-content: end; gap: 5px; margin-top: 8px; }
-.nk-suggestion-strip__controls button {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid #e6d9d5;
-  border-radius: 10px;
-  background: transparent;
-  color: #81273e;
-  cursor: pointer;
-}
-
 .nk-suggestion-strip button:focus-visible { outline: 2px solid #81273e; outline-offset: -3px; }
 .nk-member-home__feed-column > .nk-feed-composer[hidden] { display: none; }
 
@@ -138,5 +127,4 @@
     --card-width-reference: max(103px, calc((100cqw - 83px) / 2.15 - 5px));
     gap: 8px;
   }
-  .nk-suggestion-strip__controls button { width: 44px; height: 44px; }
 }
