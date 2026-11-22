@@ -18,7 +18,7 @@ from .models import (
 )
 from .moments_models import MomentoNKATA
 from .posts_models import PublicacaoNKATA
-from .plan_service import PLAN_DEFINITIONS, plan_code_for_user
+from .plan_service import active_plan_access, plan_for_user
 from .profile_media_api import profile_photo_url
 from .user_roles import has_admin_capability
 
@@ -39,8 +39,8 @@ def api_admin_member_dossier(request, profile_id):
         return Response({"detail": "Membro não encontrado."}, status=404)
     pedido, user = profile.pedido, profile.usuario
     verification = VerificacaoIdentidadeNKATA.objects.filter(pedido=pedido).first()
-    plan_code = plan_code_for_user(user) if user else "LIVRE"
-    entitlement = getattr(user, "acesso_plano_nkata", None) if user else None
+    plan = plan_for_user(user)
+    entitlement = active_plan_access(user)
     match_filter = Q(perfil_1=profile) | Q(perfil_2=profile)
     matches = MatchPerfil.objects.filter(match_filter)
     payments = PedidoPagamentoNKATA.objects.filter(usuario=user) if user else PedidoPagamentoNKATA.objects.none()
@@ -83,8 +83,8 @@ def api_admin_member_dossier(request, profile_id):
             "risk": verification.risco if verification else "INDEFINIDO",
         },
         "subscription": {
-            "code": plan_code,
-            "label": PLAN_DEFINITIONS.get(plan_code, PLAN_DEFINITIONS["LIVRE"])["label"],
+            "code": plan["code"],
+            "label": plan["label"],
             "starts_at": entitlement.inicio if entitlement else None,
             "expires_at": entitlement.fim if entitlement else None,
             "origin": entitlement.origem if entitlement else None,

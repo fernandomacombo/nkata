@@ -26,7 +26,7 @@ from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .post_safety_models import DenunciaPublicacaoNKATA
 from .posts_models import PublicacaoNKATA
 from .profile_media_api import profile_photo_url
-from .plan_service import PLAN_DEFINITIONS, assign_plan, plan_code_for_user
+from .plan_service import PLAN_DEFINITIONS, assign_plan, plan_for_user
 from .user_roles import has_admin_capability
 from .webrtc_credentials import turn_is_configured
 
@@ -183,8 +183,7 @@ def _member_rows(request, limit):
     total = queryset.count()
     results = []
     for profile in queryset[:limit]:
-        plan_code = plan_code_for_user(profile.usuario) if profile.usuario_id else "LIVRE"
-        plan_definition = PLAN_DEFINITIONS.get(plan_code, PLAN_DEFINITIONS["LIVRE"])
+        plan_definition = plan_for_user(profile.usuario)
         results.append({
             "id": profile.id,
             "name": profile.nome_publico,
@@ -199,7 +198,7 @@ def _member_rows(request, limit):
             "visible": profile.visivel,
             "verified": profile.pedido.status == "APROVADO",
             "account_active": bool(profile.usuario and profile.usuario.is_active),
-            "plan_code": plan_code,
+            "plan_code": plan_definition["code"],
             "plan_label": plan_definition["label"],
             "paused_until": profile.pausado_ate,
             "pause_reason": profile.motivo_pausa,
