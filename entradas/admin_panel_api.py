@@ -213,7 +213,7 @@ def _member_rows(request, limit):
 
 
 def _identity_review_queue():
-    return Q(status="APROVADO") & (
+    return Q(status__in=["APROVADO", "PRECISA_CORRIGIR"]) & (
         Q(verificacao_identidade__status="REVISAO")
         | Q(
             verificacao_apos_entrada=True,
@@ -246,7 +246,7 @@ def _access_rows(request, limit, *, identity=False):
                 | Q(verificacao_identidade__isnull=True, verificacao_apos_entrada=False, status="APROVADO")
             )
         elif status_filter == "EM_CAPTURA":
-            queryset = queryset.filter(status="APROVADO", verificacao_identidade__status__in=[
+            queryset = queryset.filter(status__in=["APROVADO", "PRECISA_CORRIGIR"], verificacao_identidade__status__in=[
                 "INICIADA", "EM_CAPTURA", "REPETIR", "EXPIRADA",
             ])
         elif status_filter == "REJEITADAS":
@@ -888,7 +888,7 @@ def _action_access(request, object_id, action):
             return None, "Este pedido não pode ser aprovado nesta etapa.", 400
         next_status = "APROVADO"
     elif action == "approve":
-        if item.verificacao_apos_entrada and (item.status != "APROVADO" or not verification):
+        if item.verificacao_apos_entrada and (item.status not in {"APROVADO", "PRECISA_CORRIGIR"} or not verification):
             return None, "Aprove a entrada e aguarde as capturas do NKATA ID.", 400
         from .account_limits import confirm_document
         if verification:
@@ -916,8 +916,11 @@ def _action_access(request, object_id, action):
                 ])
         next_status = "APROVADO"
     elif action == "correction":
+        if verification and item.documento_confirmado:
+            item.documento_confirmado = False
+            item.save(update_fields=["documento_confirmado"])
         next_status = (
-            "APROVADO" if item.verificacao_apos_entrada and item.status == "APROVADO"
+            "APROVADO" if item.status == "APROVADO" and (item.verificacao_apos_entrada or verification)
             else "PRECISA_CORRIGIR"
         )
         if verification:

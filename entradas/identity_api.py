@@ -39,6 +39,7 @@ from .throttles import (
     IdentityCaptureRateThrottle,
     IdentityPreviewRateThrottle,
     IdentitySessionRateThrottle,
+    MemberIdentitySessionRateThrottle,
     IdentityStatusRateThrottle,
 )
 
@@ -75,7 +76,9 @@ def serialize_identity_session(session):
     completed = [field for field in CAPTURE_ORDER if bool(getattr(session, field))]
     return {
         "token": str(session.token),
-        "after_entry": bool(session.pedido_id and session.pedido.verificacao_apos_entrada),
+        "after_entry": bool(session.pedido_id and (
+        session.pedido.verificacao_apos_entrada or session.pedido.status == "PRECISA_CORRIGIR"
+    )),
         "status": session.status,
         "status_label": session.get_status_display(),
         "risk": session.risco,
@@ -178,7 +181,7 @@ def api_criar_sessao_nkata_id(request):
 
 @api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
-@throttle_classes([IdentitySessionRateThrottle])
+@throttle_classes([MemberIdentitySessionRateThrottle])
 @transaction.atomic
 def api_sessao_identidade_do_membro(request):
     profile = member_profile_for_user(request.user)
@@ -191,18 +194,20 @@ def api_sessao_identidade_do_membro(request):
     needs_review = pedido.identidade_revogada or (
         session is not None and session.status in {"REJEITADA", "REPETIR"}
     )
-    if (
-        pedido.status != "APROVADO"
-        or not (pedido.verificacao_apos_entrada or needs_review)
-        or (profile.status == "PAUSADO" and pedido.documento_confirmado and not needs_review)
-    ):
+    correction = pedido.status == "PRECISA_CORRIGIR" and session is not None and session.status in {
+        "REPETIR", "EM_CAPTURA", "EXPIRADA", "REVISAO",
+    }
+    approved_entry = pedido.status == "APROVADO" and (
+        pedido.verificacao_apos_entrada or needs_review
+    ) and (profile.status != "PAUSADO" or not pedido.documento_confirmado or needs_review)
+    if not (correction or approved_entry):
         return Response({"detail": "A verificação desta conta não está disponível aqui."}, status=403)
     if request.method == "GET":
         return Response(serialize_identity_session(session) if session else None)
     if request.data.get("aceita_biometria") is not True:
         return Response({"detail": "Autorize a verificação do documento e do rosto."}, status=400)
 
-    if not pedido.verificacao_apos_entrada:
+    if not correction and not pedido.verificacao_apos_entrada:
         pedido.verificacao_apos_entrada = True
         pedido.documento_confirmado = False
         pedido.save(update_fields=["verificacao_apos_entrada", "documento_confirmado", "atualizado_em"])
@@ -367,7 +372,9 @@ def api_capturar_nkata_id(request, token, capture_type):
     session.verificacoes_imagem = image_checks
     session.status = "EM_CAPTURA"
     session.etapa_atual = next_capture(session)
-    after_entry = bool(session.pedido_id and session.pedido.verificacao_apos_entrada)
+    after_entry = bool(session.pedido_id and (
+        session.pedido.verificacao_apos_entrada or session.pedido.status == "PRECISA_CORRIGIR"
+    ))
     if not after_entry and request.data.get("usar_foto_verificada") in {True, "true", "on", "1", 1}:
         session.usar_foto_verificada = True
     session.save()

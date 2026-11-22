@@ -49,6 +49,17 @@ class IdentitySessionRateThrottle(_IdentityThrottle):
     data_field = "email"
 
 
+class MemberIdentitySessionRateThrottle(IdentitySessionRateThrottle):
+    """Reading the session must not consume the quota for preparing a capture."""
+
+    def allow_request(self, request, view):
+        if request.method in {"GET", "HEAD"}:
+            self.scope = "identity_status"
+            self.rate = self.get_rate()
+            self.num_requests, self.duration = self.parse_rate(self.rate)
+        return super().allow_request(request, view)
+
+
 class IdentityCaptureRateThrottle(_IdentityThrottle):
     scope = "identity_capture"
 
