@@ -920,8 +920,15 @@ def _action_access(request, object_id, action):
                 ])
         next_status = "APROVADO"
     elif action == "correction":
+        keep_admission = item.status == "APROVADO" and (
+            item.verificacao_apos_entrada or verification is not None
+        )
+        if keep_admission and verification:
+            item.verificacao_apos_entrada = True
+            item.documento_confirmado = False
+            item.save(update_fields=["verificacao_apos_entrada", "documento_confirmado"])
         next_status = (
-            "APROVADO" if item.verificacao_apos_entrada and item.status == "APROVADO"
+            "APROVADO" if keep_admission
             else "PRECISA_CORRIGIR"
         )
         if verification:
@@ -947,6 +954,9 @@ def _action_access(request, object_id, action):
             verification.expira_em = nkata_id_expires_at()
             verification.save()
     elif action == "reject":
+        profile = getattr(item, "perfil", None)
+        if profile and profile.usuario and profile.usuario.has_usable_password():
+            return None, "Esta conta já foi criada. Use Rejeitar identidade no NKATA ID para solicitar nova verificação.", 409
         next_status = "RECUSADO"
         if verification:
             verification.status = "REJEITADA"

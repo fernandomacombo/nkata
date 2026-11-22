@@ -1,9 +1,11 @@
 from django.contrib import admin
+from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
 from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
+from .models import PedidoEntrada
 
 
 @admin.register(VerificacaoIdentidadeNKATA)
@@ -137,7 +139,11 @@ class VerificacaoIdentidadeNKATAAdmin(admin.ModelAdmin):
             verification.save()
 
     @admin.action(description="Rejeitar identidade selecionada")
+    @transaction.atomic
     def rejeitar_verificacoes(self, request, queryset):
+        PedidoEntrada.objects.filter(
+            status="APROVADO", pk__in=queryset.values("pedido_id"),
+        ).update(documento_confirmado=False, verificacao_apos_entrada=True)
         queryset.update(
             status="REJEITADA",
             risco="ALTO",
