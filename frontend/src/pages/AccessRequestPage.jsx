@@ -140,7 +140,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
       if (values.nome_completo.trim().length < 3) nextErrors.nome_completo = "Escreva o seu nome completo.";
       if (!/^\S+@\S+\.\S+$/.test(values.email)) nextErrors.email = "Informe um email válido.";
       if (values.telefone.replace(/\D/g, "").length < 8) nextErrors.telefone = "Informe um número de telefone válido.";
-      if (!/^[A-Za-z0-9\s.-]{6,40}$/.test(values.numero_bi.trim())) nextErrors.numero_bi = "Informe o número do seu BI.";
+      if (!/^[0-9]{12}[A-Z]$/.test(values.numero_bi.toUpperCase().replace(/[\s.-]/g, ""))) nextErrors.numero_bi = "O BI deve ter 12 algarismos e uma letra final de A a Z.";
       if (!values.idade || Number(values.idade) < 18) nextErrors.idade = "O NKATA é apenas para maiores de 18 anos.";
       if (values.cidade.trim().length < 2) nextErrors.cidade = "Informe a sua cidade.";
       if (!values.genero) nextErrors.genero = "Escolha uma opção.";
