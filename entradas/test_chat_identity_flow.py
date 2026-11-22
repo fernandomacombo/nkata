@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import TestCase
 
 from .identity_api import _live_capture_proof
@@ -140,6 +141,7 @@ class ChatIdentityFlowTests(TestCase):
         self.assertEqual(member.status, "PAUSADO")
         self.assertFalse(member.visivel)
 
+        cache.clear()  # The separate correction scenario starts after the rate-limit window.
         # Existing requests in the older correction flow keep their state
         # while the member submits the replacement captures.
         PedidoEntrada.objects.filter(pk=pedido.pk).update(
