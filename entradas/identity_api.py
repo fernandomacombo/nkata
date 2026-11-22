@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from .access_api import _validar_imagem
 from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
 from .models import PedidoEntrada
-from .user_roles import active_member_profile_for_user
+from .user_roles import member_profile_for_user
 from .identity_verification_service import (
     CAPTURE_LABELS,
     CAPTURE_ORDER,
@@ -181,24 +181,30 @@ def api_criar_sessao_nkata_id(request):
 @throttle_classes([IdentitySessionRateThrottle])
 @transaction.atomic
 def api_sessao_identidade_do_membro(request):
-    profile = active_member_profile_for_user(request.user)
-    if not profile:
+    profile = member_profile_for_user(request.user)
+    if not profile or not request.user.is_active or profile.status not in {"ATIVO", "PAUSADO"}:
         return Response({"detail": "A conta ainda não está activa."}, status=403)
 
     pedido = PedidoEntrada.objects.select_for_update().get(pk=profile.pedido_id)
     sessions = VerificacaoIdentidadeNKATA.objects.select_for_update()
     session = sessions.filter(pedido=pedido).first()
     rejected = bool(session and session.status == "REJEITADA")
-    if pedido.status != "APROVADO" or not (
-        pedido.verificacao_apos_entrada or pedido.identidade_revogada or rejected
-    ):
+    correction = pedido.status == "PRECISA_CORRIGIR" and session and session.status in {
+        "REPETIR", "EM_CAPTURA", "EXPIRADA", "REVISAO",
+    }
+    approved = pedido.status == "APROVADO" and (
+        pedido.identidade_revogada or rejected or (
+            pedido.verificacao_apos_entrada and (profile.status == "ATIVO" or not pedido.documento_confirmado)
+        )
+    )
+    if not (correction or approved):
         return Response({"detail": "A verificação desta conta não está disponível aqui."}, status=403)
     if request.method == "GET":
         return Response(serialize_identity_session(session) if session and not rejected else None)
     if request.data.get("aceita_biometria") is not True:
         return Response({"detail": "Autorize a verificação do documento e do rosto."}, status=400)
 
-    if not pedido.verificacao_apos_entrada:
+    if not correction and not pedido.verificacao_apos_entrada:
         pedido.verificacao_apos_entrada = True
         pedido.documento_confirmado = False
         pedido.save(update_fields=["verificacao_apos_entrada", "documento_confirmado", "atualizado_em"])
