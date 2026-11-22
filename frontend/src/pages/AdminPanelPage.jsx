@@ -498,7 +498,8 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
     !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || (selection.section === "identity" && (identityPending || (identity?.mode === "LEGACY" && identity.status === "REJEITADA")))
   );
   const identitySection = selection.section === "identity";
-  const canRejectIdentity = identitySection && (
+  const reviewIdentityOnly = identitySection || Boolean(detail?.has_password);
+  const canRejectIdentity = reviewIdentityOnly && (
     ["APROVADA", "REVISAO"].includes(identity?.status)
     || (detail?.status === "APROVADO" && identity?.status === "LEGADO")
   );
@@ -531,9 +532,9 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
   const reject = {
     section: "access",
     item,
-    action: selection.section === "identity" ? "reject_identity" : "reject",
-    label: selection.section === "identity" ? "Rejeitar identidade" : "Recusar pedido",
-    description: selection.section === "identity" ? "Revogar a verificação e bloquear o acesso ao chat e às chamadas." : `Encerrar o pedido de ${item.name}. Esta decisão deve ter um motivo interno.`,
+    action: reviewIdentityOnly ? "reject_identity" : "reject",
+    label: reviewIdentityOnly ? "Rejeitar identidade" : "Recusar pedido",
+    description: reviewIdentityOnly ? "Solicitar uma nova verificação. A conta e o perfil mantêm o seu estado. O chat e as chamadas ficam bloqueados até à aprovação." : `Encerrar o pedido de ${item.name}. Esta decisão deve ter um motivo interno.`,
     acceptsNote: true,
     noteRequired: true,
     danger: true,
@@ -639,7 +640,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
           {(canDecide || canReconsider) && (
             <div className="nk-admin-review__decisions">
               {!entryPending && (canDecide || identity?.mode === "NKATA_ID") && <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>}
-              {(!identitySection || canRejectIdentity) && <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> {reject.label}</button>}
+              {(!reviewIdentityOnly || canRejectIdentity) && <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> {reject.label}</button>}
               {canDecide && <button type="button" className="is-primary" onClick={() => onAction(approve)} disabled={!entryPending && !identity?.captures_complete}><UserCheck size={16} /> {approve.label}</button>}
             </div>
           )}

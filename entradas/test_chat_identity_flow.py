@@ -119,6 +119,13 @@ class ChatIdentityFlowTests(TestCase):
         PedidoEntrada.objects.filter(pk=pedido.pk).update(verificacao_apos_entrada=False)
         PerfilNKATA.objects.filter(pk=member.pk).update(visivel=False)
         self.client.force_login(operator)
+        refusal = self.client.post(action_url, {
+            **decision, "action": "reject", "note": "Esta ação é apenas para pedidos.",
+        })
+        self.assertEqual(refusal.status_code, 409)
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.status, "APROVADO")
+
         denied = self.client.post(action_url, {
             **decision, "action": "reject_identity", "note": "Nova verificação necessária.",
         })
