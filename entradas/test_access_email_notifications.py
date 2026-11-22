@@ -13,6 +13,7 @@ from .models import PedidoEntrada
 class AccessEmailNotificationsTests(SimpleTestCase):
     def pedido(self, status, **overrides):
         data = {
+            "pk": 1,
             "nome_completo": "Marta Afonso",
             "email": "marta@example.com",
             "status": status,
