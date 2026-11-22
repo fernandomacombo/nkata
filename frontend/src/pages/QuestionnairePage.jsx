@@ -1,5 +1,5 @@
 import { MatchPreferences, legacyAges } from "../components/MatchPreferences";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -54,6 +54,55 @@ function SelectField({ label, name, value, choices = [], errors, onChange }) {
       </select>
       <FieldError errors={errors} name={name} />
     </label>
+  );
+}
+
+function SafetyNotice({ onAccept, onBack }) {
+  const dialogRef = useRef(null);
+  const [accepted, setAccepted] = useState(false);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog.showModal();
+    return () => dialog.close();
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="nk-questionnaire-safety"
+      aria-labelledby="nk-questionnaire-safety-title"
+      onCancel={(event) => event.preventDefault()}
+    >
+      <form onSubmit={(event) => {
+        event.preventDefault();
+        if (accepted) onAccept();
+      }}>
+        <div className="nk-questionnaire-safety__body">
+          <span className="nk-questionnaire-safety__icon"><ShieldCheck size={24} aria-hidden="true" /></span>
+          <h2 id="nk-questionnaire-safety-title">A sua segurança no NKATA</h2>
+          <ul>
+            <li>Escolha fotos que se sinta confortável em mostrar. Evite imagens íntimas ou comprometedoras e respeite a privacidade de outras pessoas.</li>
+            <li>Proteja os seus dados. Evite partilhar números de telefone, emails, documentos, palavras-passe ou dados bancários em conversas, fotos ou publicações.</li>
+            <li>Se alguém pedir dinheiro, dados pessoais ou imagens íntimas, pode bloquear e denunciar o perfil no NKATA.</li>
+          </ul>
+          <p className="nk-questionnaire-safety__privacy">
+            <LockKeyhole size={19} aria-hidden="true" />
+            <span><strong>O NKATA protege os seus dados sensíveis.</strong> Os documentos enviados para verificação são confidenciais e ficam fora do seu perfil público. Pedimos que proteja também os seus dados e os de outras pessoas.</span>
+          </p>
+        </div>
+        <footer>
+          <label>
+            <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
+            <span>Li e aceito estas orientações de segurança e as regras da comunidade NKATA.</span>
+          </label>
+          <div className="nk-questionnaire-safety__actions">
+            <button type="button" className="nk-button nk-button--quiet" onClick={onBack}>Voltar</button>
+            <button type="submit" className="nk-button nk-button--wine" disabled={!accepted}>Aceitar e abrir o questionário</button>
+          </div>
+        </footer>
+      </form>
+    </dialog>
   );
 }
 
@@ -129,7 +178,7 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
 
   const handleQuestionnaireSubmit = async (event) => {
     event.preventDefault();
-    if (!validateQuestionnaire()) return;
+    if (!values.aceita_regras || !validateQuestionnaire()) return;
 
     setSubmitting(true);
     setRequestError("");
@@ -190,8 +239,12 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
     );
   }
 
+  const showSafetyNotice = step === "questionnaire" && !values.aceita_regras;
   return (
     <main className="nk-questionnaire-shell">
+      {showSafetyNotice && (
+        <SafetyNotice onAccept={() => updateValue("aceita_regras", true)} onBack={onBack} />
+      )}
       <header className="nk-questionnaire-topbar">
         <button type="button" className="nk-questionnaire-brand" onClick={onBack}>
           <NkataLogo /><strong>NKATA</strong>
@@ -234,7 +287,7 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
         </aside>
 
         <section className="nk-questionnaire-card">
-          {step === "questionnaire" && (
+          {step === "questionnaire" && !showSafetyNotice && (
             <form onSubmit={handleQuestionnaireSubmit}>
               <div className="nk-questionnaire-card__heading">
                 <span>1 de 2</span>
@@ -322,14 +375,6 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
                 </div>
               </fieldset>
 
-              <label className={`nk-questionnaire-consent ${errors.aceita_regras ? "has-error" : ""}`}>
-                <input type="checkbox" checked={values.aceita_regras} onChange={(event) => updateValue("aceita_regras", event.target.checked)} />
-                <span><Check size={14} /></span>
-                <div>
-                  <strong>Aceito as regras da comunidade NKATA</strong>
-                  <small>Comprometo-me a agir com respeito, honestidade e intenção clara.</small>
-                </div>
-              </label>
               <FieldError errors={errors} name="aceita_regras" />
 
               {requestError && <div className="nk-questionnaire-alert">{requestError}</div>}
