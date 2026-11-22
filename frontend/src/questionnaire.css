@@ -585,3 +585,80 @@
     min-height: 440px;
   }
 }
+
+.nk-questionnaire-section {
+  min-inline-size: 0;
+  margin: 1.6rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(132, 65, 79, .2);
+  border-radius: 1rem;
+}
+
+.nk-questionnaire-section > legend {
+  padding: 0 .45rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.nk-questionnaire-section > p {
+  margin: 0 0 .85rem;
+  font-size: .9rem;
+}
+
+.nk-preferences-optional,
+.nk-preferences-age {
+  margin-block: 1rem;
+  padding: .8rem;
+  border-radius: .75rem;
+  background: rgba(132, 65, 79, .06);
+}
+
+.nk-preferences-optional > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.nk-preferences-optional[open] > summary,
+.nk-preferences-age-grid {
+  margin-block-end: .65rem;
+}
+
+.nk-preferences-age-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+  margin-block-start: .65rem;
+}
+
+.nk-preferences-check {
+  display: flex;
+  gap: .55rem;
+  align-items: flex-start;
+  margin-block-start: .75rem;
+  font-size: .875rem;
+}
+
+.nk-preferences-profile,
+.nk-preferences-profile-ages {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: .9rem;
+  border-radius: .75rem;
+  background: rgba(132, 65, 79, .06);
+}
+
+.nk-preferences-profile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem 1rem;
+  list-style: none;
+}
+
+.nk-account-form .nk-preferences-check {
+  display: flex;
+}
+
+.nk-account-form .nk-preferences-check input {
+  width: auto;
+  min-height: 0;
+}

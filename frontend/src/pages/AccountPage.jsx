@@ -1,3 +1,4 @@
+import { MatchPreferences } from "../components/MatchPreferences";
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
@@ -402,6 +403,7 @@ export default function AccountPage({
       sobre_si: account.sobre_si || "",
       o_que_valoriza: account.o_que_valoriza || "",
       o_que_nao_aceita: account.o_que_nao_aceita || "",
+      preferencias: account.preferencias || {},
     });
   }, [account]);
 
@@ -791,6 +793,14 @@ export default function AccountPage({
                 <small>{english ? "Minimum 12 characters" : "Mínimo 12 caracteres"} · {form.o_que_nao_aceita.length}/1800</small>
               </label>
             </div>
+              <fieldset className="nk-questionnaire-section">
+                <legend>{english ? "Profile details" : "Dados do perfil"}</legend>
+                <MatchPreferences values={form.preferencias} onChange={(value) => updateField("preferencias", value)} section="details" english={english} />
+              </fieldset>
+              <fieldset className="nk-questionnaire-section">
+                <legend>{english ? "Who you would like to meet" : "Quem gostaria de conhecer"}</legend>
+                <MatchPreferences values={form.preferencias} onChange={(value) => updateField("preferencias", value)} section="search" english={english} />
+              </fieldset>
             </form>
             <RegistrationPhotosManager language={language} />
             <ProfileGalleryManager language={language} />

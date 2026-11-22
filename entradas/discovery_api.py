@@ -1,4 +1,3 @@
-import re
 import unicodedata
 from datetime import date
 from heapq import nlargest
@@ -10,6 +9,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .match_preferences import profile_preferences
 from .models import VotoPerguntaDiaria
 from .profile_api import discovery_profiles
 from .serializers import PerfilResumoSerializer
@@ -35,15 +35,6 @@ def normalized_place(value):
     return " ".join("".join(c for c in value if not unicodedata.combining(c)).split())
 
 
-def preferred_ages(value):
-    numbers = re.findall(r"\d+", value)
-    if len(numbers) == 2:
-        minimum, maximum = map(int, numbers)
-        if 18 <= minimum <= maximum <= 120:
-            return minimum, maximum
-    return None
-
-
 def private_response(data, status=200):
     response = Response(data, status=status)
     add_never_cache_headers(response)
@@ -59,7 +50,8 @@ def api_suggestions(request):
 
     questionnaire = getattr(profile.pedido, "questionario", None)
     city = normalized_place(questionnaire.cidade_preferida) if questionnaire else ""
-    ages = preferred_ages(questionnaire.faixa_etaria_preferida) if questionnaire else None
+    preferences = profile_preferences(profile)
+    ages = preferences["ages"]
 
     def ranked_profiles():
         for candidate in discovery_profiles(request.user, profile).filter(usuario__is_active=True).iterator():
@@ -73,6 +65,19 @@ def api_suggestions(request):
                 score += 2
             if ages and ages[0] <= candidate.idade <= ages[1]:
                 reasons.append("preferred_age")
+                score += 1
+            if preferences.get("preferred_smoking") == "never" and candidate.preferencias.get("smoking") == "never":
+                score += 1
+            drinking = preferences.get("preferred_drinking")
+            candidate_drinking = candidate.preferencias.get("drinking")
+            if drinking and (candidate_drinking == "never" or drinking == candidate_drinking):
+                score += 1
+            pets = candidate.preferencias.get("pets")
+            pet_preference = preferences.get("preferred_pets")
+            if pets and (
+                (pet_preference == "none" and pets == ["none"])
+                or (pet_preference == "welcome" and pets != ["none"])
+            ):
                 score += 1
             if score:
                 yield score, candidate, reasons

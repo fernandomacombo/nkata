@@ -59,6 +59,7 @@ function normalizeProfile(profile) {
     sobre_si: profile.sobre_si || "Este perfil ainda não acrescentou uma apresentação.",
     o_que_valoriza: profile.o_que_valoriza || "",
     o_que_nao_aceita: profile.o_que_nao_aceita || "",
+    preferencias: profile.preferencias || {},
     foto_url: normalizeAppUrl(
       profile.foto_url ||
       profile.foto_principal_url ||
