@@ -1,3 +1,4 @@
+import FacebookLink from "../components/brand/FacebookLink.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { CircleHelp, Headset, Search, ShieldCheck, ArrowLeft } from "lucide-react";
 
@@ -76,7 +77,10 @@ export default function HelpCenterPage({ authenticated, email = "", onNavigate }
           <Search size={19} aria-hidden="true" />
           <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar respostas..." aria-label="Pesquisar perguntas frequentes" />
         </label>
-        <a className="nk-help__contact-link" href="#contactar-suporte">Contactar suporte</a>
+        <div className="nk-help__links">
+          <a className="nk-help__contact-link" href="#contactar-suporte">Contactar suporte</a>
+          <FacebookLink />
+        </div>
       </div>
 
       <div className="nk-help__content">

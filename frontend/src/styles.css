@@ -1587,3 +1587,30 @@ img {
     font-size: 0.54rem;
   }
 }
+
+.nk-facebook-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  color: var(--nk-wine);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+
+.nk-help__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 20px;
+  margin-top: 1rem;
+}
+
+.nk-help__links .nk-help__contact-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 0;
+}
