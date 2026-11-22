@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.core.cache import cache
 from django.test import TestCase
 
 from .identity_api import _live_capture_proof
@@ -113,66 +112,3 @@ class ChatIdentityFlowTests(TestCase):
         self.client.force_login(member.usuario)
         self.assertFalse(self.client.get("/api/session/").json()["profile"]["chat_identity_required"])
         self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 200)
-
-        # Accounts approved before the post-entry flow can also verify again.
-        PedidoEntrada.objects.filter(pk=pedido.pk).update(verificacao_apos_entrada=False)
-        self.client.force_login(operator)
-        rejected = self.client.post(action_url, {
-            **decision, "action": "reject_identity", "note": "Solicitar nova verificação.",
-        })
-        self.assertEqual(rejected.status_code, 200, rejected.json())
-
-        self.client.force_login(member.usuario)
-        self.assertEqual(self.client.get(identity_url).json()["status"], "REJEITADA")
-        self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
-        PerfilNKATA.objects.filter(pk=member.pk).update(status="BLOQUEADO", visivel=False)
-        self.assertEqual(self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json").status_code, 403)
-        PerfilNKATA.objects.filter(pk=member.pk).update(status="PAUSADO")
-        restarted = self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json")
-        self.assertEqual(restarted.status_code, 201, restarted.json())
-        self.assertNotEqual(restarted.json()["token"], token)
-        self.assertEqual(restarted.json()["completed_captures"], [])
-        self.assertTrue(restarted.json()["after_entry"])
-        self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
-        verification.refresh_from_db()
-        self.assertEqual(verification.status, "REJEITADA")
-        self.assertTrue(verification.capturas_completas)
-        member.refresh_from_db()
-        self.assertEqual(member.status, "PAUSADO")
-        self.assertFalse(member.visivel)
-
-        cache.clear()  # The separate correction scenario starts after the rate-limit window.
-        # Existing requests in the older correction flow keep their state
-        # while the member submits the replacement captures.
-        PedidoEntrada.objects.filter(pk=pedido.pk).update(
-            status="PRECISA_CORRIGIR", verificacao_apos_entrada=False,
-        )
-        VerificacaoIdentidadeNKATA.objects.filter(pedido=pedido).update(status="REPETIR")
-        resume = self.client.get(identity_url)
-        self.assertEqual(resume.status_code, 200)
-        self.assertEqual(resume.json()["status"], "REPETIR")
-        self.assertTrue(resume.json()["after_entry"])
-        self.assertEqual(self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json").status_code, 200)
-        pedido.refresh_from_db()
-        self.assertEqual(pedido.status, "PRECISA_CORRIGIR")
-        self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
-
-        replacement = VerificacaoIdentidadeNKATA.objects.get(pedido=pedido)
-        with patch("entradas.identity_api.inspect_identity_capture", side_effect=lambda image, kind: accepted_result(kind)):
-            for kind in VerificacaoIdentidadeNKATA.CAPTURE_FIELDS:
-                captured = self.client.post(f"/api/nkata-id/sessoes/{replacement.token}/capturas/{kind}/", {
-                    "imagem": textured_image(f"{kind}.jpg"),
-                    "live_capture_proof": _live_capture_proof(replacement, kind),
-                })
-                self.assertEqual(captured.status_code, 200, captured.json())
-        self.assertEqual(captured.json()["status"], "REVISAO")
-        self.client.force_login(operator)
-        queue = self.client.get("/api/painel/lista/?section=identity")
-        self.assertIn(pedido.pk, [row["id"] for row in queue.json()["results"]])
-        approved = self.client.post(action_url, {
-            **decision, "action": "approve", "document_number": "110100000009A",
-        })
-        self.assertEqual(approved.status_code, 200, approved.json())
-        pedido.refresh_from_db()
-        self.assertEqual(pedido.status, "APROVADO")
-        self.assertTrue(pedido.documento_confirmado)

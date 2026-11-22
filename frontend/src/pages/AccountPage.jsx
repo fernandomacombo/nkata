@@ -363,7 +363,6 @@ function ProfileGalleryManager({ language }) {
 
 export default function AccountPage({
   account,
-  onVerifyIdentity,
   interests,
   loading,
   saving,
@@ -692,14 +691,6 @@ export default function AccountPage({
             ))}
           </nav>
 
-          {onVerifyIdentity && (
-            <div className="nk-following-panel">
-              <p>{english ? "Identity review is required to use chat." : "A verificação de identidade está pendente."}</p>
-              <button type="button" className="nk-button nk-button--wine" onClick={onVerifyIdentity}>
-                {english ? "Open identity verification" : "Abrir NKATA ID"}
-              </button>
-            </div>
-          )}
           {accountSection === "summary" && (
             <AccountSummaryPanel language={language} onOpenSection={setAccountSection} />
           )}
