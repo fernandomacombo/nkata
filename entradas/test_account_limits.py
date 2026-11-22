@@ -81,7 +81,7 @@ class AccountLimitsTests(TestCase):
         member = request_form("member@example.test", "840000001", "110100000002B").save()
         member.save()
         user = User.objects.create_user("existing-member", password="local-test-password")
-        PerfilNKATA.objects.create(pedido=member, usuario=user, nome_publico="Existing member")
+        PerfilNKATA.objects.create(pedido=member, usuario=user, nome_publico="Existing member", idade=30)
 
         with self.assertRaisesMessage(ValidationError, "BI"):
             confirm_document(member, "110100000001A")

@@ -25,7 +25,7 @@ def normalize_phone(value):
 def document_key(value):
     number = unicodedata.normalize("NFKC", str(value or "")).strip().upper()
     if not re.fullmatch(r"[A-Z0-9\s.-]+", number):
-        raise ValidationError("Informe o número do BI tal como aparece no documento.")
+        raise ValidationError("O BI deve ter 12 algarismos seguidos de uma letra de A a Z.")
     number = re.sub(r"[\s.-]", "", number)
     if not re.fullmatch(r"[0-9]{12}[A-Z]", number):
         raise ValidationError("O BI deve ter 12 algarismos seguidos de uma letra de A a Z.")
