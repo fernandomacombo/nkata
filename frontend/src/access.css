@@ -866,3 +866,36 @@
 @media (max-width: 480px) {
   .nk-access-photo-grid { grid-template-columns: 1fr; gap: 12px; }
 }
+
+.nk-access-step--details { min-height: auto; }
+
+.nk-access-fields--grouped {
+  margin-top: 24px;
+  row-gap: 14px;
+}
+
+.nk-access-fields--grouped h3 {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 8px;
+  margin: 7px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f3e8e7;
+  color: var(--nk-wine);
+  font-size: .85rem;
+  font-weight: 750;
+}
+
+.nk-access-fields--grouped h3:nth-of-type(2) {
+  background: #eaf0e8;
+  color: #355e4f;
+}
+
+.nk-access-fields--grouped h3:nth-of-type(3) {
+  background: #f2ebe1;
+  color: #664734;
+}
+
+.nk-access-fields--grouped h3:first-child { margin-top: 0; }

@@ -11,6 +11,8 @@ import {
   LoaderCircle,
   LockKeyhole,
   MailCheck,
+  Mail,
+  HeartHandshake,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -266,10 +268,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
             <ArrowLeft size={18} /> Voltar
           </button>
           <div>
-            <span className="nk-eyebrow nk-eyebrow--dark">
-              <ShieldCheck size={15} /> Entrada mediante aprovação
-            </span>
-            <h1>Peça acesso com calma.</h1>
+            <h1>Pedido de acesso</h1>
             <p>Envie os seus dados e duas fotos para a equipa analisar o pedido.</p>
           </div>
           <aside>
@@ -288,19 +287,26 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
         <div className="nk-access-layout">
           <section className="nk-access-card">
             {step === 0 && (
-              <div className="nk-access-step nk-soft-enter">
+              <div className="nk-access-step nk-access-step--details nk-soft-enter">
                 <header>
-                  <small>Passo 1 de 3</small>
                   <h2>Conte-nos quem é.</h2>
                   <p>Use os seus dados reais, conforme constam no BI.</p>
                 </header>
 
-                <div className="nk-access-fields">
+                <div className="nk-access-fields nk-access-fields--grouped">
+                  <h3><UserRound size={17} aria-hidden="true" /> Identificação</h3>
                   <label className="is-wide">
                     <span>Nome completo</span>
                     <input value={values.nome_completo} onChange={(event) => updateValue("nome_completo", event.target.value)} autoComplete="name" placeholder="O seu nome completo" />
                     {fieldError(errors, "nome_completo") && <em>{fieldError(errors, "nome_completo")}</em>}
                   </label>
+                  <label className="is-wide">
+                    <span>Número do BI</span>
+                    <input value={values.numero_bi} onChange={(event) => updateValue("numero_bi", event.target.value)} maxLength={40} autoComplete="off" />
+                    <small>12 algarismos e uma letra final. Só a equipa faz a conferência.</small>
+                    {fieldError(errors, "numero_bi") && <em>{fieldError(errors, "numero_bi")}</em>}
+                  </label>
+                  <h3><Mail size={17} aria-hidden="true" /> Contactos privados</h3>
                   <label>
                     <span>Email</span>
                     <input type="email" value={values.email} onChange={(event) => updateValue("email", event.target.value)} autoComplete="email" placeholder="nome@exemplo.com" />
@@ -308,15 +314,10 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
                   </label>
                   <label>
                     <span>Telefone</span>
-                    <input value={values.telefone} onChange={(event) => updateValue("telefone", event.target.value)} autoComplete="tel" placeholder="+258 84 000 0000" />
+                    <input type="tel" value={values.telefone} onChange={(event) => updateValue("telefone", event.target.value)} autoComplete="tel" placeholder="+258 84 000 0000" />
                     {fieldError(errors, "telefone") && <em>{fieldError(errors, "telefone")}</em>}
                   </label>
-                  <label className="is-wide">
-                    <span>Número do BI</span>
-                    <input value={values.numero_bi} onChange={(event) => updateValue("numero_bi", event.target.value)} maxLength={40} autoComplete="off" />
-                    <small>Privado. Será conferido com o documento pela equipa.</small>
-                    {fieldError(errors, "numero_bi") && <em>{fieldError(errors, "numero_bi")}</em>}
-                  </label>
+                  <h3><HeartHandshake size={17} aria-hidden="true" /> O seu perfil</h3>
                   <label>
                     <span>Idade</span>
                     <input type="number" min="18" max="100" value={values.idade} onChange={(event) => updateValue("idade", event.target.value)} placeholder="Ex.: 32" />
