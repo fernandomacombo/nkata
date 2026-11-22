@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
+from .match_preferences import MatchPreferencesSerializer, profile_preferences
 from .call_history_api import serialize_call_message
 from .call_models import ChamadaMatchNKATA
 from .chat_media_models import MensagemAudioMatchNKATA
@@ -108,15 +109,29 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
 
 
 class PerfilDetalheSerializer(PerfilResumoSerializer):
+    preferencias = serializers.SerializerMethodField()
+
+    def get_preferencias(self, obj):
+        data = profile_preferences(obj)
+        visible = {key: data[key] for key in ("height", "smoking", "drinking", "education", "occupation")
+                   if data.get("show_details") and data.get(key)}
+        if data.get("show_ages") and data.get("ages"):
+            visible["ages"] = data["ages"]
+        if data.get("show_pets") and data.get("pets"):
+            visible["pets"] = data["pets"]
+        return visible
+
     class Meta(PerfilResumoSerializer.Meta):
         fields = PerfilResumoSerializer.Meta.fields + [
             "o_que_valoriza",
             "o_que_nao_aceita",
             "criado_em",
+            "preferencias",
         ]
 
 
 class MinhaContaSerializer(serializers.ModelSerializer):
+    preferencias = MatchPreferencesSerializer(required=False)
     foto_principal = serializers.SerializerMethodField()
     objetivo_display = serializers.CharField(source="get_objetivo_display", read_only=True)
     genero_display = serializers.CharField(source="get_genero_display", read_only=True)
@@ -132,6 +147,7 @@ class MinhaContaSerializer(serializers.ModelSerializer):
             "id",
             "nome_publico",
             "email",
+            "preferencias",
             "cidade",
             "idade",
             "genero",
@@ -255,7 +271,14 @@ class MinhaContaSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["preferencias"] = profile_preferences(instance)
+        return data
+
     def update(self, instance, validated_data):
+        if "preferencias" in validated_data:
+            validated_data["preferencias"] = {**instance.preferencias, **validated_data["preferencias"]}
         enabling_public_preview = bool(
             validated_data.get("destaque_publico")
             and not instance.destaque_publico

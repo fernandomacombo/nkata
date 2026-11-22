@@ -130,6 +130,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [qualityMessages, setQualityMessages] = useState([]);
+  const [manualRetry, setManualRetry] = useState(false);
   const [useAsProfilePhoto, setUseAsProfilePhoto] = useState(false);
   const [detection, setDetection] = useState({
     detected: false,
@@ -184,6 +185,7 @@ export default function IdentityCapturePage({ token, onExit }) {
     detectionStabilityRef.current = { captureType, count: 0 };
     automaticCaptureRef.current = false;
     captureLockRef.current = false;
+    setManualRetry(false);
     setQualityMessages([]);
     setDetection({
       detected: false,
@@ -272,6 +274,7 @@ export default function IdentityCapturePage({ token, onExit }) {
     } catch (requestError) {
       const messages = requestError.payload?.quality?.messages || [];
       setQualityMessages(messages);
+      if (requestError.status === 422) setManualRetry(true);
       setError(requestError.message || "Não foi possível analisar esta fotografia.");
       automaticCaptureRef.current = false;
       detectionStabilityRef.current = { captureType: requestedCaptureType, count: 0 };
@@ -332,7 +335,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   };
 
   useEffect(() => {
-    if (!cameraReady || uploading || complete || !captureType) return undefined;
+    if (!cameraReady || uploading || manualRetry || complete || !captureType) return undefined;
     let stopped = false;
 
     const schedule = (delay = PREVIEW_INTERVAL_MS) => {
@@ -399,7 +402,7 @@ export default function IdentityCapturePage({ token, onExit }) {
       stopped = true;
       stopPreviewAnalysis();
     };
-  }, [cameraReady, captureType, uploading, complete, token]);
+  }, [cameraReady, captureType, uploading, manualRetry, complete, token]);
 
   useEffect(() => {
     if (!complete) return;
@@ -535,7 +538,7 @@ export default function IdentityCapturePage({ token, onExit }) {
         ) : (
           <button type="button" className="nk-button nk-button--wine nk-id-assisted-capture" onClick={handleAssistedCapture} disabled={uploading}>
             {uploading ? <LoaderCircle className="is-spinning" size={18} /> : <Camera size={18} />}
-            {uploading ? "A guardar…" : "Fotografar"}
+            {uploading ? "A guardar…" : manualRetry ? "Tentar nova fotografia" : "Fotografar"}
           </button>
         )}
       </footer>
