@@ -21,7 +21,7 @@ export function legacyAges(value = "") {
   return 18 <= minimum && minimum <= maximum && maximum <= 120 ? [minimum, maximum] : undefined;
 }
 
-export function MatchPreferences({ values = {}, onChange, section, english = false, errors = {}, requireAge = false }) {
+export function MatchPreferences({ values = {}, onChange, section, english = false, errors = {}, requireAge = false, compactSearch = false }) {
   const t = (pt, en) => english ? en : pt;
   const set = (key, value) => onChange({ ...values, [key]: value });
   const select = (key, label, options, empty = t("Prefiro não responder", "Prefer not to answer")) => (
@@ -81,12 +81,23 @@ export function MatchPreferences({ values = {}, onChange, section, english = fal
   const ages = values.ages;
   const ageMode = Array.isArray(ages) ? "range" : ages === null ? "any" : "";
   const validRange = ages?.[0] && ages?.[1] && ages[0] <= ages[1];
+  const searchOptions = (
+      <div className="nk-questionnaire-grid">
+        {select("preferred_smoking", t("Preferência sobre tabaco", "Smoking preference"), [["never", "Prefiro alguém que não fume", "I prefer a non-smoker"]], t("Sem preferência", "No preference"))}
+        {select("preferred_drinking", t("Preferência sobre álcool", "Drinking preference"), [["never", "Prefiro alguém que não beba", "I prefer someone who doesn't drink"], ["occasionally", "Aceito que beba ocasionalmente", "Occasional drinking is fine"]], t("Sem preferência", "No preference"))}
+        {select("preferred_pets", t("Está à vontade em conhecer alguém que tenha animais de estimação?", "Are you comfortable meeting someone who has pets?"), [
+          ["welcome", "Sim", "Yes"],
+          ["depends", "Depende do animal", "It depends on the pet"],
+          ["none", "Prefiro alguém sem animais", "I prefer someone without pets"],
+        ], t("Sem preferência", "No preference"))}
+      </div>
+  );
   return (
     <>
       <div className="nk-preferences-age">
         <label className="nk-questionnaire-field">
-          <span>{t("Que idades prefere nas pessoas que gostaria de conhecer?", "What age range would you prefer?")}</span>
-          <select required={requireAge} value={ageMode} onChange={(event) => {
+          {!compactSearch && <span>{t("Que idades prefere nas pessoas que gostaria de conhecer?", "What age range would you prefer?")}</span>}
+          <select aria-labelledby={compactSearch ? "nk-question-title" : undefined} required={requireAge} value={ageMode} onChange={(event) => {
             const mode = event.target.value;
             onChange({ ...values, ages: mode === "range" ? [0, 0] : mode === "any" ? null : undefined, show_ages: mode === "range" && !!values.show_ages });
           }}>
@@ -126,15 +137,12 @@ export function MatchPreferences({ values = {}, onChange, section, english = fal
         </>}
         {errors.ages && <small role="alert">{errors.ages}</small>}
       </div>
-      <div className="nk-questionnaire-grid">
-        {select("preferred_smoking", t("Preferência sobre tabaco", "Smoking preference"), [["never", "Prefiro alguém que não fume", "I prefer a non-smoker"]], t("Sem preferência", "No preference"))}
-        {select("preferred_drinking", t("Preferência sobre álcool", "Drinking preference"), [["never", "Prefiro alguém que não beba", "I prefer someone who doesn't drink"], ["occasionally", "Aceito que beba ocasionalmente", "Occasional drinking is fine"]], t("Sem preferência", "No preference"))}
-        {select("preferred_pets", t("Está à vontade em conhecer alguém que tenha animais de estimação?", "Are you comfortable meeting someone who has pets?"), [
-          ["welcome", "Sim", "Yes"],
-          ["depends", "Depende do animal", "It depends on the pet"],
-          ["none", "Prefiro alguém sem animais", "I prefer someone without pets"],
-        ], t("Sem preferência", "No preference"))}
-      </div>
+      {compactSearch ? (
+        <details className="nk-preferences-optional">
+          <summary>{t("Outras preferências · opcional", "Other preferences · optional")}</summary>
+          {searchOptions}
+        </details>
+      ) : searchOptions}
     </>
   );
 }

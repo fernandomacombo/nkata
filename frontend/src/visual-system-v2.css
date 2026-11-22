@@ -729,8 +729,7 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
   }
 
   .nk-questionnaire-intro h1,
-  .nk-questionnaire-intro > p,
-  .nk-questionnaire-steps {
+  .nk-questionnaire-intro > p {
     display: none;
   }
 
@@ -742,16 +741,9 @@ html[data-nkata-theme="NOITE"] .nk-account-lifecycle button:disabled {
     box-shadow: none;
   }
 
-  .nk-questionnaire-card__heading > span,
-  .nk-questionnaire-card__heading > p {
-    display: none;
-  }
-
   .nk-questionnaire-card__heading h2 {
-    margin: 0 0 16px;
-    font-family: inherit;
-    font-size: 1.4rem;
-    font-weight: 800;
+    margin: 8px 0 0;
+    font-size: 1.6rem;
   }
 
   /* Acompanhamento do pedido */

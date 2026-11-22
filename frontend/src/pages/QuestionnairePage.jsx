@@ -4,10 +4,8 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
-  Check,
   Eye,
   EyeOff,
-  HeartHandshake,
   LoaderCircle,
   LockKeyhole,
   ShieldCheck,
@@ -39,21 +37,34 @@ function firstError(errors, name) {
 
 function FieldError({ errors, name }) {
   const message = firstError(errors, name);
-  return message ? <small className="nk-questionnaire-error">{message}</small> : null;
+  return message ? <small className="nk-questionnaire-error" role="alert">{message}</small> : null;
 }
 
-function SelectField({ label, name, value, choices = [], errors, onChange }) {
+const questions = [
+  { field: "disponibilidade", group: "Sobre si", title: "Está disponível para uma relação?" },
+  { field: "tem_filhos", group: "Sobre si", title: "Tem filhos?" },
+  { field: "sobre_si", group: "Sobre si", title: "Como se apresentaria?", multiline: true, hint: "Pode falar de algo que gosta de fazer ou de como costuma passar o seu tempo." },
+  { field: "aceita_pessoa_com_filhos", group: "Quem quer conhecer", title: "Aceita conhecer alguém com filhos?" },
+  { field: "cidade_preferida", group: "Quem quer conhecer", title: "Onde gostaria de conhecer pessoas?", hint: "Ex.: Maputo, Matola, Vilankulo" },
+  { field: "ages", group: "Quem quer conhecer", title: "Que idades prefere?" },
+  { field: "o_que_valoriza", group: "Valores e limites", title: "O que mais valoriza numa relação?", multiline: true, hint: "Ex.: respeito, honestidade, comunicação" },
+  { field: "o_que_nao_aceita", group: "Valores e limites", title: "Que limites são importantes para si?", multiline: true, hint: "Pense no que precisa para se sentir respeitado numa relação." },
+];
+const lastQuestion = questions.length - 1;
+
+function ChoiceField({ name, value, choices = [], errors, onChange }) {
   return (
-    <label className="nk-questionnaire-field">
-      <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(name, event.target.value)}>
-        <option value="">Selecione uma opção</option>
+    <fieldset className="nk-questionnaire-choice" aria-labelledby="nk-question-title">
+      <div>
         {choices.map((choice) => (
-          <option key={choice.value} value={choice.value}>{choice.label}</option>
+          <label key={choice.value}>
+            <input type="radio" name={name} checked={value === choice.value} onChange={() => onChange(name, choice.value)} />
+            <span>{choice.label}</span>
+          </label>
         ))}
-      </select>
+      </div>
       <FieldError errors={errors} name={name} />
-    </label>
+    </fieldset>
   );
 }
 
@@ -110,6 +121,8 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
   const [data, setData] = useState(null);
   const [values, setValues] = useState(emptyValues);
   const [step, setStep] = useState("questionnaire");
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const headingRef = useRef(null);
   const [promotionGranted, setPromotionGranted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -145,8 +158,9 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
   }, [token]);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [step]);
+    headingRef.current?.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }, [step, questionIndex]);
 
   const firstName = useMemo(() => {
     const name = data?.pedido?.nome || "";
@@ -155,7 +169,7 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
 
   const updateValue = (name, value) => {
     setValues((current) => ({ ...current, [name]: value }));
-    setErrors((current) => ({ ...current, [name]: undefined }));
+    setErrors((current) => ({ ...current, [name]: undefined, ...(name === "preferencias" ? { ages: undefined } : {}) }));
     setRequestError("");
   };
 
@@ -172,13 +186,36 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
     if (values.o_que_valoriza.trim().length < 10) next.o_que_valoriza = "Diga o que considera importante numa relação.";
     if (values.o_que_nao_aceita.trim().length < 10) next.o_que_nao_aceita = "Explique os limites importantes para si.";
     if (!values.aceita_regras) next.aceita_regras = "Confirme que aceita as regras da comunidade.";
-    setErrors(next);
-    return Object.keys(next).length === 0;
+    return next;
+  };
+
+  const question = questions[questionIndex];
+  const showQuestionWithErrors = (fieldErrors) => {
+    const index = questions.findIndex(({ field }) => fieldErrors[field]);
+    if (index !== -1) setQuestionIndex(index);
+    else if (fieldErrors.preferencias || fieldErrors.faixa_etaria_preferida) {
+      setQuestionIndex(questions.findIndex(({ field }) => field === "ages"));
+    }
   };
 
   const handleQuestionnaireSubmit = async (event) => {
     event.preventDefault();
-    if (!values.aceita_regras || !validateQuestionnaire()) return;
+    if (!values.aceita_regras || submitting) return;
+    const validation = validateQuestionnaire();
+    if (questionIndex < lastQuestion) {
+      if (validation[question.field]) setErrors(validation);
+      else {
+        setErrors({});
+        setRequestError("");
+        setQuestionIndex(questionIndex + 1);
+      }
+      return;
+    }
+    if (Object.keys(validation).length) {
+      setErrors(validation);
+      showQuestionWithErrors(validation);
+      return;
+    }
 
     setSubmitting(true);
     setRequestError("");
@@ -188,7 +225,9 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
       setStep("password");
     } catch (error) {
       setRequestError(error.message);
-      setErrors(error.payload?.errors || {});
+      const fieldErrors = error.payload?.errors || {};
+      setErrors(fieldErrors);
+      showQuestionWithErrors(fieldErrors);
     } finally {
       setSubmitting(false);
     }
@@ -270,127 +309,73 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
             </div>
           </div>
 
-          <div className="nk-questionnaire-steps" aria-label="Progresso">
-            <div className={step === "questionnaire" ? "is-active" : "is-complete"}>
-              <span>{step === "questionnaire" ? "1" : <Check size={15} />}</span>
-              <div><strong>Questionário</strong><small>Preferências e apresentação</small></div>
-            </div>
-            <div className={step === "password" ? "is-active" : step === "success" ? "is-complete" : ""}>
-              <span>{step === "success" ? <Check size={15} /> : "2"}</span>
-              <div><strong>Palavra-passe</strong><small>Proteja a sua conta</small></div>
-            </div>
-            <div className={step === "success" ? "is-active" : ""}>
-              <span>3</span>
-              <div><strong>Conta pronta</strong><small>Comece a usar o NKATA</small></div>
-            </div>
-          </div>
         </aside>
 
         <section className="nk-questionnaire-card">
           {step === "questionnaire" && !showSafetyNotice && (
-            <form onSubmit={handleQuestionnaireSubmit}>
-              <div className="nk-questionnaire-card__heading">
-                <span>1 de 2</span>
-                <h2>Sobre si e o que procura</h2>
-                <p>Responda com naturalidade. Pode rever tudo antes de continuar.</p>
+            <form onSubmit={handleQuestionnaireSubmit} noValidate>
+              <progress className="nk-questionnaire-meter" value={questionIndex + 1} max={questions.length} aria-label={`Pergunta ${questionIndex + 1} de ${questions.length}`} />
+              <div className="nk-questionnaire-card__heading nk-questionnaire-chapter">
+                <span>{question.group}</span>
+                <h2 ref={headingRef} id="nk-question-title" tabIndex={-1}>{question.title}</h2>
+                {question.hint && <p id="nk-question-hint">{question.hint}</p>}
               </div>
 
-              <fieldset className="nk-questionnaire-section">
-                <legend>Sobre si</legend>
-                <p>Conte um pouco sobre a sua vida e o que quer partilhar no perfil.</p>
-                <div className="nk-questionnaire-grid">
-                  <SelectField
-                    label="Está disponível para uma relação?"
-                    name="disponibilidade"
-                    value={values.disponibilidade}
-                    choices={data.choices?.disponibilidade}
-                    errors={errors}
-                    onChange={updateValue}
-                  />
-                  <SelectField
-                    label="Tem filhos?"
-                    name="tem_filhos"
-                    value={values.tem_filhos}
-                    choices={data.choices?.tem_filhos}
-                    errors={errors}
-                    onChange={updateValue}
-                  />
-                  <label className="nk-questionnaire-field nk-questionnaire-field--full">
-                    <span>Fale um pouco sobre si</span>
-                    <textarea rows="4" value={values.sobre_si} onChange={(event) => updateValue("sobre_si", event.target.value)} placeholder="Conte o que considera importante sobre si, com as suas próprias palavras." />
-                    <FieldError errors={errors} name="sobre_si" />
-                  </label>
-                </div>
-                <MatchPreferences
-                  values={values.preferencias}
-                  onChange={(preferences) => updateValue("preferencias", preferences)}
-                  section="details"
-                  errors={errors}
-                />
-              </fieldset>
-
-              <fieldset className="nk-questionnaire-section">
-                <legend>Quem gostaria de conhecer</legend>
-                <p>As suas preferências ajudam o NKATA a recomendar perfis.</p>
-                <div className="nk-questionnaire-grid">
-                  <SelectField
-                    label="Aceita conhecer alguém com filhos?"
-                    name="aceita_pessoa_com_filhos"
-                    value={values.aceita_pessoa_com_filhos}
-                    choices={data.choices?.aceita_pessoa_com_filhos}
-                    errors={errors}
-                    onChange={updateValue}
-                  />
-
-                  <label className="nk-questionnaire-field">
-                    <span>Onde gostaria de conhecer pessoas?</span>
-                    <input value={values.cidade_preferida} onChange={(event) => updateValue("cidade_preferida", event.target.value)} placeholder="Ex.: Maputo, Matola, Vilankulo" />
-                    <FieldError errors={errors} name="cidade_preferida" />
-                  </label>
-                </div>
-                <MatchPreferences
-                  values={values.preferencias}
-                  onChange={(preferences) => updateValue("preferencias", preferences)}
-                  section="search"
-                  requireAge
-                  errors={errors}
-                />
-              </fieldset>
-
-              <fieldset className="nk-questionnaire-section">
-                <legend>O que importa numa relação</legend>
-                <p>Partilhe os seus valores e os limites que considera importantes.</p>
-                <div className="nk-questionnaire-grid">
-                  <label className="nk-questionnaire-field">
-                    <span>O que mais valoriza numa relação?</span>
-                    <textarea rows="3" value={values.o_que_valoriza} onChange={(event) => updateValue("o_que_valoriza", event.target.value)} placeholder="Ex.: respeito, honestidade, comunicação…" />
-                    <FieldError errors={errors} name="o_que_valoriza" />
-                  </label>
-
-                  <label className="nk-questionnaire-field">
-                    <span>O que não aceita numa relação?</span>
-                    <textarea rows="3" value={values.o_que_nao_aceita} onChange={(event) => updateValue("o_que_nao_aceita", event.target.value)} placeholder="Indique os seus limites essenciais." />
-                    <FieldError errors={errors} name="o_que_nao_aceita" />
-                  </label>
-                </div>
-              </fieldset>
+              <div key={question.field} className="nk-questionnaire-answer">
+                {question.field === "ages" ? (
+                  <>
+                    <MatchPreferences
+                      values={values.preferencias}
+                      onChange={(preferences) => updateValue("preferencias", preferences)}
+                      section="search"
+                      requireAge
+                      compactSearch
+                      errors={{ ...errors, ages: firstError(errors, "ages") || firstError(errors, "faixa_etaria_preferida") }}
+                    />
+                    <FieldError errors={errors} name="preferencias" />
+                  </>
+                ) : data.choices?.[question.field] ? (
+                  <ChoiceField name={question.field} value={values[question.field]} choices={data.choices[question.field]} errors={errors} onChange={updateValue} />
+                ) : (
+                  <div className="nk-questionnaire-field">
+                    {question.multiline ? (
+                      <textarea rows={4} aria-labelledby="nk-question-title" aria-describedby="nk-question-hint"
+                        value={values[question.field]} onChange={(event) => updateValue(question.field, event.target.value)} />
+                    ) : (
+                      <input aria-labelledby="nk-question-title" aria-describedby="nk-question-hint"
+                        value={values[question.field]} onChange={(event) => updateValue(question.field, event.target.value)} />
+                    )}
+                    <FieldError errors={errors} name={question.field} />
+                  </div>
+                )}
+                {question.field === "sobre_si" && (
+                  <MatchPreferences values={values.preferencias} onChange={(preferences) => updateValue("preferencias", preferences)} section="details" />
+                )}
+              </div>
 
               <FieldError errors={errors} name="aceita_regras" />
 
-              {requestError && <div className="nk-questionnaire-alert">{requestError}</div>}
+              {requestError && <div className="nk-questionnaire-alert" role="alert">{requestError}</div>}
 
-              <button type="submit" className="nk-button nk-button--wine nk-questionnaire-primary" disabled={submitting}>
-                {submitting ? <LoaderCircle size={18} className="is-spinning" /> : <HeartHandshake size={18} />}
-                Guardar e continuar <ArrowRight size={17} />
-              </button>
+              <div className="nk-questionnaire-actions nk-questionnaire-chapter-actions">
+                {questionIndex > 0 && (
+                  <button type="button" className="nk-button nk-button--quiet" disabled={submitting} onClick={() => { setQuestionIndex(questionIndex - 1); setRequestError(""); }}>
+                    <ArrowLeft size={17} /> Anterior
+                  </button>
+                )}
+                <button type="submit" className="nk-button nk-button--wine" disabled={submitting}>
+                  {questionIndex === lastQuestion ? "Guardar e continuar" : "Continuar"}
+                  {submitting ? <LoaderCircle size={18} className="is-spinning" /> : <ArrowRight size={17} />}
+                </button>
+              </div>
             </form>
           )}
 
           {step === "password" && (
             <form onSubmit={handlePasswordSubmit}>
               <div className="nk-questionnaire-card__heading">
-                <span>2 de 2</span>
-                <h2>Crie a sua palavra-passe</h2>
+                <span>Último passo</span>
+                <h2 ref={headingRef} tabIndex={-1}>Crie a sua palavra-passe</h2>
                 <p>Esta palavra-passe será usada para entrar na sua conta. A equipa NKATA não precisa de a conhecer.</p>
               </div>
 
@@ -417,10 +402,10 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
                 <FieldError errors={errors} name="confirmation" />
               </label>
 
-              {requestError && <div className="nk-questionnaire-alert">{requestError}</div>}
+              {requestError && <div className="nk-questionnaire-alert" role="alert">{requestError}</div>}
 
               <div className="nk-questionnaire-actions">
-                <button type="button" className="nk-button nk-button--quiet" onClick={() => setStep("questionnaire")}>Rever respostas</button>
+                <button type="button" className="nk-button nk-button--quiet" disabled={submitting} onClick={() => { setQuestionIndex(0); setErrors({}); setRequestError(""); setStep("questionnaire"); }}>Rever respostas</button>
                 <button type="submit" className="nk-button nk-button--wine" disabled={submitting}>
                   {submitting ? <LoaderCircle size={18} className="is-spinning" /> : <LockKeyhole size={18} />}
                   Criar a minha conta
