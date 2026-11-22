@@ -761,3 +761,108 @@
     transition: none;
   }
 }
+
+.nk-access-step--photos { min-height: auto; }
+
+.nk-access-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.nk-photo-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  overflow: hidden;
+  border: 1px solid var(--nk-line);
+  border-radius: 22px;
+  background: #fffdfa;
+  cursor: pointer;
+}
+
+.nk-photo-card:focus-within {
+  outline: 2px solid var(--nk-wine);
+  outline-offset: 3px;
+}
+
+.nk-photo-card.has-error { border-color: var(--nk-wine); }
+
+.nk-photo-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.nk-photo-card__preview {
+  position: relative;
+  display: grid;
+  height: clamp(160px, 19vw, 220px);
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 30%, #fff2ef, #e9cfd1);
+  color: var(--nk-wine);
+}
+
+.nk-photo-card:nth-child(2) .nk-photo-card__preview {
+  background: radial-gradient(ellipse at 50% 30%, #f5f6ee, #dbe4d8);
+  color: var(--nk-success);
+}
+
+.nk-photo-card__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.nk-photo-card__frame {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 84px;
+  margin-bottom: 24px;
+  border: 1px dashed currentColor;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.nk-photo-card__action {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  padding: 9px 13px;
+  border-radius: 30px;
+  background: #fffdfa;
+  color: var(--nk-wine);
+  white-space: nowrap;
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+.nk-photo-card:hover .nk-photo-card__action {
+  background: var(--nk-wine);
+  color: white;
+}
+
+.nk-photo-card__details {
+  display: grid;
+  gap: 5px;
+  padding: 15px 16px;
+}
+.nk-photo-card__details small { color: var(--nk-muted); }
+.nk-photo-card__details .nk-photo-card__selected {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--nk-success);
+}
+.nk-photo-card__details em { color: var(--nk-wine); font-style: normal; }
+
+@media (max-width: 480px) {
+  .nk-access-photo-grid { grid-template-columns: 1fr; gap: 12px; }
+}
