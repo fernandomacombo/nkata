@@ -183,7 +183,7 @@ function InterestItem({ profile, onOpen, language }) {
   );
 }
 
-function ProfilePreview({ account, form, imageUrl, language, onClose }) {
+function ProfilePreview({ account, form, imageUrl, language, verified, onClose }) {
   const english = language === "EN";
   return (
     <div
@@ -217,7 +217,7 @@ function ProfilePreview({ account, form, imageUrl, language, onClose }) {
               <UserRound size={70} strokeWidth={1.1} />
             )}
             <div />
-            <span><ShieldCheck size={15} /> {english ? "Verified profile" : "Perfil verificado"}</span>
+            {verified && <span><ShieldCheck size={15} /> {english ? "Verified profile" : "Perfil verificado"}</span>}
             <section>
               <small>{objectiveLabel(form.objetivo, language)}</small>
               <strong>
@@ -230,7 +230,7 @@ function ProfilePreview({ account, form, imageUrl, language, onClose }) {
 
           <div className="nk-profile-preview__content">
             <span className="nk-eyebrow nk-eyebrow--dark">
-              <ShieldCheck size={15} /> {english ? "Confirmed profile" : "Perfil confirmado"}
+              {verified && <ShieldCheck size={15} />} {verified ? (english ? "Confirmed profile" : "Perfil confirmado") : (english ? "Identity verification pending" : "Verificação de identidade pendente")}
             </span>
             <h3>{form.nome_publico || account.nome_publico}</h3>
             <p>{objectiveLabel(form.objetivo, language)}</p>
@@ -521,7 +521,7 @@ export default function AccountPage({
               ) : (
                 <UserRound size={52} strokeWidth={1.25} />
               )}
-              <span><ShieldCheck size={15} /></span>
+              {!onVerifyIdentity && <span><ShieldCheck size={15} /></span>}
               <button
                 type="button"
                 className="nk-account-card__camera"
@@ -892,6 +892,7 @@ export default function AccountPage({
           form={form}
           imageUrl={displayedPhoto}
           language={language}
+          verified={!onVerifyIdentity}
           onClose={() => setPreviewOpen(false)}
         />
       )}

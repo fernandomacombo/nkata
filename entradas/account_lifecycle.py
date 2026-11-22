@@ -35,7 +35,9 @@ def perfil_pronto_para_publicar(perfil):
 
     if (
         not getattr(perfil.pedido, "verificacao_apos_entrada", False)
+        and not getattr(perfil.pedido, "identidade_revogada", False)
         and not pedido_tem_identidade_verificada(perfil.pedido)
+        and getattr(getattr(perfil.pedido, "verificacao_identidade", None), "status", None) != "REJEITADA"
     ):
         return False
 
