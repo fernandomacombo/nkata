@@ -39,6 +39,7 @@ from .throttles import (
     IdentityCaptureRateThrottle,
     IdentityPreviewRateThrottle,
     IdentitySessionRateThrottle,
+    MemberIdentitySessionRateThrottle,
     IdentityStatusRateThrottle,
 )
 
@@ -178,7 +179,7 @@ def api_criar_sessao_nkata_id(request):
 
 @api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
-@throttle_classes([IdentitySessionRateThrottle])
+@throttle_classes([MemberIdentitySessionRateThrottle])
 @transaction.atomic
 def api_sessao_identidade_do_membro(request):
     profile = member_profile_for_user(request.user)

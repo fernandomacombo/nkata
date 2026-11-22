@@ -41,7 +41,9 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
         onChangeRef.current?.(result);
       }
     }).catch((requestError) => {
-      if (!controller.signal.aborted) setLocalError(requestError.message);
+      if (!controller.signal.aborted) setLocalError(
+        requestError.status === 429 ? "Aguarde alguns minutos e tente novamente." : requestError.message,
+      );
     });
     return () => controller.abort();
   }, [member]);
@@ -79,7 +81,9 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
       const result = await createNkataIdSession({ email, age, member });
       onChange?.(result);
     } catch (requestError) {
-      setLocalError(requestError.message || "Não foi possível iniciar o NKATA ID.");
+      setLocalError(requestError.status === 429
+        ? "Aguarde alguns minutos antes de preparar outra sessão NKATA ID."
+        : requestError.message || "Não foi possível iniciar o NKATA ID.");
     } finally {
       setLoading(false);
     }

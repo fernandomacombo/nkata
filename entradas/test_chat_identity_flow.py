@@ -90,6 +90,8 @@ class ChatIdentityFlowTests(TestCase):
         self.assertTrue(self.client.get("/api/session/").json()["profile"]["chat_identity_required"])
 
         identity_url = "/api/minha-conta/nkata-id/"
+        for _ in range(7):
+            self.assertEqual(self.client.get(identity_url).status_code, 200)
         response = self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json")
         self.assertEqual(response.status_code, 201, response.json())
         token = response.json()["token"]
