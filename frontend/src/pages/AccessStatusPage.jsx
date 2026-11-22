@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { fetchAccessRequestStatus, requestAccessCodeRecovery } from "../services/api.js";
 
-const LOOKUP_KEY = "nkata_access_request_lookup";
 
 const stages = [
   { number: 1, title: "Recebido", text: "O pedido chegou à equipa." },
@@ -48,6 +47,7 @@ function ResultIcon({ tone }) {
 }
 
 export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
+  const [proof, setProof] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get("consulta") || "");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [result, setResult] = useState(null);
@@ -58,16 +58,16 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
   const [recoveryMessage, setRecoveryMessage] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const lookup = async (values = { email, code }) => {
+  const lookup = async (values = { email, code, proof }) => {
     const normalizedEmail = String(values.email || "").trim().toLowerCase();
     const normalizedCode = String(values.code || "").trim();
 
-    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+    if (!values.proof && !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
       setError("Informe o mesmo email usado no pedido.");
       return;
     }
 
-    if (normalizedCode.length < 30) {
+    if (!values.proof && normalizedCode.length < 30) {
       setError("Informe o código privado completo.");
       return;
     }
@@ -79,15 +79,13 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
       const payload = await fetchAccessRequestStatus({
         email: normalizedEmail,
         code: normalizedCode,
+        proof: values.proof,
       });
-      setEmail(normalizedEmail);
+      setEmail(payload.email || normalizedEmail);
       setCode(normalizedCode);
       setResult(payload);
-      window.sessionStorage.setItem(
-        LOOKUP_KEY,
-        JSON.stringify({ email: normalizedEmail, code: normalizedCode }),
-      );
     } catch (requestError) {
+      if (values.proof && requestError.status === 404) setProof("");
       setResult(null);
       setError(requestError.message || "Não foi possível consultar o pedido agora.");
     } finally {
@@ -96,17 +94,10 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
   };
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(window.sessionStorage.getItem(LOOKUP_KEY) || "null");
-      if (saved?.email && saved?.code) {
-        setEmail(saved.email);
-        setCode(saved.code);
-        lookup(saved);
-      }
-    } catch {
-      window.sessionStorage.removeItem(LOOKUP_KEY);
+    if (proof) {
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+      lookup({ proof });
     }
-    // Executa apenas ao abrir a página.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -131,7 +122,7 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
 
   const recoverCode = async () => {
     const normalizedEmail = String(email || "").trim().toLowerCase();
-    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+    if (!values.proof && !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
       setError("Informe primeiro o email usado no pedido.");
       return;
     }
@@ -165,7 +156,7 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
     setCopied(false);
     setEmail("");
     setCode("");
-    window.sessionStorage.removeItem(LOOKUP_KEY);
+    setProof("");
   };
 
   return (
@@ -374,13 +365,13 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
                 <span>Última atualização</span>
                 <strong>{formatDate(result.updated_at)}</strong>
               </article>
-              <article className="is-code">
+              {result.codigo && <article className="is-code">
                 <span>Código privado</span>
                 <strong>{result.codigo}</strong>
                 <button type="button" onClick={copyCode}>
                   <ClipboardCopy size={15} /> {copied ? "Copiado" : "Copiar"}
                 </button>
-              </article>
+              </article>}
             </div>
 
             <div className="nk-request-status__assurance">
@@ -410,7 +401,12 @@ export default function AccessStatusPage({ onBack, onRequest, onLogin }) {
                   <RefreshCw size={18} /> Repetir verificação
                 </button>
               )}
-              {result.can_login && (
+              {result.next_action === "IDENTITY" && (
+                <button type="button" className="nk-button nk-button--wine" onClick={() => window.location.assign(result.next_path)}>
+                  <BadgeCheck size={18} /> Abrir NKATA ID
+                </button>
+              )}
+              {result.can_login && result.next_action !== "IDENTITY" && (
                 <button type="button" className="nk-button nk-button--wine" onClick={onLogin}>
                   <BadgeCheck size={18} /> Entrar na conta
                 </button>

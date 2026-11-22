@@ -17,8 +17,9 @@ from rest_framework.decorators import (
 from rest_framework.response import Response
 
 from .forms import PedidoEntradaForm
+from .access_status_links import request_from_status_link
 from .access_email_notifications import send_access_receipt_email
-from .identity_models import VerificacaoIdentidadeNKATA
+from .identity_models import VerificacaoIdentidadeNKATA, pedido_tem_identidade_verificada
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .models import PedidoEntrada, PerfilNKATA
 from .profile_photo_inspection import CONTACT_WARNING, profile_photo_has_contact
@@ -201,6 +202,13 @@ def _status_payload(pedido):
         )
 
     verification = getattr(pedido, "verificacao_identidade", None)
+    needs_identity = can_login and not pedido_tem_identidade_verificada(pedido)
+    if needs_identity:
+        message = (
+            "As suas capturas estão em revisão pela equipa."
+            if verification and verification.status == "REVISAO"
+            else "Entre na sua conta e conclua o NKATA ID para aceder ao chat e às chamadas."
+        )
     recapture_path = ""
     questionnaire_path = ""
     if pedido.status == "APROVADO" and not can_login:
@@ -228,12 +236,13 @@ def _status_payload(pedido):
         "updated_at": pedido.atualizado_em,
         "can_login": can_login,
         "next_action": (
-            "LOGIN" if can_login
+            "IDENTITY" if needs_identity
+            else "LOGIN" if can_login
             else "QUESTIONNAIRE" if pedido.status == "APROVADO"
             else "IDENTITY_RECAPTURE" if recapture_path
             else None
         ),
-        "next_path": questionnaire_path or recapture_path,
+        "next_path": "/matches/" if needs_identity else questionnaire_path or recapture_path,
     }
 
 
@@ -350,6 +359,17 @@ def api_pedir_acesso(request):
 @permission_classes([permissions.AllowAny])
 @throttle_classes([AccessStatusRateThrottle])
 def api_acompanhar_pedido(request):
+    if "consulta" in request.data:
+        pedido = request_from_status_link(str(request.data["consulta"])[:512])
+        if not pedido:
+            return Response({
+                "detail": "O link expirou ou é inválido. Use o email e o código privado para consultar o pedido."
+            }, status=404)
+        payload = _status_payload(pedido)
+        payload.pop("codigo")
+        payload["email"] = pedido.email
+        return Response(payload, headers={"Cache-Control": "no-store"})
+
     email = str(request.data.get("email", "")).strip().lower()
     raw_code = str(request.data.get("codigo", "")).strip()
 

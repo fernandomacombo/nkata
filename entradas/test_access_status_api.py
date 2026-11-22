@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from io import BytesIO
 
 from PIL import Image
@@ -38,6 +39,27 @@ class AccessStatusApiTests(TestCase):
             status=status,
             observacao_admin="Nota interna que nunca pode sair pela API.",
         )
+
+    def test_private_email_link_consults_request_without_returning_permanent_code(self):
+        from urllib.parse import parse_qs, urlsplit
+        from django.core import signing
+        from .access_status_links import access_status_link
+
+        pedido = self.create_request(status="RECUSADO")
+        url = access_status_link(pedido)
+        self.assertNotIn(str(pedido.token), url)
+        self.assertNotIn(pedido.email, url)
+        proof = parse_qs(urlsplit(url).fragment)["consulta"][0]
+        endpoint = "/api/acompanhar-pedido/"
+        valid = self.client.post(endpoint, {"consulta": proof})
+        self.assertEqual(valid.status_code, 200)
+        self.assertEqual(valid.json()["email"], pedido.email)
+        self.assertEqual(valid.json()["status"], "RECUSADO")
+        self.assertNotIn("codigo", valid.json())
+        self.assertEqual(valid["Cache-Control"], "no-store")
+        self.assertEqual(self.client.post(endpoint, {"consulta": proof + "x"}).status_code, 404)
+        with patch.object(signing.time, "time", return_value=signing.time.time() + 49 * 3600):
+            self.assertEqual(self.client.post(endpoint, {"consulta": proof}).status_code, 404)
 
     def test_novo_pedido_devolve_codigo_privado(self):
         response = self.client.post(

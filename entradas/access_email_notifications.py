@@ -5,6 +5,8 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from .branded_email import send_branded_email
+from .access_status_links import access_status_link
+from .onboarding_steps import next_step
 from .models import PedidoEntrada
 
 
@@ -25,7 +27,7 @@ def build_access_status_email(pedido):
     """Constrói o assunto e o corpo sem expor notas internas do Admin."""
     primeiro_nome = _primeiro_nome(pedido.nome_completo)
     frontend = settings.NKATA_FRONTEND_URL.rstrip("/")
-    acompanhamento_url = f"{frontend}/acompanhar-pedido/"
+    acompanhamento_url = access_status_link(pedido)
 
     if pedido.status == "APROVADO":
         questionario_url = f"{frontend}/questionario/{pedido.token}/"
@@ -88,8 +90,7 @@ def build_access_status_email(pedido):
 def build_access_receipt_email(pedido):
     """Constrói o recibo privado usado no envio inicial e na recuperação."""
     primeiro_nome = _primeiro_nome(pedido.nome_completo)
-    frontend = settings.NKATA_FRONTEND_URL.rstrip("/")
-    acompanhamento_url = f"{frontend}/acompanhar-pedido/"
+    acompanhamento_url = access_status_link(pedido)
     subject = "Código privado do seu pedido NKATA"
     body = (
         f"Olá {primeiro_nome},\n\n"
@@ -111,7 +112,7 @@ def _send_status_email(pedido):
         return
 
     frontend = settings.NKATA_FRONTEND_URL.rstrip("/")
-    action_url = f"{frontend}/acompanhar-pedido/"
+    action_url = access_status_link(pedido)
     action_label = "Acompanhar pedido"
     status_content = {
         "APROVADO": (
@@ -136,8 +137,15 @@ def _send_status_email(pedido):
         ("O estado do seu pedido NKATA foi actualizado.", "Consulte a sua área de acompanhamento."),
     ))
     if pedido.status == "APROVADO":
-        action_url = f"{frontend}/questionario/{pedido.token}/"
-        action_label = "Continuar no NKATA"
+        step = next_step(pedido)
+        if step:
+            action_label, instruction, path = step
+            action_url = frontend + path
+            paragraphs = ["O seu pedido de acesso foi aprovado.", instruction]
+            body = f"Olá {_primeiro_nome(pedido.nome_completo)},\n\n{instruction}\n\n{action_url}"
+        else:
+            paragraphs = ["A análise do seu pedido está concluída. Consulte o estado atual no NKATA."]
+            body = f"Olá {_primeiro_nome(pedido.nome_completo)},\n\n{paragraphs[0]}\n\n{action_url}"
     elif pedido.status == "PRECISA_CORRIGIR":
         verification = getattr(pedido, "verificacao_identidade", None)
         if verification and verification.status == "REPETIR":
@@ -149,7 +157,7 @@ def _send_status_email(pedido):
         title=subject, greeting=f"Olá {_primeiro_nome(pedido.nome_completo)},",
         paragraphs=paragraphs,
         action_label=action_label, action_url=action_url,
-        notice="Para sua segurança, o NKATA nunca solicita palavras-passe por email.",
+        notice="O link de consulta é pessoal e expira em 48 horas. O NKATA nunca solicita palavras-passe por email.",
         fail_silently=True,
     )
 
@@ -169,8 +177,8 @@ def send_access_receipt_email(pedido):
             "Guarde este código em segurança. Não o partilhe.",
         ],
         action_label="Acompanhar pedido",
-        action_url=f"{settings.NKATA_FRONTEND_URL.rstrip('/')}/acompanhar-pedido/",
-        notice="Se não fez este pedido, pode ignorar esta mensagem.",
+        action_url=access_status_link(pedido),
+        notice="O link de consulta expira em 48 horas. Se não fez este pedido, pode ignorar esta mensagem.",
         fail_silently=True,
     )
 

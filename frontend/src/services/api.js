@@ -342,10 +342,10 @@ export function nkataIdQrUrl(token) {
   return `${API_BASE_URL}/api/nkata-id/sessoes/${token}/qr/?app_origin=${origin}`;
 }
 
-export async function fetchAccessRequestStatus({ email, code }) {
+export async function fetchAccessRequestStatus({ email, code, proof }) {
   return request("/api/acompanhar-pedido/", {
     method: "POST",
-    body: {
+    body: proof ? { consulta: proof } : {
       email: String(email || "").trim().toLowerCase(),
       codigo: String(code || "").trim(),
     },
