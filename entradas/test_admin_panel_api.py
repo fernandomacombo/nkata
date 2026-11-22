@@ -422,6 +422,32 @@ class AdminPanelApiTests(TestCase):
         self.assertEqual(detail.data["display_status"], "EM_ANALISE")
         self.assertTrue(detail.data["questionnaire_path"])
 
+    def test_verified_identity_can_be_reviewed_and_revoked_without_refusing_entry(self):
+        item = create_request("identidade-verificada@nkata.test", status="APROVADO")
+        item.verificacao_apos_entrada = True
+        item.documento_confirmado = True
+        item.save(update_fields=["verificacao_apos_entrada", "documento_confirmado"])
+        verification = VerificacaoIdentidadeNKATA.objects.create(
+            pedido=item, email_hash="a" * 64, idade_declarada=item.idade,
+            status="APROVADA", aceita_biometria=True, desafio_selfie="Olhe para a câmara.",
+        )
+        self.client.force_authenticate(self.staff)
+        list_url = reverse("entradas_api:admin_list")
+        action_url = reverse("entradas_api:admin_action")
+        action = {"resource": "access", "action": "reject_identity", "id": item.pk}
+        verified = self.client.get(list_url, {"section": "identity", "status": "VERIFICADAS"})
+        self.assertIn(item.pk, [row["id"] for row in verified.data["results"]])
+        self.assertEqual(self.client.post(action_url, action, format="json").status_code, 400)
+        action["note"] = "Os dados do documento não correspondem."
+        self.assertEqual(self.client.post(action_url, action, format="json").status_code, 200)
+        item.refresh_from_db()
+        verification.refresh_from_db()
+        self.assertEqual(item.status, "APROVADO")
+        self.assertFalse(item.documento_confirmado)
+        self.assertEqual(verification.status, "REJEITADA")
+        rejected = self.client.get(list_url, {"section": "identity", "status": "REJEITADAS"})
+        self.assertIn(item.pk, [row["id"] for row in rejected.data["results"]])
+
     def test_staff_can_approve_pending_content(self):
         publication = PublicacaoNKATA.objects.create(
             perfil=self.profile,

@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libglib2.0-0 libgomp1 ffmpeg \
+    && apt-get install -y --no-install-recommends libglib2.0-0 libgomp1 ffmpeg tesseract-ocr \
     && rm -rf /var/lib/apt/lists/* \
     && addgroup --system nkata \
     && adduser --system --ingroup nkata nkata

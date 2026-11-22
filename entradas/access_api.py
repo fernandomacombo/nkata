@@ -21,6 +21,7 @@ from .access_email_notifications import send_access_receipt_email
 from .identity_models import VerificacaoIdentidadeNKATA
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
 from .models import PedidoEntrada, PerfilNKATA
+from .profile_photo_inspection import CONTACT_WARNING, profile_photo_has_contact
 from .account_limits import save_limited_request
 from .throttles import (
     AccessCodeRecoveryRateThrottle,
@@ -300,6 +301,20 @@ def api_pedir_acesso(request):
         return Response({
             "detail": "Há alguns campos que precisam da sua atenção.",
             "errors": _normalizar_erros(form),
+        }, status=400)
+
+    for field in PROFILE_IMAGE_FIELDS:
+        photo = safe_files.get(field)
+        if photo:
+            photo.seek(0)
+            contains_contact = profile_photo_has_contact(photo.read())
+            photo.seek(0)
+            if contains_contact:
+                image_errors[field] = [CONTACT_WARNING]
+    if image_errors:
+        return Response({
+            "detail": "Revise as fotografias de perfil.",
+            "errors": image_errors,
         }, status=400)
 
     form.instance.verificacao_apos_entrada = deferred_identity

@@ -13,6 +13,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import PerfilNKATA
+from .profile_photo_inspection import CONTACT_WARNING, profile_photo_has_contact
 from .profile_media_api import _stream, profile_photo_is_approved
 from .user_roles import has_admin_capability
 
@@ -106,6 +107,15 @@ def api_review_photo(request, profile_id, slot):
     current_version = hashlib.sha256(_image_for(profile, slot).name.encode()).hexdigest()
     if request.data.get("version") != current_version:
         return Response({"detail": "A fotografia foi alterada. Atualize a lista e reveja a nova imagem."}, status=409)
+    if action == "approve":
+        photo = _image_for(profile, slot)
+        try:
+            with photo.open("rb") as image:
+                contains_contact = profile_photo_has_contact(image.read())
+        except (OSError, ValueError):
+            return Response({"detail": "Fotografia indisponível para revisão."}, status=409)
+        if contains_contact:
+            return Response({"detail": CONTACT_WARNING}, status=400)
     new_state = "APROVADO" if action == "approve" else "REJEITADO"
     if slot == 0:
         profile.foto_destaque_publico_estado = new_state
