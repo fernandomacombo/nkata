@@ -47,7 +47,7 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
   }, [member]);
 
   useEffect(() => {
-    if (!token || value?.can_submit || value?.expired) return undefined;
+    if (!token || value?.can_submit || value?.expired || value?.status === "REJEITADA") return undefined;
     return createNkataIdStatusPoller({
       load: ({ signal }) => fetchNkataIdSession(token, { signal }),
       onStatus: (result) => {
@@ -62,7 +62,7 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
         );
       },
     });
-  }, [token, value?.can_submit, value?.expired]);
+  }, [token, value?.can_submit, value?.expired, value?.status]);
 
   const begin = async () => {
     if (!accepted || loading) return;
@@ -137,7 +137,7 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
     );
   }
 
-  if (value?.can_submit || value?.status === "REJEITADA") {
+  if (value?.can_submit || value?.status === "REJEITADA" || (member && value?.capture_complete && value?.status === "REVISAO")) {
     return (
       <section className="nk-id-complete">
         <span><CheckCircle2 size={34} /></span>
@@ -146,7 +146,7 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
         <p>
           {member
             ? (value.status === "REJEITADA"
-              ? "Contacte a equipa NKATA para esclarecer a decisão."
+              ? "Pode enviar novas capturas para revisão pela equipa NKATA."
               : "A equipa vai confirmar o BI. O chat ficará disponível após a aprovação.")
             : value.automatically_approved
             ? "A identidade passou pelas verificações automáticas."
@@ -156,6 +156,12 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
           <strong>{value.status_label}</strong>
           <small>Risco inicial: {String(value.risk || "indefinido").toLowerCase()}</small>
         </div>
+        {member && value.status === "REJEITADA" && (
+          <button type="button" className="nk-button nk-button--wine" disabled={loading} onClick={begin}>
+            {loading ? "A preparar…" : "Preparar nova verificação"}
+          </button>
+        )}
+        {localError && <p role="alert">{localError}</p>}
       </section>
     );
   }

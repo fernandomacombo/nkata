@@ -112,3 +112,24 @@ class ChatIdentityFlowTests(TestCase):
         self.client.force_login(member.usuario)
         self.assertFalse(self.client.get("/api/session/").json()["profile"]["chat_identity_required"])
         self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 200)
+
+        # Accounts approved before the post-entry flow can also verify again.
+        PedidoEntrada.objects.filter(pk=pedido.pk).update(verificacao_apos_entrada=False)
+        self.client.force_login(operator)
+        rejected = self.client.post(action_url, {
+            **decision, "action": "reject_identity", "note": "Solicitar nova verificação.",
+        })
+        self.assertEqual(rejected.status_code, 200, rejected.json())
+
+        self.client.force_login(member.usuario)
+        self.assertEqual(self.client.get(identity_url).json()["status"], "REJEITADA")
+        self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
+        restarted = self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json")
+        self.assertEqual(restarted.status_code, 201, restarted.json())
+        self.assertNotEqual(restarted.json()["token"], token)
+        self.assertEqual(restarted.json()["completed_captures"], [])
+        self.assertTrue(restarted.json()["after_entry"])
+        self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
+        verification.refresh_from_db()
+        self.assertEqual(verification.status, "REJEITADA")
+        self.assertTrue(verification.capturas_completas)
