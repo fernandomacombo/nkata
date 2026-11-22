@@ -7,7 +7,6 @@ from rest_framework.response import Response
 
 from .call_models import ChamadaMatchNKATA
 from .chat_media_models import MensagemAudioMatchNKATA
-from .identity_models import pedido_tem_identidade_verificada
 from .models import AcaoPerfil, MatchPerfil, MensagemMatch
 from .plan_service import plan_for_user, signal_quota_for_user
 from .posts_models import PublicacaoNKATA
@@ -98,7 +97,7 @@ def api_resumo_da_conta(request):
             "status": perfil.status,
             "status_label": perfil.get_status_display(),
             "visible": perfil.visivel,
-            "verified": pedido_tem_identidade_verificada(perfil.pedido),
+            "verified": getattr(perfil.pedido, "status", "") == "APROVADO",
             "completeness": _profile_completeness(perfil),
             "public_preview": perfil.destaque_publico,
             "public_impressions": perfil.destaque_publico_exibicoes,

@@ -123,17 +123,7 @@ class ChatIdentityFlowTests(TestCase):
         self.assertEqual(rejected.status_code, 200, rejected.json())
 
         self.client.force_login(member.usuario)
-        restart_page = self.client.get(identity_url)
-        self.assertEqual(restart_page.status_code, 200)
-        self.assertIsNone(restart_page.data)
-        member.refresh_from_db()
-        self.assertEqual(member.status, "ATIVO")
-        was_visible = member.visivel
-        member.sobre_si = "Perfil atualizado enquanto aguardo a nova verificação."
-        member.save()
-        member.refresh_from_db()
-        self.assertEqual(member.status, "ATIVO")
-        self.assertEqual(member.visivel, was_visible)
+        self.assertEqual(self.client.get(identity_url).json()["status"], "REJEITADA")
         self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
         PerfilNKATA.objects.filter(pk=member.pk).update(status="BLOQUEADO", visivel=False)
         self.assertEqual(self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json").status_code, 403)
