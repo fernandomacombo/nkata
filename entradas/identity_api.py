@@ -203,7 +203,7 @@ def api_sessao_identidade_do_membro(request):
     if not (correction or approved_entry):
         return Response({"detail": "A verificação desta conta não está disponível aqui."}, status=403)
     if request.method == "GET":
-        return Response(serialize_identity_session(session) if session else None)
+        return Response(serialize_identity_session(session) if session and session.status != "REJEITADA" else None)
     if request.data.get("aceita_biometria") is not True:
         return Response({"detail": "Autorize a verificação do documento e do rosto."}, status=400)
 
