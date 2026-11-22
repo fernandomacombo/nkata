@@ -234,6 +234,7 @@ def _access_rows(request, limit, *, identity=False):
     if query:
         queryset = queryset.filter(
             Q(nome_completo__icontains=query)
+            | Q(perfil__nome_publico__icontains=query)
             | Q(email__icontains=query)
             | Q(telefone__icontains=query)
             | Q(cidade__icontains=query)
@@ -278,6 +279,7 @@ def _access_rows(request, limit, *, identity=False):
         results.append({
             "id": item.id,
             "name": item.nome_completo,
+            "profile_name": profile.nome_publico if profile else "",
             "email": item.email,
             "phone": item.telefone,
             "city": item.cidade,
@@ -425,6 +427,7 @@ def _access_detail_payload(item):
     return {
         "id": item.id,
         "name": item.nome_completo,
+        "profile_name": profile.nome_publico if profile else "",
         "email": item.email,
         "phone": item.telefone,
         "city": item.cidade,
