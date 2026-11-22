@@ -76,7 +76,12 @@ self.addEventListener("push", (event) => {
     actions: [{ action: "open", title: "Abrir NKATA" }]
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(title, options),
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      clients.forEach((client) => client.postMessage({ type: "nkata:notification" }));
+    }),
+  ]));
 });
 
 self.addEventListener("notificationclick", (event) => {

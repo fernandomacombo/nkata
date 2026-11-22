@@ -21,6 +21,7 @@ const planIcon = {
 
 function planLabel(plan, english) {
   if (!english) return plan?.label;
+  if (plan?.is_launch_bonus) return "Launch bonus";
   return ({ LIVRE: "Free", ESSENCIAL: "Essential", PREMIUM: "Premium", QUINZENAL: "Fortnightly" })[plan?.code] || plan?.label;
 }
 
@@ -152,8 +153,8 @@ export default function PlanPanel({ language = "PT" }) {
         </button>
       </header>
       <p>{english
-        ? "Calls require an active Essential or Premium plan for both people. Renewals are manual. A different plan can be selected when the current one expires."
-        : "As chamadas exigem Essencial ou Premium ativo nas duas contas. A renovação é manual. Pode escolher outro plano quando o atual terminar."}</p>
+        ? "Start or answer calls with an active Fortnightly, Essential or Premium plan. Renewals are manual."
+        : "Para iniciar ou atender chamadas, ative o plano Quinzenal, Essencial ou Premium. A renovação é manual."}</p>
 
       <div className="nk-plan-current">
         <div className="nk-plan-current__identity">
@@ -194,7 +195,7 @@ export default function PlanPanel({ language = "PT" }) {
       <div className="nk-plan-catalog" aria-label={english ? "Subscription plans" : "Planos de subscrição"}>
         {[...data.available_plans].sort((a, b) => ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[a.code] ?? 9) - ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[b.code] ?? 9)).map((plan) => {
           const Icon = planIcon[plan.code] || Sparkles;
-          const active = plan.code === current.code;
+          const active = plan.code === current.code && !current.is_launch_bonus;
           return (
             <article key={plan.code} className={`nk-plan-card ${active ? "is-current" : ""} ${plan.code === "ESSENCIAL" ? "is-popular" : ""}`}>
               <div className="nk-plan-card__top">

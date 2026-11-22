@@ -767,8 +767,8 @@ def api_conversa_match(request, match_id):
                 status=400,
             )
 
-        if not can_send_chat_text(request.user, texto):
-            return Response({"detail": "No plano Livre, escolha uma mensagem predefinida. Ative um pacote para escrever livremente.", "code": "paid_plan_required_for_chat_text"}, status=403)
+        if not can_send_chat_text(request.user, texto, match):
+            return Response({"detail": "Ative um pacote com chat para escrever ou responder a mensagens.", "code": "paid_plan_required_for_chat_text"}, status=403)
 
         mensagem = MensagemMatch.objects.create(
             match=match,

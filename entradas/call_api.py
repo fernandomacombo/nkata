@@ -169,6 +169,7 @@ def _serialize_call(call, request):
         "iniciador_id": call.iniciador_id,
         "iniciada_por_mim": call.iniciador_id == request.user.id,
         "recebida": call.iniciador_id != request.user.id,
+        "can_answer": _capability_available(request.user, call.tipo),
         "criada_em": call.criada_em,
         "atendida_em": call.atendida_em,
         "terminada_em": call.terminada_em,
@@ -254,7 +255,6 @@ def api_chamada_match(request, match_id):
         if (
             not other_user
             or chat_requires_identity(other_user)
-            or not _capability_available(other_user, call_type)
         ):
             return Response(
                 {
@@ -322,6 +322,12 @@ def api_chamada_match(request, match_id):
     if call.estado in LIVE_CALL_STATES:
         _touch_call(call, request.user)
 
+    if action in {"signal", "accept", "active"} and not _capability_available(request.user, call.tipo):
+        return Response({
+            "detail": "Ative um pacote com chamadas para participar.",
+            "code": "paid_plan_required_for_call",
+        }, status=403)
+
     if action == "signal":
         if call.estado not in LIVE_CALL_STATES:
             return Response({"detail": "Esta chamada já terminou."}, status=409)
@@ -364,11 +370,6 @@ def api_chamada_match(request, match_id):
             return Response({"detail": "O iniciador não pode atender a própria chamada."}, status=403)
         if call.estado != ChamadaMatchNKATA.ESTADO_CHAMANDO:
             return Response({"detail": "Esta chamada já não pode ser atendida."}, status=409)
-        if not _capability_available(request.user, call.tipo):
-            return Response(
-                {"detail": "O seu plano atual não permite esta chamada."},
-                status=403,
-            )
         # Atender apenas inicia a negociação. O cronómetro real começa quando
         # a ligação WebRTC reporta connectionState=connected (action=active).
         call.estado = ChamadaMatchNKATA.ESTADO_CONECTANDO

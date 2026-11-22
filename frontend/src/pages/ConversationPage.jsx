@@ -216,6 +216,7 @@ export default function ConversationPage({
   const [safetyError, setSafetyError] = useState("");
   const [safetyStatus, setSafetyStatus] = useState("");
   const [textEnabled, setTextEnabled] = useState(false);
+  const [presetsEnabled, setPresetsEnabled] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [audioPlanLabel, setAudioPlanLabel] = useState("NKATA Livre");
   const [audioNotice, setAudioNotice] = useState("");
@@ -263,6 +264,8 @@ export default function ConversationPage({
     ));
   }, [liveMessages, localAudioMessages, messages, readReceiptKeys]);
 
+  const canUsePreset = presetsEnabled && !timeline.some((message) => !message.mine && !message.callDirection);
+
   const releaseRecordingResources = () => {
     if (timerRef.current) {
       window.clearInterval(timerRef.current);
@@ -307,6 +310,7 @@ export default function ConversationPage({
         const currentPlan = payload?.current_plan || {};
         setAudioEnabled(Boolean(currentPlan?.features?.chat_audio));
         setTextEnabled(Boolean(currentPlan?.features?.chat_text));
+        setPresetsEnabled(Boolean(currentPlan?.features?.chat_presets));
         setAudioPlanLabel(currentPlan?.label || "NKATA Livre");
       })
       .catch(() => {
@@ -748,7 +752,13 @@ export default function ConversationPage({
             </div>
           )}
 
-          {recording ? (
+          {!textEnabled && !canUsePreset ? (
+            <div className="nk-chat-dock__notice" role="status">
+              <LockKeyhole size={14} />
+              <span>{english ? "Activate a chat plan to send or reply to messages." : "Ative um pacote com chat para enviar ou responder a mensagens."}</span>
+              <a href="/conta/?section=plan">{english ? "See plans" : "Ver pacotes"}</a>
+            </div>
+          ) : recording ? (
             <div className="nk-recorder-bar">
               <button type="button" className="nk-recorder-bar__cancel" onClick={cancelRecording} aria-label={english ? "Cancel recording" : "Cancelar gravação"}>
                 <Trash2 size={19} />

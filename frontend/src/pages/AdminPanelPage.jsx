@@ -724,7 +724,7 @@ function ActionDialog({ pending, busy, onClose, onConfirm }) {
   );
 }
 
-function Overview({ summary, loading, error, onRetry, onOpenSection }) {
+function Overview({ summary, loading, error, onRetry, onOpenSection, onOpenMatches }) {
   if (!summary) return <EmptyState loading={loading} error={error} onRetry={onRetry} />;
   const maxActivity = Math.max(
     1,
@@ -740,11 +740,11 @@ function Overview({ summary, loading, error, onRetry, onOpenSection }) {
             <article key={metric.key}>
               <header><span><Icon size={19} /></span><small>{metric.label}</small></header>
               <strong>{count.toLocaleString("pt-PT")}</strong>
-              <p>
+              {metric.key === "matches_active" && onOpenMatches ? <button type="button" onClick={onOpenMatches}>Ver participantes</button> : <p>
                 {metric.detailKey
                   ? `${summary.metrics?.[metric.detailKey] || 0}${metric.detailSuffix}`
                   : count > 0 ? "Requer acompanhamento" : "Sem pendências agora"}
-              </p>
+              </p>}
             </article>
           );
         })}
@@ -1033,8 +1033,8 @@ export default function AdminPanelPage({ session }) {
     setDraftQuery("");
     setFilters({
       query: "",
-      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : "",
-      kind: activeSection === "operations" ? "CALLS" : "",
+      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : activeSection === "operations" ? "ATIVO" : "",
+      kind: activeSection === "operations" ? "MATCHES" : "",
     });
   }, [activeSection]);
 
@@ -1221,6 +1221,7 @@ export default function AdminPanelPage({ session }) {
                 error={summaryError}
                 onRetry={() => loadSummary()}
                 onOpenSection={setActiveSection}
+                onOpenMatches={allowedCodes.has("operations") ? () => setActiveSection("operations") : undefined}
               />
             ) : activeSection === "team" ? <TeamPanel /> : activeSection === "support" ? <SupportAdminPanel /> : activeSection === "photos" ? <PhotoReviewPanel /> : (
               <>

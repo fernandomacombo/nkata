@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { playNotificationSound } from "./services/callAttention.js";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AppHeader from "./components/layout/AppHeader.jsx";
 import BottomNavigation from "./components/layout/BottomNavigation.jsx";
 import { demoProfiles } from "./data/demoProfiles.js";
@@ -86,6 +87,7 @@ export default function App() {
   const [accountSaving, setAccountSaving] = useState(false);
   const [accountError, setAccountError] = useState("");
   const [accountSuccess, setAccountSuccess] = useState("");
+  const notificationVersions = useRef(null);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
@@ -198,6 +200,13 @@ export default function App() {
 
     try {
       const result = await fetchNotifications({ signal });
+      if (signal?.aborted) return;
+      const previous = notificationVersions.current;
+      const versions = new Map(result.results.map((item) => [item.id, item.updatedAt]));
+      notificationVersions.current = versions;
+      if (previous && result.results.some((item) => !item.read && previous.get(item.id) !== item.updatedAt)) {
+        playNotificationSound();
+      }
       setNotifications(result.results);
     } catch (error) {
       if (error.name !== "AbortError") {
@@ -248,6 +257,7 @@ export default function App() {
 
   useEffect(() => {
     if (!memberAuthenticated) {
+      notificationVersions.current = null;
       setNotifications([]);
       setNotificationsError("");
       return undefined;
@@ -256,15 +266,23 @@ export default function App() {
     const controller = new AbortController();
     loadNotifications({ signal: controller.signal });
 
-    const intervalId = window.setInterval(() => {
+    const refresh = () => {
       if (document.visibilityState === "visible") {
-        loadNotifications({ silent: true });
+        loadNotifications({ signal: controller.signal, silent: true });
       }
-    }, 60000);
+    };
+    const onPush = (event) => {
+      if (event.data?.type === "nkata:notification") refresh();
+    };
+    const intervalId = window.setInterval(refresh, 4000);
+    document.addEventListener("visibilitychange", refresh);
+    navigator.serviceWorker?.addEventListener("message", onPush);
 
     return () => {
       controller.abort();
       window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refresh);
+      navigator.serviceWorker?.removeEventListener("message", onPush);
     };
   }, [memberAuthenticated, loadNotifications]);
 

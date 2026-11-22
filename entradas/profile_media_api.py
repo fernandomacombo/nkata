@@ -29,8 +29,15 @@ NKATA_ID_MEDIA_FIELDS = {
 }
 
 
-def profile_photo_url(perfil):
-    if not perfil or not perfil.foto_principal:
+def profile_photo_is_approved(perfil):
+    return perfil.foto_destaque_publico_estado == "APROVADO" or (
+        perfil.foto_destaque_publico_aprovada
+        and perfil.foto_destaque_publico_estado != "REJEITADO"
+    )
+
+
+def profile_photo_url(perfil, *, for_owner=False):
+    if not perfil or not perfil.foto_principal or (not for_owner and not profile_photo_is_approved(perfil)):
         return None
     version = getattr(perfil.pedido, "atualizado_em", None)
     stamp = int(version.timestamp()) if version else 0
@@ -38,7 +45,7 @@ def profile_photo_url(perfil):
 
 
 def public_profile_photo_url(perfil):
-    if not perfil or not perfil.foto_principal:
+    if not perfil or not perfil.foto_principal or not profile_photo_is_approved(perfil):
         return None
     version = getattr(perfil.pedido, "atualizado_em", None)
     stamp = int(version.timestamp()) if version else 0
@@ -101,9 +108,9 @@ def api_foto_perfil(request, perfil_id):
         if not is_owner and _blocked(perfil_atual, perfil):
             return Response({"detail": "Fotografia não encontrada."}, status=404)
 
-    if not perfil.foto_principal:
+    if not perfil.foto_principal or (not is_owner and not request.user.is_staff and not profile_photo_is_approved(perfil)):
         return Response({"detail": "Fotografia não encontrada."}, status=404)
-    return _stream(perfil.foto_principal) or Response(
+    return _stream(perfil.foto_principal, private_cache=False) or Response(
         {"detail": "Fotografia não encontrada."},
         status=404,
     )
@@ -126,7 +133,7 @@ def api_foto_destaque_publico(request, perfil_id):
         )
         .first()
     )
-    if not perfil or not perfil.foto_principal:
+    if not perfil or not perfil.foto_principal or not profile_photo_is_approved(perfil):
         return Response({"detail": "Fotografia não encontrada."}, status=404)
 
     response = _stream(perfil.foto_principal, private_cache=False)

@@ -20,6 +20,7 @@ PLAN_DEFINITIONS = {
         "daily_signal_limit": 3,
         "features": {
             "chat_text": False,
+            "chat_presets": True,
             "chat_audio": False,
             "chat_video": False,
             "status_text": True,
@@ -83,8 +84,15 @@ CHAT_PHRASES = (
 )
 
 
-def can_send_chat_text(user, text):
-    return plan_for_user(user)["features"]["chat_text"] or text in CHAT_PHRASES
+def can_send_chat_text(user, text, match):
+    features = plan_for_user(user)["features"]
+    if features["chat_text"]:
+        return True
+    return (
+        features.get("chat_presets", False)
+        and text in CHAT_PHRASES
+        and not match.mensagens.exclude(remetente=user).exists()
+    )
 
 
 RECHARGE_PACKS = {
@@ -129,7 +137,22 @@ def active_plan_access(user):
 
 
 def plan_for_user(user):
-    return PLAN_DEFINITIONS[plan_code_for_user(user)]
+    access = active_plan_access(user)
+    if access and access.origem == "PROMO_LANCAMENTO":
+        bonus = PLAN_DEFINITIONS["QUINZENAL"]
+        return {
+            **bonus,
+            "label": "Bónus de lançamento",
+            "paid": False,
+            "features": {
+                **bonus["features"],
+                "chat_text": False,
+                "chat_audio": False,
+                "chat_video": False,
+                "chat_presets": True,
+            },
+        }
+    return PLAN_DEFINITIONS[access.plano if access else "LIVRE"]
 
 
 def signal_actions_for_user(user):

@@ -104,7 +104,7 @@ def start_checkout(user, product, key):
         if PedidoPagamentoNKATA.objects.filter(usuario=user, estado__in=OPEN_STATES).exists():
             raise PaymentError("Já existe um pagamento por confirmar. Consulte o histórico.", 409)
         access = active_plan_access(user)
-        if days and access and access.plano != product:
+        if days and access and access.origem != "PROMO_LANCAMENTO" and access.plano != product:
             raise PaymentError("Pode renovar o plano atual. A troca estará disponível após a validade terminar.", 409)
         order = PedidoPagamentoNKATA.objects.create(usuario=user, chave=key,
             referencia=f"NKATA{uuid.uuid4().hex.upper()}", produto=product, valor=amount, dias=days, creditos=credits)
@@ -154,11 +154,11 @@ def reconcile(order):
             access = active_plan_access(user)
             profile = getattr(user, "perfil_nkata", None)
             if (not user.is_active or not profile or profile.status != "ATIVO"
-                    or (order.dias and access and access.plano != order.produto)):
+                    or (order.dias and access and access.origem != "PROMO_LANCAMENTO" and access.plano != order.produto)):
                 order.estado = "REVISAO"
             else:
                 if order.dias:
-                    end = (access.fim if access else timezone.now()) + timedelta(days=order.dias)
+                    end = (access.fim if access and access.origem != "PROMO_LANCAMENTO" else timezone.now()) + timedelta(days=order.dias)
                     AcessoPlanoNKATA.objects.update_or_create(usuario=user, defaults={
                         "plano": order.produto, "inicio": timezone.now(), "fim": end, "origem": "PAYSUITE"})
                     order.validade_concedida = end

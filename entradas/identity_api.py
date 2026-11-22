@@ -1,3 +1,4 @@
+import logging
 import hashlib
 from io import BytesIO
 import random
@@ -47,6 +48,8 @@ SELFIE_CHALLENGES = (
     "Aproxime um pouco o rosto e olhe para a câmara.",
     "Levante um pouco o queixo e olhe para a câmara.",
 )
+logger = logging.getLogger(__name__)
+
 LIVE_CAPTURE_PROOF_SALT = "nkata.identity.live-capture"
 LIVE_CAPTURE_PROOF_MAX_AGE = 30
 
@@ -266,6 +269,8 @@ def api_previsualizar_nkata_id(request, token, capture_type):
             safe_upload = sanitized_image_upload(upload)
             quality = inspect_identity_capture(safe_upload, capture_type)
             if not quality["accepted"]:
+                failed_checks = [name for name, passed in quality.get("checks", {}).items() if not passed]
+                logger.warning("NKATA ID assisted preview rejected stage=%s checks=%s", capture_type, ",".join(failed_checks))
                 return Response({"detail": "Repita a fotografia.", "quality": quality}, status=422)
             return Response({
                 "ready": True,
@@ -324,6 +329,8 @@ def api_capturar_nkata_id(request, token, capture_type):
         return Response({"detail": "Não foi possível analisar esta imagem."}, status=400)
 
     if not result["accepted"]:
+        failed_checks = [name for name, passed in result.get("checks", {}).items() if not passed]
+        logger.warning("NKATA ID capture rejected stage=%s checks=%s", capture_type, ",".join(failed_checks))
         return Response({
             "detail": "A imagem ainda não tem qualidade suficiente.",
             "capture": capture_type,
