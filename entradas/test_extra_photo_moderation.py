@@ -1,4 +1,7 @@
+import json
 from io import BytesIO
+
+from django.contrib.admin.models import LogEntry
 from PIL import Image
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -107,6 +110,28 @@ class ExtraPhotoModerationTests(TestCase):
         self.assertEqual(photo.status_code, 200)
         photo.close()
 
+    def test_rejecting_main_photo_requires_reason_and_revokes_member_url(self):
+        PerfilNKATA.objects.filter(pk=self.profile.pk).update(
+            status="ATIVO", visivel=True, foto_destaque_publico_estado="APROVADO",
+        )
+        self.client.force_login(self.viewer)
+        media_url = f"/api/perfis/{self.profile.pk}/foto/?v=1"
+        response = self.client.get(media_url)
+        self.assertEqual(response.status_code, 200)
+        response.close()
+
+        self.client.force_login(self.moderator)
+        rows = self.client.get("/api/painel/fotografias/?status=APROVADO").json()["results"]
+        reviewed = next(row for row in rows if row["profile_id"] == self.profile.pk and row["slot"] == 0)
+        body = {"action": "reject", "version": reviewed["version"]}
+        self.assertEqual(self.client.post(self.moderation_url(0), json.dumps(body), content_type="application/json").status_code, 400)
+        body["reason"] = "Contacto visível na fotografia"
+        self.assertEqual(self.client.post(self.moderation_url(0), json.dumps(body), content_type="application/json").status_code, 200)
+        self.assertIn(body["reason"], LogEntry.objects.latest("pk").change_message)
+
+        self.client.force_login(self.viewer)
+        self.assertEqual(self.client.get(media_url).status_code, 404)
+
     def test_rejection_hides_photo_and_owner_can_delete(self):
         self.client.force_login(self.moderator)
         pending = self.client.get("/api/painel/fotografias/")
@@ -117,7 +142,7 @@ class ExtraPhotoModerationTests(TestCase):
         self.pedido.foto_extra_1_visivel = True
         self.pedido.save(update_fields=["foto_extra_1_visivel"])
         item = next(row for row in self.client.get("/api/painel/fotografias/?status=APROVADO").json()["results"] if row["slot"] == 1)
-        response = self.client.post(self.moderation_url(), '{"action": "reject", "version": "' + item["version"] + '"}', content_type="application/json")
+        response = self.client.post(self.moderation_url(), '{"action": "reject", "reason": "Contacto visível", "version": "' + item["version"] + '"}', content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.pedido.refresh_from_db()
         self.assertFalse(self.pedido.foto_extra_1_visivel)

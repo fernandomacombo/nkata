@@ -93,14 +93,19 @@ class ProfileMediaPrivacyTests(TestCase):
 
     def test_authenticated_member_can_stream_visible_profile_photo(self):
         self.client.force_login(self.member)
-        response = self.client.get(f"/api/perfis/{self.perfil.id}/foto/")
+        url = f"/api/perfis/{self.perfil.id}/foto/"
+        self.assertEqual(self.client.get(url).status_code, 404)
+        PerfilNKATA.objects.filter(pk=self.perfil.pk).update(
+            foto_destaque_publico_estado="APROVADO",
+        )
+        response = self.client.get(url)
         try:
             self.assertEqual(
                 response.status_code,
                 200,
                 (getattr(response, "data", None), dict(response.items())),
             )
-            self.assertEqual(response["Cache-Control"], "private, max-age=300")
+            self.assertEqual(response["Cache-Control"], "no-store")
             self.assertEqual(response["X-Content-Type-Options"], "nosniff")
         finally:
             response.close()

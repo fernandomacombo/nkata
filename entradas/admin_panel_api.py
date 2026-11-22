@@ -241,7 +241,19 @@ def _access_rows(request, limit, *, identity=False):
         )
     valid_statuses = {value for value, _label in PedidoEntrada.STATUS_CHOICES}
     if identity:
-        queryset = queryset.filter(_identity_review_queue())
+        if status_filter == "VERIFICADAS":
+            queryset = queryset.filter(status="APROVADO", documento_confirmado=True).filter(
+                Q(verificacao_identidade__status="APROVADA")
+                | Q(verificacao_identidade__isnull=True, verificacao_apos_entrada=False)
+            )
+        elif status_filter == "EM_CAPTURA":
+            queryset = queryset.filter(status="APROVADO", verificacao_identidade__status__in=[
+                "INICIADA", "EM_CAPTURA", "REPETIR", "EXPIRADA",
+            ])
+        elif status_filter == "REJEITADAS":
+            queryset = queryset.filter(verificacao_identidade__status="REJEITADA")
+        else:
+            queryset = queryset.filter(_identity_review_queue())
     elif status_filter in valid_statuses:
         queryset = queryset.filter(status=status_filter)
 
@@ -834,13 +846,30 @@ def _action_access(request, object_id, action):
     )
     if not item:
         return None, "Pedido não encontrado.", 404
-    if action not in {"review", "approve_entry", "approve", "correction", "reject", "block"}:
+    if action not in {"review", "approve_entry", "approve", "correction", "reject", "block", "reject_identity"}:
         return None, "Ação de pedido inválida.", 400
     note = str(request.data.get("note", "")).strip()[:1000]
-    if action in {"correction", "reject"} and not note:
+    if action in {"correction", "reject", "reject_identity"} and not note:
         return None, "Indique o motivo desta decisão.", 400
 
     verification = VerificacaoIdentidadeNKATA.objects.select_for_update().filter(pedido=item).first()
+    if action == "reject_identity":
+        if item.status != "APROVADO" or not verification or verification.status not in {"REVISAO", "APROVADA"}:
+            return None, "Esta identidade não está disponível para rejeição no NKATA ID.", 400
+        verification.status = "REJEITADA"
+        verification.decisao_origem = "HUMANA"
+        verification.analisado_por = request.user
+        verification.analisado_em = timezone.now()
+        verification.nota_interna = note
+        verification.save(update_fields=[
+            "status", "decisao_origem", "analisado_por", "analisado_em",
+            "nota_interna", "atualizado_em",
+        ])
+        item.documento_confirmado = False
+        item.save(update_fields=["documento_confirmado", "atualizado_em"])
+        message = "Identidade rejeitada. O acesso ao chat e às chamadas foi revogado."
+        _audit(request.user, item, f"{message} Motivo: {note}")
+        return item, message, 200
     if action == "approve_entry":
         if not item.verificacao_apos_entrada or item.status not in {
             "PENDENTE", "EM_ANALISE", "PRECISA_CORRIGIR",

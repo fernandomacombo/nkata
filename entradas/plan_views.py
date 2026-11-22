@@ -26,11 +26,14 @@ def api_plano_da_conta(request):
     return Response({
         "current_plan": {
             **plan,
+            "is_launch_bonus": bool(access and access.origem == "PROMO_LANCAMENTO"),
             "price_mzn": PLAN_PRICES_MZN[plan["code"]],
             "price_status": f'{PLAN_PRICES_MZN[plan["code"]]} MT',
             "pricing_status": "proposed",
             "billing_period": f'{PLAN_DURATIONS[plan["code"]]}_days' if plan["paid"] else None,
-            "duration_days": PLAN_DURATIONS[plan["code"]] if plan["paid"] else None,
+            "duration_days": 15 if access and access.origem == "PROMO_LANCAMENTO" else (
+                PLAN_DURATIONS[plan["code"]] if plan["paid"] else None
+            ),
             "expires_at": access.fim if access else None,
         },
         "signal_quota": quota,

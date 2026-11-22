@@ -191,7 +191,6 @@ def responder_questionario(request, token):
                     "o_que_nao_aceita": questionario.o_que_nao_aceita,
                     "status": "ATIVO",
                     "visivel": True,
-                    "foto_destaque_publico_aprovada": True,
                     "owner_session_key": request.session.session_key,
                 }
             )
@@ -858,8 +857,8 @@ def conversa_match(request, match_id):
             messages.error(request, "A mensagem é muito longa.")
             return redirect("entradas:conversa_match", match_id=match.id)
 
-        if not can_send_chat_text(request.user, texto):
-            messages.error(request, "Escolha uma mensagem predefinida ou ative um pacote para escrever livremente.")
+        if not can_send_chat_text(request.user, texto, match):
+            messages.error(request, "Ative um pacote com chat para escrever ou responder a mensagens.")
             return redirect("entradas:conversa_match", match_id=match.id)
 
         MensagemMatch.objects.create(

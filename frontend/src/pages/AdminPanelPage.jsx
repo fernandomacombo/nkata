@@ -52,7 +52,7 @@ import {
 const SECTIONS = [
   { id: "overview", label: "Visão geral", description: "Estado da comunidade", icon: LayoutDashboard },
   { id: "access", label: "Pedidos", description: "Pedidos de admissão", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: FileCheck2 },
-  { id: "identity", label: "NKATA ID", description: "Identidades por rever", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: ShieldCheck },
+  { id: "identity", label: "NKATA ID", description: "Revisão e histórico de identidades", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: ShieldCheck },
   { id: "members", label: "Membros", description: "Contas e perfis", search: "Nome, email, telefone ou cidade", columns: ["Membro", "Conta", "Ação"], icon: Users },
   { id: "photos", label: "Fotografias", description: "Aprovar imagens dos perfis", icon: Image },
   { id: "content", label: "Moderação", description: "Fotos e momentos", search: "Autor, email ou conteúdo", columns: ["Conteúdo", "Moderação", "Ação"], icon: ShieldCheck },
@@ -497,6 +497,8 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
   const canDecide = detail && (
     !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || (selection.section === "identity" && identityPending)
   );
+  const canReconsider = selection.section === "identity" && detail?.status === "APROVADO"
+    && identity?.mode === "NKATA_ID" && ["APROVADA", "REJEITADA"].includes(identity.status);
   const approve = {
     section: "access",
     item,
@@ -522,9 +524,9 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
   const reject = {
     section: "access",
     item,
-    action: "reject",
-    label: "Recusar pedido",
-    description: `Encerrar o pedido de ${item.name}. Esta decisão deve ter um motivo interno.`,
+    action: selection.section === "identity" ? "reject_identity" : "reject",
+    label: selection.section === "identity" ? "Rejeitar identidade" : "Recusar pedido",
+    description: selection.section === "identity" ? "Revogar a verificação e bloquear o acesso ao chat e às chamadas." : `Encerrar o pedido de ${item.name}. Esta decisão deve ter um motivo interno.`,
     acceptsNote: true,
     noteRequired: true,
     danger: true,
@@ -627,11 +629,11 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
               <Copy size={16} /> Copiar acesso ao cadastro
             </button>
           )}
-          {canDecide && (
+          {(canDecide || canReconsider) && (
             <div className="nk-admin-review__decisions">
               {!entryPending && <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>}
-              <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> Recusar</button>
-              <button type="button" className="is-primary" onClick={() => onAction(approve)} disabled={!entryPending && !identity?.captures_complete}><UserCheck size={16} /> {approve.label}</button>
+              {identity?.status !== "REJEITADA" && <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> {reject.label}</button>}
+              {canDecide && <button type="button" className="is-primary" onClick={() => onAction(approve)} disabled={!entryPending && !identity?.captures_complete}><UserCheck size={16} /> {approve.label}</button>}
             </div>
           )}
         </footer>
@@ -724,7 +726,7 @@ function ActionDialog({ pending, busy, onClose, onConfirm }) {
   );
 }
 
-function Overview({ summary, loading, error, onRetry, onOpenSection }) {
+function Overview({ summary, loading, error, onRetry, onOpenSection, onOpenMatches }) {
   if (!summary) return <EmptyState loading={loading} error={error} onRetry={onRetry} />;
   const maxActivity = Math.max(
     1,
@@ -740,11 +742,11 @@ function Overview({ summary, loading, error, onRetry, onOpenSection }) {
             <article key={metric.key}>
               <header><span><Icon size={19} /></span><small>{metric.label}</small></header>
               <strong>{count.toLocaleString("pt-PT")}</strong>
-              <p>
+              {metric.key === "matches_active" && onOpenMatches ? <button type="button" onClick={onOpenMatches}>Ver participantes</button> : <p>
                 {metric.detailKey
                   ? `${summary.metrics?.[metric.detailKey] || 0}${metric.detailSuffix}`
                   : count > 0 ? "Requer acompanhamento" : "Sem pendências agora"}
-              </p>
+              </p>}
             </article>
           );
         })}
@@ -1033,8 +1035,8 @@ export default function AdminPanelPage({ session }) {
     setDraftQuery("");
     setFilters({
       query: "",
-      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : "",
-      kind: activeSection === "operations" ? "CALLS" : "",
+      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : activeSection === "operations" ? "ATIVO" : "",
+      kind: activeSection === "operations" ? "MATCHES" : "",
     });
   }, [activeSection]);
 
@@ -1221,6 +1223,7 @@ export default function AdminPanelPage({ session }) {
                 error={summaryError}
                 onRetry={() => loadSummary()}
                 onOpenSection={setActiveSection}
+                onOpenMatches={allowedCodes.has("operations") ? () => setActiveSection("operations") : undefined}
               />
             ) : activeSection === "team" ? <TeamPanel /> : activeSection === "support" ? <SupportAdminPanel /> : activeSection === "photos" ? <PhotoReviewPanel /> : (
               <>
@@ -1248,6 +1251,9 @@ export default function AdminPanelPage({ session }) {
                       <option value="CALLS">Chamadas</option><option value="MATCHES">Matches</option>
                     </select>
                   )}
+                  {activeSection === "identity" && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} aria-label="Estado da identidade">
+                    <option value="">A rever</option><option value="EM_CAPTURA">Capturas incompletas</option><option value="VERIFICADAS">Verificadas</option><option value="REJEITADAS">Rejeitadas</option>
+                  </select>}
                   {activeSection !== "identity" && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} aria-label="Estado">
                     {(activeSection === "operations" && filters.kind === "MATCHES"
                       ? [["", "Todos os estados"], ["ATIVO", "Ativo"], ["ENCERRADO", "Encerrado"]]

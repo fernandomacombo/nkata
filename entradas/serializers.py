@@ -182,7 +182,7 @@ class MinhaContaSerializer(serializers.ModelSerializer):
         }
 
     def get_foto_principal(self, obj):
-        return profile_photo_url(obj)
+        return profile_photo_url(obj, for_owner=True)
 
     def get_total_matches(self, obj):
         return MatchPerfil.objects.filter(

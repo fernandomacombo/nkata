@@ -383,7 +383,7 @@ export default function AccountPage({
   const language = preferences?.idioma === "EN" ? "EN" : "PT";
   const english = language === "EN";
   const [form, setForm] = useState(emptyForm);
-  const [accountSection, setAccountSection] = useState("summary");
+  const [accountSection, setAccountSection] = useState(() => new URLSearchParams(window.location.search).get("section") === "plan" ? "plan" : "summary");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(null);
   const [pendingPhotoUrl, setPendingPhotoUrl] = useState("");

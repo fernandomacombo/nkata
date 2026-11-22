@@ -92,7 +92,7 @@ export default function IncomingCallWatcher() {
 
   const openConversation = () => {
     stopIncomingCallAttention();
-    window.location.assign(`/matches/${call.match_id}/conversa/`);
+    window.location.assign(call.can_answer === false ? "/conta/?section=plan" : `/matches/${call.match_id}/conversa/`);
   };
 
   return (
@@ -117,7 +117,7 @@ export default function IncomingCallWatcher() {
         </button>
         <button type="button" className="is-open" onClick={openConversation} aria-label={english ? "Open call" : "Abrir chamada"}>
           {isVideo ? <Video size={21} /> : <Phone size={20} />}
-          <span>{english ? "Open" : "Abrir"}</span>
+          <span>{call.can_answer === false ? (english ? "See plans" : "Ver pacotes") : (english ? "Open" : "Abrir")}</span>
         </button>
       </div>
     </div>

@@ -97,3 +97,9 @@ export function stopIncomingCallAttention() {
     // Sem suporte à vibração, não há nada para interromper.
   }
 }
+
+export function playNotificationSound() {
+  if (attentionActive || !unlocked || audioContext?.state !== "running") return;
+  playTone(audioContext, 880, 0, 0.18);
+  playTone(audioContext, 1046.5, 0.14, 0.24);
+}

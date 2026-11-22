@@ -68,6 +68,19 @@ class CallLifecycleTests(TestCase):
         call.refresh_from_db()
         self.assertEqual(call.estado, "CHAMANDO")
 
+    def test_free_member_receives_call_but_needs_plan_to_answer(self):
+        assign_plan(self.users[1], "LIVRE")
+        call = self.start()
+        self.client.force_authenticate(self.users[1])
+        incoming = self.client.get("/api/minha-conta/chamadas/entrada/")
+        self.assertEqual(incoming.data["call"]["id"], call.pk)
+        self.assertFalse(incoming.data["call"]["can_answer"])
+        response = self.post(self.users[1], action="accept", call_id=call.pk)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data["code"], "paid_plan_required_for_call")
+        call.refresh_from_db()
+        self.assertEqual(call.estado, "CHAMANDO")
+
     def test_abandoned_negotiation_recovers_for_next_call(self):
         call = self.start()
         self.assertEqual(self.post(self.users[1], action="accept", call_id=call.pk).status_code, 200)

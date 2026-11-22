@@ -13,7 +13,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import PerfilNKATA
-from .profile_media_api import _stream
+from .profile_photo_inspection import CONTACT_WARNING, profile_photo_has_contact
+from .profile_media_api import _stream, profile_photo_is_approved
 from .user_roles import has_admin_capability
 
 
@@ -31,7 +32,7 @@ def _image_for(profile, slot):
 
 def _state_for(profile, slot):
     if slot == 0:
-        return "APROVADO" if profile.foto_destaque_publico_aprovada else profile.foto_destaque_publico_estado
+        return "APROVADO" if profile_photo_is_approved(profile) else profile.foto_destaque_publico_estado
     return getattr(profile.pedido, f"foto_extra_{slot}_estado")
 
 
@@ -53,16 +54,19 @@ def api_photo_review_queue(request):
     if not _allowed(request):
         return Response({"detail": "Sem permissão para moderação de fotografias."}, status=403)
     status_filter = str(request.query_params.get("status", "PENDENTE")).upper()
-    if status_filter not in ("PENDENTE", "APROVADO", "REJEITADO"):
+    if status_filter not in ("PENDENTE", "APROVADO", "REJEITADO", "TODAS"):
         return Response({"detail": "Estado inválido."}, status=400)
     profiles = PerfilNKATA.objects.select_related("pedido", "usuario").filter(
         pedido__status="APROVADO", status__in=["ATIVO", "PAUSADO"], usuario__is_staff=False
     ).order_by("-pk")
+    search = str(request.query_params.get("q", "")).strip()[:120]
+    if search:
+        profiles = profiles.filter(nome_publico__icontains=search)
     rows = []
     # Limit the number of profiles scanned per page; no unbounded table scans.
     for profile in profiles[:200]:
         for slot in range(4):
-            if _image_for(profile, slot) and _state_for(profile, slot) == status_filter:
+            if _image_for(profile, slot) and (status_filter == "TODAS" or _state_for(profile, slot) == status_filter):
                 rows.append(_record(profile, slot))
                 if len(rows) >= 100:
                     return Response({"results": rows})
@@ -92,6 +96,9 @@ def api_review_photo(request, profile_id, slot):
     action = str(request.data.get("action", "")).strip().lower()
     if action not in ("approve", "reject"):
         return Response({"detail": "Ação inválida."}, status=400)
+    reason = str(request.data.get("reason") or "").strip()
+    if action == "reject" and not 1 <= len(reason) <= 500:
+        return Response({"detail": "Indique o motivo da rejeição (até 500 caracteres)."}, status=400)
     profile = PerfilNKATA.objects.select_for_update().filter(
         pk=profile_id, status__in=["ATIVO", "PAUSADO"]
     ).first()
@@ -100,6 +107,15 @@ def api_review_photo(request, profile_id, slot):
     current_version = hashlib.sha256(_image_for(profile, slot).name.encode()).hexdigest()
     if request.data.get("version") != current_version:
         return Response({"detail": "A fotografia foi alterada. Atualize a lista e reveja a nova imagem."}, status=409)
+    if action == "approve":
+        photo = _image_for(profile, slot)
+        try:
+            with photo.open("rb") as image:
+                contains_contact = profile_photo_has_contact(image.read())
+        except (OSError, ValueError):
+            return Response({"detail": "Fotografia indisponível para revisão."}, status=409)
+        if contains_contact:
+            return Response({"detail": CONTACT_WARNING}, status=400)
     new_state = "APROVADO" if action == "approve" else "REJEITADO"
     if slot == 0:
         profile.foto_destaque_publico_estado = new_state
@@ -124,6 +140,7 @@ def api_review_photo(request, profile_id, slot):
         object_id=str(profile.pk),
         object_repr=str(profile)[:200],
         action_flag=CHANGE,
-        change_message=f"Moderação da fotografia {slot}: {new_state}",
+        change_message=(f"Moderação da fotografia {slot}: {new_state}. {reason}"
+                        if action == "reject" else f"Moderação da fotografia {slot}: {new_state}"),
     )
     return Response({"detail": "Fotografia aprovada." if action == "approve" else "Fotografia rejeitada.", "result": _record(profile, slot)})

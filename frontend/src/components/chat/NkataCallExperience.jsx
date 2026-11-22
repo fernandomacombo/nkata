@@ -405,6 +405,10 @@ export default function NkataCallExperience({
   const acceptCall = async () => {
     const activeCall = callRef.current;
     if (!activeCall || preparingRef.current) return;
+    if (activeCall.can_answer === false) {
+      window.location.assign("/conta/?section=plan");
+      return;
+    }
     setError("");
     preparingRef.current = true;
     const operation = ++operationRef.current;
@@ -429,6 +433,10 @@ export default function NkataCallExperience({
       await processSignals(allSignals, activeCall);
     } catch (requestError) {
       if (operation !== operationRef.current) return;
+      if (requestError.payload?.code === "paid_plan_required_for_call") {
+        window.location.assign("/conta/?section=plan");
+        return;
+      }
       void endTrackedCall(match.id);
       resetCall({ notice: mediaErrorMessage(requestError, activeCall.tipo, english) });
     } finally {
