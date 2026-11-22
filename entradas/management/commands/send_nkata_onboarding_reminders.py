@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from ...branded_email import send_branded_email
+from ...identity_models import pedido_tem_identidade_verificada
 from ...models import PedidoEntrada
 
 
@@ -29,13 +30,13 @@ def next_step(pedido):
         return ("Crie a sua palavra-passe para entrar no NKATA",
                 "As suas respostas já foram guardadas. Crie uma palavra-passe para proteger a sua conta e poder entrar no NKATA.",
                 f"/questionario/{pedido.token}/")
-    if perfil.status == "BLOQUEADO" or not perfil.usuario.is_active:
+    if perfil.status in {"BLOQUEADO", "ENCERRAMENTO"} or not perfil.usuario.is_active:
         return None
 
     verification = getattr(pedido, "verificacao_identidade", None)
     if verification and verification.status == "REVISAO":
         return None
-    if pedido.documento_confirmado or not pedido.verificacao_apos_entrada:
+    if pedido_tem_identidade_verificada(pedido):
         return None
     if verification and verification.status == "REPETIR":
         message = "A equipa solicitou novas capturas. Entre no NKATA, abra Matches e siga as instruções do NKATA ID."
@@ -49,7 +50,7 @@ def next_step(pedido):
 
 
 class Command(BaseCommand):
-    help = "Envia lembretes relativos aos três dias após a aprovação ou a receção do pedido."
+    help = "Envia lembretes nos primeiros três dias e recupera um primeiro aviso em atraso."
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true")
@@ -59,17 +60,24 @@ class Command(BaseCommand):
         start = now - timedelta(days=4)
         latest = now - timedelta(days=1)
         candidates = PedidoEntrada.objects.filter(
-            Q(status="APROVADO", onboarding_aprovado_em__gt=start, onboarding_aprovado_em__lte=latest)
-            | Q(status="PRECISA_CORRIGIR", criado_em__gt=start, criado_em__lte=latest)
+            Q(status="APROVADO", onboarding_aprovado_em__lte=latest)
+            | Q(status="APROVADO", onboarding_aprovado_em__isnull=True, atualizado_em__lte=latest)
+            | Q(status="PRECISA_CORRIGIR", criado_em__lte=latest)
+        ).filter(
+            Q(onboarding_lembrete_em__isnull=True)
+            | Q(status="APROVADO", onboarding_aprovado_em__gt=start)
+            | Q(status="PRECISA_CORRIGIR", criado_em__gt=start)
         ).values_list("pk", flat=True)
 
         sent = eligible = 0
         for pk in candidates.iterator():
             with transaction.atomic():
                 pedido = PedidoEntrada.objects.select_for_update().get(pk=pk)
-                anchor = (pedido.onboarding_aprovado_em if pedido.status == "APROVADO"
-                          else pedido.criado_em)
-                if not anchor or not start < anchor <= latest:
+                anchor = (
+                    pedido.onboarding_aprovado_em or pedido.atualizado_em
+                    if pedido.status == "APROVADO" else pedido.criado_em
+                )
+                if anchor > latest or (anchor <= start and pedido.onboarding_lembrete_em):
                     continue
                 day = (now - anchor).days
                 if pedido.onboarding_lembrete_em and (now - pedido.onboarding_lembrete_em < timedelta(hours=23)
