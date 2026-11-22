@@ -27,8 +27,8 @@ def document_key(value):
     if not re.fullmatch(r"[A-Z0-9\s.-]+", number):
         raise ValidationError("Informe o número do BI tal como aparece no documento.")
     number = re.sub(r"[\s.-]", "", number)
-    if not 6 <= len(number) <= 30:
-        raise ValidationError("Informe um número de BI válido.")
+    if not re.fullmatch(r"[0-9]{12}[A-Z]", number):
+        raise ValidationError("O BI deve ter 12 algarismos seguidos de uma letra de A a Z.")
     secret = getattr(settings, "NKATA_IDENTITY_HASH_KEY", "") or settings.SECRET_KEY
     return salted_hmac("nkata.document-number.v1", number, secret=secret, algorithm="sha256").hexdigest()
 
@@ -76,7 +76,12 @@ def confirm_document(item, number):
     # The number read by the reviewer is authoritative. A false declaration
     # cannot escape the capacity check by using a different number at intake.
     _lock_keys(["phone:" + phone, "bi:" + document])
-    _check_capacity(phone, document, exclude_pk=item.pk)
+    profile = getattr(item, "perfil", None)
+    user = profile.usuario if profile else None
+    # An established account is confirming its identity, without claiming
+    # another phone slot. Document uniqueness still applies to every review.
+    existing_account = bool(user and user.has_usable_password())
+    _check_capacity(None if existing_account else phone, document, exclude_pk=item.pk)
     item.documento_chave = document
     item.documento_confirmado = True
     item.identidade_revogada = False

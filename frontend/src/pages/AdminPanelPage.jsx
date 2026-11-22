@@ -510,10 +510,10 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
     section: "access",
     item,
     action: entryPending ? "approve_entry" : "approve",
-    label: entryPending ? "Aprovar entrada" : identityPending ? "Confirmar identidade" : "Aprovar identidade e pedido",
+    label: entryPending ? "Aprovar entrada" : (identityPending || detail?.has_password) ? "Confirmar identidade" : "Aprovar identidade e pedido",
     description: entryPending
       ? `Aceitar a entrada de ${item.name} e libertar o questionário. O chat ficará bloqueado até à verificação.`
-      : identityPending
+      : (identityPending || detail?.has_password)
         ? `Confirmar o BI de ${item.name} e permitir o acesso ao chat.`
         : `Confirmar que os documentos e as fotografias de ${item.name} correspondem e libertar o questionário.`,
     icon: UserCheck,
@@ -677,12 +677,13 @@ function EmptyState({ loading, error, onRetry }) {
   );
 }
 
-function ActionDialog({ pending, busy, onClose, onConfirm }) {
+function ActionDialog({ pending, busy, error, onClose, onConfirm }) {
   const [note, setNote] = useState("");
   const [documentNumber, setDocumentNumber] = useState("");
   useEffect(() => { setNote(""); setDocumentNumber(""); }, [pending]);
   if (!pending) return null;
   const needsDocument = pending.section === "access" && pending.action === "approve";
+  const validDocument = /^[0-9]{12}[A-Z]$/.test(documentNumber);
   return (
     <AdminDialogLayer onClose={onClose} confirmation>
       <section className="nk-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-action-title">
@@ -699,10 +700,11 @@ function ActionDialog({ pending, busy, onClose, onConfirm }) {
           {needsDocument && (
             <label>
               <span>Número do BI conferido no documento</span>
-              <input value={documentNumber} onChange={(event) => setDocumentNumber(event.target.value)} maxLength={40} autoComplete="off" />
-              <small>Leia o número na imagem do BI. Este número prevalece sobre o declarado e impede que o mesmo BI seja usado noutra conta.</small>
+              <input value={documentNumber} onChange={(event) => setDocumentNumber(event.target.value.toUpperCase().replace(/[\s.-]/g, ""))} maxLength={13} autoComplete="off" />
+              <small>Introduza os 12 algarismos e a letra final tal como aparecem no BI.</small>
             </label>
           )}
+          {error && <p role="alert" className="nk-admin-action-error">{error}</p>}
           {pending.acceptsNote && (
             <label>
               <span>Observação interna {pending.noteRequired ? "" : "(opcional)"}</span>
@@ -722,7 +724,7 @@ function ActionDialog({ pending, busy, onClose, onConfirm }) {
             type="button"
             className={`nk-admin-button ${pending.danger ? "is-danger" : "is-primary"}`}
             onClick={() => onConfirm(note, documentNumber)}
-            disabled={busy || (pending.noteRequired && !note.trim()) || (needsDocument && !documentNumber.trim())}
+            disabled={busy || (pending.noteRequired && !note.trim()) || (needsDocument && !validDocument)}
           >
             {busy ? <Loader2 className="nk-spin" size={17} /> : <Check size={17} />}
             Confirmar
@@ -962,6 +964,7 @@ export default function AdminPanelPage({ session }) {
   const [accessDetail, setAccessDetail] = useState(null);
   const [accessDetailLoading, setAccessDetailLoading] = useState(false);
   const [accessDetailError, setAccessDetailError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState("");
   const allowedCodes = useMemo(
@@ -1063,7 +1066,10 @@ export default function AdminPanelPage({ session }) {
     setFilters((current) => ({ ...current, query: draftQuery.trim(), offset: 0 }));
   };
 
-  const openAction = (action) => setPendingAction(action);
+  const openAction = (action) => {
+    setActionError("");
+    setPendingAction(action);
+  };
 
   const openAccessReview = useCallback(async (item) => {
     const index = listData.results.findIndex((entry) => entry.id === item.id);
@@ -1151,6 +1157,7 @@ export default function AdminPanelPage({ session }) {
       reports: "report",
       operations: "match",
     };
+    setActionError("");
     setActionBusy(true);
     try {
       const result = await performAdminAction({
@@ -1175,7 +1182,7 @@ export default function AdminPanelPage({ session }) {
         }
       }
     } catch (error) {
-      setToast(error.message || "Não foi possível concluir a alteração.");
+      setActionError(error.message || "Não foi possível concluir a alteração.");
     } finally {
       setActionBusy(false);
     }
@@ -1323,7 +1330,7 @@ export default function AdminPanelPage({ session }) {
         onAction={openAction}
         onCopyQuestionnaire={copyQuestionnaire}
       />
-      <ActionDialog pending={pendingAction} busy={actionBusy} onClose={() => !actionBusy && setPendingAction(null)} onConfirm={confirmAction} />
+      <ActionDialog pending={pendingAction} busy={actionBusy} error={actionError} onClose={() => !actionBusy && setPendingAction(null)} onConfirm={confirmAction} />
     </main>
   );
 }

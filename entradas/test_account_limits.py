@@ -1,11 +1,12 @@
 from types import SimpleNamespace
 
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from .account_limits import save_limited_request, confirm_document, normalize_phone, document_key
 from .forms import PedidoEntradaForm
-from .models import PedidoEntrada
+from .models import PedidoEntrada, PerfilNKATA
 
 
 def request_form(email, phone, document):
@@ -16,10 +17,10 @@ def request_form(email, phone, document):
 
 class AccountLimitsTests(TestCase):
     def test_phone_cannot_be_reused_with_another_email_and_bi(self):
-        save_limited_request(request_form("first@example.test", "84 123 4567", "BI00000001"))
+        save_limited_request(request_form("first@example.test", "84 123 4567", "110100000001A"))
         for phone in ("+258841234567", "00258 84 123 4567"):
             with self.assertRaisesMessage(ValidationError, "telefone"):
-                save_limited_request(request_form("other@example.test", phone, "BI00000002"))
+                save_limited_request(request_form("other@example.test", phone, "110100000002B"))
         self.assertEqual(PedidoEntrada.objects.count(), 1)
 
     def test_bi_cannot_be_reused_with_another_email_and_phone(self):
@@ -31,7 +32,7 @@ class AccountLimitsTests(TestCase):
     def test_reviewer_cannot_approve_second_account_under_false_bi_declaration(self):
         first = save_limited_request(request_form("first@example.test", "840000001", "110100000001A"))
         confirm_document(first, "110100000001A")
-        other = save_limited_request(request_form("other@example.test", "850000001", "FALSE000009"))
+        other = save_limited_request(request_form("other@example.test", "850000001", "110100000009Z"))
         with self.assertRaisesMessage(ValidationError, "BI"):
             confirm_document(other, "110100000001A")
         other.refresh_from_db()
@@ -69,3 +70,23 @@ class AccountLimitsTests(TestCase):
         self.assertEqual(document_key("1101 0000-0001.a"), document_key("110100000001A"))
         self.assertEqual(normalize_phone("+258 84 123 4567"), "258841234567")
         self.assertEqual(normalize_phone("not a phone"), "")
+
+    def test_document_requires_twelve_digits_and_final_letter(self):
+        for invalid in ("123456789M", "1234567890123", "A123456789012", "123456789012É"):
+            with self.subTest(invalid=invalid), self.assertRaisesMessage(ValidationError, "12 algarismos"):
+                document_key(invalid)
+
+    def test_existing_account_can_confirm_its_own_bi_with_a_legacy_phone_conflict(self):
+        save_limited_request(request_form("other@example.test", "840000001", "110100000001A"))
+        member = request_form("member@example.test", "840000001", "110100000002B").save()
+        member.save()
+        user = User.objects.create_user("existing-member", password="local-test-password")
+        PerfilNKATA.objects.create(pedido=member, usuario=user, nome_publico="Existing member")
+
+        with self.assertRaisesMessage(ValidationError, "BI"):
+            confirm_document(member, "110100000001A")
+        confirm_document(member, "110100000002B")
+        member.refresh_from_db()
+        self.assertTrue(member.documento_confirmado)
+        self.assertEqual(member.perfil.usuario_id, user.pk)
+        self.assertEqual(PedidoEntrada.objects.count(), 2)
