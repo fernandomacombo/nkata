@@ -41,7 +41,7 @@ const initialFiles = {
 
 const photoFields = [
   { name: "foto_perfil", title: "Foto principal", text: "Uma fotografia recente, com o rosto bem visível." },
-  { name: "foto_extra_1", title: "Fotografia 2", text: "Escolha uma fotografia diferente da principal." },
+  { name: "foto_extra_1", title: "Segunda foto", text: "Mostre outro momento seu, numa foto diferente da principal." },
 ];
 
 function fieldError(errors, name) {
@@ -49,7 +49,7 @@ function fieldError(errors, name) {
   return Array.isArray(value) ? value[0] : value || "";
 }
 
-function FileCard({ field, file, error, onChange, privateFile = false }) {
+function FileCard({ field, file, error, onChange }) {
   const preview = useMemo(() => (file ? URL.createObjectURL(file) : ""), [file]);
 
   useEffect(() => () => {
@@ -57,31 +57,37 @@ function FileCard({ field, file, error, onChange, privateFile = false }) {
   }, [preview]);
 
   return (
-    <label className={`nk-access-upload ${file ? "has-file" : ""} ${error ? "has-error" : ""}`}>
+    <label className={`nk-photo-card ${error ? "has-error" : ""}`}>
       <input
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        onChange={(event) => onChange(field.name, event.target.files?.[0] || null)}
+        aria-label={file ? `Trocar ${field.title.toLowerCase()}` : `Escolher ${field.title.toLowerCase()}`}
+        aria-describedby={error ? `${field.name}-error` : `${field.name}-hint`}
+        aria-invalid={Boolean(error)}
+        onChange={(event) => {
+          const selected = event.target.files?.[0];
+          if (selected) onChange(field.name, selected);
+          event.target.value = "";
+        }}
       />
-
-      <span className="nk-access-upload__preview">
+      <span className="nk-photo-card__preview">
         {preview ? (
-          <img src={preview} alt="Pré-visualização" />
-        ) : privateFile ? (
-          <LockKeyhole size={25} />
+          <img src={preview} alt={`Pré-visualização de ${field.title.toLowerCase()}`} />
         ) : (
-          <ImagePlus size={25} />
+          <span className="nk-photo-card__frame" aria-hidden="true">
+            <ImagePlus size={30} strokeWidth={1.5} />
+          </span>
         )}
+        <span className="nk-photo-card__action">
+          {file ? <Camera size={15} /> : <ImagePlus size={15} />}
+          {file ? "Trocar foto" : "Escolher foto"}
+        </span>
       </span>
-
-      <span className="nk-access-upload__copy">
+      <span className="nk-photo-card__details">
         <strong>{field.title}</strong>
-        <small>{file ? file.name : field.text}</small>
-        {error && <em>{error}</em>}
-      </span>
-
-      <span className="nk-access-upload__action">
-        {file ? <Check size={17} /> : "Escolher"}
+        <small id={`${field.name}-hint`}>{field.text}</small>
+        {file && !error && <small className="nk-photo-card__selected"><Check size={14} /> Foto selecionada</small>}
+        {error && <em id={`${field.name}-error`} role="alert">{error}</em>}
       </span>
     </label>
   );
@@ -347,13 +353,13 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
             )}
 
             {step === 1 && (
-              <div className="nk-access-step nk-soft-enter">
+              <div className="nk-access-step nk-access-step--photos nk-soft-enter">
                 <header>
                   <small>Passo 2 de 3</small>
-                  <h2>Escolha fotografias naturais.</h2>
-                  <p>Envie duas fotos suas. Depois de entrar, pode acrescentar mais no perfil.</p>
+                  <h2>Duas fotos para se apresentar.</h2>
+                  <p>Escolha fotos recentes e bem iluminadas. Pode revê-las antes de enviar o pedido.</p>
                 </header>
-                <div className="nk-access-uploads">
+                <div className="nk-access-photo-grid">
                   {photoFields.map((field) => (
                     <FileCard key={field.name} field={field} file={files[field.name]} error={fieldError(errors, field.name)} onChange={updateFile} />
                   ))}
