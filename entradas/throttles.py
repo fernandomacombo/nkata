@@ -49,6 +49,21 @@ class IdentitySessionRateThrottle(_IdentityThrottle):
     data_field = "email"
 
 
+class MemberIdentitySessionRateThrottle(IdentitySessionRateThrottle):
+    def allow_request(self, request, view):
+        if request.method in {"GET", "HEAD"}:
+            self.scope = "identity_status"
+            self.rate = self.get_rate()
+            self.num_requests, self.duration = self.parse_rate(self.rate)
+        return super().allow_request(request, view)
+
+    def get_cache_key(self, request, view):
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": f"member:{request.user.pk}",
+        }
+
+
 class IdentityCaptureRateThrottle(_IdentityThrottle):
     scope = "identity_capture"
 
