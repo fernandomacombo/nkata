@@ -273,6 +273,24 @@ class NkataApiTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_only_sender_can_delete_message_for_both_participants(self):
+        user_a, perfil_a = self.create_profile("delete-a@example.com", "Pessoa A")
+        user_b, perfil_b = self.create_profile("delete-b@example.com", "Pessoa B")
+        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+        message = MensagemMatch.objects.create(match=match, remetente=user_a, texto="Mensagem privada")
+        url = f"/api/minha-conta/matches/{match.id}/mensagens/{message.id}/"
+        self.client.force_login(user_b)
+        self.assertEqual(self.client.delete(url).status_code, 404)
+        self.client.force_login(user_a)
+        self.assertEqual(self.client.delete(url).status_code, 200)
+        message.refresh_from_db()
+        self.assertEqual(message.texto, "")
+        self.assertIsNotNone(message.apagada_em)
+        self.client.force_login(user_b)
+        history = self.client.get(f"/api/minha-conta/matches/{match.id}/conversa/")
+        self.assertEqual(history.json()["results"][0]["texto"], "")
+        self.assertTrue(history.json()["results"][0]["apagada_em"])
+
     def test_mensagem_pode_ser_enviada_e_marcada_como_lida(self):
         user_a, perfil_a = self.create_profile("msg-a@example.com", "Pessoa A")
         user_b, perfil_b = self.create_profile("msg-b@example.com", "Pessoa B")

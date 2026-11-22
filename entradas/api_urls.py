@@ -358,6 +358,11 @@ urlpatterns = [
         name="media_audio_match",
     ),
     path(
+        "minha-conta/matches/<int:match_id>/mensagens/<int:message_id>/",
+        api_views.api_apagar_mensagem,
+        name="apagar_mensagem_match",
+    ),
+    path(
         "minha-conta/matches/<int:match_id>/live/",
         chat_realtime_api.api_chat_live,
         name="chat_live",

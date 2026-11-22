@@ -36,6 +36,7 @@ class PedidoEntrada(models.Model):
     telefone_normalizado = models.CharField(max_length=16, blank=True, db_index=True, editable=False)
     documento_chave = models.CharField(max_length=64, blank=True, db_index=True, editable=False)
     verificacao_apos_entrada = models.BooleanField(default=False, editable=False)
+    identidade_revogada = models.BooleanField(default=False, editable=False)
     documento_confirmado = models.BooleanField(default=False, editable=False)
     idade = models.PositiveIntegerField()
     cidade = models.CharField(max_length=100)
@@ -349,6 +350,7 @@ class MatchPerfil(models.Model):
 class MensagemMatch(models.Model):
     match = models.ForeignKey(MatchPerfil, on_delete=models.CASCADE, related_name="mensagens")
     remetente = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="mensagens_match_enviadas")
+    apagada_em = models.DateTimeField(null=True, blank=True, editable=False)
     texto = models.TextField(max_length=1200)
     lida = models.BooleanField(default=False)
     criado_em = models.DateTimeField(auto_now_add=True)

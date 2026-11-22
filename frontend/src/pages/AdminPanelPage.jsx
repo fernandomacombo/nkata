@@ -495,10 +495,17 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
     || (detail?.verify_after_entry && !detail.document_confirmed && identity?.status === "APROVADA")
   );
   const canDecide = detail && (
-    !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || (selection.section === "identity" && identityPending)
+    !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || (selection.section === "identity" && (identityPending || (identity?.mode === "LEGACY" && identity.status === "REJEITADA")))
   );
-  const canReconsider = selection.section === "identity" && detail?.status === "APROVADO"
-    && identity?.mode === "NKATA_ID" && ["APROVADA", "REJEITADA"].includes(identity.status);
+  const identitySection = selection.section === "identity";
+  const canRejectIdentity = identitySection && (
+    ["APROVADA", "REVISAO"].includes(identity?.status)
+    || (detail?.status === "APROVADO" && identity?.status === "LEGADO")
+  );
+  const canReconsider = canRejectIdentity || (
+    identitySection && detail?.status === "APROVADO" && identity?.mode === "NKATA_ID"
+      && identity.status === "REJEITADA"
+  );
   const approve = {
     section: "access",
     item,
@@ -631,8 +638,8 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
           )}
           {(canDecide || canReconsider) && (
             <div className="nk-admin-review__decisions">
-              {!entryPending && <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>}
-              {identity?.status !== "REJEITADA" && <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> {reject.label}</button>}
+              {!entryPending && (canDecide || identity?.mode === "NKATA_ID") && <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>}
+              {(!identitySection || canRejectIdentity) && <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> {reject.label}</button>}
               {canDecide && <button type="button" className="is-primary" onClick={() => onAction(approve)} disabled={!entryPending && !identity?.captures_complete}><UserCheck size={16} /> {approve.label}</button>}
             </div>
           )}
@@ -1035,7 +1042,7 @@ export default function AdminPanelPage({ session }) {
     setDraftQuery("");
     setFilters({
       query: "",
-      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : activeSection === "operations" ? "ATIVO" : "",
+      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : activeSection === "operations" ? "ATIVO" : activeSection === "identity" ? "TODAS" : "",
       kind: activeSection === "operations" ? "MATCHES" : "",
     });
   }, [activeSection]);
@@ -1053,7 +1060,7 @@ export default function AdminPanelPage({ session }) {
 
   const submitSearch = (event) => {
     event.preventDefault();
-    setFilters((current) => ({ ...current, query: draftQuery.trim() }));
+    setFilters((current) => ({ ...current, query: draftQuery.trim(), offset: 0 }));
   };
 
   const openAction = (action) => setPendingAction(action);
@@ -1239,7 +1246,7 @@ export default function AdminPanelPage({ session }) {
                   <label>
                     <Search size={17} />
                     <input value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder={selectedSection.search} />
-                    {draftQuery && <button type="button" onClick={() => { setDraftQuery(""); setFilters((current) => ({ ...current, query: "" })); }} aria-label="Limpar pesquisa"><X size={16} /></button>}
+                    {draftQuery && <button type="button" onClick={() => { setDraftQuery(""); setFilters((current) => ({ ...current, query: "", offset: 0 })); }} aria-label="Limpar pesquisa"><X size={16} /></button>}
                   </label>
                   {activeSection === "content" && (
                     <select value={filters.kind} onChange={(event) => setFilters((current) => ({ ...current, kind: event.target.value }))} aria-label="Tipo de conteúdo">
@@ -1251,8 +1258,8 @@ export default function AdminPanelPage({ session }) {
                       <option value="CALLS">Chamadas</option><option value="MATCHES">Matches</option>
                     </select>
                   )}
-                  {activeSection === "identity" && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} aria-label="Estado da identidade">
-                    <option value="">A rever</option><option value="EM_CAPTURA">Capturas incompletas</option><option value="VERIFICADAS">Verificadas</option><option value="REJEITADAS">Rejeitadas</option>
+                  {activeSection === "identity" && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value, offset: 0 }))} aria-label="Estado da identidade">
+                    <option value="TODAS">Todas</option><option value="">A rever</option><option value="EM_CAPTURA">Capturas incompletas</option><option value="VERIFICADAS">Verificadas</option><option value="REJEITADAS">Rejeitadas</option>
                   </select>}
                   {activeSection !== "identity" && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} aria-label="Estado">
                     {(activeSection === "operations" && filters.kind === "MATCHES"
@@ -1265,7 +1272,13 @@ export default function AdminPanelPage({ session }) {
 
                 <div className="nk-admin-list-heading">
                   <span>{listData.total || 0} registo(s)</span>
-                  <small>Mostrando até 50 resultados recentes</small>
+                  {activeSection === "identity" ? (
+                    <nav aria-label="Paginação de identidades">
+                      <button type="button" disabled={listLoading || !filters.offset} onClick={() => setFilters((current) => ({ ...current, offset: Math.max(0, current.offset - 50) }))}>Anterior</button>
+                      <span>Página {Math.floor((filters.offset || 0) / 50) + 1}</span>
+                      <button type="button" disabled={listLoading || (filters.offset || 0) + 50 >= listData.total} onClick={() => setFilters((current) => ({ ...current, offset: (current.offset || 0) + 50 }))}>Seguinte</button>
+                    </nav>
+                  ) : <small>Mostrando até 50 resultados recentes</small>}
                 </div>
 
                 <div className="nk-admin-list">

@@ -708,3 +708,12 @@
     display: none;
   }
 }
+
+.nk-message-bubble .nk-message-delete {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0.2rem 0.35rem;
+  text-decoration: underline;
+  cursor: pointer;
+}

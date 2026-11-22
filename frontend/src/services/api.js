@@ -132,6 +132,7 @@ function normalizeMessage(message) {
     senderName: message.remetente_nome || "Membro NKATA",
     type,
     text: message.texto || "",
+    deleted: Boolean(message.apagada_em),
     audioUrl: normalizeAppUrl(message.audio_url || null),
     durationSeconds: Number(message.duracao_segundos || 0),
     read: Boolean(message.lida),
@@ -605,3 +606,10 @@ export {
   normalizeNotification,
   normalizeProfile,
 };
+
+export async function deleteMatchMessage(matchId, messageId) {
+  const message = await request(`/api/minha-conta/matches/${matchId}/mensagens/${messageId}/`, {
+    method: "DELETE",
+  });
+  return normalizeMessage(message);
+}

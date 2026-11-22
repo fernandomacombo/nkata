@@ -141,7 +141,7 @@ def _presence_payload(match, user, snapshot_time):
 def _new_text_messages(request, match, since, snapshot_time):
     messages = (
         match.mensagens
-        .filter(criado_em__gt=since, criado_em__lte=snapshot_time)
+        .filter(Q(criado_em__gt=since, criado_em__lte=snapshot_time) | Q(apagada_em__gt=since, apagada_em__lte=snapshot_time))
         .select_related("remetente", "remetente__perfil_nkata")
         .order_by("criado_em", "id")
     )
