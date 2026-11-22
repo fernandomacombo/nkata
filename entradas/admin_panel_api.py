@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from .call_models import ChamadaMatchNKATA
 from .content_moderation_models import AnaliseAutomaticaConteudoNKATA
 from .content_moderation_service import moderation_provider_label, record_human_decision
-from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at, pedido_tem_identidade_verificada
+from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
 from .models import (
     DenunciaPerfil,
     MatchPerfil,
@@ -196,7 +196,7 @@ def _member_rows(request, limit):
             "status": profile.status,
             "status_label": profile.get_status_display(),
             "visible": profile.visivel,
-            "verified": pedido_tem_identidade_verificada(profile.pedido),
+            "verified": profile.pedido.status == "APROVADO",
             "account_active": bool(profile.usuario and profile.usuario.is_active),
             "plan_code": plan_definition["code"],
             "plan_label": plan_definition["label"],
@@ -397,9 +397,9 @@ def _access_detail_payload(item):
                 f"/api/admin/pedidos/{item.id}/media/{field_name}/",
             )
             for field_name, label in LEGACY_IDENTITY_MEDIA_LABELS
-            if not deferred or item.identidade_revogada
+            if not deferred
         ]
-        captures_complete = not deferred and bool(identity_media) and all(entry["available"] for entry in identity_media)
+        captures_complete = bool(identity_media) and all(entry["available"] for entry in identity_media)
         identity = {
             "mode": "PENDING" if deferred else "LEGACY",
             "id": None,
@@ -880,12 +880,8 @@ def _action_access(request, object_id, action):
             ])
         item.identidade_revogada = not verification
         item.documento_confirmado = False
-        if item.status == "APROVADO":
-            item.verificacao_apos_entrada = True
-        item.save(update_fields=[
-            "identidade_revogada", "documento_confirmado", "verificacao_apos_entrada", "atualizado_em",
-        ])
-        message = "Identidade rejeitada. O membro pode iniciar uma nova verificação. O chat e as chamadas exigem nova aprovação."
+        item.save(update_fields=["identidade_revogada", "documento_confirmado", "atualizado_em"])
+        message = "Identidade rejeitada. O acesso ao chat e às chamadas foi revogado."
         _audit(request.user, item, f"{message} Motivo: {note}")
         return item, message, 200
     if action == "approve_entry":
