@@ -27,3 +27,15 @@ class OnboardingReminderTests(TestCase):
         send.assert_called_once()
         self.assertIn("questionário", send.call_args.kwargs["body"])
         self.assertTrue(send.call_args.kwargs["action_url"].endswith(f"/questionario/{pedido.token}/"))
+
+    @patch("entradas.management.commands.send_nkata_onboarding_reminders.send_branded_email", return_value=1)
+    def test_old_pending_correction_receives_one_catch_up_reminder(self, send):
+        pedido = create_request("correcao-antiga@nkata.test", status="PRECISA_CORRIGIR")
+        type(pedido).objects.filter(pk=pedido.pk).update(
+            criado_em=timezone.now() - timedelta(days=8),
+        )
+        call_command("send_nkata_onboarding_reminders", dry_run=True)
+        send.assert_not_called()
+        call_command("send_nkata_onboarding_reminders")
+        call_command("send_nkata_onboarding_reminders")
+        send.assert_called_once()
