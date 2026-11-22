@@ -112,3 +112,26 @@ class ChatIdentityFlowTests(TestCase):
         self.client.force_login(member.usuario)
         self.assertFalse(self.client.get("/api/session/").json()["profile"]["chat_identity_required"])
         self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 200)
+
+        PedidoEntrada.objects.filter(pk=pedido.pk).update(verificacao_apos_entrada=False)
+        PerfilNKATA.objects.filter(pk=member.pk).update(visivel=False)
+        self.client.force_login(operator)
+        denied = self.client.post(action_url, {
+            **decision, "action": "reject_identity", "note": "Nova verificação necessária.",
+        })
+        self.assertEqual(denied.status_code, 200, denied.json())
+        member.refresh_from_db()
+        member.sobre_si = "Perfil editado após a decisão."
+        member.save()
+        member.refresh_from_db()
+        self.assertEqual(member.status, "ATIVO")
+        self.assertFalse(member.visivel)
+        self.client.force_login(member.usuario)
+        self.assertIsNone(self.client.get(identity_url).data)
+        self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
+        self.assertEqual(self.client.get(f"{match_url}call/").status_code, 403)
+        restarted = self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json")
+        self.assertEqual(restarted.status_code, 201, restarted.json())
+        self.assertNotEqual(restarted.json()["token"], token)
+        self.assertEqual(restarted.json()["completed_captures"], [])
+        self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)

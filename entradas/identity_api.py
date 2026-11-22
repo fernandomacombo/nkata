@@ -186,15 +186,27 @@ def api_sessao_identidade_do_membro(request):
         return Response({"detail": "A conta ainda não está activa."}, status=403)
 
     pedido = PedidoEntrada.objects.select_for_update().get(pk=profile.pedido_id)
-    if pedido.status != "APROVADO" or not pedido.verificacao_apos_entrada:
+    sessions = VerificacaoIdentidadeNKATA.objects.select_for_update()
+    session = sessions.filter(pedido=pedido).first()
+    rejected = bool(session and session.status == "REJEITADA")
+    if pedido.status != "APROVADO" or not (
+        pedido.verificacao_apos_entrada or pedido.identidade_revogada or rejected
+    ):
         return Response({"detail": "A verificação desta conta não está disponível aqui."}, status=403)
     if request.method == "GET":
-        session = VerificacaoIdentidadeNKATA.objects.filter(pedido=pedido).first()
-        return Response(serialize_identity_session(session) if session else None)
+        return Response(serialize_identity_session(session) if session and not rejected else None)
     if request.data.get("aceita_biometria") is not True:
         return Response({"detail": "Autorize a verificação do documento e do rosto."}, status=400)
 
-    session, created = VerificacaoIdentidadeNKATA.objects.select_for_update().get_or_create(
+    if not pedido.verificacao_apos_entrada:
+        pedido.verificacao_apos_entrada = True
+        pedido.documento_confirmado = False
+        pedido.save(update_fields=["verificacao_apos_entrada", "documento_confirmado", "atualizado_em"])
+    if rejected:
+        # Keep the rejected evidence on the previous session.
+        session.pedido = None
+        session.save(update_fields=["pedido", "atualizado_em"])
+    session, created = sessions.get_or_create(
         pedido=pedido,
         defaults={
             "email_hash": identity_email_hash(pedido.email),
