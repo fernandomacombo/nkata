@@ -546,8 +546,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
         <header>
           <div>
             <small>{selection.section === "identity" ? "Revisão de identidade" : "Revisão do pedido"}</small>
-            <h2 id="admin-review-title">{item.profile_name || item.name}</h2>
-            {item.profile_name && item.profile_name !== item.name && <span>Nome no pedido: {item.name}</span>}
+            <h2 id="admin-review-title">{item.name}</h2>
             <span>{item.email} · recebido {formatDate(item.created_at)}</span>
           </div>
           <div>
