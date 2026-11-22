@@ -877,7 +877,11 @@ def _action_access(request, object_id, action):
             ])
         item.identidade_revogada = not verification
         item.documento_confirmado = False
-        item.save(update_fields=["identidade_revogada", "documento_confirmado", "atualizado_em"])
+        if item.status == "APROVADO":
+            item.verificacao_apos_entrada = True
+        item.save(update_fields=[
+            "identidade_revogada", "documento_confirmado", "verificacao_apos_entrada", "atualizado_em",
+        ])
         message = "Identidade rejeitada. O acesso ao chat e às chamadas foi revogado."
         _audit(request.user, item, f"{message} Motivo: {note}")
         return item, message, 200
