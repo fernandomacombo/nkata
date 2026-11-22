@@ -301,6 +301,7 @@ class MensagemMatchSerializer(serializers.ModelSerializer):
             "remetente_id",
             "remetente_nome",
             "texto",
+            "apagada_em",
             "lida",
             "minha",
             "criado_em",
@@ -394,7 +395,7 @@ class MatchSerializer(serializers.ModelSerializer):
 
     def get_ultima_mensagem(self, obj):
         candidates = []
-        texto = obj.mensagens.order_by("-criado_em").first()
+        texto = obj.mensagens.filter(apagada_em__isnull=True).order_by("-criado_em").first()
         if texto:
             candidates.append((texto.criado_em, MensagemMatchSerializer(texto, context=self.context).data))
 

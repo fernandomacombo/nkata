@@ -422,6 +422,21 @@ class AdminPanelApiTests(TestCase):
         self.assertEqual(detail.data["display_status"], "EM_ANALISE")
         self.assertTrue(detail.data["questionnaire_path"])
 
+    def test_legacy_approval_can_be_revoked_without_changing_entry(self):
+        from .identity_models import pedido_tem_identidade_verificada
+
+        item = create_request("legacy-approved@nkata.test", status="APROVADO")
+        self.assertTrue(pedido_tem_identidade_verificada(item))
+        self.client.force_authenticate(self.staff)
+        response = self.client.post(reverse("entradas_api:admin_action"), {
+            "resource": "access", "action": "reject_identity", "id": item.pk,
+            "note": "Documento requer nova revisão.",
+        }, format="json")
+        self.assertEqual(response.status_code, 200)
+        item.refresh_from_db()
+        self.assertEqual(item.status, "APROVADO")
+        self.assertFalse(pedido_tem_identidade_verificada(item))
+
     def test_verified_identity_can_be_reviewed_and_revoked_without_refusing_entry(self):
         item = create_request("identidade-verificada@nkata.test", status="APROVADO")
         item.verificacao_apos_entrada = True

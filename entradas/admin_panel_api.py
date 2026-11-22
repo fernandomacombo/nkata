@@ -241,24 +241,30 @@ def _access_rows(request, limit, *, identity=False):
     valid_statuses = {value for value, _label in PedidoEntrada.STATUS_CHOICES}
     if identity:
         if status_filter == "VERIFICADAS":
-            queryset = queryset.filter(status="APROVADO", documento_confirmado=True).filter(
-                Q(verificacao_identidade__status="APROVADA")
-                | Q(verificacao_identidade__isnull=True, verificacao_apos_entrada=False)
+            queryset = queryset.filter(identidade_revogada=False).filter(
+                Q(verificacao_identidade__status="APROVADA", documento_confirmado=True)
+                | Q(verificacao_identidade__isnull=True, verificacao_apos_entrada=False, status="APROVADO")
             )
         elif status_filter == "EM_CAPTURA":
             queryset = queryset.filter(status="APROVADO", verificacao_identidade__status__in=[
                 "INICIADA", "EM_CAPTURA", "REPETIR", "EXPIRADA",
             ])
         elif status_filter == "REJEITADAS":
-            queryset = queryset.filter(verificacao_identidade__status="REJEITADA")
-        else:
+            queryset = queryset.filter(Q(verificacao_identidade__status="REJEITADA") | Q(identidade_revogada=True))
+        elif status_filter != "TODAS":
             queryset = queryset.filter(_identity_review_queue())
     elif status_filter in valid_statuses:
         queryset = queryset.filter(status=status_filter)
 
     total = queryset.count()
     results = []
-    for item in queryset[:limit]:
+    offset = 0
+    if identity:
+        try:
+            offset = max(0, min(int(request.query_params.get("offset", 0)), total))
+        except (ValueError, TypeError):
+            pass
+    for item in queryset.order_by("-criado_em", "-pk")[offset:offset + limit]:
         profile = getattr(item, "perfil", None)
         verification = getattr(item, "verificacao_identidade", None)
         has_questionnaire = hasattr(item, "questionario")
@@ -296,9 +302,9 @@ def _access_rows(request, limit, *, identity=False):
                 profile and profile.usuario and profile.usuario.has_usable_password()
             ),
             "note": item.observacao_admin,
-            "identity_status": verification.status if verification else ("PENDENTE" if item.verificacao_apos_entrada else "LEGADO"),
+            "identity_status": "REJEITADA" if item.identidade_revogada else verification.status if verification else ("PENDENTE" if item.verificacao_apos_entrada else "LEGADO"),
             "identity_status_label": (
-                verification.get_status_display()
+                "Rejeitada" if item.identidade_revogada else verification.get_status_display()
                 if verification
                 else ("Por iniciar" if item.verificacao_apos_entrada else "Verificação anterior")
             ),
@@ -395,8 +401,8 @@ def _access_detail_payload(item):
         identity = {
             "mode": "PENDING" if deferred else "LEGACY",
             "id": None,
-            "status": "PENDENTE" if deferred else "LEGADO",
-            "status_label": "Por iniciar" if deferred else "Verificação anterior",
+            "status": "REJEITADA" if item.identidade_revogada else ("PENDENTE" if deferred else "LEGADO"),
+            "status_label": "Rejeitada" if item.identidade_revogada else ("Por iniciar" if deferred else "Verificação anterior"),
             "risk": "INDEFINIDO",
             "risk_label": "Revisão humana",
             "risk_score": None,
@@ -853,19 +859,25 @@ def _action_access(request, object_id, action):
 
     verification = VerificacaoIdentidadeNKATA.objects.select_for_update().filter(pedido=item).first()
     if action == "reject_identity":
-        if item.status != "APROVADO" or not verification or verification.status not in {"REVISAO", "APROVADA"}:
+        has_legacy_approval = not item.verificacao_apos_entrada and item.status == "APROVADO"
+        if item.identidade_revogada or not (
+            verification and verification.status in {"REVISAO", "APROVADA"}
+            or not verification and has_legacy_approval
+        ):
             return None, "Esta identidade não está disponível para rejeição no NKATA ID.", 400
-        verification.status = "REJEITADA"
-        verification.decisao_origem = "HUMANA"
-        verification.analisado_por = request.user
-        verification.analisado_em = timezone.now()
-        verification.nota_interna = note
-        verification.save(update_fields=[
-            "status", "decisao_origem", "analisado_por", "analisado_em",
-            "nota_interna", "atualizado_em",
-        ])
+        if verification:
+            verification.status = "REJEITADA"
+            verification.decisao_origem = "HUMANA"
+            verification.analisado_por = request.user
+            verification.analisado_em = timezone.now()
+            verification.nota_interna = note
+            verification.save(update_fields=[
+                "status", "decisao_origem", "analisado_por", "analisado_em",
+                "nota_interna", "atualizado_em",
+            ])
+        item.identidade_revogada = not verification
         item.documento_confirmado = False
-        item.save(update_fields=["documento_confirmado", "atualizado_em"])
+        item.save(update_fields=["identidade_revogada", "documento_confirmado", "atualizado_em"])
         message = "Identidade rejeitada. O acesso ao chat e às chamadas foi revogado."
         _audit(request.user, item, f"{message} Motivo: {note}")
         return item, message, 200

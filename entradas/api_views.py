@@ -8,6 +8,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db import connection, transaction
 from django.db.models import Q
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
@@ -745,6 +746,33 @@ def api_encerrar_match(request, match_id):
         "ok": True,
         "message": "A ligação foi encerrada. A conversa deixou de estar disponível.",
     })
+
+
+@api_view(["DELETE"])
+@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
+@transaction.atomic
+def api_apagar_mensagem(request, match_id, message_id):
+    match = _match_do_utilizador(request, match_id)
+    message = (
+        match.mensagens.select_for_update().filter(pk=message_id, remetente=request.user).first()
+        if match else None
+    )
+    if not message:
+        return Response({"detail": "Mensagem não encontrada."}, status=404)
+    if not message.apagada_em:
+        from .notification_models import NotificacaoNKATA
+
+        original_preview = " ".join(message.texto.split())
+        if len(original_preview) > 95:
+            original_preview = f"{original_preview[:92].rstrip()}…"
+        message.texto = ""
+        message.apagada_em = timezone.now()
+        message.save(update_fields=["texto", "apagada_em"])
+        NotificacaoNKATA.objects.filter(
+            match=match, ator=request.user, tipo="MENSAGEM", texto=original_preview,
+            chave=f"mensagem:{match.pk}",
+        ).delete()
+    return Response(MensagemMatchSerializer(message, context={"request": request}).data)
 
 
 @api_view(["GET", "POST"])

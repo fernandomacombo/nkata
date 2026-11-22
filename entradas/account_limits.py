@@ -79,4 +79,5 @@ def confirm_document(item, number):
     _check_capacity(phone, document, exclude_pk=item.pk)
     item.documento_chave = document
     item.documento_confirmado = True
-    item.save(update_fields=["documento_chave", "documento_confirmado"])
+    item.identidade_revogada = False
+    item.save(update_fields=["documento_chave", "documento_confirmado", "identidade_revogada"])

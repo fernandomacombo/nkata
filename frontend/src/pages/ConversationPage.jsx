@@ -1,3 +1,4 @@
+import { deleteMatchMessage } from "../services/api.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -177,7 +178,7 @@ function CallEvent({ message, english }) {
   );
 }
 
-function MessageBubble({ message, english }) {
+function MessageBubble({ message, english, onDelete }) {
   if (message.type === "call") return <CallEvent message={message} english={english} />;
 
   return (
@@ -186,11 +187,12 @@ function MessageBubble({ message, english }) {
         {message.type === "audio" ? (
           <VoiceNote message={message} english={english} />
         ) : (
-          <p>{message.text}</p>
+          <p>{message.deleted ? (english ? "Message deleted" : "Mensagem apagada") : message.text}</p>
         )}
         <span>
           {formatMessageTime(message.createdAt, english)}
-          {message.mine && <small>{message.read ? (english ? "Read" : "Lida") : (english ? "Sent" : "Enviada")}</small>}
+          {message.mine && !message.deleted && message.type === "text" && <button type="button" className="nk-message-delete" onClick={() => onDelete(message)}>{english ? "Delete" : "Apagar"}</button>}
+          {message.mine && !message.deleted && <small>{message.read ? (english ? "Read" : "Lida") : (english ? "Sent" : "Enviada")}</small>}
         </span>
       </div>
     </div>
@@ -228,6 +230,7 @@ export default function ConversationPage({
   const [sendingAudio, setSendingAudio] = useState(false);
   const [localAudioMessages, setLocalAudioMessages] = useState([]);
   const [liveMessages, setLiveMessages] = useState([]);
+  const [deleteError, setDeleteError] = useState("");
   const [readReceiptKeys, setReadReceiptKeys] = useState(() => new Set());
   const [remoteTyping, setRemoteTyping] = useState(false);
   const [remoteActive, setRemoteActive] = useState(false);
@@ -255,6 +258,7 @@ export default function ConversationPage({
       merged.set(key, {
         ...previous,
         ...message,
+        deleted: Boolean(previous.deleted || message.deleted),
         read: Boolean(previous.read || message.read || readReceiptKeys.has(key)),
       });
     });
@@ -263,6 +267,17 @@ export default function ConversationPage({
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     ));
   }, [liveMessages, localAudioMessages, messages, readReceiptKeys]);
+
+  async function removeMessage(message) {
+    if (!window.confirm(english ? "Delete this message for everyone?" : "Apagar esta mensagem para todos?")) return;
+    setDeleteError("");
+    try {
+      const deleted = await deleteMatchMessage(match.id, message.id);
+      setLiveMessages((current) => [...current.filter((item) => messageIdentity(item) !== messageIdentity(deleted)), deleted]);
+    } catch (error) {
+      setDeleteError(error.message);
+    }
+  }
 
   const canUsePreset = presetsEnabled && !timeline.some((message) => !message.mine && !message.callDirection);
 
@@ -287,6 +302,7 @@ export default function ConversationPage({
 
   useEffect(() => {
     setDraft("");
+    setDeleteError("");
     setMenuOpen(false);
     setSafetyMode("");
     setSafetyError("");
@@ -702,7 +718,7 @@ export default function ConversationPage({
           ) : timeline.length ? (
             <div className="nk-message-list">
               {timeline.map((message) => (
-                <MessageBubble key={messageIdentity(message)} message={message} english={english} />
+                <MessageBubble key={messageIdentity(message)} message={message} english={english} onDelete={removeMessage} />
               ))}
               {remoteTyping && (
                 <div className="nk-typing-row" aria-label={`${profile?.nome_publico || (english ? "The other person" : "A outra pessoa")} ${english ? "is typing" : "está a escrever"}`}>
@@ -744,6 +760,7 @@ export default function ConversationPage({
         </section>
 
         <div className="nk-chat-dock">
+          {deleteError && <p className="nk-chat-dock__notice" role="alert">{deleteError}</p>}
           {audioNotice && (
             <div className="nk-chat-dock__notice" role="status">
               <LockKeyhole size={14} />
