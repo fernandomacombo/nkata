@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from .access_api import _validar_imagem
 from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
 from .models import PedidoEntrada
-from .user_roles import active_member_profile_for_user
+from .user_roles import member_profile_for_user
 from .identity_verification_service import (
     CAPTURE_LABELS,
     CAPTURE_ORDER,
@@ -181,8 +181,8 @@ def api_criar_sessao_nkata_id(request):
 @throttle_classes([IdentitySessionRateThrottle])
 @transaction.atomic
 def api_sessao_identidade_do_membro(request):
-    profile = active_member_profile_for_user(request.user)
-    if not profile:
+    profile = member_profile_for_user(request.user)
+    if not profile or not request.user.is_active or profile.status not in {"ATIVO", "PAUSADO"}:
         return Response({"detail": "A conta ainda não está activa."}, status=403)
 
     pedido = PedidoEntrada.objects.select_for_update().get(pk=profile.pedido_id)
@@ -191,7 +191,11 @@ def api_sessao_identidade_do_membro(request):
     needs_review = pedido.identidade_revogada or (
         session is not None and session.status in {"REJEITADA", "REPETIR"}
     )
-    if pedido.status != "APROVADO" or not (pedido.verificacao_apos_entrada or needs_review):
+    if (
+        pedido.status != "APROVADO"
+        or not (pedido.verificacao_apos_entrada or needs_review)
+        or (profile.status == "PAUSADO" and pedido.documento_confirmado and not needs_review)
+    ):
         return Response({"detail": "A verificação desta conta não está disponível aqui."}, status=403)
     if request.method == "GET":
         return Response(serialize_identity_session(session) if session else None)
