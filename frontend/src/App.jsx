@@ -913,6 +913,7 @@ export default function App() {
       {activePage === "account" && memberAuthenticated && (
         <AccountPage
           account={account}
+          onVerifyIdentity={chatIdentityRequired ? () => handleNavigate("matches") : undefined}
           interests={accountInterests}
           loading={accountLoading}
           saving={accountSaving}
