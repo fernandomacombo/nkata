@@ -213,7 +213,7 @@ def _member_rows(request, limit):
 
 
 def _identity_review_queue():
-    return Q(status="APROVADO") & (
+    return Q(status__in=["APROVADO", "PRECISA_CORRIGIR"]) & (
         Q(verificacao_identidade__status="REVISAO")
         | Q(
             verificacao_apos_entrada=True,
@@ -892,7 +892,7 @@ def _action_access(request, object_id, action):
             return None, "Este pedido não pode ser aprovado nesta etapa.", 400
         next_status = "APROVADO"
     elif action == "approve":
-        if item.verificacao_apos_entrada and (item.status != "APROVADO" or not verification):
+        if item.verificacao_apos_entrada and (item.status not in {"APROVADO", "PRECISA_CORRIGIR"} or not verification):
             return None, "Aprove a entrada e aguarde as capturas do NKATA ID.", 400
         from .account_limits import confirm_document
         if verification:

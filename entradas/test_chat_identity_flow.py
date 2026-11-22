@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import TestCase
 
 from .identity_api import _live_capture_proof
@@ -135,3 +136,16 @@ class ChatIdentityFlowTests(TestCase):
         self.assertNotEqual(restarted.json()["token"], token)
         self.assertEqual(restarted.json()["completed_captures"], [])
         self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
+
+        cache.clear()
+        PedidoEntrada.objects.filter(pk=pedido.pk).update(status="PRECISA_CORRIGIR", verificacao_apos_entrada=False)
+        PerfilNKATA.objects.filter(pk=member.pk).update(status="PAUSADO", visivel=False)
+        VerificacaoIdentidadeNKATA.objects.filter(pedido=pedido).update(status="REPETIR")
+        resume = self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json")
+        self.assertEqual(resume.status_code, 200, resume.json())
+        self.assertEqual(resume.json()["status"], "REPETIR")
+        self.assertEqual(resume.json()["completed_captures"], [])
+        self.assertEqual(self.client.get(f"{match_url}conversa/").status_code, 403)
+        member.refresh_from_db()
+        self.assertFalse(member.visivel)
+        self.assertEqual(member.status, "PAUSADO")
