@@ -668,6 +668,17 @@ def _audit_rows(request, limit):
     queryset = LogEntry.objects.select_related("user", "content_type").filter(
         content_type__app_label="entradas",
     )
+    scope = request.query_params.get("audit_scope")
+    if scope in ("object", "operator"):
+        anchor_id = request.query_params.get("audit_entry", "")
+        anchor = queryset.filter(pk=int(anchor_id)).first() if anchor_id.isascii() and anchor_id.isdigit() and len(anchor_id) <= 18 else None
+        if not anchor:
+            queryset = queryset.none()
+        elif scope == "operator":
+            queryset = queryset.filter(user_id=anchor.user_id)
+        else:
+            queryset = queryset.filter(content_type_id=anchor.content_type_id, object_id=anchor.object_id)
+
     if query:
         queryset = queryset.filter(
             Q(user__username__icontains=query)
@@ -686,7 +697,8 @@ def _audit_rows(request, limit):
 
     total = queryset.count()
     results = []
-    for entry in queryset.order_by("-action_time")[:limit]:
+    offset = _page_offset(request, total, limit)
+    for entry in queryset.order_by("-action_time", "-pk")[offset:offset + limit]:
         status, status_label = AUDIT_ACTIONS.get(
             entry.action_flag,
             ("REGISTO", "Registo"),
@@ -705,7 +717,7 @@ def _audit_rows(request, limit):
             "status_label": status_label,
             "created_at": entry.action_time,
         })
-    return {"total": total, "results": results}
+    return {"total": total, "results": results, "offset": offset}
 
 
 def _operation_rows(request, limit):

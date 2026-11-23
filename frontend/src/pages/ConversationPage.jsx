@@ -183,7 +183,7 @@ function MessageBubble({ message, english, onDelete }) {
 
   return (
     <div className={`nk-message-row ${message.mine ? "is-mine" : ""}`}>
-      <div className={`nk-message-bubble ${message.type === "audio" ? "is-audio" : ""}`}>
+      <div className={`nk-message-bubble ${message.deleted ? "is-deleted" : ""} ${message.type === "audio" ? "is-audio" : ""}`}>
         {message.type === "audio" ? (
           <VoiceNote message={message} english={english} />
         ) : (
@@ -199,7 +199,45 @@ function MessageBubble({ message, english, onDelete }) {
   );
 }
 
+function ChatSafetyNotice({ english, onAccept }) {
+  const dialog = useRef(null);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const element = dialog.current;
+    element.showModal();
+    return () => element.close();
+  }, []);
+
+  async function confirm() {
+    setSaving(true);
+    setFailed(false);
+    try {
+      await onAccept();
+    } catch {
+      setFailed(true);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <dialog ref={dialog} className="nk-chat-welcome" aria-labelledby="chat-warning-title"
+      aria-describedby="chat-warning-text" onCancel={(event) => event.preventDefault()}>
+      <ShieldCheck size={34} aria-hidden="true" />
+      <h2 id="chat-warning-title">{english ? "Before you say hello" : "Antes do primeiro olá"}</h2>
+      <p id="chat-warning-text">{english
+        ? "Watch out for scams. Keep your money, banking details and verification codes to yourself. If someone pressures you, use the conversation menu to report them."
+        : "Tenha cuidado com golpes. Guarde para si o seu dinheiro, os dados bancários e os códigos de confirmação. Se alguém insistir, pode denunciar a pessoa no menu da conversa."}</p>
+      {failed && <p role="alert">{english ? "Could not save. Please try again." : "Não foi possível guardar. Tente novamente."}</p>}
+      <button autoFocus className="nk-button nk-button--wine" disabled={saving} onClick={confirm}>{saving ? "…" : "OK"}</button>
+    </dialog>
+  );
+}
+
 export default function ConversationPage({
+  safetyAccepted,
+  onAcceptSafety,
   match,
   messages,
   loading,
@@ -628,6 +666,7 @@ export default function ConversationPage({
 
   return (
     <main className="nk-conversation">
+      {!safetyAccepted && <ChatSafetyNotice english={english} onAccept={onAcceptSafety} />}
       <div className="nk-shell nk-conversation__shell">
         <header className="nk-conversation__header">
           <button type="button" className="nk-conversation__back" onClick={onBack}>

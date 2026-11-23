@@ -17,6 +17,7 @@ def serialize_preferences(preferences):
         "idioma": preferences.idioma,
         "tema_perfil": preferences.tema_perfil,
         "fundo_conversa": preferences.fundo_conversa,
+        "aviso_chat_aceite": preferences.aviso_chat_aceite,
         "opcoes": {
             field: [
                 {"value": value, "label": label}
@@ -57,6 +58,10 @@ def api_preferencias_da_conta(request):
                 {"detail": "Revise as preferências indicadas.", "errors": errors},
                 status=400,
             )
+
+        if request.data.get("aviso_chat_aceite") is True and not preferences.aviso_chat_aceite:
+            preferences.aviso_chat_aceite = True
+            changed_fields.append("aviso_chat_aceite")
 
         if changed_fields:
             preferences.save(update_fields=[*changed_fields, "atualizado_em"])

@@ -898,6 +898,8 @@ export default function App() {
 
       {activePage === "conversation" && memberAuthenticated && !chatIdentityRequired && (
         <ConversationPage
+          safetyAccepted={preferences.aviso_chat_aceite === true}
+          onAcceptSafety={() => savePreferences({ aviso_chat_aceite: true })}
           match={selectedMatch}
           messages={conversationMessages}
           loading={conversationLoading}

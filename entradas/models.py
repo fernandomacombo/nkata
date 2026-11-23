@@ -235,6 +235,7 @@ class PreferenciasContaNKATA(models.Model):
         choices=TemaPerfil.choices,
         default=TemaPerfil.CLASSICO,
     )
+    aviso_chat_aceite = models.BooleanField(default=False)
     fundo_conversa = models.CharField(
         max_length=20,
         choices=FundoConversa.choices,
