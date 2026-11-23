@@ -122,13 +122,33 @@ class AdminPanelApiTests(TestCase):
         check_stage("id_capture")
 
         verification = VerificacaoIdentidadeNKATA.objects.create(
-            pedido=request_record, idade_declarada=request_record.idade, status="REVISAO",
+            pedido=request_record, idade_declarada=request_record.idade, status="EM_CAPTURA",
         )
+        account_url = reverse("entradas_api:minha_conta")
+        session_url = reverse("entradas_api:sessao_identidade_do_membro")
+        check_stage("id_capture")
+        self.client.force_authenticate(self.member_user)
+        self.assertEqual(self.client.get(account_url).data["identidade_estado"], "POR_VERIFICAR")
+
+        verification.status = "REVISAO"
+        verification.save(update_fields=["status"])
+        check_stage("id_capture")
+        self.client.force_authenticate(self.member_user)
+        self.assertEqual(self.client.get(account_url).data["identidade_estado"], "POR_VERIFICAR")
+        self.assertTrue(self.client.get(session_url).data["needs_capture_restart"])
+        resumed = self.client.post(session_url, {"aceita_biometria": True}, format="json")
+        self.assertEqual(resumed.status_code, 200)
+        self.assertEqual(resumed.data["status"], "EM_CAPTURA")
+        self.assertFalse(resumed.data["needs_capture_restart"])
+
+        verification.status = "REVISAO"
+        verification.bi_frente = "nkata-id/documentos/frente.jpg"
+        verification.bi_verso = "nkata-id/documentos/verso.jpg"
+        verification.selfie_ao_vivo = "nkata-id/selfies/frontal.jpg"
+        verification.save(update_fields=["status", "bi_frente", "bi_verso", "selfie_ao_vivo"])
         check_stage("id_review")
         self.client.force_authenticate(self.member_user)
-        response = self.client.get(reverse("entradas_api:minha_conta"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["identidade_estado"], "EM_REVISAO")
+        self.assertEqual(self.client.get(account_url).data["identidade_estado"], "EM_REVISAO")
 
         verification.status = "APROVADA"
         verification.save(update_fields=["status"])

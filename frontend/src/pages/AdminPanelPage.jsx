@@ -548,12 +548,12 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
       <section className="nk-admin-review" role="dialog" aria-modal="true" aria-labelledby="admin-review-title">
         <header>
           <div>
-            <small>{selection.section === "identity" ? "Revisão de identidade" : "Revisão do pedido"}</small>
+            <small>{selection.stage === "id_capture" ? "Progresso da verificação" : selection.section === "identity" ? "Revisão de identidade" : "Revisão do pedido"}</small>
             <h2 id="admin-review-title">{item.name}</h2>
             <span>{item.email} · recebido {formatDate(item.created_at)}</span>
           </div>
           <div>
-            <StatusBadge status={item.display_status || item.status} label={item.display_status_label || item.status_label} />
+            <StatusBadge status={item.display_status || item.status} label={selection.stage === "id_capture" ? "À espera de capturas" : item.display_status_label || item.status_label} />
             <button type="button" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
           </div>
         </header>
@@ -567,7 +567,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
             <div className="nk-admin-review__evidence">
               <EvidenceGroup title="Fotografias do perfil" items={detail.profile_media} onPreview={setPreview} />
               {detail.identity_media.length > 0 && (
-                <EvidenceGroup title="Identidade enviada" items={detail.identity_media} onPreview={setPreview} />
+                <EvidenceGroup title="Capturas de identidade" items={detail.identity_media} onPreview={setPreview} />
               )}
             </div>
 
@@ -924,7 +924,8 @@ function AdminRow({ section, stage, item, onDetails, onReviewIdentity }) {
   const status = item.display_status || item.status;
   const workflowDetail = stage === "questionnaire"
     ? (item.has_questionnaire ? "Falta criar a palavra-passe" : "Falta responder ao questionário")
-    : stage === "id_review" ? "A aguardar aprovação" : item.identity_status_label;
+    : stage === "id_review" ? "A aguardar aprovação"
+      : stage === "id_capture" && !item.identity_ready ? "Capturas por concluir" : item.identity_status_label;
   const statusLabel = item.display_status_label || item.status_label || (status === "ANALISADA" ? "Analisada" : status === "PENDENTE" ? "Pendente" : status);
   return (
     <article className="nk-admin-row">
