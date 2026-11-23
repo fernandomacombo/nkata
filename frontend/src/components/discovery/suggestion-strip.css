@@ -75,7 +75,36 @@
   cursor: pointer;
 }
 
-.nk-suggestion-strip__profile img,
+.nk-suggestion-strip__media {
+  position: relative;
+  display: block;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.nk-suggestion-strip__media > .nk-presence {
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  left: 7px;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  margin: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #909090;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .22);
+  pointer-events: none;
+}
+
+.nk-suggestion-strip__media > .nk-presence.is-online {
+  background: #1fa66a;
+}
+
+.nk-suggestion-strip__media > img,
 .nk-suggestion-strip__placeholder {
   display: block;
   width: 100%;
