@@ -38,4 +38,5 @@ exec gunicorn config.wsgi:application \
   --threads "${GUNICORN_THREADS:-4}" \
   --timeout "${GUNICORN_TIMEOUT:-120}" \
   --access-logfile - \
+  --access-logformat '%(h)s %(l)s %(u)s %(t)s "%(m)s %(U)s %(H)s" %(s)s %(b)s "%(a)s"' \
   --error-logfile -

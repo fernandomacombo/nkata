@@ -1,5 +1,7 @@
 from django.urls import path
 
+from .whatsapp_webhook import whatsapp_webhook
+
 from . import (
     access_api,
     account_management_api,
@@ -261,6 +263,7 @@ urlpatterns = [
     path("minha-conta/pagamentos/<uuid:payment_id>/verificar/", payment_views.api_payment_check, name="verificar_pagamento"),
     path("minha-conta/pagamentos/<uuid:payment_id>/encerrar/", payment_views.api_payment_close_if_terminal, name="encerrar_pagamento"),
     path("pagamentos/paysuite/webhook/", payment_views.api_paysuite_webhook, name="paysuite_webhook"),
+    path("whatsapp/webhook/", whatsapp_webhook, name="whatsapp_webhook"),
     path(
         "minha-conta/plano/",
         plan_views.api_plano_da_conta,
