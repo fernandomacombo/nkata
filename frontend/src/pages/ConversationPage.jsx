@@ -178,12 +178,16 @@ function CallEvent({ message, english }) {
   );
 }
 
-function MessageBubble({ message, english, onDelete }) {
+function MessageBubble({ message, english, onDelete, onReply, original }) {
   if (message.type === "call") return <CallEvent message={message} english={english} />;
 
   return (
     <div className={`nk-message-row ${message.mine ? "is-mine" : ""}`}>
       <div className={`nk-message-bubble ${message.deleted ? "is-deleted" : ""} ${message.type === "audio" ? "is-audio" : ""}`}>
+        {!message.deleted && message.replyId && <blockquote className="nk-chat-quote">
+          <strong>{original?.senderName}</strong>
+          {original && !original.deleted ? original.text : (english ? "Original unavailable" : "Mensagem original indisponível")}
+        </blockquote>}
         {message.type === "audio" ? (
           <VoiceNote message={message} english={english} />
         ) : (
@@ -191,7 +195,13 @@ function MessageBubble({ message, english, onDelete }) {
         )}
         <span>
           {formatMessageTime(message.createdAt, english)}
-          {message.mine && !message.deleted && message.type === "text" && <button type="button" className="nk-message-delete" onClick={() => onDelete(message)}>{english ? "Delete" : "Apagar"}</button>}
+          {!message.deleted && message.type === "text" && (onReply || message.mine) && <details className="nk-bubble-menu">
+            <summary aria-label={english ? "Message options" : "Opções da mensagem"}><MoreHorizontal size={17}/></summary>
+            <div onClick={(event) => { event.currentTarget.parentElement.open = false; }}>
+              {onReply && <button type="button" onClick={() => onReply(message)}>{english ? "Reply" : "Responder"}</button>}
+              {message.mine && <button type="button" onClick={() => onDelete(message)}>{english ? "Delete" : "Apagar"}</button>}
+            </div>
+          </details>}
           {message.mine && !message.deleted && <small>{message.read ? (english ? "Read" : "Lida") : (english ? "Sent" : "Enviada")}</small>}
         </span>
       </div>
@@ -199,7 +209,7 @@ function MessageBubble({ message, english, onDelete }) {
   );
 }
 
-function ChatSafetyNotice({ english, onAccept }) {
+function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
   const dialog = useRef(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -225,10 +235,26 @@ function ChatSafetyNotice({ english, onAccept }) {
     <dialog ref={dialog} className="nk-chat-welcome" aria-labelledby="chat-warning-title"
       aria-describedby="chat-warning-text" onCancel={(event) => event.preventDefault()}>
       <ShieldCheck size={34} aria-hidden="true" />
+      {name && <p className="nk-chat-recipient">{english ? "Your conversation with" : "A sua conversa com"} <strong>{name}</strong></p>}
       <h2 id="chat-warning-title">{english ? "Before you say hello" : "Antes do primeiro olá"}</h2>
       <p id="chat-warning-text">{english
         ? "Watch out for scams. Keep your money, banking details and verification codes to yourself. If someone pressures you, use the conversation menu to report them."
         : "Tenha cuidado com golpes. Guarde para si o seu dinheiro, os dados bancários e os códigos de confirmação. Se alguém insistir, pode denunciar a pessoa no menu da conversa."}</p>
+      <details open={helpOnly || undefined} className="nk-chat-guide">
+        <summary>{english ? "Learn more · Scams and threats" : "Ver mais · Golpes e ameaças"}</summary>
+        <p>{english ? "If someone threatens you, you can ask for help. It is not your fault." : "Se alguém o ameaçar, pode pedir ajuda. A culpa não é sua."}</p>
+        <ol>{(english ? [
+          "Stop responding. Keep your money, codes and private photos to yourself.",
+          "If safe, keep the profile name, dates and threatening messages as evidence.",
+          "Open the conversation menu (⋯) to report the profile. You can also block the person.",
+          "Tell someone you trust. If you are in immediate danger, seek safety and contact local police."
+        ] : [
+          "Interrompa o contacto. Guarde consigo o dinheiro, os códigos e as fotografias íntimas.",
+          "Se for seguro, guarde o nome do perfil, as datas e as mensagens de ameaça.",
+          "Abra o menu da conversa (⋯) e escolha Denunciar perfil. Também pode bloquear a pessoa.",
+          "Fale com alguém de confiança. Se estiver em perigo imediato, procure um lugar seguro e contacte a polícia local."
+        ]).map(step => <li key={step}>{step}</li>)}</ol>
+      </details>
       {failed && <p role="alert">{english ? "Could not save. Please try again." : "Não foi possível guardar. Tente novamente."}</p>}
       <button autoFocus className="nk-button nk-button--wine" disabled={saving} onClick={confirm}>{saving ? "…" : "OK"}</button>
     </dialog>
@@ -284,6 +310,9 @@ export default function ConversationPage({
   const composerTextareaRef = useRef(null);
   const liveCursorRef = useRef("");
   const liveBusyRef = useRef(false);
+  const [reply, setReply] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [remoteRecording, setRemoteRecording] = useState(false);
   const profile = match?.otherProfile;
   const isComposingText = Boolean(draft.trim()) && !recording && !recordedBlob;
 
@@ -305,6 +334,8 @@ export default function ConversationPage({
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     ));
   }, [liveMessages, localAudioMessages, messages, readReceiptKeys]);
+
+  const textById = useMemo(() => new Map(timeline.filter(item => item.type === "text").map(item => [item.id, item])), [timeline]);
 
   async function removeMessage(message) {
     if (!window.confirm(english ? "Delete this message for everyone?" : "Apagar esta mensagem para todos?")) return;
@@ -414,6 +445,7 @@ export default function ConversationPage({
 
         if (result.serverTime) liveCursorRef.current = result.serverTime;
         setRemoteTyping(Boolean(result.typing));
+        setRemoteRecording(Boolean(result.recording));
         setRemoteActive(Boolean(result.active));
 
         if (result.messages.length) {
@@ -459,17 +491,17 @@ export default function ConversationPage({
   useEffect(() => {
     if (!match?.id) return undefined;
 
-    updateMatchTyping(match.id, isComposingText).catch(() => {});
-    if (!isComposingText) return undefined;
+    updateMatchTyping(match.id, isComposingText, recording).catch(() => {});
+    if (!isComposingText && !recording) return undefined;
 
     const heartbeatId = window.setInterval(() => {
       if (document.visibilityState === "visible") {
-        updateMatchTyping(match.id, true).catch(() => {});
+        updateMatchTyping(match.id, isComposingText, recording).catch(() => {});
       }
     }, TYPING_HEARTBEAT_MS);
 
     return () => window.clearInterval(heartbeatId);
-  }, [isComposingText, match?.id]);
+  }, [isComposingText, recording, match?.id]);
 
   useEffect(() => () => {
     if (match?.id) updateMatchTyping(match.id, false).catch(() => {});
@@ -481,8 +513,9 @@ export default function ConversationPage({
 
     if (!text || sending || recording || recordedBlob) return;
 
-    const sent = await onSend(text);
+    const sent = await onSend(text, reply?.id);
     if (sent) {
+      setReply(null);
       setDraft("");
       updateMatchTyping(match.id, false).catch(() => {});
     }
@@ -666,7 +699,7 @@ export default function ConversationPage({
 
   return (
     <main className="nk-conversation">
-      {!safetyAccepted && <ChatSafetyNotice english={english} onAccept={onAcceptSafety} />}
+      {(!safetyAccepted || showHelp) && <ChatSafetyNotice english={english} name={profile?.nome_publico} helpOnly={showHelp} onAccept={showHelp ? () => setShowHelp(false) : onAcceptSafety} />}
       <div className="nk-shell nk-conversation__shell">
         <header className="nk-conversation__header">
           <button type="button" className="nk-conversation__back" onClick={onBack}>
@@ -681,7 +714,7 @@ export default function ConversationPage({
             <div>
               <strong>{profile?.nome_publico || (english ? "NKATA member" : "Membro NKATA")}</strong>
               <small className={remoteTyping ? "is-typing" : remoteActive ? "is-active" : ""}>
-                {remoteTyping ? (
+                {remoteRecording ? <><Mic size={12}/> {english ? "Recording audio…" : "A gravar áudio…"}</> : remoteTyping ? (
                   <><PenLine size={12} /> {english ? "Typing…" : "A escrever…"}</>
                 ) : remoteActive ? (
                   <><Activity size={12} /> {english ? "Active now" : "Ativo agora"}</>
@@ -709,6 +742,7 @@ export default function ConversationPage({
 
             {menuOpen && (
               <div className="nk-conversation__safety-menu">
+                <button type="button" onClick={() => { setMenuOpen(false); setShowHelp(true); }}><ShieldCheck size={16}/> {english ? "Scams and threats" : "Golpes e ameaças"}</button>
                 <button type="button" onClick={() => openSafetyAction("report")}>
                   <Flag size={16} /> {english ? "Report profile" : "Denunciar perfil"}
                 </button>
@@ -757,7 +791,7 @@ export default function ConversationPage({
           ) : timeline.length ? (
             <div className="nk-message-list">
               {timeline.map((message) => (
-                <MessageBubble key={messageIdentity(message)} message={message} english={english} onDelete={removeMessage} />
+                <MessageBubble key={messageIdentity(message)} message={message} english={english} original={textById.get(message.replyId)} onDelete={removeMessage} onReply={textEnabled ? (item) => { setReply(item); composerTextareaRef.current?.focus(); } : null} />
               ))}
               {remoteTyping && (
                 <div className="nk-typing-row" aria-label={`${profile?.nome_publico || (english ? "The other person" : "A outra pessoa")} ${english ? "is typing" : "está a escrever"}`}>
@@ -799,6 +833,8 @@ export default function ConversationPage({
         </section>
 
         <div className="nk-chat-dock">
+          {reply && <div className="nk-chat-reply"><div><strong>{english ? "Replying to" : "A responder a"} {reply.senderName}</strong><p>{textById.get(reply.id)?.deleted ? (english ? "Message deleted" : "Mensagem apagada") : reply.text}</p></div>
+            <button type="button" onClick={() => setReply(null)}>{english ? "Cancel" : "Cancelar"}</button></div>}
           {deleteError && <p className="nk-chat-dock__notice" role="alert">{deleteError}</p>}
           {audioNotice && (
             <div className="nk-chat-dock__notice" role="status">

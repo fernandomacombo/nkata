@@ -734,6 +734,7 @@ def _operation_rows(request, limit):
                 | Q(perfil_2__nome_publico__icontains=query)
             )
         total = queryset.count()
+        offset = _page_offset(request, total, limit)
         return {
             "total": total,
             "results": [{
@@ -746,12 +747,17 @@ def _operation_rows(request, limit):
                 "created_at": item.criado_em,
                 "updated_at": item.atualizado_em,
                 "admin_url": f"/admin/entradas/matchperfil/{item.id}/change/",
-            } for item in queryset.order_by("-atualizado_em")[:limit]],
+            } for item in queryset.order_by("-atualizado_em", "-pk")[offset:offset + limit]],
         }
 
     queryset = ChamadaMatchNKATA.objects.select_related(
         "match__perfil_1", "match__perfil_2", "iniciador"
     )
+    match_key = request.query_params.get("match_id")
+    if match_key is not None:
+        if not match_key.isascii() or not match_key.isdigit() or len(match_key) > 18:
+            return {"total": 0, "results": []}
+        queryset = queryset.filter(match_id=int(match_key))
     valid_states = {value for value, _label in ChamadaMatchNKATA.ESTADO_CHOICES}
     if status_filter in valid_states:
         queryset = queryset.filter(estado=status_filter)
@@ -763,7 +769,8 @@ def _operation_rows(request, limit):
         )
     total = queryset.count()
     results = []
-    for call in queryset.order_by("-criada_em")[:limit]:
+    offset = _page_offset(request, total, limit)
+    for call in queryset.order_by("-criada_em", "-pk")[offset:offset + limit]:
         duration = _admin_call_duration_seconds(call)
         display_status, display_label = _admin_call_status(call)
         results.append({

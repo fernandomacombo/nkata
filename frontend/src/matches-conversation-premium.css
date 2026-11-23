@@ -920,3 +920,20 @@ body:has(.nk-call-screen) {
 }
 .nk-conversation .nk-message-bubble.is-deleted > span { color: #66554d; }
 .nk-message-bubble.is-deleted p { font-style: italic; }
+
+.nk-bubble-menu { position: relative; }
+.nk-bubble-menu summary { list-style: none; cursor: pointer; padding: 3px 6px; }
+.nk-bubble-menu[open] { z-index: 2; }
+.nk-bubble-menu > div { display: grid; gap: .2rem; padding: .35rem; border: 1px solid #dbcac4; border-radius: .7rem; background: #fffaf6; color: #592438; }
+.nk-bubble-menu button { padding: .4rem .65rem; text-align: start; }
+.nk-chat-quote, .nk-chat-reply { border-inline-start: 3px solid currentColor; padding: .45rem .75rem; margin-bottom: .5rem; }
+.nk-chat-quote { display: grid; font-size: .85em; opacity: .9; overflow-wrap: anywhere; }
+.nk-chat-reply { display: flex; justify-content: space-between; align-items: center; color: #74283e; background: #fbf3ef; }
+.nk-chat-reply p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nk-chat-reply > div { min-width: 0; }
+.nk-chat-guide { padding: .8rem; background: #f5eae3; border-radius: .8rem; margin-bottom: 1rem; }
+.nk-chat-guide summary { cursor: pointer; font-weight: 650; }
+.nk-chat-guide ol { list-style: decimal; padding-inline-start: 1.3rem; }
+.nk-chat-guide li { margin: .45rem 0; }
+.nk-chat-welcome { max-height: 88dvh; overflow-y: auto; }
+.nk-chat-recipient { color: #762638; }

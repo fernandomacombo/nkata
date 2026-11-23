@@ -798,7 +798,15 @@ def api_conversa_match(request, match_id):
         if not can_send_chat_text(request.user, texto, match):
             return Response({"detail": "Ative um pacote com chat para escrever ou responder a mensagens.", "code": "paid_plan_required_for_chat_text"}, status=403)
 
+        reply_id = request.data.get("resposta_a")
+        if reply_id is not None and (
+            type(reply_id) is not int or not 0 < reply_id < 2**63
+            or not match.mensagens.filter(pk=reply_id, apagada_em__isnull=True).exists()
+        ):
+            return Response({"detail": "A mensagem original está indisponível."}, status=400)
+
         mensagem = MensagemMatch.objects.create(
+            resposta_a_id=reply_id,
             match=match,
             remetente=request.user,
             texto=texto,
