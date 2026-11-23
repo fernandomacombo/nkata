@@ -1,3 +1,4 @@
+import Presence from "../profiles/Presence.jsx";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -74,6 +75,7 @@ function FollowingPerson({ profile, busy, english, onOpen, onUnfollow }) {
             {profile.nome_publico}
             {profile.idade ? `, ${profile.idade}` : ""}
           </strong>
+              <Presence profile={profile} english={english} />
           <small><MapPin size={13} /> {profile.cidade}</small>
           <span>{translateObjective(profile.objetivo_display, english)}</span>
         </span>

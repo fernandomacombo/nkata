@@ -1,3 +1,4 @@
+import Presence from "../components/profiles/Presence.jsx";
 import { deleteMatchMessage } from "../services/api.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -719,7 +720,7 @@ export default function ConversationPage({
                 ) : remoteActive ? (
                   <><Activity size={12} /> {english ? "Active now" : "Ativo agora"}</>
                 ) : (
-                  <><MapPin size={12} /> {profile?.cidade || "Moçambique"}</>
+                  <Presence profile={profile} english={english} />
                 )}
               </small>
             </div>

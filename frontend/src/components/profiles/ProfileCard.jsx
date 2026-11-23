@@ -1,3 +1,4 @@
+import Presence from "./Presence.jsx";
 import { useState } from "react";
 import { Heart, MapPin, ShieldCheck, UserRound } from "lucide-react";
 import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
@@ -66,6 +67,7 @@ export default function ProfileCard({
                   </span>
                 )}
               </h3>
+              <Presence profile={profile} english={english} />
               <p>
                 <MapPin size={15} strokeWidth={1.9} />
                 <span>{profile.cidade || "Moçambique"}</span>

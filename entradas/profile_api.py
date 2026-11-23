@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from django.db.models import Q
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -5,6 +8,7 @@ from rest_framework.response import Response
 
 from .models import AcaoPerfil, PerfilNKATA
 from .profile_gallery_api import gallery_for_profile_viewer
+from .public_profile_api import public_profiles
 from .serializers import PerfilDetalheSerializer, PerfilResumoSerializer
 from .user_roles import active_member_profile_for_user
 
@@ -144,3 +148,29 @@ def api_perfil_detalhe(request, perfil_id):
         data["seguindo"] = False
 
     return Response(data)
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def api_presenca(request):
+    ids = request.data.get("perfis", [])
+    if not isinstance(ids, list) or len(ids) > 100 or any(
+        type(pk) is not int or not 0 < pk < 2**63 for pk in ids
+    ):
+        return Response({"detail": "Lista de perfis inválida."}, status=400)
+    now = timezone.now()
+    member = active_member_profile_for_user(request.user)
+    if member:
+        if not member.ultima_presenca or member.ultima_presenca < now - timedelta(seconds=10):
+            PerfilNKATA.objects.filter(pk=member.pk).filter(
+                Q(ultima_presenca__isnull=True) | Q(ultima_presenca__lt=now - timedelta(seconds=10))
+            ).update(ultima_presenca=now)
+        visible = discovery_profiles(request.user, member)
+    else:
+        visible = public_profiles() if not request.user.is_authenticated else PerfilNKATA.objects.none()
+    result = {
+        pk: max(0, int((now - last).total_seconds())) if last else None
+        for pk, last in visible.filter(pk__in=ids).values_list("pk", "ultima_presenca")
+    }
+    if member and member.pk in ids:
+        result[member.pk] = 0
+    return Response({"perfis": result})

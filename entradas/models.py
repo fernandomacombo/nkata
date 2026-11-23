@@ -148,6 +148,7 @@ class QuestionarioEntrada(models.Model):
 
 
 class PerfilNKATA(models.Model):
+    ultima_presenca = models.DateTimeField(null=True, blank=True, editable=False)
     preferencias = models.JSONField(default=dict, blank=True)
     STATUS_CHOICES = [
         ("ATIVO", "Ativo"),

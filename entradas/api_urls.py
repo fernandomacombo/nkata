@@ -142,6 +142,7 @@ urlpatterns = [
         questionnaire_api.api_criar_senha_questionario,
         name="questionario_criar_senha",
     ),
+    path("presenca/", profile_api.api_presenca, name="presenca"),
     path("perfis/", profile_api.api_perfis, name="perfis"),
     path("descoberta/sugestoes/", discovery_api.api_suggestions, name="discovery_suggestions"),
     path("descoberta/pergunta/", discovery_api.api_daily_question, name="discovery_daily_question"),

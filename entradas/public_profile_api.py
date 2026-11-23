@@ -25,12 +25,8 @@ def _preview_payload(perfil):
     }
 
 
-@api_view(["GET"])
-@permission_classes([permissions.AllowAny])
-def api_destaques_publicos(request):
-    # Os menos exibidos e há mais tempo sem aparecer são escolhidos primeiro.
-    # Assim, a rotação continua justa mesmo quando a comunidade crescer.
-    perfis = list(
+def public_profiles():
+    return (
         PerfilNKATA.objects
         .filter(
             status="ATIVO",
@@ -42,6 +38,16 @@ def api_destaques_publicos(request):
             usuario__is_staff=False,
         )
         .exclude(pedido__foto_perfil="")
+    )
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def api_destaques_publicos(request):
+    # Os menos exibidos e há mais tempo sem aparecer são escolhidos primeiro.
+    # Assim, a rotação continua justa mesmo quando a comunidade crescer.
+    perfis = list(
+        public_profiles()
         .select_related("pedido", "usuario", "usuario__preferencias_nkata")
         .order_by(
             F("destaque_publico_ultima_exibicao_em").asc(nulls_first=True),

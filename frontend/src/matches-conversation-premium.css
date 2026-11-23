@@ -937,3 +937,12 @@ body:has(.nk-call-screen) {
 .nk-chat-guide li { margin: .45rem 0; }
 .nk-chat-welcome { max-height: 88dvh; overflow-y: auto; }
 .nk-chat-recipient { color: #762638; }
+
+.nk-message-bubble:has(.nk-bubble-menu) { position: relative; padding-inline-end: 2.6rem; }
+.nk-message-bubble .nk-bubble-menu { position:absolute; inset: .25rem .25rem auto auto; }
+.nk-bubble-menu summary { display:grid; place-items:center; min-width:1.95rem; min-height:1.95rem; border-radius:50%; }
+.nk-bubble-menu summary:hover,.nk-bubble-menu summary:focus-visible { background:#8883; }
+.nk-bubble-menu > div { position:absolute; inset-inline-end:0; width:max-content; box-shadow:0 5px 18px #3212; }
+.nk-presence:not(:empty) { display:inline-flex; align-items:center; gap:.3em; font-size:.78em; line-height:1.4; }
+.nk-presence:not(:empty)::before { content:""; width:.55em; height:.55em; border-radius:50%; background:#999; }
+.nk-presence.is-online::before { background:#299665; }
