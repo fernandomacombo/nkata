@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 from django.conf import settings
@@ -14,7 +15,7 @@ from rest_framework.response import Response
 from .call_models import ChamadaMatchNKATA
 from .content_moderation_models import AnaliseAutomaticaConteudoNKATA
 from .content_moderation_service import moderation_provider_label, record_human_decision
-from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
+from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at, pedido_tem_identidade_verificada
 from .models import (
     DenunciaPerfil,
     MatchPerfil,
@@ -892,13 +893,38 @@ def _action_access(request, object_id, action):
     )
     if not item:
         return None, "Pedido não encontrado.", 404
-    if action not in {"review", "approve_entry", "approve", "correction", "reject", "block", "reject_identity"}:
+    if action not in {"review", "approve_entry", "approve", "correction", "reject", "block", "reject_identity", "restart_identity"}:
         return None, "Ação de pedido inválida.", 400
     note = str(request.data.get("note", "")).strip()[:1000]
-    if action in {"correction", "reject", "reject_identity"} and not note:
+    if action in {"correction", "reject", "reject_identity", "restart_identity"} and not note:
         return None, "Indique o motivo desta decisão.", 400
 
     verification = VerificacaoIdentidadeNKATA.objects.select_for_update().filter(pedido=item).first()
+    if action == "restart_identity":
+        if (
+            item.status != "APROVADO"
+            or not verification
+            or pedido_tem_identidade_verificada(item)
+            or verification.pode_anexar_ao_pedido
+        ):
+            return None, "Só é possível reiniciar uma verificação por concluir.", 409
+        verification.pedido = None
+        verification.status = "REJEITADA"
+        verification.token = uuid.uuid4()
+        verification.decisao_origem = "HUMANA"
+        verification.analisado_por = request.user
+        verification.analisado_em = timezone.now()
+        verification.nota_interna = note
+        verification.save(update_fields=[
+            "pedido", "status", "token", "decisao_origem", "analisado_por",
+            "analisado_em", "nota_interna", "atualizado_em",
+        ])
+        item.verificacao_apos_entrada = True
+        item.documento_confirmado = False
+        item.save(update_fields=["verificacao_apos_entrada", "documento_confirmado", "atualizado_em"])
+        message = "Verificação reiniciada. O membro pode iniciar novas capturas."
+        _audit(request.user, item, f"{message} Sessão anterior: {verification.pk}. Motivo: {note}")
+        return item, message, 200
     if action == "reject_identity":
         has_legacy_approval = not item.verificacao_apos_entrada and item.status == "APROVADO"
         if item.identidade_revogada or not (

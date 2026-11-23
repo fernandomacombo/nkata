@@ -527,7 +527,7 @@ export default function AccountPage({
           <div>
             <strong>{english ? "Identity verification incomplete" : "Verificação de identidade incompleta"}</strong>
             <p>{english ? "Submit both sides of your ID and a selfie for review." : "Envie a frente e o verso do BI e uma selfie para a equipa poder analisar a sua identidade."}</p>
-            <a href="/matches/">{english ? "Continue identity verification" : "Continuar verificação de identidade"}</a>
+            <a href="/conta/verificar-identidade/">{english ? "Continue identity verification" : "Continuar verificação de identidade"}</a>
           </div>
         </div>
       )}

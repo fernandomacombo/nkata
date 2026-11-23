@@ -35,14 +35,14 @@ def next_step(pedido):
     if pedido_tem_identidade_verificada(pedido):
         return None
     if verification and verification.status == "REPETIR":
-        message = "A equipa solicitou novas capturas. Entre no NKATA, abra Matches e siga as instruções do NKATA ID."
+        message = "A equipa solicitou novas capturas. Entre no NKATA, abra a verificação de identidade e siga as instruções do NKATA ID."
     elif verification and verification.status == "EM_CAPTURA" and not verification.capturas_completas:
         label = CAPTURE_LABELS[next_capture(verification)]
         message = f"A sua verificação está incompleta. Próxima captura: {label}. Entre no NKATA para continuar."
     else:
-        message = "A sua conta já está criada. Entre, abra Matches e conclua o NKATA ID para desbloquear as funções que exigem identidade verificada."
+        message = "A sua conta já está criada. Entre, abra a verificação de identidade e conclua o NKATA ID para desbloquear as funções que exigem identidade verificada."
     message += (
         " O NKATA ID faz parte da segurança da comunidade. A confirmação da identidade "
         "ajuda a reduzir perfis falsos e a proteger quem usa o NKATA."
     )
-    return "Conclua a verificação de identidade no NKATA", message, "/matches/"
+    return "Conclua a verificação de identidade no NKATA", message, "/conta/verificar-identidade/"

@@ -242,7 +242,7 @@ def _status_payload(pedido):
             else "IDENTITY_RECAPTURE" if recapture_path
             else None
         ),
-        "next_path": "/matches/" if needs_identity else questionnaire_path or recapture_path,
+        "next_path": "/conta/verificar-identidade/" if needs_identity else questionnaire_path or recapture_path,
     }
 
 

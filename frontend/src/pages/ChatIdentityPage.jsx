@@ -19,7 +19,7 @@ export default function ChatIdentityPage({ onBack, onRefresh }) {
 
   return (
     <main className="nk-shell nk-access-workspace">
-      <button type="button" className="nk-button" onClick={onBack}>Voltar a explorar</button>
+      <button type="button" className="nk-button" onClick={onBack}>Voltar</button>
       <h1>Verificação para usar o chat</h1>
       <p>A sua conta já está activa. Verifique a sua identidade para abrir conversas no NKATA.</p>
       <NkataIdHandoff member value={verification} onChange={setVerification} />
