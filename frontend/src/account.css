@@ -761,3 +761,20 @@
     justify-content: flex-start;
   }
 }
+
+.nk-account-identity-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-block: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--nk-line);
+  border-radius: 16px;
+  background: var(--nk-paper);
+  color: var(--nk-ink);
+}
+
+.nk-account-identity-notice > svg {
+  flex: none;
+  color: var(--nk-wine);
+}

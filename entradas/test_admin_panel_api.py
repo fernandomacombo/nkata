@@ -89,6 +89,57 @@ class AdminPanelApiTests(TestCase):
             visivel=True,
         )
 
+    def test_registration_queues_follow_admission_account_and_identity(self):
+        request_record = self.request_record
+        request_record.verificacao_apos_entrada = True
+        request_record.status = "PENDENTE"
+        request_record.save(update_fields=["status", "verificacao_apos_entrada"])
+        self.member_user.set_unusable_password()
+        self.member_user.save(update_fields=["password"])
+        list_url = reverse("entradas_api:admin_list")
+
+        def check_stage(expected):
+            self.client.force_authenticate(self.staff)
+            for section, stage in (
+                ("access", "entry"), ("access", "questionnaire"), ("identity", "id_capture"),
+                ("identity", "id_review"), ("members", "complete"),
+            ):
+                response = self.client.get(list_url, {"section": section, "stage": stage})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data["total"], int(stage == expected), stage)
+                if stage == expected == "questionnaire":
+                    row = response.data["results"][0]
+                    self.assertTrue(row["has_questionnaire"])
+                    self.assertTrue(row["questionnaire_path"])
+                    self.assertFalse(row["has_password"])
+
+        check_stage("entry")
+        request_record.status = "APROVADO"
+        request_record.save(update_fields=["status"])
+        check_stage("questionnaire")
+        self.member_user.set_password("senha-segura")
+        self.member_user.save(update_fields=["password"])
+        check_stage("id_capture")
+
+        verification = VerificacaoIdentidadeNKATA.objects.create(
+            pedido=request_record, idade_declarada=request_record.idade, status="REVISAO",
+        )
+        check_stage("id_review")
+        self.client.force_authenticate(self.member_user)
+        response = self.client.get(reverse("entradas_api:minha_conta"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["identidade_estado"], "EM_REVISAO")
+
+        verification.status = "APROVADA"
+        verification.save(update_fields=["status"])
+        request_record.documento_confirmado = True
+        request_record.save(update_fields=["documento_confirmado"])
+        check_stage("complete")
+
+        verification.status = "REJEITADA"
+        verification.save(update_fields=["status"])
+        check_stage("id_capture")
+
     def test_approved_entry_without_started_identity_is_pending(self):
         # Entry approval is separate from completed NKATA ID verification.
         self.request_record.verificacao_apos_entrada = True

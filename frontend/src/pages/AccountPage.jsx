@@ -511,6 +511,16 @@ export default function AccountPage({
         </button>
       </CompactPageHeader>
 
+      {account.identidade_estado === "EM_REVISAO" && (
+        <div className="nk-shell nk-account-identity-notice" role="status">
+          <ShieldCheck size={20} aria-hidden="true" />
+          <div>
+            <strong>{english ? "Identity awaiting approval" : "Identidade a aguardar aprovação"}</strong>
+            <p>{english ? "We received your identity verification. Chat and calls require an approved identity." : "Recebemos a sua verificação de identidade. O chat e as chamadas exigem uma identidade aprovada."}</p>
+          </div>
+        </div>
+      )}
+
       <section className="nk-shell nk-account__layout">
         <aside className="nk-account__sidebar">
           <article className="nk-account-card">

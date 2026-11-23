@@ -131,6 +131,7 @@ class PerfilDetalheSerializer(PerfilResumoSerializer):
 
 
 class MinhaContaSerializer(serializers.ModelSerializer):
+    identidade_estado = serializers.SerializerMethodField()
     preferencias = MatchPreferencesSerializer(required=False)
     foto_principal = serializers.SerializerMethodField()
     objetivo_display = serializers.CharField(source="get_objetivo_display", read_only=True)
@@ -146,6 +147,7 @@ class MinhaContaSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "nome_publico",
+            "identidade_estado",
             "email",
             "preferencias",
             "cidade",
@@ -196,6 +198,15 @@ class MinhaContaSerializer(serializers.ModelSerializer):
             "visivel": {"required": False},
             "destaque_publico": {"required": False},
         }
+
+    def get_identidade_estado(self, obj):
+        pedido = obj.pedido
+        if pedido_tem_identidade_verificada(pedido):
+            return "VERIFICADA"
+        verification = getattr(pedido, "verificacao_identidade", None)
+        if verification and verification.status in {"REVISAO", "APROVADA"} and not pedido.identidade_revogada:
+            return "EM_REVISAO"
+        return "POR_VERIFICAR"
 
     def get_foto_principal(self, obj):
         return profile_photo_url(obj, for_owner=True)
