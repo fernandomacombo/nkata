@@ -1588,15 +1588,32 @@ img {
   }
 }
 
-.nk-facebook-link {
+.nk-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.nk-social-links a {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
-  gap: 6px;
-  color: var(--nk-wine);
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--nk-line);
+  border-radius: 999px;
+  background: var(--nk-paper);
+  color: var(--nk-ink);
+  font-size: .83rem;
   font-weight: 650;
-  text-decoration: underline;
-  text-underline-offset: .2em;
+  text-decoration: none;
+}
+
+.nk-social-links a:hover,
+.nk-social-links a:focus-visible {
+  border-color: var(--nk-wine);
+  color: var(--nk-wine);
 }
 
 .nk-help__links {

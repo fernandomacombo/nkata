@@ -1,4 +1,4 @@
-import FacebookLink from "../components/brand/FacebookLink.jsx";
+import SocialLinks from "../components/brand/SocialLinks.jsx";
 import {
   ArrowDown,
   ArrowRight,
@@ -217,7 +217,7 @@ export default function HomePage({
             <strong>NKATA</strong>
             <p>Para quem procura uma relação séria.</p>
           </div>
-          <FacebookLink />
+          <SocialLinks />
           <span>© 2026 NKATA · Moçambique</span>
         </div>
       </footer>

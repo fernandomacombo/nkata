@@ -1,4 +1,4 @@
-import FacebookLink from "../components/brand/FacebookLink.jsx";
+import SocialLinks from "../components/brand/SocialLinks.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { CircleHelp, Headset, Search, ShieldCheck, ArrowLeft } from "lucide-react";
 
@@ -79,7 +79,7 @@ export default function HelpCenterPage({ authenticated, email = "", onNavigate }
         </label>
         <div className="nk-help__links">
           <a className="nk-help__contact-link" href="#contactar-suporte">Contactar suporte</a>
-          <FacebookLink />
+          <SocialLinks />
         </div>
       </div>
 
