@@ -53,5 +53,7 @@ export default function Presence({ profile, english }) {
       .format(-Math.max(1, Math.floor(age / divisor)), unit);
     label = "Offline · " + ago;
   }
-  return <span data-presence-id={profile.id} className={online ? "nk-presence is-online" : "nk-presence"}>{label}</span>;
+  return <span data-presence-id={profile.id} role={label ? "img" : undefined}
+    aria-label={label || undefined} title={label || undefined}
+    className={online ? "nk-presence is-online" : "nk-presence"} />;
 }

@@ -943,6 +943,14 @@ body:has(.nk-call-screen) {
 .nk-bubble-menu summary { display:grid; place-items:center; min-width:1.95rem; min-height:1.95rem; border-radius:50%; }
 .nk-bubble-menu summary:hover,.nk-bubble-menu summary:focus-visible { background:#8883; }
 .nk-bubble-menu > div { position:absolute; inset-inline-end:0; width:max-content; box-shadow:0 5px 18px #3212; }
-.nk-presence:not(:empty) { display:inline-flex; align-items:center; gap:.3em; font-size:.78em; line-height:1.4; }
-.nk-presence:not(:empty)::before { content:""; width:.55em; height:.55em; border-radius:50%; background:#999; }
-.nk-presence.is-online::before { background:#299665; }
+.nk-presence[aria-label]::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #757575;
+  box-shadow: 0 0 0 1.5px white;
+  vertical-align: middle;
+}
+.nk-presence.is-online[aria-label]::before { background: #168451; }
