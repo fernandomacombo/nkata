@@ -889,3 +889,34 @@ body:has(.nk-call-screen) {
     transition: none !important;
   }
 }
+
+.nk-chat-welcome {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(26rem, calc(100% - 2rem));
+  padding: clamp(1.5rem, 5vw, 2.4rem);
+  color: #302323;
+  background: #fffaf4;
+  border: 1px solid #e9dbd2;
+  border-top: 4px solid #812c45;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 70px #2a162333;
+}
+.nk-chat-welcome::backdrop { background: #24151ddb; }
+.nk-chat-welcome > svg { color: #812c45; }
+.nk-chat-welcome h2 { margin: 1rem 0 .65rem; font: 600 2rem/1.1 Georgia, serif; }
+.nk-chat-welcome p { margin-bottom: 1.25rem; line-height: 1.55; }
+.nk-chat-welcome button { min-width: 6rem; }
+.nk-conversation .nk-message-row.is-mine .nk-message-bubble:not(.is-deleted) {
+  background-image: linear-gradient(120deg, #90364d, #71213b);
+  box-shadow: 0 3px 10px #581a3020;
+}
+.nk-conversation .nk-message-row .nk-message-bubble.is-deleted {
+  background: #f4ece6;
+  color: #574942;
+  border: 1px dashed #bba9a1;
+  box-shadow: none;
+}
+.nk-conversation .nk-message-bubble.is-deleted > span { color: #66554d; }
+.nk-message-bubble.is-deleted p { font-style: italic; }

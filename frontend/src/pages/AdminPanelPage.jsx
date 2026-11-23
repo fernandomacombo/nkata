@@ -918,7 +918,7 @@ function actionsFor(section, item) {
   return [];
 }
 
-function AdminRow({ section, stage, item, onDetails, onReviewIdentity }) {
+function AdminRow({ section, stage, item, onAuditFilter, onDetails, onReviewIdentity }) {
   const title = item.name || item.author || item.target || item.title;
   const subtitle = ["access", "identity"].includes(section)
     ? `${item.email} · ${item.city}`
@@ -941,11 +941,11 @@ function AdminRow({ section, stage, item, onDetails, onReviewIdentity }) {
     <article className="nk-admin-row">
       <MediaThumb item={item} />
       <div className="nk-admin-row__identity">
-        <div><strong>{title}</strong><StatusBadge status={status} label={statusLabel} /></div>
+        <div><strong>{section === "audit" ? item.detail : title}</strong><StatusBadge status={status} label={statusLabel} /></div>
         <span>{subtitle}</span>
         {section === "content" && item.text && <p>{item.text}</p>}
         {section === "reports" && item.details && <p>{item.details}</p>}
-        {section === "audit" && item.detail && <p>{item.detail}</p>}
+        {section === "audit" && <p>{title}</p>}
       </div>
       <div className="nk-admin-row__meta">
         {["access", "identity"].includes(section) && <><span>{item.age} anos · {item.gender_label}</span><small>{workflowDetail}</small></>}
@@ -966,6 +966,10 @@ function AdminRow({ section, stage, item, onDetails, onReviewIdentity }) {
         {!['reports', 'operations', 'audit'].includes(section) && <small>{formatDate(item.created_at)}</small>}
       </div>
       <div className="nk-admin-row__actions">
+        {section === "audit" && <>
+          <button type="button" onClick={() => onAuditFilter("object", item)}><History size={15} /> Histórico do objeto</button>
+          <button type="button" onClick={() => onAuditFilter("operator", item)}>Mesmo operador</button>
+        </>}
         {onReviewIdentity && (
           <button type="button" onClick={() => onReviewIdentity(item)}>
             <ShieldCheck size={16} /> Ver identidade
@@ -1309,9 +1313,16 @@ export default function AdminPanelPage({ session }) {
                   </form>
                 </section>
 
+                {activeSection === "audit" && filters.auditScope && (
+                  <button type="button" className="nk-admin-button" onClick={() => setFilters((current) => ({
+                    ...current, auditScope: "", auditEntry: null, auditLabel: "", offset: 0,
+                  }))}>
+                    {filters.auditScope === "object" ? "Histórico" : "Operador"} · {filters.auditLabel} <X size={15} /> Limpar
+                  </button>
+                )}
                 <div className="nk-admin-list-heading">
                   <span>{listData.total || 0} registo(s)</span>
-                  {selectedSection.stage ? (
+                  {(selectedSection.stage || activeSection === "audit") ? (
                     <nav aria-label="Paginação dos registos">
                       <button type="button" disabled={listLoading || !filters.offset} onClick={() => setFilters((current) => ({ ...current, offset: Math.max(0, current.offset - 50) }))}>Anterior</button>
                       <span>Página {Math.floor((filters.offset || 0) / 50) + 1}</span>
@@ -1333,6 +1344,11 @@ export default function AdminPanelPage({ session }) {
                         section={listResource}
                         stage={selectedSection.stage}
                         item={item}
+                        onAuditFilter={(scope, entry) => {
+                          setDraftQuery("");
+                          setFilters({ query: "", status: "", offset: 0, auditScope: scope, auditEntry: entry.id,
+                            auditLabel: scope === "object" ? entry.title : entry.operator });
+                        }}
                         onDetails={openDetails}
                         onReviewIdentity={activeSection === "members" && allowedCodes.has("access") ? openAccessReview : undefined}
                       />
