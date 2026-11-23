@@ -245,7 +245,8 @@ def _member_rows(request, limit):
 
 
 def _identity_review_queue():
-    return Q(status__in=["APROVADO", "PRECISA_CORRIGIR"]) & (
+    captures = Q(**{f"verificacao_identidade__{field}__gt": "" for field in VerificacaoIdentidadeNKATA.CAPTURE_FIELDS})
+    return captures & Q(status__in=["APROVADO", "PRECISA_CORRIGIR"]) & (
         Q(verificacao_identidade__status="REVISAO")
         | Q(
             verificacao_apos_entrada=True,

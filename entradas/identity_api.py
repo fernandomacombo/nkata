@@ -69,6 +69,10 @@ def _expire_if_needed(session):
     return session.status == "EXPIRADA"
 
 
+def _needs_capture_restart(session):
+    return session.status in {"REVISAO", "APROVADA"} and not session.capturas_completas
+
+
 def serialize_identity_session(session):
     expired = _expire_if_needed(session)
     current = next_capture(session) if not session.capturas_completas else "concluida"
@@ -102,6 +106,7 @@ def serialize_identity_session(session):
         "liveness_confirmed": session.vivacidade_confirmada,
         "expires_at": session.expira_em,
         "expired": expired,
+        "needs_capture_restart": bool(session.pedido_id and _needs_capture_restart(session)),
     }
 
 
@@ -223,7 +228,9 @@ def api_sessao_identidade_do_membro(request):
             "status": "EM_CAPTURA",
         },
     )
-    if session.expirada and session.status in {"EM_CAPTURA", "REPETIR", "EXPIRADA"}:
+    if _needs_capture_restart(session) or (
+        session.expirada and session.status in {"EM_CAPTURA", "REPETIR", "EXPIRADA"}
+    ):
         session.token = uuid.uuid4()
         session.expira_em = nkata_id_expires_at()
         session.status = "EM_CAPTURA"

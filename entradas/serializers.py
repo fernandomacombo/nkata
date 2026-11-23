@@ -204,7 +204,7 @@ class MinhaContaSerializer(serializers.ModelSerializer):
         if pedido_tem_identidade_verificada(pedido):
             return "VERIFICADA"
         verification = getattr(pedido, "verificacao_identidade", None)
-        if verification and verification.status in {"REVISAO", "APROVADA"} and not pedido.identidade_revogada:
+        if verification and verification.pode_anexar_ao_pedido and not pedido.identidade_revogada:
             return "EM_REVISAO"
         return "POR_VERIFICAR"
 

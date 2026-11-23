@@ -49,7 +49,7 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
   }, [member]);
 
   useEffect(() => {
-    if (!token || value?.can_submit || value?.expired) return undefined;
+    if (!token || value?.can_submit || value?.expired || value?.needs_capture_restart) return undefined;
     return createNkataIdStatusPoller({
       load: ({ signal }) => fetchNkataIdSession(token, { signal }),
       onStatus: (result) => {
@@ -64,7 +64,7 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
         );
       },
     });
-  }, [token, value?.can_submit, value?.expired]);
+  }, [token, value?.can_submit, value?.expired, value?.needs_capture_restart]);
 
   const begin = async () => {
     if (!accepted || loading) return;
@@ -129,10 +129,10 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
     );
   }
 
-  if (value?.expired) {
+  if (value?.expired || value?.needs_capture_restart) {
     return (
       <section className="nk-id-start">
-        <p>A sessão expirou. Prepare uma nova ligação para continuar.</p>
+        <p>{value.needs_capture_restart ? "Faltam capturas obrigatórias. Continue para enviar as imagens em falta." : "A sessão expirou. Prepare uma nova ligação para continuar."}</p>
         <button type="button" className="nk-button nk-button--wine" onClick={begin} disabled={loading}>
           {loading ? "A preparar…" : "Continuar verificação"}
         </button>
@@ -210,7 +210,8 @@ export default function NkataIdHandoff({ email, age, member = false, value, onCh
       <footer>
         <LoaderCircle size={17} className="is-spinning" />
         <span>
-          <strong>Aguardando as capturas…</strong>
+          <strong>{value.completed_captures?.length || 0} de 3 capturas recebidas</strong>
+          {value.current_label && <small>Próxima captura: {value.current_label}</small>}
           <small>Esta página será atualizada automaticamente.</small>
         </span>
       </footer>

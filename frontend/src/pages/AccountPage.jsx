@@ -521,6 +521,17 @@ export default function AccountPage({
         </div>
       )}
 
+      {account.identidade_estado === "POR_VERIFICAR" && (
+        <div className="nk-shell nk-account-identity-notice">
+          <ShieldCheck size={20} aria-hidden="true" />
+          <div>
+            <strong>{english ? "Identity verification incomplete" : "Verificação de identidade incompleta"}</strong>
+            <p>{english ? "Submit both sides of your ID and a selfie for review." : "Envie a frente e o verso do BI e uma selfie para a equipa poder analisar a sua identidade."}</p>
+            <a href="/matches/">{english ? "Continue identity verification" : "Continuar verificação de identidade"}</a>
+          </div>
+        </div>
+      )}
+
       <section className="nk-shell nk-account__layout">
         <aside className="nk-account__sidebar">
           <article className="nk-account-card">
