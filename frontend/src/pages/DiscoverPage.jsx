@@ -1,3 +1,4 @@
+import Presence from "../components/profiles/Presence.jsx";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -68,6 +69,7 @@ function GuestPreviewCard({ profile, position, onOpen, english }) {
                 ? `${profile.nome_publico}${profile.idade ? `, ${profile.idade}` : ""}`
                 : (english ? "Protected profile" : "Perfil protegido")}
             </strong>
+              <Presence profile={profile} english={english} />
             <small>
               {profile ? <MapPin size={14} /> : <ShieldCheck size={14} />}
               {profile?.cidade || (english ? "NKATA verified" : "Verificação NKATA")}

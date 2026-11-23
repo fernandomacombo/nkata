@@ -1,3 +1,4 @@
+import Presence from "../components/profiles/Presence.jsx";
 import { ProfilePreferences } from "../components/MatchPreferences";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -366,6 +367,7 @@ export default function ProfileDetailPage({
                   <ShieldCheck size={15} /> {english ? "Verified profile" : "Perfil verificado"}
                 </span>
                 <h1>{profile.nome_publico}{profile.idade ? `, ${profile.idade}` : ""}</h1>
+              <Presence profile={profile} english={english} />
                 <p>{objectiveLabel(profile.objetivo_display, english)}</p>
               </div>
 

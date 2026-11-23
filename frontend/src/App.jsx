@@ -1,3 +1,4 @@
+import { PresenceProvider } from "./components/profiles/Presence.jsx";
 import IncomingCallWatcher from "./components/chat/IncomingCallWatcher.jsx";
 import { playNotificationSound } from "./services/callAttention.js";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -767,6 +768,7 @@ export default function App() {
   const unreadNotifications = notifications.filter((item) => !item.read).length;
 
   return (
+    <PresenceProvider member={memberAuthenticated} identity={sessionIdentity} page={activePage}>
     <div className="nk-app">
       <AppHeader
         activePage={visiblePage}
@@ -960,5 +962,6 @@ export default function App() {
         />
       )}
     </div>
+    </PresenceProvider>
   );
 }

@@ -1,3 +1,4 @@
+import Presence from "../profiles/Presence.jsx";
 import { useCallback, useEffect, useRef } from "react";
 import { ArrowRight, Plus, UserRound } from "lucide-react";
 import "./suggestion-strip.css";
@@ -62,6 +63,7 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
                 ? <img src={profile.foto_url} alt="" loading="lazy" decoding="async" />
                 : <span className="nk-suggestion-strip__placeholder"><UserRound size={22} /></span>}
               <strong title={profile.nome_publico}><span>{profile.nome_publico}</span><small>{profile.idade}</small></strong>
+              <Presence profile={profile} english={english} />
               <span className="nk-suggestion-strip__reason">{reasons[profile.reasons?.[0]]?.[english ? 1 : 0]}</span>
             </button>
           ))}

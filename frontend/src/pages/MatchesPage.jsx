@@ -1,3 +1,4 @@
+import Presence from "../components/profiles/Presence.jsx";
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
@@ -98,6 +99,7 @@ function MatchCard({ match, onOpen, english, identityRequired }) {
 
         <span className="nk-match-card__location">
           <MapPin size={13} />
+              <Presence profile={profile} english={english} />
           {profile?.cidade || "Moçambique"}
         </span>
 

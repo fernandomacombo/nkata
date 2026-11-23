@@ -162,3 +162,17 @@ class PublicProfilePreviewTests(TestCase):
         self.pedido.refresh_from_db()
         self.assertFalse(self.perfil.destaque_publico)
         self.assertFalse(self.perfil.foto_destaque_publico_aprovada)
+
+    def test_presence_updates_only_for_owner_and_respects_public_visibility(self):
+        def read_presence():
+            response = self.client.post("/api/presenca/", {"perfis": [self.perfil.pk]}, content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+            return response.json()["perfis"]
+
+        self.assertEqual(read_presence(), {})
+        self.client.force_login(self.owner)
+        self.assertEqual(read_presence(), {str(self.perfil.pk): 0})
+        self.client.logout()
+        self.assertEqual(read_presence(), {})
+        PerfilNKATA.objects.filter(pk=self.perfil.pk).update(destaque_publico=True)
+        self.assertLess(read_presence()[str(self.perfil.pk)], 35)
