@@ -1,6 +1,8 @@
+import { Mail } from "lucide-react";
+
 export default function SocialLinks() {
   return (
-    <nav className="nk-social-links" aria-label="Redes sociais do NKATA">
+    <nav className="nk-social-links" aria-label="Redes sociais e email do NKATA">
       <a href="https://www.facebook.com/profile.php?id=61593396540834" target="_blank" rel="noopener noreferrer">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <circle cx="12" cy="12" r="12" fill="#0866ff" />
@@ -18,6 +20,10 @@ export default function SocialLinks() {
           <circle cx="16.2" cy="7.8" r="1" fill="#fff" />
         </svg>
         Instagram
+      </a>
+      <a href="mailto:social@nkata.date">
+        <Mail size={20} aria-hidden="true" />
+        social@nkata.date
       </a>
     </nav>
   );
