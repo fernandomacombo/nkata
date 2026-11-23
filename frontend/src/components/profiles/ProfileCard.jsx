@@ -52,6 +52,7 @@ export default function ProfileCard({
           )}
 
           <div className="nk-profile-card__shade" aria-hidden="true" />
+          <Presence profile={profile} english={english} />
 
           <div className="nk-profile-card__story">
             <div className="nk-profile-card__identity">
@@ -67,7 +68,6 @@ export default function ProfileCard({
                   </span>
                 )}
               </h3>
-              <Presence profile={profile} english={english} />
               <p>
                 <MapPin size={15} strokeWidth={1.9} />
                 <span>{profile.cidade || "Moçambique"}</span>

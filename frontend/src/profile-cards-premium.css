@@ -89,6 +89,26 @@
   pointer-events: none;
 }
 
+.nk-profile-card__media > .nk-presence {
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  left: 14px;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  margin: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #909090;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .28);
+  pointer-events: none;
+}
+
+.nk-profile-card__media > .nk-presence.is-online {
+  background: #1fa66a;
+}
+
 .nk-profile-card__save {
   position: absolute;
   z-index: 5;
