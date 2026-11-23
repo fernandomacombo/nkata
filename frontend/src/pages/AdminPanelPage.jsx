@@ -645,11 +645,21 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
             </button>
           )}
           {detail && selection.stage === "id_capture" && (
-            <button type="button" className="nk-admin-review__copy" onClick={() => onCopyQuestionnaire({ ...detail, questionnaire_path: "/matches/", copy_label: "Ligação para o NKATA ID copiada." })}>
+            <button type="button" className="nk-admin-review__copy" onClick={() => onCopyQuestionnaire({ ...detail, questionnaire_path: "/conta/verificar-identidade/", copy_label: "Ligação para o NKATA ID copiada." })}>
               <Copy size={16} /> Copiar acesso ao NKATA ID
             </button>
           )}
-          {(canDecide || canReconsider) && (
+          {selection.stage === "id_capture" && identity?.mode === "NKATA_ID" && (
+            <button type="button" className="nk-admin-review__copy" onClick={() => onAction({
+              ...correction,
+              action: "restart_identity",
+              label: "Reiniciar verificação",
+              description: `Invalidar a sessão anterior de ${item.name} e permitir novas capturas do BI e da selfie.`,
+            })}>
+              <CircleAlert size={16} /> Reiniciar verificação
+            </button>
+          )}
+          {selection.stage !== "id_capture" && (canDecide || canReconsider) && (
             <div className="nk-admin-review__decisions">
               {!entryPending && (canDecide || identity?.mode === "NKATA_ID") && <button type="button" className="is-quiet" onClick={() => onAction(correction)}><CircleAlert size={16} /> Novas capturas</button>}
               {(!reviewIdentityOnly || canRejectIdentity) && <button type="button" className="is-danger" onClick={() => onAction(reject)}><Ban size={16} /> {reject.label}</button>}

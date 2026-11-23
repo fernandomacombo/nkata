@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from .identity_api import _live_capture_proof
 from .identity_models import VerificacaoIdentidadeNKATA
-from .models import AcessoPlanoNKATA, MatchPerfil, PedidoEntrada, PerfilNKATA, QuestionarioEntrada
+from .models import AcessoPlanoNKATA, MatchPerfil, MensagemMatch, PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 from .test_access_status_api import image_file
 from .test_identity_verification import accepted_result, textured_image
 
@@ -81,7 +81,14 @@ class ChatIdentityFlowTests(TestCase):
         match = MatchPerfil.objects.create(
             perfil_1=member, perfil_2=other_profile, status="ATIVO",
         )
+        MensagemMatch.objects.create(match=match, remetente=other_user, texto="Mensagem privada")
         self.client.force_login(member.usuario)
+        matches_url = "/api/minha-conta/matches/"
+        match_list = self.client.get(matches_url)
+        self.assertEqual(match_list.status_code, 200)
+        self.assertEqual(match_list.json()["results"][0]["id"], match.id)
+        self.assertIsNone(match_list.json()["results"][0]["ultima_mensagem"])
+        self.assertEqual(match_list.json()["results"][0]["mensagens_nao_lidas"], 0)
         match_url = f"/api/minha-conta/matches/{match.id}/"
         for suffix in ("conversa/", "audio/", "audio/1/media/", "live/", "call/", "calls/history/"):
             with self.subTest(endpoint=suffix):
@@ -96,6 +103,20 @@ class ChatIdentityFlowTests(TestCase):
         self.assertEqual(response.status_code, 201, response.json())
         token = response.json()["token"]
         self.assertEqual(self.client.get(identity_url).json()["token"], token)
+        verification = VerificacaoIdentidadeNKATA.objects.get(pedido=pedido)
+        self.client.force_login(operator)
+        self.assertEqual(self.client.post(action_url, {
+            **decision, "action": "restart_identity", "note": "Capturas por concluir.",
+        }).status_code, 200)
+        verification.refresh_from_db()
+        self.assertIsNone(verification.pedido_id)
+        self.assertNotEqual(str(verification.token), token)
+        self.assertEqual(verification.status, "REJEITADA")
+        self.client.force_login(member.usuario)
+        self.assertIsNone(self.client.get(identity_url).data)
+        fresh = self.client.post(identity_url, {"aceita_biometria": True}, content_type="application/json")
+        self.assertEqual(fresh.status_code, 201)
+        token = fresh.json()["token"]
         verification = VerificacaoIdentidadeNKATA.objects.get(pedido=pedido)
         with patch("entradas.identity_api.inspect_identity_capture", side_effect=lambda image, kind: accepted_result(kind)):
             for kind in VerificacaoIdentidadeNKATA.CAPTURE_FIELDS:

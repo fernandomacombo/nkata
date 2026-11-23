@@ -40,7 +40,7 @@ import {
   updateMyAccount,
 } from "./services/api.js";
 
-const AUTH_ONLY_PAGES = ["moments", "matches", "conversation", "notifications", "account", "admin"];
+const AUTH_ONLY_PAGES = ["moments", "matches", "conversation", "notifications", "account", "identity", "admin"];
 const MOBILE_BACK_DESTINATIONS = {
   saved: "discover",
   notifications: "home",
@@ -244,7 +244,7 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    if (!chatIdentityRequired) loadMatches({ signal: controller.signal });
+    loadMatches({ signal: controller.signal });
     return () => controller.abort();
   }, [activePage, authenticated, chatIdentityRequired, loadMatches]);
 
@@ -311,7 +311,7 @@ export default function App() {
       return;
     }
 
-    if (memberPaused && !["account", "security", "help"].includes(activePage)) {
+    if (memberPaused && !["account", "identity", "security", "help"].includes(activePage)) {
       setActivePage("account", { replace: true });
     }
   }, [activePage, authenticated, memberPaused, operator, sessionLoading, setActivePage]);
@@ -576,7 +576,8 @@ export default function App() {
 
   const handleOpenConversation = async (match) => {
     if (chatIdentityRequired) {
-      setActivePage("matches");
+      setSelectedMatch(null);
+      setActivePage("conversation", { matchId: match.id });
       return;
     }
     setSelectedMatch(match);
@@ -652,7 +653,7 @@ export default function App() {
 
     if (notification.matchId) {
       const match = matches.find((item) => item.id === notification.matchId) || null;
-      setSelectedMatch(match);
+      setSelectedMatch(chatIdentityRequired ? null : match);
       setActivePage("conversation", { matchId: notification.matchId });
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -868,17 +869,25 @@ export default function App() {
         />
       )}
 
-      {(activePage === "matches" || activePage === "conversation") && memberAuthenticated && chatIdentityRequired && (
+      {(activePage === "identity" || activePage === "conversation") && memberAuthenticated && chatIdentityRequired && (
         <ChatIdentityPage
           key={sessionIdentity}
-          onBack={() => handleNavigate("discover")}
+          onBack={() => handleNavigate(activePage === "identity" ? "account" : "matches")}
           onRefresh={refreshSession}
         />
       )}
 
-      {activePage === "matches" && memberAuthenticated && !chatIdentityRequired && (
+      {activePage === "identity" && memberAuthenticated && !chatIdentityRequired && (
+        <main className="nk-shell nk-access-workspace">
+          <h1>Identidade verificada</h1>
+          <button type="button" className="nk-button" onClick={() => handleNavigate("matches")}>Ver matches</button>
+        </main>
+      )}
+
+      {activePage === "matches" && memberAuthenticated && (
         <MatchesPage
           matches={matches}
+          identityRequired={chatIdentityRequired}
           loading={matchesLoading}
           error={matchesError}
           onReload={() => loadMatches()}

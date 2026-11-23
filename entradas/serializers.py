@@ -405,6 +405,8 @@ class MatchSerializer(serializers.ModelSerializer):
         return serialize_call_message(call, user_id)
 
     def get_ultima_mensagem(self, obj):
+        if self.context.get("hide_conversation"):
+            return None
         candidates = []
         texto = obj.mensagens.filter(apagada_em__isnull=True).order_by("-criado_em").first()
         if texto:
@@ -441,6 +443,8 @@ class MatchSerializer(serializers.ModelSerializer):
         return max(candidates, key=lambda item: item[0])[1]
 
     def get_mensagens_nao_lidas(self, obj):
+        if self.context.get("hide_conversation"):
+            return 0
         request = self.context.get("request")
         text_qs = obj.mensagens.filter(lida=False)
 

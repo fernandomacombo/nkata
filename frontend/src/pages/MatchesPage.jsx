@@ -76,9 +76,9 @@ function LastMessagePreview({ message, english }) {
   return <>{`${message.mine ? (english ? "You: " : "Você: ") : ""}${message.text}`}</>;
 }
 
-function MatchCard({ match, onOpen, english }) {
+function MatchCard({ match, onOpen, english, identityRequired }) {
   const profile = match.otherProfile;
-  const lastMessage = match.lastMessage;
+  const lastMessage = identityRequired ? null : match.lastMessage;
 
   return (
     <button type="button" className="nk-match-card" onClick={() => onOpen(match)}>
@@ -102,12 +102,14 @@ function MatchCard({ match, onOpen, english }) {
         </span>
 
         <span className={`nk-match-card__preview ${match.unreadCount ? "is-unread" : ""}`}>
-          <LastMessagePreview message={lastMessage} english={english} />
+          {identityRequired
+            ? (english ? "Verify your identity to open the chat." : "Verifique a identidade para abrir a conversa.")
+            : <LastMessagePreview message={lastMessage} english={english} />}
         </span>
       </span>
 
       <span className="nk-match-card__side">
-        {match.unreadCount > 0 && (
+        {!identityRequired && match.unreadCount > 0 && (
           <em className="nk-match-card__unread">
             {match.unreadCount > 9 ? "9+" : match.unreadCount}
           </em>
@@ -120,6 +122,7 @@ function MatchCard({ match, onOpen, english }) {
 
 export default function MatchesPage({
   matches,
+  identityRequired,
   loading,
   error,
   onReload,
@@ -159,6 +162,7 @@ export default function MatchesPage({
               <MatchCard
                 key={match.id}
                 match={match}
+                identityRequired={identityRequired}
                 onOpen={onOpenConversation}
                 english={english}
               />

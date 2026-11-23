@@ -692,7 +692,7 @@ def api_meus_interesses(request):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
+@permission_classes([permissions.IsAuthenticated])
 def api_meus_matches(request):
     perfil = _perfil_do_utilizador(request.user)
 
@@ -709,12 +709,12 @@ def api_meus_matches(request):
         "perfil_2",
         "perfil_2__pedido",
         "perfil_2__usuario",
-    ).prefetch_related("mensagens").order_by("-atualizado_em")
+    ).order_by("-atualizado_em")
 
     serializer = MatchSerializer(
         matches,
         many=True,
-        context={"request": request},
+        context={"request": request, "hide_conversation": chat_requires_identity(request.user)},
     )
 
     return Response({

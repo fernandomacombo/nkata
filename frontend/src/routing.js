@@ -10,6 +10,7 @@ const STATIC_PATHS = {
   security: "/seguranca/",
   help: "/ajuda/",
   account: "/conta/",
+  identity: "/conta/verificar-identidade/",
   admin: "/painel/",
   login: "/entrar/",
   access: "/pedir-acesso/",
