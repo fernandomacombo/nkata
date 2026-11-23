@@ -496,3 +496,6 @@ if NKATA_PAYMENTS_ENABLED:
     validate_public_https_origin("NKATA_PAYMENT_ORIGIN", NKATA_PAYMENT_ORIGIN)
     if not NKATA_PAYSUITE_TOKEN or not NKATA_PAYSUITE_WEBHOOK_SECRET:
         raise ImproperlyConfigured("Configure as credenciais PaySuite antes de ativar pagamentos.")
+
+NKATA_WHATSAPP_VERIFY_TOKEN = os.getenv("NKATA_WHATSAPP_VERIFY_TOKEN", "")
+NKATA_WHATSAPP_APP_SECRET = os.getenv("NKATA_WHATSAPP_APP_SECRET", "")
