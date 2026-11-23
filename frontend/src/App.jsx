@@ -611,14 +611,14 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = async (text) => {
+  const handleSendMessage = async (text, replyId) => {
     if (!selectedMatch || !text.trim()) return false;
 
     setMessageSending(true);
     setConversationError("");
 
     try {
-      const message = await sendMatchMessage(selectedMatch.id, text.trim());
+      const message = await sendMatchMessage(selectedMatch.id, text.trim(), replyId);
       setConversationMessages((current) => [...current, message]);
       setMatches((current) => current.map((item) => (
         item.id === selectedMatch.id
@@ -897,7 +897,7 @@ export default function App() {
       )}
 
       {activePage === "conversation" && memberAuthenticated && !chatIdentityRequired && (
-        <ConversationPage
+        <ConversationPage key={selectedMatch?.id}
           safetyAccepted={preferences.aviso_chat_aceite === true}
           onAcceptSafety={() => savePreferences({ aviso_chat_aceite: true })}
           match={selectedMatch}

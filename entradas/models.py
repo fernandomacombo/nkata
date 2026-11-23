@@ -349,6 +349,7 @@ class MatchPerfil(models.Model):
 
 
 class MensagemMatch(models.Model):
+    resposta_a = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     match = models.ForeignKey(MatchPerfil, on_delete=models.CASCADE, related_name="mensagens")
     remetente = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="mensagens_match_enviadas")
     apagada_em = models.DateTimeField(null=True, blank=True, editable=False)

@@ -259,8 +259,7 @@ function detailRowsFor(section, item) {
   }
   if (section === "operations") {
     return [
-      ["Participantes", item.title, true], ["Origem", item.detail],
-      ["Estado", item.status_label], ["Criado", formatDate(item.created_at)],
+       ["Criado", formatDate(item.created_at)],
       ["Última atualização", formatDate(item.updated_at)],
     ];
   }
@@ -269,7 +268,7 @@ function detailRowsFor(section, item) {
       ["Objeto", item.title, true], ["Tipo de objeto", item.object_type],
       ["Ação", item.status_label], ["Operador", item.operator],
       ["Data e hora", formatDate(item.created_at)],
-      ["Descrição", item.detail || "Ação administrativa registada.", true],
+
     ];
   }
   return [];
@@ -293,7 +292,48 @@ function AdminDialogLayer({ children, onClose, confirmation = false }) {
   );
 }
 
-function DetailsDialog({ pending, onClose, onAction }) {
+function ActivityHistory({ scope, item, onClose }) {
+  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(null);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const calls = scope === "calls";
+  useEffect(() => {
+    const controller = new AbortController();
+    setPage(null);
+    setError("");
+    const filters = calls ? { section: "operations", kind: "CALLS", matchId: item.id }
+      : { section: "audit", auditScope: scope, auditEntry: item.id };
+    fetchAdminList({ ...filters, offset, signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setPage(result); })
+      .catch(err => { if (!controller.signal.aborted) setError(err.message || "Falha ao carregar."); });
+    return () => controller.abort();
+  }, [scope, item.id, offset, calls, retry]);
+  return <AdminDialogLayer onClose={onClose}>
+    <section role="dialog" aria-modal="true" aria-labelledby="history-heading" className="nk-admin-dialog nk-admin-details">
+      <header><span><History size={22}/></span><button type="button" aria-label="Fechar" onClick={onClose}><X/></button></header>
+      <div><small>{calls ? "Chamadas desta ligação" : scope === "object" ? "Histórico deste objeto" : "Atividade deste operador"}</small>
+        <h2 id="history-heading">{scope === "operator" ? item.operator : item.title}</h2>
+        {error ? <p role="alert">{error} <button onClick={() => setRetry(n => n+1)}>Tentar novamente</button></p>
+          : !page ? <p role="status">A carregar…</p> : <>
+            <p>{page.total} {calls ? "chamada(s)" : "ação(ões)"} · Mais recentes primeiro</p>
+            <ol className="nk-event-stream">{page.results.map(row => <li key={row.id}>
+              <small>{formatDate(row.created_at)} · {row.status_label}</small>
+              <strong>{row.detail}</strong><span>{calls ? row.initiator : scope === "object" ? row.operator : row.title}</span>
+              {calls && row.connected && <span>{formatDuration(row.duration_seconds)}</span>}
+            </li>)}</ol>
+            {!page.total && <p>{calls ? "Ainda não houve chamadas neste match." : "Nenhuma ação encontrada."}</p>}
+          </>}
+      </div><footer>
+        <button className="nk-admin-button" disabled={!page || !offset} onClick={() => setOffset(offset-50)}>Anterior</button>
+        <button className="nk-admin-button" disabled={!page || offset+50 >= page.total} onClick={() => setOffset(offset+50)}>Seguinte</button>
+        <button className="nk-admin-button is-primary" onClick={onClose}>Fechar</button>
+      </footer>
+    </section>
+  </AdminDialogLayer>;
+}
+
+function DetailsDialog({ pending, onClose, onAction, onHistory }) {
   if (!pending) return null;
   const { section, item } = pending;
   const actions = actionsFor(section, item);
@@ -316,7 +356,8 @@ function DetailsDialog({ pending, onClose, onAction }) {
         </header>
         <div>
           <small>Ficha administrativa · {sectionLabel}</small>
-          <h2 id="admin-details-title">{title}</h2>
+          <h2 id="admin-details-title">{section === "audit" ? item.detail : title}</h2>
+          {section === "operations" && <div className="nk-operation-strip"><strong>{item.status_label}</strong><span>{item.detail}</span></div>}
           {previewUrl && (
             <div className="nk-admin-details__media">
               {item.media_type === "VIDEO" ? (
@@ -336,6 +377,8 @@ function DetailsDialog({ pending, onClose, onAction }) {
           </dl>
         </div>
         <footer>
+          {section === "operations" && item.operation_type === "MATCH" && <button className="nk-admin-button" onClick={() => onHistory("calls", item)}>Ver chamadas do match</button>}
+          {section === "audit" && <button className="nk-admin-button" onClick={() => onHistory("object", item)}>Ver histórico deste objeto</button>}
           {actions.map((action) => {
             const Icon = action.icon;
             return (
@@ -984,6 +1027,7 @@ function AdminRow({ section, stage, item, onAuditFilter, onDetails, onReviewIden
 }
 
 export default function AdminPanelPage({ session }) {
+  const [history, setHistory] = useState(null);
   const [activeSection, setActiveSection] = useState("overview");
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -1014,7 +1058,7 @@ export default function AdminPanelPage({ session }) {
     [allowedCodes, session?.user?.is_superuser],
   );
   const modalOpen = Boolean(
-    selectedDetails || contentReview || accessReview || pendingAction,
+    history || selectedDetails || contentReview || accessReview || pendingAction,
   );
 
   useEffect(() => {
@@ -1300,9 +1344,9 @@ export default function AdminPanelPage({ session }) {
                     </select>
                   )}
                   {activeSection === "operations" && (
-                    <select value={filters.kind} onChange={(event) => setFilters((current) => ({ ...current, kind: event.target.value, status: "" }))} aria-label="Tipo de operação">
-                      <option value="CALLS">Chamadas</option><option value="MATCHES">Matches</option>
-                    </select>
+                    <div className="nk-operation-tabs" aria-label="Tipo de operação">{[["MATCHES","Matches"],["CALLS","Chamadas"]].map(([kind,label]) =>
+                      <button type="button" key={kind} aria-pressed={filters.kind === kind} onClick={() => setFilters(current => ({...current, kind, status:"", offset:0}))}>{label}</button>
+                    )}</div>
                   )}
                   {FILTERS[activeSection] && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value, offset: 0 }))} aria-label="Estado">
                     {(activeSection === "operations" && filters.kind === "MATCHES"
@@ -1313,16 +1357,9 @@ export default function AdminPanelPage({ session }) {
                   </form>
                 </section>
 
-                {activeSection === "audit" && filters.auditScope && (
-                  <button type="button" className="nk-admin-button" onClick={() => setFilters((current) => ({
-                    ...current, auditScope: "", auditEntry: null, auditLabel: "", offset: 0,
-                  }))}>
-                    {filters.auditScope === "object" ? "Histórico" : "Operador"} · {filters.auditLabel} <X size={15} /> Limpar
-                  </button>
-                )}
                 <div className="nk-admin-list-heading">
                   <span>{listData.total || 0} registo(s)</span>
-                  {(selectedSection.stage || activeSection === "audit") ? (
+                  {(selectedSection.stage || ["audit", "operations"].includes(activeSection)) ? (
                     <nav aria-label="Paginação dos registos">
                       <button type="button" disabled={listLoading || !filters.offset} onClick={() => setFilters((current) => ({ ...current, offset: Math.max(0, current.offset - 50) }))}>Anterior</button>
                       <span>Página {Math.floor((filters.offset || 0) / 50) + 1}</span>
@@ -1344,11 +1381,7 @@ export default function AdminPanelPage({ session }) {
                         section={listResource}
                         stage={selectedSection.stage}
                         item={item}
-                        onAuditFilter={(scope, entry) => {
-                          setDraftQuery("");
-                          setFilters({ query: "", status: "", offset: 0, auditScope: scope, auditEntry: entry.id,
-                            auditLabel: scope === "object" ? entry.title : entry.operator });
-                        }}
+                        onAuditFilter={(scope, item) => setHistory({ scope, item })}
                         onDetails={openDetails}
                         onReviewIdentity={activeSection === "members" && allowedCodes.has("access") ? openAccessReview : undefined}
                       />
@@ -1362,7 +1395,8 @@ export default function AdminPanelPage({ session }) {
       </div>
 
       {toast && <div className="nk-admin-toast" role="status"><CheckCircle2 size={18} />{toast}</div>}
-      <DetailsDialog pending={selectedDetails} onClose={() => setSelectedDetails(null)} onAction={openAction} />
+      {history && <ActivityHistory {...history} onClose={() => setHistory(null)} />}
+      <DetailsDialog onHistory={(scope, item) => { setSelectedDetails(null); setHistory({ scope, item }); }} pending={selectedDetails} onClose={() => setSelectedDetails(null)} onAction={openAction} />
       <ContentReviewDialog
         selection={contentReview}
         onClose={() => setContentReview(null)}

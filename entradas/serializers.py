@@ -313,6 +313,7 @@ class MensagemMatchSerializer(serializers.ModelSerializer):
             "remetente_nome",
             "texto",
             "apagada_em",
+            "resposta_a",
             "lida",
             "minha",
             "criado_em",

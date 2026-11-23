@@ -132,6 +132,7 @@ function normalizeMessage(message) {
     senderName: message.remetente_nome || "Membro NKATA",
     type,
     text: message.texto || "",
+    replyId: message.resposta_a || null,
     deleted: Boolean(message.apagada_em),
     audioUrl: normalizeAppUrl(message.audio_url || null),
     durationSeconds: Number(message.duracao_segundos || 0),
@@ -514,10 +515,10 @@ export async function fetchMatchConversation(matchId, { signal } = {}) {
   };
 }
 
-export async function sendMatchMessage(matchId, text) {
+export async function sendMatchMessage(matchId, text, replyId = null) {
   const payload = await request(`/api/minha-conta/matches/${matchId}/conversa/`, {
     method: "POST",
-    body: { texto: text },
+    body: { texto: text, resposta_a: replyId },
   });
   return normalizeMessage(payload);
 }
@@ -543,6 +544,7 @@ export async function fetchMatchLive(matchId, { since = "", signal } = {}) {
   const payload = await request(`/api/minha-conta/matches/${matchId}/live/${suffix}`, { signal });
   return {
     messages: (payload?.results || []).map(normalizeMessage).filter(Boolean),
+    recording: Boolean(payload?.presence?.recording),
     typing: Boolean(payload?.presence?.typing),
     active: Boolean(payload?.presence?.active),
     readTextIds: (payload?.read_receipts?.text || []).map(Number),
@@ -552,10 +554,10 @@ export async function fetchMatchLive(matchId, { since = "", signal } = {}) {
   };
 }
 
-export async function updateMatchTyping(matchId, typing) {
+export async function updateMatchTyping(matchId, typing, recording = false) {
   return request(`/api/minha-conta/matches/${matchId}/live/`, {
     method: "POST",
-    body: { typing: Boolean(typing) },
+    body: { typing: Boolean(typing), recording },
   });
 }
 

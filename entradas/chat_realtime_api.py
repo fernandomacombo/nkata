@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.db import DatabaseError
 from django.db.models import Q
 from django.utils import timezone
@@ -132,6 +133,7 @@ def _presence_payload(match, user, snapshot_time):
         >= snapshot_time - timedelta(seconds=PRESENCE_TTL_SECONDS)
     )
     return {
+        "recording": bool(cache.get(f"chat-recording:{match.pk}:{other_user_id}")),
         "typing": typing_fresh,
         "active": active_fresh,
         "setup_required": False,
@@ -236,6 +238,11 @@ def api_chat_live(request, match_id):
                 },
                 status=503,
             )
+        recording_key = f"chat-recording:{match.pk}:{request.user.pk}"
+        if request.data.get("recording") is True:
+            cache.set(recording_key, True, TYPING_TTL_SECONDS)
+        else:
+            cache.delete(recording_key)
         return Response({
             "ok": True,
             "typing": bool(state.is_typing),
@@ -257,6 +264,7 @@ def api_chat_live(request, match_id):
         "results": results,
         "presence": {
             "typing": presence["typing"],
+            "recording": presence.get("recording", False),
             "active": presence["active"],
         },
         "read_receipts": _read_receipts(match, request.user),
