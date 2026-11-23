@@ -2,7 +2,6 @@ import Presence from "../components/profiles/Presence.jsx";
 import { deleteMatchMessage } from "../services/api.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
   ArrowDownLeft,
   ArrowLeft,
   ArrowUpRight,
@@ -298,7 +297,6 @@ export default function ConversationPage({
   const [deleteError, setDeleteError] = useState("");
   const [readReceiptKeys, setReadReceiptKeys] = useState(() => new Set());
   const [remoteTyping, setRemoteTyping] = useState(false);
-  const [remoteActive, setRemoteActive] = useState(false);
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const endRef = useRef(null);
   const recorderRef = useRef(null);
@@ -382,7 +380,6 @@ export default function ConversationPage({
     setLiveMessages([]);
     setReadReceiptKeys(new Set());
     setRemoteTyping(false);
-    setRemoteActive(false);
     liveCursorRef.current = "";
     clearRecordedAudio();
     releaseRecordingResources();
@@ -447,7 +444,6 @@ export default function ConversationPage({
         if (result.serverTime) liveCursorRef.current = result.serverTime;
         setRemoteTyping(Boolean(result.typing));
         setRemoteRecording(Boolean(result.recording));
-        setRemoteActive(Boolean(result.active));
 
         if (result.messages.length) {
           setLiveMessages((current) => {
@@ -714,11 +710,9 @@ export default function ConversationPage({
             </span>
             <div>
               <strong>{profile?.nome_publico || (english ? "NKATA member" : "Membro NKATA")}</strong>
-              <small className={remoteTyping ? "is-typing" : remoteActive ? "is-active" : ""}>
+              <small className={remoteTyping ? "is-typing" : ""}>
                 {remoteRecording ? <><Mic size={12}/> {english ? "Recording audio…" : "A gravar áudio…"}</> : remoteTyping ? (
                   <><PenLine size={12} /> {english ? "Typing…" : "A escrever…"}</>
-                ) : remoteActive ? (
-                  <><Activity size={12} /> {english ? "Active now" : "Ativo agora"}</>
                 ) : (
                   <Presence profile={profile} english={english} />
                 )}
