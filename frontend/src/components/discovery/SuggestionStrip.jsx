@@ -59,11 +59,13 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
         <div className="nk-suggestion-strip__track" ref={strip}>
           {profiles?.map((profile) => (
             <button type="button" className="nk-suggestion-strip__profile" key={profile.id} onClick={() => onOpenProfile(profile)}>
-              {profile.foto_url
-                ? <img src={profile.foto_url} alt="" loading="lazy" decoding="async" />
-                : <span className="nk-suggestion-strip__placeholder"><UserRound size={22} /></span>}
+              <span className="nk-suggestion-strip__media">
+                {profile.foto_url
+                  ? <img src={profile.foto_url} alt="" loading="lazy" decoding="async" />
+                  : <span className="nk-suggestion-strip__placeholder"><UserRound size={22} /></span>}
+                <Presence profile={profile} english={english} />
+              </span>
               <strong title={profile.nome_publico}><span>{profile.nome_publico}</span><small>{profile.idade}</small></strong>
-              <Presence profile={profile} english={english} />
               <span className="nk-suggestion-strip__reason">{reasons[profile.reasons?.[0]]?.[english ? 1 : 0]}</span>
             </button>
           ))}
