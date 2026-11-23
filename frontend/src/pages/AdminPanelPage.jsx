@@ -51,9 +51,11 @@ import {
 
 const SECTIONS = [
   { id: "overview", label: "Visão geral", description: "Estado da comunidade", icon: LayoutDashboard },
-  { id: "access", label: "Pedidos", description: "Pedidos de admissão", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: FileCheck2 },
-  { id: "identity", label: "NKATA ID", description: "Revisão e histórico de identidades", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Verificação", "Ação"], icon: ShieldCheck },
-  { id: "members", label: "Membros", description: "Contas e perfis", search: "Nome, email, telefone ou cidade", columns: ["Membro", "Conta", "Ação"], icon: Users },
+  { id: "access", stage: "entry", label: "Pedidos de entrada", description: "Analisar admissões", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Estado", "Ação"], icon: FileCheck2 },
+  { id: "questionnaire", resource: "access", stage: "questionnaire", label: "Aguardam questionário", description: "Respostas ou palavra-passe", search: "Nome, email, telefone ou cidade", columns: ["Candidato", "Próximo passo", "Ação"], icon: FileCheck2 },
+  { id: "identityCapture", resource: "identity", stage: "id_capture", label: "Aguardam NKATA ID", description: "Por iniciar ou concluir capturas", search: "Nome, email, telefone ou cidade", columns: ["Membro", "Verificação", "Ação"], icon: ShieldCheck },
+  { id: "identity", stage: "id_review", label: "Identidades por aprovar", description: "Revisão do NKATA ID", search: "Nome, email, telefone ou cidade", columns: ["Membro", "Verificação", "Ação"], icon: ShieldCheck },
+  { id: "members", stage: "complete", label: "Membros com cadastro completo", description: "Contas com identidade aprovada", search: "Nome, email, telefone ou cidade", columns: ["Membro", "Conta", "Ação"], icon: Users },
   { id: "photos", label: "Fotografias", description: "Aprovar imagens dos perfis", icon: Image },
   { id: "content", label: "Moderação", description: "Fotos e momentos", search: "Autor, email ou conteúdo", columns: ["Conteúdo", "Moderação", "Ação"], icon: ShieldCheck },
   { id: "reports", label: "Denúncias", description: "Casos reportados", search: "Alvo, denunciante ou motivo", columns: ["Denúncia", "Estado", "Ação"], icon: ShieldAlert },
@@ -114,7 +116,7 @@ function TeamPanel() {
 const FILTERS = {
   access: [
     ["", "Todos os estados"], ["PENDENTE", "Pendente"], ["EM_ANALISE", "Em análise"],
-    ["PRECISA_CORRIGIR", "Precisa corrigir"], ["APROVADO", "Aprovado"],
+    ["PRECISA_CORRIGIR", "Precisa corrigir"],
     ["RECUSADO", "Recusado"], ["BLOQUEADO", "Bloqueado"],
   ],
   members: [
@@ -494,7 +496,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
     identity?.status === "REVISAO"
     || (detail?.verify_after_entry && !detail.document_confirmed && identity?.status === "APROVADA")
   );
-  const canDecide = detail && (
+  const canDecide = detail && selection.stage !== "id_capture" && (
     !["APROVADO", "RECUSADO", "BLOQUEADO"].includes(detail.status) || (selection.section === "identity" && (identityPending || (identity?.mode === "LEGACY" && identity.status === "REJEITADA")))
   );
   const identitySection = selection.section === "identity";
@@ -635,6 +637,16 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
           {detail?.questionnaire_path && !canDecide && (
             <button type="button" className="nk-admin-review__copy" onClick={() => onCopyQuestionnaire(detail)}>
               <Copy size={16} /> Copiar acesso ao cadastro
+            </button>
+          )}
+          {detail && selection.stage === "questionnaire" && (
+            <button type="button" className="nk-admin-review__copy" onClick={() => onAction(reject)}>
+              <Ban size={16} /> Recusar pedido
+            </button>
+          )}
+          {detail && selection.stage === "id_capture" && (
+            <button type="button" className="nk-admin-review__copy" onClick={() => onCopyQuestionnaire({ ...detail, questionnaire_path: "/matches/", copy_label: "Ligação para o NKATA ID copiada." })}>
+              <Copy size={16} /> Copiar acesso ao NKATA ID
             </button>
           )}
           {(canDecide || canReconsider) && (
@@ -896,7 +908,7 @@ function actionsFor(section, item) {
   return [];
 }
 
-function AdminRow({ section, item, onDetails }) {
+function AdminRow({ section, stage, item, onDetails, onReviewIdentity }) {
   const title = item.name || item.author || item.target || item.title;
   const subtitle = ["access", "identity"].includes(section)
     ? `${item.email} · ${item.city}`
@@ -910,6 +922,9 @@ function AdminRow({ section, item, onDetails }) {
             ? item.object_type
           : item.detail;
   const status = item.display_status || item.status;
+  const workflowDetail = stage === "questionnaire"
+    ? (item.has_questionnaire ? "Falta criar a palavra-passe" : "Falta responder ao questionário")
+    : stage === "id_review" ? "A aguardar aprovação" : item.identity_status_label;
   const statusLabel = item.display_status_label || item.status_label || (status === "ANALISADA" ? "Analisada" : status === "PENDENTE" ? "Pendente" : status);
   return (
     <article className="nk-admin-row">
@@ -922,7 +937,7 @@ function AdminRow({ section, item, onDetails }) {
         {section === "audit" && item.detail && <p>{item.detail}</p>}
       </div>
       <div className="nk-admin-row__meta">
-        {["access", "identity"].includes(section) && <><span>{item.age} anos · {item.gender_label}</span><small>{section === "access" && item.status === "APROVADO" ? (item.has_password ? "Conta criada" : "A aguardar conclusão do cadastro") : item.identity_status_label}</small></>}
+        {["access", "identity"].includes(section) && <><span>{item.age} anos · {item.gender_label}</span><small>{workflowDetail}</small></>}
         {section === "members" && <><span>{item.age} anos · {item.visible ? "Visível" : "Oculto"}</span><small>{item.plan_label || "NKATA Livre"} · {item.pending_reports ? `${item.pending_reports} denúncia(s)` : "sem denúncias"}</small></>}
         {section === "content" && <><span>Risco: {item.risk_label}</span><small>{item.visibility_label}</small></>}
         {section === "reports" && <><span>Por {item.reporter}</span><small>{formatDate(item.created_at)}</small></>}
@@ -940,8 +955,13 @@ function AdminRow({ section, item, onDetails }) {
         {!['reports', 'operations', 'audit'].includes(section) && <small>{formatDate(item.created_at)}</small>}
       </div>
       <div className="nk-admin-row__actions">
+        {onReviewIdentity && (
+          <button type="button" onClick={() => onReviewIdentity(item)}>
+            <ShieldCheck size={16} /> Ver identidade
+          </button>
+        )}
         <button type="button" className={section === "access" ? "is-primary" : ""} onClick={() => onDetails({ section, item })} title={section === "access" ? "Rever pedido" : "Ver detalhes"}>
-          <Eye size={16} /><span>{section === "identity" ? "Rever identidade" : section === "access" ? "Rever pedido" : "Abrir"}</span>
+          <Eye size={16} /><span>{stage === "questionnaire" ? "Gerir cadastro" : stage === "id_capture" ? "Ver progresso" : section === "identity" ? "Rever identidade" : section === "access" ? "Rever pedido" : "Abrir"}</span>
         </button>
       </div>
     </article>
@@ -972,8 +992,10 @@ export default function AdminPanelPage({ session }) {
     () => new Set((session?.user?.admin_capabilities || []).map((item) => item.code)),
     [session?.user?.admin_capabilities],
   );
+  const selectedSection = SECTIONS.find((section) => section.id === activeSection) || SECTIONS[0];
+  const listResource = selectedSection.resource || selectedSection.id;
   const allowedSections = useMemo(
-    () => SECTIONS.filter((section) => ["team", "support"].includes(section.id) ? session?.user?.is_superuser : section.id === "photos" ? allowedCodes.has("content") : allowedCodes.has(section.id === "identity" ? "access" : section.id)),
+    () => SECTIONS.filter((section) => ["team", "support"].includes(section.id) ? session?.user?.is_superuser : section.id === "photos" ? allowedCodes.has("content") : allowedCodes.has((section.resource || section.id) === "identity" ? "access" : section.resource || section.id)),
     [allowedCodes, session?.user?.is_superuser],
   );
   const modalOpen = Boolean(
@@ -1009,14 +1031,14 @@ export default function AdminPanelPage({ session }) {
     setListLoading(true);
     setListError("");
     try {
-      const payload = await fetchAdminList({ section: activeSection, ...filters, signal });
+      const payload = await fetchAdminList({ section: listResource, stage: selectedSection.stage, ...filters, signal });
       setListData(payload || { total: 0, results: [] });
     } catch (error) {
       if (error.name !== "AbortError") setListError(error.message || "Não foi possível carregar esta área.");
     } finally {
       if (!signal?.aborted) setListLoading(false);
     }
-  }, [activeSection, filters]);
+  }, [activeSection, listResource, selectedSection.stage, filters]);
 
   useEffect(() => {
     if (!allowedSections.length) return;
@@ -1046,7 +1068,7 @@ export default function AdminPanelPage({ session }) {
     setDraftQuery("");
     setFilters({
       query: "",
-      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : activeSection === "operations" ? "ATIVO" : activeSection === "identity" ? "TODAS" : "",
+      status: ["content", "reports"].includes(activeSection) ? "PENDENTE" : activeSection === "operations" ? "ATIVO" : "",
       kind: activeSection === "operations" ? "MATCHES" : "",
     });
   }, [activeSection]);
@@ -1056,11 +1078,6 @@ export default function AdminPanelPage({ session }) {
     const timer = window.setTimeout(() => setToast(""), 3500);
     return () => window.clearTimeout(timer);
   }, [toast]);
-
-  const selectedSection = useMemo(
-    () => SECTIONS.find((section) => section.id === activeSection) || SECTIONS[0],
-    [activeSection],
-  );
 
   const submitSearch = (event) => {
     event.preventDefault();
@@ -1073,10 +1090,14 @@ export default function AdminPanelPage({ session }) {
   };
 
   const openAccessReview = useCallback(async (item) => {
+    const fromMembers = listResource === "members";
     const index = listData.results.findIndex((entry) => entry.id === item.id);
+    const reviewItem = fromMembers ? { ...item, id: item.request_id } : item;
     setAccessReview({
-      item,
-      section: activeSection,
+      item: reviewItem,
+      sourceItem: item,
+      section: fromMembers ? "identity" : listResource,
+      stage: selectedSection.stage,
       index,
       position: index + 1,
       total: listData.results.length,
@@ -1087,13 +1108,13 @@ export default function AdminPanelPage({ session }) {
     setAccessDetailError("");
     setAccessDetailLoading(true);
     try {
-      setAccessDetail(await fetchAdminAccessDetail(item.id));
+      setAccessDetail(await fetchAdminAccessDetail(reviewItem.id));
     } catch (error) {
       setAccessDetailError(error.message || "Não foi possível abrir este pedido.");
     } finally {
       setAccessDetailLoading(false);
     }
-  }, [activeSection, listData.results]);
+  }, [listResource, selectedSection.stage, listData.results]);
 
   const openDetails = (pending) => {
     if (["access", "identity"].includes(pending.section)) {
@@ -1142,9 +1163,9 @@ export default function AdminPanelPage({ session }) {
     try {
       const url = new URL(item.questionnaire_path, window.location.origin).toString();
       await copyText(url);
-      setToast(`Link do questionário de ${item.name} copiado.`);
+      setToast(item.copy_label || `Link do questionário de ${item.name} copiado.`);
     } catch {
-      setToast("Não foi possível copiar o link do questionário.");
+      setToast("Não foi possível copiar a ligação.");
     }
   };
 
@@ -1174,13 +1195,15 @@ export default function AdminPanelPage({ session }) {
       if (section !== "access") setSelectedDetails(null);
       if (section === "content") setContentReview(null);
       setToast(result.message || "Alteração concluída.");
-      await Promise.all([loadList(), loadSummary()]);
+      if (filters.offset && listData.results.length === 1) {
+        setFilters((current) => ({ ...current, offset: Math.max(0, current.offset - 50) }));
+        await loadSummary();
+      } else {
+        await Promise.all([loadList(), loadSummary()]);
+      }
       if (section === "access" && accessReview?.item?.id === item.id) {
-        try {
-          setAccessDetail(await fetchAdminAccessDetail(item.id));
-        } catch {
-          setAccessDetailError("A decisão foi guardada. Atualize a ficha para ver o novo estado.");
-        }
+        setAccessReview(null);
+        setAccessDetail(null);
       }
     } catch (error) {
       setActionError(error.message || "Não foi possível concluir a alteração.");
@@ -1266,13 +1289,10 @@ export default function AdminPanelPage({ session }) {
                       <option value="CALLS">Chamadas</option><option value="MATCHES">Matches</option>
                     </select>
                   )}
-                  {activeSection === "identity" && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value, offset: 0 }))} aria-label="Estado da identidade">
-                    <option value="TODAS">Todas</option><option value="">A rever</option><option value="EM_CAPTURA">Capturas incompletas</option><option value="VERIFICADAS">Verificadas</option><option value="REJEITADAS">Rejeitadas</option>
-                  </select>}
-                  {activeSection !== "identity" && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} aria-label="Estado">
+                  {FILTERS[activeSection] && <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value, offset: 0 }))} aria-label="Estado">
                     {(activeSection === "operations" && filters.kind === "MATCHES"
                       ? [["", "Todos os estados"], ["ATIVO", "Ativo"], ["ENCERRADO", "Encerrado"]]
-                      : FILTERS[activeSection] || []).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+                      : FILTERS[activeSection]).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
                   </select>}
                   <button type="submit" className="nk-admin-button is-primary"><Search size={16} /> Pesquisar</button>
                   </form>
@@ -1280,8 +1300,8 @@ export default function AdminPanelPage({ session }) {
 
                 <div className="nk-admin-list-heading">
                   <span>{listData.total || 0} registo(s)</span>
-                  {activeSection === "identity" ? (
-                    <nav aria-label="Paginação de identidades">
+                  {selectedSection.stage ? (
+                    <nav aria-label="Paginação dos registos">
                       <button type="button" disabled={listLoading || !filters.offset} onClick={() => setFilters((current) => ({ ...current, offset: Math.max(0, current.offset - 50) }))}>Anterior</button>
                       <span>Página {Math.floor((filters.offset || 0) / 50) + 1}</span>
                       <button type="button" disabled={listLoading || (filters.offset || 0) + 50 >= listData.total} onClick={() => setFilters((current) => ({ ...current, offset: (current.offset || 0) + 50 }))}>Seguinte</button>
@@ -1299,9 +1319,11 @@ export default function AdminPanelPage({ session }) {
                     ? listData.results.map((item) => (
                       <AdminRow
                         key={`${item.content_type || item.report_type || item.operation_type || activeSection}-${item.id}`}
-                        section={activeSection}
+                        section={listResource}
+                        stage={selectedSection.stage}
                         item={item}
                         onDetails={openDetails}
+                        onReviewIdentity={activeSection === "members" && allowedCodes.has("access") ? openAccessReview : undefined}
                       />
                     ))
                     : <EmptyState loading={listLoading} error={listError} onRetry={() => loadList()} />}
@@ -1326,7 +1348,7 @@ export default function AdminPanelPage({ session }) {
         loading={accessDetailLoading}
         error={accessDetailError}
         onClose={() => { setAccessReview(null); setAccessDetail(null); }}
-        onRetry={() => accessReview && openAccessReview(accessReview.item)}
+        onRetry={() => accessReview && openAccessReview(accessReview.sourceItem)}
         onMove={moveAccessReview}
         onAction={openAction}
         onCopyQuestionnaire={copyQuestionnaire}

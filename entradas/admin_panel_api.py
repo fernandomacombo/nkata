@@ -160,6 +160,31 @@ def _summary_payload(request):
     }
 
 
+def _registered_account():
+    return Q(perfil__usuario__isnull=False) & ~Q(perfil__usuario__password__startswith="!")
+
+
+def _verified_identity(prefix=""):
+    def fields(**values):
+        return Q(**{f"{prefix}{key}": value for key, value in values.items()})
+
+    return fields(identidade_revogada=False) & (
+        fields(verificacao_apos_entrada=True, documento_confirmado=True, verificacao_identidade__status="APROVADA")
+        | (
+            fields(verificacao_apos_entrada=False)
+            & (fields(documento_chave="") | fields(documento_confirmado=True))
+            & (fields(verificacao_identidade__isnull=True) | fields(verificacao_identidade__status="APROVADA"))
+        )
+    )
+
+
+def _page_offset(request, total, limit):
+    try:
+        return max(0, min(int(request.query_params.get("offset", 0)), max(total - 1, 0) // limit * limit))
+    except (ValueError, TypeError):
+        return 0
+
+
 def _member_rows(request, limit):
     query = str(request.query_params.get("q", "")).strip()
     status_filter = str(request.query_params.get("status", "")).strip().upper()
@@ -170,6 +195,11 @@ def _member_rows(request, limit):
         .annotate(report_count=Count("denuncias", filter=Q(denuncias__analisada=False)))
         .order_by("-criado_em")
     )
+    complete_only = request.query_params.get("stage") == "complete"
+    if complete_only:
+        queryset = queryset.filter(
+            Q(pedido__status="APROVADO") & ~Q(usuario__password__startswith="!") & _verified_identity("pedido__")
+        )
     if query:
         queryset = queryset.filter(
             Q(nome_publico__icontains=query)
@@ -182,10 +212,12 @@ def _member_rows(request, limit):
 
     total = queryset.count()
     results = []
-    for profile in queryset[:limit]:
+    offset = _page_offset(request, total, limit) if complete_only else 0
+    for profile in queryset.order_by("-criado_em", "-pk")[offset:offset + limit]:
         plan_definition = plan_for_user(profile.usuario)
         results.append({
             "id": profile.id,
+            "request_id": profile.pedido_id,
             "name": profile.nome_publico,
             "email": profile.pedido.email,
             "phone": profile.pedido.telefone,
@@ -239,7 +271,20 @@ def _access_rows(request, limit, *, identity=False):
             | Q(cidade__icontains=query)
         )
     valid_statuses = {value for value, _label in PedidoEntrada.STATUS_CHOICES}
-    if identity:
+    stage = request.query_params.get("stage")
+    if stage == "entry":
+        queryset = queryset.exclude(status="APROVADO")
+        if status_filter in valid_statuses:
+            queryset = queryset.filter(status=status_filter)
+    elif stage == "questionnaire":
+        queryset = queryset.filter(status="APROVADO").exclude(_registered_account())
+    elif stage in {"id_capture", "id_review"}:
+        queryset = queryset.filter(status="APROVADO").filter(_registered_account()).exclude(_verified_identity())
+        if stage == "id_review":
+            queryset = queryset.filter(_identity_review_queue())
+        else:
+            queryset = queryset.exclude(_identity_review_queue())
+    elif identity:
         if status_filter == "VERIFICADAS":
             queryset = queryset.filter(identidade_revogada=False).filter(
                 Q(verificacao_identidade__status="APROVADA", documento_confirmado=True)
@@ -258,12 +303,7 @@ def _access_rows(request, limit, *, identity=False):
 
     total = queryset.count()
     results = []
-    offset = 0
-    if identity:
-        try:
-            offset = max(0, min(int(request.query_params.get("offset", 0)), total))
-        except (ValueError, TypeError):
-            pass
+    offset = _page_offset(request, total, limit) if identity or stage else 0
     for item in queryset.order_by("-criado_em", "-pk")[offset:offset + limit]:
         profile = getattr(item, "perfil", None)
         verification = getattr(item, "verificacao_identidade", None)
@@ -294,7 +334,7 @@ def _access_rows(request, limit, *, identity=False):
             "has_questionnaire": has_questionnaire,
             "questionnaire_path": (
                 f"/questionario/{item.token}/"
-                if item.status == "APROVADO" and not has_questionnaire
+                if item.status == "APROVADO" and not (profile and profile.usuario and profile.usuario.has_usable_password())
                 else ""
             ),
             "has_profile": bool(profile),
@@ -443,7 +483,7 @@ def _access_detail_payload(item):
         "has_questionnaire": has_questionnaire,
         "questionnaire_path": (
             f"/questionario/{item.token}/"
-            if item.status == "APROVADO" and not has_questionnaire
+            if item.status == "APROVADO" and not (profile and profile.usuario and profile.usuario.has_usable_password())
             else ""
         ),
         "has_profile": bool(profile),
