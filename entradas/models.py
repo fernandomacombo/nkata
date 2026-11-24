@@ -429,6 +429,7 @@ class PedidoPagamentoNKATA(models.Model):
 
 
 class VotoPerguntaDiaria(models.Model):
+    mostrar_participacao = models.BooleanField(default=False)
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     data = models.DateField()
     opcao = models.PositiveSmallIntegerField()

@@ -2,6 +2,8 @@ import unicodedata
 from datetime import date
 from heapq import nlargest
 
+from django.http import Http404
+from django.shortcuts import render
 from django.db.models import Count
 from django.utils import timezone
 from django.utils.cache import add_never_cache_headers
@@ -11,6 +13,7 @@ from rest_framework.response import Response
 
 from .match_preferences import profile_preferences
 from .models import VotoPerguntaDiaria
+from .profile_media_api import profile_photo_url
 from .profile_api import discovery_profiles
 from .serializers import PerfilResumoSerializer
 from .user_roles import active_member_profile_for_user
@@ -28,6 +31,25 @@ QUESTIONS = (
     (("Prefere combinar um encontro com antecedência ou decidir no próprio dia?", "Would you rather plan a date in advance or decide on the day?"),
      (("Com antecedência", "In advance"), ("No próprio dia", "On the day"))),
 )
+
+
+def question_on(day):
+    return QUESTIONS[(day - date(2026, 11, 21)).days % len(QUESTIONS)]
+
+
+def shared_question(request, day):
+    try:
+        day = date.fromisoformat(day)
+    except ValueError:
+        raise Http404
+    if day > timezone.localdate():
+        raise Http404
+    question, options = question_on(day)
+    language = 1 if request.GET.get("lang") == "en" else 0
+    return render(request, "shared_question.html", {
+        "english": language == 1, "question": question[language],
+        "options": [option[language] for option in options],
+    })
 
 
 def normalized_place(value):
@@ -96,11 +118,12 @@ def api_suggestions(request):
 @api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
 def api_daily_question(request):
-    if not active_member_profile_for_user(request.user):
+    profile = active_member_profile_for_user(request.user)
+    if not profile:
         return private_response({"detail": "Esta área está disponível apenas para membros."}, 403)
 
     today = timezone.localdate()
-    question, options = QUESTIONS[(today - date(2026, 11, 21)).days % len(QUESTIONS)]
+    question, options = question_on(today)
     votes = VotoPerguntaDiaria.objects.filter(data=today)
     if request.method == "POST":
         if request.data.get("date") != today.isoformat():
@@ -108,7 +131,7 @@ def api_daily_question(request):
         option = request.data.get("option")
         if type(option) is not int or not 0 <= option < len(options):
             return private_response({"detail": "Escolha uma resposta válida."}, 400)
-        vote, _ = votes.get_or_create(usuario=request.user, defaults={"data": today, "opcao": option})
+        vote, _ = votes.get_or_create(usuario=request.user, defaults={"data": today, "opcao": option, "mostrar_participacao": request.data.get("show_participation") is True})
         choice = vote.opcao
     else:
         choice = votes.filter(usuario=request.user).values_list("opcao", flat=True).first()
@@ -117,10 +140,15 @@ def api_daily_question(request):
     if choice is not None:
         totals = dict(votes.values("opcao").annotate(total=Count("pk")).values_list("opcao", "total"))
         counts = [totals.get(i, 0) for i in range(len(options))]
+    participants = discovery_profiles(request.user, profile).filter(
+        usuario__is_active=True,
+        usuario_id__in=votes.filter(mostrar_participacao=True).values("usuario_id"),
+    ).order_by("nome_publico", "pk")
     return private_response({
         "date": today.isoformat(),
         "question": dict(zip(("pt", "en"), question)),
         "options": [dict(zip(("pt", "en"), option)) for option in options],
         "choice": choice,
         "counts": counts,
+        "participants": [{"id": p.pk, "name": p.nome_publico, "photo": profile_photo_url(p)} for p in participants],
     })
