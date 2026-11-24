@@ -607,7 +607,7 @@ export default function AccountPage({
                 <span>
                   {account.visivel
                     ? (english ? "It can appear in the profiles area." : "Pode aparecer na área de perfis.")
-                    : (english ? "It is not shown to other members." : "Não aparece para outros membros.")}
+                    : (english ? "Other members cannot find you in Profiles. Select “Show profile” below to appear there." : "Os outros membros não o encontram na lista de perfis. Para aparecer lá, escolha «Mostrar perfil» abaixo.")}
                 </span>
               </div>
             </div>
@@ -635,7 +635,9 @@ export default function AccountPage({
                       : account.destaque_publico_elegivel
                         ? (english ? "Allow your card on the public page." : "Autorize o seu cartão na página pública.")
                         : !account.visivel
-                          ? (english ? "First make the profile visible." : "Primeiro torne o perfil visível.")
+                          ? (!account.foto_url
+                              ? (english ? "Show your profile and add a main photo for public presentation." : "Para a apresentação pública, torne o perfil visível e adicione uma fotografia principal.")
+                              : (english ? "First show your profile." : "Primeiro torne o perfil visível."))
                           : !account.foto_url
                             ? (english ? "Add a profile photo first." : "Adicione uma fotografia ao perfil.")
                             : !account.foto_destaque_publico_aprovada

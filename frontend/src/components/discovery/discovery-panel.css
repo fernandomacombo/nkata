@@ -54,7 +54,7 @@
   justify-content: start;
 }
 
-.nk-discovery-poll-heading > span {
+.nk-discovery-poll-heading > span[aria-hidden] {
   display: grid;
   place-items: center;
   width: 32px;
@@ -170,3 +170,53 @@
 
 .nk-discovery-votes small,
 .nk-discovery-panel--poll > small { color: #655c56; }
+
+.nk-discovery-panel--poll {
+  background: linear-gradient(155deg, #faebef, #fffdf9 65%);
+}
+
+.nk-poll-label {
+  color: #75263b;
+  font-weight: 650;
+  font-size: .84rem;
+}
+
+.nk-discovery-panel--poll h2 {
+  margin: 16px 0;
+  line-height: 1.23;
+  overflow-wrap: anywhere;
+}
+
+.nk-discovery-votes button {
+  justify-content: space-between;
+  min-height: 44px;
+}
+
+.nk-discovery-votes button svg {
+  flex-shrink: 0;
+  color: #81273e;
+}
+
+.nk-poll-choice {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.nk-poll-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nk-poll-footer button {
+  padding: 8px 0;
+  color: #75263b;
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
