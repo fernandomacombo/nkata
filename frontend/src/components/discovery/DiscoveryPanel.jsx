@@ -97,13 +97,16 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore, canP
             <summary>
               <span className="nk-poll-faces" aria-hidden="true">{participants.slice(0, 3).map(person =>
                 <span className="nk-poll-face" key={person.id}>{avatar(person)}</span>)}</span>
-              {english ? "Who voted" : "Quem votou"}
+              {english ? "Visible voter profiles" : "Perfis de votantes visíveis"} ({participants.length})
             </summary>
-            {participants.length ? <ul>{participants.map(person =>
+            <p>{english
+              ? "Every vote counts. Here you can see other members who chose to appear and whose profiles you can view."
+              : "Todos os votos contam. Aqui aparecem os outros membros que escolheram mostrar a sua participação e cujo perfil pode visitar."}</p>
+            {participants.length > 0 && <ul>{participants.map(person =>
               <li key={person.id}><a href={`/perfis/${person.id}/`}>
                 <span className="nk-poll-face">{avatar(person)}</span>
                 {person.name}<ChevronRight size={16} aria-hidden="true" />
-              </a></li>)}</ul> : <p>{english ? "No participant profiles to show yet." : "Ainda não há perfis de votantes para mostrar."}</p>}
+              </a></li>)}</ul>}
           </details>
           <a className="nk-poll-share" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl.href)}`}
             target="_blank" rel="noopener noreferrer"><Share2 size={16} aria-hidden="true" />
