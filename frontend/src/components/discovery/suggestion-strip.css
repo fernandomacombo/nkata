@@ -61,6 +61,7 @@
 .nk-suggestion-strip__profile {
   display: grid;
   align-content: start;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto auto;
   flex: 0 0 var(--card-width);
   min-width: 0;
@@ -98,6 +99,10 @@
   background: #909090;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .22);
   pointer-events: none;
+}
+
+.nk-suggestion-strip__media > .nk-presence[aria-label]::before {
+  content: none;
 }
 
 .nk-suggestion-strip__media > .nk-presence.is-online {
