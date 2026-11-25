@@ -16,7 +16,7 @@ export function readConfig(env){
  const secret=env.NKATA_MEDIA_GATEWAY_SECRET;
  if(typeof secret!=="string"||secret.length<32)throw Error("Missing gateway secret");
  const announcedAddress=env.NKATA_MEDIA_ANNOUNCED_IP;
- if(!isIP(announcedAddress)||announcedAddress==="0.0.0.0"||announcedAddress==="::"||announcedAddress==="127.0.0.1"||announcedAddress==="::1")throw Error("Routable media IP required");
+ if(isIP(announcedAddress)!==4||announcedAddress==="0.0.0.0"||announcedAddress.startsWith("127."))throw Error("Routable media IP required");
  const mediaPort=port(env.NKATA_MEDIA_PORT,44444),httpPort=port(env.NKATA_SIGNAL_PORT,8085);
  if(mediaPort===httpPort)throw Error("Ports must differ");
  return {origin,backend,secret,announcedAddress,mediaPort,httpPort};
