@@ -3,7 +3,7 @@ import {createServer} from "node:http";
 import {createWorker} from "mediasoup";
 import {WebSocketServer} from "ws";
 import {readConfig,verifyInboundMedia} from "./runtime.mjs";
-import {createAdmissionClient,createLeaseClient,createReconcileClient} from "./lease-client.mjs";
+import {createAdmissionClient,createLeaseClient,createReconcileClient,createResumeClient} from "./lease-client.mjs";
 import {SfuRoom} from "./sfu-room.mjs";
 import {createLeaseWatchdog} from "./lease-watchdog.mjs";
 import {attachSignalling} from "./signalling.mjs";
@@ -17,6 +17,7 @@ const webRtcServer=await worker.createWebRtcServer({listenInfos:["udp","tcp"].ma
 const gateway={origin:config.backend,secret:config.secret};
 const authorize=createLeaseClient(gateway);
 const reconcile=createReconcileClient(gateway);
+const recordResume=createResumeClient(gateway);
 const watchdog=createLeaseWatchdog();
 const server=createServer((req,res)=>{
  const ok=req.method==="GET"&&req.url==="/healthz"&&!worker.closed;
@@ -32,7 +33,7 @@ const control=attachSignalling({wss,origin:config.origin,admit:createAdmissionCl
    {kind:"video",mimeType:"video/VP8",clockRate:90000}
   ]});
   try{return new SfuRoom({router,sessionId:identity.sessionId,kind:identity.kind,
-   transportOptions:{webRtcServer,enableUdp:true,enableTcp:true,preferUdp:true,enableSctp:false},authorize,watchdog,reconcile,onReconcileFailure:({sessionId,minute})=>console.error(JSON.stringify({event:"media_reconciliation_required",sessionId,minute})),confirmClosed:async id=>!(await worker.dump()).routerIds.includes(id)});}
+   transportOptions:{webRtcServer,enableUdp:true,enableTcp:true,preferUdp:true,enableSctp:false},authorize,watchdog,reconcile,recordResume,onReconcileFailure:({sessionId,minute})=>console.error(JSON.stringify({event:"media_reconciliation_required",sessionId,minute})),confirmClosed:async id=>!(await worker.dump()).routerIds.includes(id)});}
   catch(error){router.close();throw error;}
  }
 });
