@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.utils import timezone
 
 from .models import AcessoPlanoNKATA, PedidoPagamentoNKATA
@@ -145,19 +145,30 @@ def start_checkout(user, product, key):
             "description": description, "return_url": f"{origin}/?nkata_payment={order.id}",
             "webhook_url": f"{origin}/api/pagamentos/paysuite/webhook/"})
         check_identity(order, data)
-        provider_id = str(data.get("id", ""))
-        if not re.fullmatch(r"[A-Za-z0-9-]{1,64}", provider_id):
+        provider_id = data.get("id")
+        if not isinstance(provider_id, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", provider_id):
             raise PaymentError("Resposta do prestador inválida.", 502)
-        # Persist the provider ID even if its checkout URL needs investigation.
-        order.provedor_id = provider_id
-        order.save(update_fields=["provedor_id"])
+        # A late creation response must never undo reconciliation or failure.
+        # Persist only a new provider ID; the unique constraint prevents two
+        # local orders from claiming the same external payment.
+        try:
+            with transaction.atomic():
+                order = PedidoPagamentoNKATA.objects.select_for_update().get(pk=order.pk)
+                if order.provedor_id and order.provedor_id != provider_id:
+                    raise PaymentError("Identificador do pagamento em revisão.", 409)
+                if not order.provedor_id:
+                    order.provedor_id = provider_id
+                    order.save(update_fields=["provedor_id"])
+        except IntegrityError:
+            raise PaymentError("Identificador do pagamento em revisão.", 409) from None
         if not valid_checkout_url(data.get("checkout_url")):
             raise PaymentError("O endereço de pagamento precisa de revisão.", 502)
-        PedidoPagamentoNKATA.objects.filter(pk=order.pk, aplicado_em__isnull=True, confirmado_em__isnull=True).update(
+        PedidoPagamentoNKATA.objects.filter(pk=order.pk, estado="CRIADO", aplicado_em__isnull=True, confirmado_em__isnull=True).update(
             checkout_url=data["checkout_url"], estado="PENDENTE")
         order.refresh_from_db()
     except PaymentError:
-        PedidoPagamentoNKATA.objects.filter(pk=order.pk, aplicado_em__isnull=True).update(estado="INCERTO")
+        PedidoPagamentoNKATA.objects.filter(pk=order.pk, estado="CRIADO", aplicado_em__isnull=True,
+            confirmado_em__isnull=True).update(estado="INCERTO")
         raise
     return order
 
