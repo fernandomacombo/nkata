@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from .test_conversations import historical_match
+from .test_conversations import accepted_match
 from .call_api import _heartbeat_key
 from .call_models import ChamadaMatchNKATA, SinalChamadaNKATA
 from .models import PedidoEntrada, PerfilNKATA, MatchPerfil, QuestionarioEntrada
@@ -49,7 +49,7 @@ class CallLifecycleTests(TestCase):
                 nome_publico="Test", idade=30, status="ATIVO"))
             assign_plan(user, "ESSENCIAL")
             self.users.append(user)
-        self.match = historical_match(perfil_1=profiles[0], perfil_2=profiles[1])
+        self.match = accepted_match(perfil_1=profiles[0], perfil_2=profiles[1])
         self.client = APIClient()
         self.url = f"/api/minha-conta/matches/{self.match.pk}/call/"
 
