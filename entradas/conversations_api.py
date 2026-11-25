@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 from .chat_permissions import chat_pair_allowed, request_pair_allowed, conversation_consent_state, conversation_has_access
 from .credit_catalog import ICEBREAKERS, ICEBREAKER_DAILY_LIMIT
+from .legacy_commercial import credit_only_enabled
 from .wallet_service import unlock_chat, chat_credit_snapshot, WalletError
 from .signal_views import _availability_payload, send_signal
 from django.contrib.auth import get_user_model
@@ -41,7 +42,7 @@ def available(me, other):
     return chat_pair_allowed(me, other)
 
 
-def lock_pair(me, other_id, *, for_request=False):
+def lock_pair(me, other_id, *, for_request=False, for_send=False):
     # All mutations acquire the same two rows in the same order, including the
     # first request, when there is no request or conversation row to lock yet.
     profiles = list(PerfilNKATA.objects.select_for_update().filter(
@@ -50,9 +51,11 @@ def lock_pair(me, other_id, *, for_request=False):
         raise NotFound("Perfil indisponível.")
     other = next(profile for profile in profiles if profile.pk != me.pk)
     current = next(profile for profile in profiles if profile.pk == me.pk)
-    allowed = request_pair_allowed if for_request else available
+    allowed = request_pair_allowed if for_request or (for_send and credit_only_enabled()) else available
     if not allowed(current, other):
         raise NotFound("Perfil indisponível.")
+    if for_send and not pedido_tem_identidade_verificada(current.pedido):
+        raise PermissionDenied("Verifique a sua identidade para enviar mensagens.")
     return other, {"perfil_1": profiles[0], "perfil_2": profiles[1]}
 
 
@@ -95,7 +98,7 @@ def accept(pending, pair, now):
     pending.save(update_fields=["estado", "decidido_em", "conversa"])
     clear_request_notice(pending)
     notify(pending.remetente, pending.destinatario, "CHAT_ACEITE", f"chat-aceite:{chat.pk}",
-           "Pedido de conversa aceite", "Pedido aceite. A troca de mensagens exige identidade verificada nos dois perfis.")
+           "Pedido de conversa aceite", "Pedido aceite. Pode ler mensagens gratuitamente; verifique a sua identidade para enviar.")
     return Response({"estado": "ACEITE", "conversation_id": chat.pk,
                      "identity_pending": not available(pending.remetente, pending.destinatario)})
 
@@ -219,7 +222,7 @@ def inbox(request):
     permitted = [(chat, other) for chat, other in eligible if request_pair_allowed(me, other)]
     consent_states = {chat.pk: conversation_consent_state(chat) for chat, _ in permitted}
     permitted = [(chat, other) for chat, other in permitted if consent_states[chat.pk] != "SEM_PEDIDO"]
-    eligible = [(chat, other) for chat, other in permitted if available(me, other)]
+    eligible = permitted if credit_only_enabled() else [(chat, other) for chat, other in permitted if available(me, other)]
     # Accepted conversations remain visible as metadata only; no message previews,
     # unread counts, media or thread contents until both identities are verified.
     open_ids = {chat.pk for chat, _ in eligible}
@@ -231,7 +234,7 @@ def inbox(request):
                           "identity_pending": True, "consent_state": consent_states[chat.pk], "atividade_em": chat.criado_em})
     native_ids = [chat.pk for chat, _ in eligible if not chat.match_origem_id]
     match_ids = [chat.match_origem_id for chat, _ in eligible if chat.match_origem_id]
-    media_ids = [legacy_match_id(chat) for chat, _ in eligible if legacy_match_id(chat)]
+    media_ids = [legacy_match_id(chat) for chat, other in eligible if legacy_match_id(chat) and available(me, other)]
 
     def latest_by(queryset, key, date):
         rows = queryset.annotate(chat_rank=Window(expression=RowNumber(), partition_by=[F(key)],
@@ -261,7 +264,7 @@ def inbox(request):
         }
         unread_text = legacy_unread.get(chat.match_origem_id, 0) if chat.match_origem_id else native_unread.get(chat.pk, 0)
         unread_audio = 0
-        legacy_id = legacy_match_id(chat)
+        legacy_id = legacy_match_id(chat) if available(me, other) else None
         # Only count media that can still be opened in the legacy workspace.
         if legacy_id:
             unread_audio = audio_unread.get(legacy_id, 0)
@@ -276,6 +279,8 @@ def inbox(request):
                     preview = {"texto": item["texto"], "tipo": "CALL", "minha": item["minha"], "criado_em": item["criado_em"]}
         chats.append({"id": chat.pk, "nome": other.nome_publico, "perfil": chat_profile(other),
                       "match_id": legacy_id, "ultima_mensagem": preview, "consent_state": consent_states[chat.pk],
+                      "identity_pending": not pedido_tem_identidade_verificada(me.pedido),
+                      "read_only": not pedido_tem_identidade_verificada(me.pedido),
                       "nao_lidas": unread_text + unread_audio, "textos_nao_lidos": unread_text,
                       "audios_nao_lidos": unread_audio,
                       "atividade_em": preview["criado_em"] if preview else chat.criado_em})
@@ -314,6 +319,24 @@ def inbox(request):
                      "conexoes": list(connections.values())})
 
 
+def readable_thread(request, conversation_id):
+    if not credit_only_enabled():
+        return accessible_thread(request, conversation_id)
+    me = member(request, require_identity=False)
+    chat = get_object_or_404(participants(me), pk=conversation_id)
+    other = peer(chat, me)
+    if not request_pair_allowed(me, other) or not conversation_has_access(chat):
+        raise NotFound("Conversa indisponível.")
+    return chat, me, other
+
+
+def writable_thread(request, conversation_id):
+    chat, me, other = readable_thread(request, conversation_id)
+    if not pedido_tem_identidade_verificada(me.pedido):
+        raise PermissionDenied("Verifique a sua identidade para enviar mensagens.")
+    return chat, me, other
+
+
 def accessible_thread(request, conversation_id):
     me = member(request)
     chat = get_object_or_404(participants(me), pk=conversation_id)
@@ -330,7 +353,7 @@ def close_conversation(request, conversation_id):
     from .models import MatchPerfil
     from .call_api import _active_call_for_match
 
-    me = member(request)
+    me = member(request, require_identity=not credit_only_enabled())
     chat = get_object_or_404(Conversa.objects.filter(Q(perfil_1=me) | Q(perfil_2=me)), pk=conversation_id)
     # Keep lock order compatible with legacy call creation.
     if chat.match_origem_id:
@@ -351,7 +374,7 @@ def close_conversation(request, conversation_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def typing(request, conversation_id):
-    chat, me, _ = accessible_thread(request, conversation_id)
+    chat, me, _ = writable_thread(request, conversation_id)
     cache.set(f"chat-digitando:{chat.pk}:{me.pk}", True, timeout=5)
     return Response(status=204)
 
@@ -360,7 +383,7 @@ def typing(request, conversation_id):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def delete_message(request, conversation_id, message_id):
-    chat, _, _ = accessible_thread(request, conversation_id)
+    chat, _, _ = readable_thread(request, conversation_id)
     thread = chat.match_origem if chat.match_origem_id else chat
     message = get_object_or_404(thread.mensagens.select_for_update(), pk=message_id, remetente=request.user)
     if not message.apagada_em:
@@ -379,7 +402,7 @@ def delete_message(request, conversation_id, message_id):
 def send_message(request, chat, me, other, thread):
     # Same lock order as blocking and request decisions; once a block commits,
     # a concurrent native sender cannot write a new message.
-    other, _ = lock_pair(me, other.pk)
+    other, _ = lock_pair(me, other.pk, for_send=True)
     get_user_model().objects.select_for_update().get(pk=request.user.pk)
     if chat.match_origem_id:
         from .models import MatchPerfil
@@ -389,7 +412,7 @@ def send_message(request, chat, me, other, thread):
         raise NotFound("Conversa indisponível.")
     me.refresh_from_db()
     other.refresh_from_db()
-    if me.status != "ATIVO" or not pedido_tem_identidade_verificada(me.pedido) or not available(me, other):
+    if me.status != "ATIVO" or not pedido_tem_identidade_verificada(me.pedido) or not (request_pair_allowed(me, other) if credit_only_enabled() else available(me, other)):
         raise NotFound("Conversa indisponível.")
     text = request.data.get("texto")
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 1200:
@@ -422,7 +445,7 @@ def chat_signal(request, conversation_id):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def unlock_text(request, conversation_id):
-    chat, me, other = accessible_thread(request, conversation_id)
+    chat, me, other = writable_thread(request, conversation_id)
     other, _ = lock_pair(me, other.pk)
     get_user_model().objects.select_for_update().get(pk=request.user.pk)
     if chat.match_origem_id:
@@ -445,7 +468,7 @@ def icebreaker_remaining(user):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def icebreaker(request, conversation_id):
-    chat, me, other = accessible_thread(request, conversation_id)
+    chat, me, other = writable_thread(request, conversation_id)
     other, _ = lock_pair(me, other.pk)
     get_user_model().objects.select_for_update().get(pk=request.user.pk)
     if chat.match_origem_id:
@@ -514,7 +537,7 @@ def message_page(request, rows):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def messages(request, conversation_id):
-    chat, me, other = accessible_thread(request, conversation_id)
+    chat, me, other = (writable_thread if request.method == "POST" else readable_thread)(request, conversation_id)
     thread = chat.match_origem if chat.match_origem_id else chat
     if request.method == "POST":
         return send_message(request, chat, me, other, thread)
@@ -534,15 +557,18 @@ def messages(request, conversation_id):
     page_info = {}
     if paginated:
         rows, page_info = message_page(request, rows)
+    can_send = pedido_tem_identidade_verificada(me.pedido)
     features = plan_for_user(request.user)["features"]
-    preset = preset_snapshot(request.user)
-    return Response({"nome": other.nome_publico, "perfil": chat_profile(other), "match_id": legacy_match_id(chat),
+    preset = preset_snapshot(request.user) if can_send else {"limite": 0, "restantes": 0, "frases": [], "phrases_en": []}
+    offer = chat_credit_snapshot(request.user, features["chat_text"]) if can_send else {"enabled": False, "can_unlock": False}
+    return Response({"nome": other.nome_publico, "perfil": chat_profile(other), "match_id": legacy_match_id(chat) if available(me, other) else None,
+                     "read_only": not can_send, "identity_required_to_send": not can_send,
                       "consent_state": conversation_consent_state(chat),
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
-                     "texto_livre": features["chat_text"], "frases": preset["frases"], "predefinidas": preset,
-                     "credito_chat": chat_credit_snapshot(request.user, features["chat_text"]),
-                     "credito_voz": voice_credit_offer(request.user, False),
-                     "sinais": _availability_payload(request.user, other) if other.visivel else {"signals": [], "quota": {}},
-                     "quebra_gelo": {"restantes": icebreaker_remaining(request.user), "perguntas": [{"codigo": code, "texto": text} for code, text in ICEBREAKERS.items()]},
+                     "texto_livre": can_send and features["chat_text"], "frases": preset["frases"], "predefinidas": preset,
+                     "credito_chat": offer,
+                     "credito_voz": voice_credit_offer(request.user, False) if can_send else {"enabled": False},
+                     "sinais": _availability_payload(request.user, other) if can_send and other.visivel else {"signals": [], "quota": {}},
+                     "quebra_gelo": {"restantes": icebreaker_remaining(request.user) if can_send else 0, "perguntas": [{"codigo": code, "texto": text} for code, text in ICEBREAKERS.items()] if can_send else []},
                      "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data,
                      **page_info})
