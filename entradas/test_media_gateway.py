@@ -187,3 +187,40 @@ class MediaGatewayTests(TestCase):
         with self.settings(NKATA_MEDIA_GATEWAY_TEST_ENABLED=False):
             self.assertEqual(self.client.get(detail,secure=True).status_code,404)
         self.assertEqual(credit_balance(self.a.usuario),9)
+
+
+    def reconcile(self, minute=1, secret=SECRET, ids=None, outcome="RESUME_NOT_ATTEMPTED"):
+        from .media_gateway_api import RECONCILE_PATH
+        body=json.dumps({"session_id":str(self.call.pk),
+            "user_ids":ids or [self.a.usuario_id,self.b.usuario_id],"minute":minute,"outcome":outcome})
+        stamp=str(int(time.time()))
+        nonce=str(uuid4())
+        signature=hmac.new(secret.encode(),f"POST\n{RECONCILE_PATH}\n{stamp}\n{nonce}\n".encode()+body.encode(),hashlib.sha256).hexdigest()
+        return self.client.post(RECONCILE_PATH,body,content_type="application/json",secure=True,
+            HTTP_X_NKATA_MEDIA_TIME=stamp,HTTP_X_NKATA_MEDIA_NONCE=nonce,HTTP_X_NKATA_MEDIA_SIGNATURE=signature)
+
+    def test_reconciliation_refunds_only_once_and_preserves_original_debit(self):
+        from .models import MovimentoCreditoNKATA
+        for peer in (self.a,self.b):
+            self.assertEqual(self.redeem(self.issue(peer.usuario).json()["ticket"]).status_code,200)
+        self.assertEqual(self.signed().status_code,200)
+        self.assertEqual(credit_balance(self.a.usuario),6)
+        self.assertEqual(self.reconcile(secret="wrong").status_code,403)
+        self.assertEqual(self.reconcile(outcome="UNKNOWN").status_code,400)
+        self.assertEqual(self.reconcile(ids=[self.a.usuario_id,999999]).status_code,409)
+        self.assertEqual(self.reconcile().json()["refunded"],3)
+        self.assertEqual(self.reconcile().json()["refunded"],3)
+        self.assertEqual(credit_balance(self.a.usuario),9)
+        key=f"call:native:{self.call.pk}:minute:1"
+        self.assertEqual(MovimentoCreditoNKATA.objects.get(chave=key).quantidade,-3)
+        self.assertEqual(MovimentoCreditoNKATA.objects.get(chave=key+":refund").quantidade,3)
+        self.assertEqual(self.signed(index=2).status_code,409)
+        self.call.refresh_from_db()
+        self.assertEqual(self.call.estado,"TERMINADA")
+
+    def test_reconciliation_before_debit_closes_session_without_creating_credit(self):
+        for peer in (self.a,self.b):
+            self.assertEqual(self.redeem(self.issue(peer.usuario).json()["ticket"]).status_code,200)
+        self.assertEqual(self.reconcile().json()["refunded"],0)
+        self.assertEqual(self.signed().status_code,409)
+        self.assertEqual(credit_balance(self.a.usuario),9)
