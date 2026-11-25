@@ -4,7 +4,7 @@ import {createBrowserMedia} from "./nativeCallMedia.js";
 
 const root="/api/chats/chamadas/";
 const terminal=new Set(["TERMINADA","RECUSADA","EXPIRADA"]);
-export function createNativeCallController({request,Device,signalUrl,onChange=()=>{},
+export function createNativeCallController({request,Device,signalUrl,onChange=()=>{},onError=()=>{},
  createMedia=createBrowserMedia,resolvePeer=()=>({}),pollMs=2000,
  uuid=()=>globalThis.crypto.randomUUID()}){
  let snapshot=null,media=null,consented=null,startingMedia=false,mediaActive=false,mediaReady=false,
@@ -65,8 +65,8 @@ export function createNativeCallController({request,Device,signalUrl,onChange=()
   if(snapshot&&snapshot.id!==server.id)return;
   if(terminal.has(server.state)){finish(server.state==="RECUSADA"?"declined":"ended");return;}
   // Reloading or opening another tab cannot silently enable media.
-  if(server.state!=="CHAMANDO"&&consented!==server.id){void endRemote(server.id);return;}
-  if(server.state==="CHAMANDO"&&server.payer&&consented!==server.id){void endRemote(server.id);return;}
+  if(server.state!=="CHAMANDO"&&consented!==server.id)return;
+  if(server.state==="CHAMANDO"&&server.payer&&consented!==server.id)return;
   render(server);void join(server);
  }
  async function refresh(){
@@ -91,7 +91,8 @@ export function createNativeCallController({request,Device,signalUrl,onChange=()
     key:uuid(),kind,expected_rate:kind==="AUDIO"?3:5,max_minutes:maxMinutes});
    if(disposed||generation!==epoch){void endRemote(server.id);return;}
    consented=server.id;render(server);
-  }finally{busy=false;if(snapshot&&!disposed)publish({...snapshot,busy:false});}
+  }catch(error){if(!disposed&&generation===epoch)onError(error.message||"Não foi possível iniciar a chamada.");}
+  finally{busy=false;if(snapshot&&!disposed)publish({...snapshot,busy:false});}
  }
  async function decide(accept){
   if(disposed||busy||snapshot?.phase!=="incoming")return;
