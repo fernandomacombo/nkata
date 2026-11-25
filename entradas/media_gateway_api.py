@@ -6,10 +6,16 @@ import time
 import uuid
 from django.conf import settings
 from django.core.cache import cache
+from django.core import signing
+from django.db import transaction
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from .native_call_service import authorize_gateway_minute
+from .native_call_service import authorize_gateway_minute, _locked_session, _allowed
+from .wallet_service import credit_spending_enabled
 from .wallet_service import WalletError
 
 PATH = "/api/internal/media-gateway/minute/"
@@ -32,9 +38,7 @@ def reply(payload,status=200):
     return response
 
 
-@csrf_exempt
-@require_POST
-def minute(request):
+def authenticate_gateway(request, path):
     if not enabled():
         return reply({"authorized":False},404)
     if not request.is_secure():
@@ -52,7 +56,7 @@ def minute(request):
     raw=request.body
     if len(raw)>4096:
         return reply({"authorized":False},400)
-    message=f"POST\n{PATH}\n{stamp}\n{nonce}\n".encode()+raw
+    message=f"POST\n{path}\n{stamp}\n{nonce}\n".encode()+raw
     expected=hmac.new(settings.NKATA_MEDIA_GATEWAY_SECRET.encode(),message,hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected,signature):
         return reply({"authorized":False},403)
@@ -62,6 +66,16 @@ def minute(request):
             return reply({"authorized":False},409)
     except Exception:
         return reply({"authorized":False},503)
+    return None
+
+
+@csrf_exempt
+@require_POST
+def minute(request):
+    error=authenticate_gateway(request, PATH)
+    if error is not None:
+        return error
+    raw=request.body
     try:
         data=json.loads(raw)
         if not isinstance(data,dict) or set(data)!={"session_id","connected_user_ids","expected_minute"}:
@@ -80,3 +94,73 @@ def minute(request):
     if not deadline:
         return reply({"authorized":False},409)
     return reply({"authorized":True,"minute":index,"paid_until":deadline.isoformat()})
+
+# A ticket is an admission credential, never a credit lease or evidence of RTP.
+JOIN_PATH = "/api/internal/media-gateway/join/"
+JOIN_SALT = "nkata.media.join.v1"
+JOIN_TTL = 30
+
+
+def _admission(session_id, user_id):
+    session, chat, profiles, users = _locked_session(session_id)
+    if (session.estado != "ACEITE" or timezone.now() >= session.expira_em
+        or not credit_spending_enabled() or not _allowed(chat, profiles, users)
+        or {u.pk for u in users} != {session.iniciador_id, session.destinatario_id}
+        or user_id not in (session.iniciador_id, session.destinatario_id)):
+        raise WalletError("Chamada indisponível.")
+    return session
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def issue_join_ticket(request, session_id):
+    if not enabled():
+        return reply({"authorized": False}, 404)
+    if not request.is_secure():
+        return reply({"authorized": False}, 403)
+    try:
+        session = _admission(session_id, request.user.pk)
+    except WalletError:
+        return reply({"authorized": False}, 404)
+    payload = {"sid": str(session.pk), "uid": request.user.pk, "nonce": uuid.uuid4().hex}
+    ticket = signing.dumps(payload, key=settings.NKATA_MEDIA_GATEWAY_SECRET, salt=JOIN_SALT)
+    return reply({"ticket": ticket, "expires_in": JOIN_TTL})
+
+
+@csrf_exempt
+@require_POST
+@transaction.atomic
+def redeem_join_ticket(request):
+    error = authenticate_gateway(request, JOIN_PATH)
+    if error is not None:
+        return error
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict) or set(data) != {"ticket"}:
+            raise ValueError()
+        token = data["ticket"]
+        if not isinstance(token, str) or len(token) > 2048:
+            raise ValueError()
+        payload = signing.loads(token, key=settings.NKATA_MEDIA_GATEWAY_SECRET,
+                                salt=JOIN_SALT, max_age=JOIN_TTL, fallback_keys=[])
+        if not isinstance(payload, dict) or set(payload) != {"sid", "uid", "nonce"}:
+            raise ValueError()
+        sid = uuid.UUID(payload["sid"])
+        uid = payload["uid"]
+        if type(uid) is not int or uid <= 0:
+            raise ValueError()
+        if uuid.UUID(hex=payload["nonce"]).hex != payload["nonce"]:
+            raise ValueError()
+        session = _admission(sid, uid)
+    except (ValueError, TypeError, AttributeError, UnicodeError, signing.BadSignature, WalletError):
+        return reply({"authorized": False}, 403)
+    try:
+        # One admission per participant per call. Reconnection is intentionally
+        # unsupported until a server-owned transport lifecycle is implemented.
+        if not cache.add(f"media-gateway:admitted:{sid}:{uid}", 1, timeout=7500):
+            return reply({"authorized": False}, 409)
+    except Exception:
+        return reply({"authorized": False}, 503)
+    return reply({"authorized": True, "session_id": str(sid), "user_id": uid,
+                  "kind": session.tipo})
