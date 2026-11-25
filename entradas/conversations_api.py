@@ -222,6 +222,9 @@ def delete_message(request, conversation_id, message_id):
 
 @transaction.atomic
 def send_message(request, chat, me, other, thread):
+    if chat.match_origem_id:
+        from .models import MatchPerfil
+        MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
     locked = Conversa.objects.select_for_update().get(pk=chat.pk)
     if locked.estado != Conversa.ESTADO_ATIVA:
         raise NotFound("Conversa indisponível.")

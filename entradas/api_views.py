@@ -786,6 +786,7 @@ def api_conversa_match(request, match_id):
 
     if request.method == "POST":
         from .models import Conversa
+        MatchPerfil.objects.select_for_update().get(pk=match.pk)
         chat = Conversa.objects.select_for_update().filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).first()
         if not chat:
             return Response({"detail": "Conversa indisponível."}, status=404)

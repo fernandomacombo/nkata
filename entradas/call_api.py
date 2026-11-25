@@ -51,7 +51,12 @@ def _match_do_utilizador(user, match_id, *, for_update=False):
     )
     if for_update:
         qs = qs.select_for_update(of=("self",))
-    return qs.first()
+    match = qs.first()
+    if for_update and match:
+        from .models import Conversa
+        if not Conversa.objects.filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).exists():
+            return None
+    return match
 
 
 def _outro_utilizador(match, current_user):

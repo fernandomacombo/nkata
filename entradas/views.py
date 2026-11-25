@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -818,6 +819,7 @@ def meus_matches(request):
 
 
 @login_required
+@transaction.atomic
 def conversa_match(request, match_id):
     if chat_requires_identity(request.user):
         return JsonResponse({"detail": IDENTITY_REQUIRED_MESSAGE}, status=403)
@@ -848,6 +850,10 @@ def conversa_match(request, match_id):
     outro_perfil = match.perfil_2 if match.perfil_1_id == perfil.id else match.perfil_1
 
     if request.method == "POST":
+        from .models import Conversa
+        MatchPerfil.objects.select_for_update().get(pk=match.pk)
+        if not Conversa.objects.select_for_update().filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).first():
+            return JsonResponse({"detail": "Conversa indisponível."}, status=404)
         texto = request.POST.get("texto", "").strip()
 
         if not texto:
