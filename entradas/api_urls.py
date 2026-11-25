@@ -18,6 +18,7 @@ from . import (
     chat_media_api,
     native_voice_api,
     media_gateway_api,
+    native_call_api,
     chat_realtime_api,
     follow_views,
     discovery_api,
@@ -51,6 +52,9 @@ from . import wallet_api, finance_admin_api
 urlpatterns = [
     path("internal/media-gateway/minute/", media_gateway_api.minute),
     path("internal/media-gateway/join/", media_gateway_api.redeem_join_ticket),
+    path("chats/<int:conversation_id>/chamadas/", native_call_api.start),
+    path("chats/chamadas/actual/", native_call_api.current),
+    path("chats/chamadas/<uuid:session_id>/", native_call_api.detail),
     path("chats/chamadas/<uuid:session_id>/ticket/", media_gateway_api.issue_join_ticket),
     path("chats/chamadas/<uuid:session_id>/ice/", media_gateway_api.call_ice_config),
     path("minha-conta/carteira/", wallet_api.wallet),
