@@ -76,6 +76,7 @@ function normalizeProfile(profile) {
     cover_url: normalizeAppUrl(profile.cover_url || null),
     gallery,
     gallery_count: Number(profile.gallery_count ?? gallery.length),
+    moments: (profile.moments || []).map(item => ({id: item.id, mediaUrl: normalizeAppUrl(item.media_url || null), mediaType: item.media_type, text: item.text || "", expiresAt: item.expires_at, theme: item.theme})),
   };
 }
 
