@@ -80,6 +80,15 @@ try {
     await page.getByRole("button",{name:/Ana/}).click();
     await page.getByRole("button",{name:"OK",exact:true}).click();
     await dialog.waitFor({state:"detached"});
+    const composer = page.locator(".nk-chat-compose");
+    const historyBefore = await page.locator(".nk-chat-lines").boundingBox();
+    assert.ok((await composer.boundingBox()).height < 90, "Composer must remain compact");
+    await composer.getByRole("button",{name:"Acções da conversa",exact:true}).click();
+    await page.getByRole("region",{name:"Acções da conversa",exact:true}).waitFor();
+    const historyAfter = await page.locator(".nk-chat-lines").boundingBox();
+    assert.equal(historyBefore.height,historyAfter.height,"Extras must not shrink message history");
+    await page.keyboard.press("Escape");
+    await page.getByRole("region",{name:"Acções da conversa",exact:true}).waitFor({state:"detached"});
     await page.getByRole("textbox",{name:"Mensagem",exact:true}).fill("Teste");
     const submitted = page.waitForRequest(req=>req.method()==="POST" && new URL(req.url()).pathname==="/api/chats/1/");
     await page.getByRole("button",{name:"Enviar mensagem"}).click();

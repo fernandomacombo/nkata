@@ -718,7 +718,7 @@ export default function ConversationPage({
         <header className="nk-conversation__header">
           <button type="button" className="nk-conversation__back" onClick={onBack}>
             <ArrowLeft size={19} />
-            <span>Matches</span>
+            <span>{english ? "Chats" : "Chats"}</span>
           </button>
 
           <div className="nk-conversation__person">
@@ -774,13 +774,13 @@ export default function ConversationPage({
         </header>
 
         <section className="nk-conversation__body" aria-live="polite">
-          <div className="nk-conversation__opening">
+          {!timeline.length && <div className="nk-conversation__opening">
             <span><LockKeyhole size={17} /></span>
             <div>
               <strong>{english ? "It's a match" : "É um match"}</strong>
               <p>{english ? "Talk with respect. Personal contact details do not need to be shared straight away." : "Conversem com respeito. Os contactos pessoais não precisam de ser partilhados logo no início."}</p>
             </div>
-          </div>
+          </div>}
 
           {safetyStatus && (
             <div className="nk-interest-message is-active" role="status">
@@ -856,12 +856,12 @@ export default function ConversationPage({
             </div>
           )}
 
-          {!textEnabled && canUsePreset && <div className="nk-chat-dock__notice" role="status">{presetData.restantes} {english ? "free preset messages left today" : "mensagens gratuitas restantes hoje"}</div>}
+          {!textEnabled && canUsePreset && <div className="nk-chat-dock__notice" role="status">{presetData.restantes} {english ? "free messages left" : "mensagens gratuitas restantes"}</div>}
           {!textEnabled && !canUsePreset && !recording && !recordedBlob ? (
             <div className="nk-chat-dock__notice" role="status">
               <LockKeyhole size={14} />
-              <span>{english ? "Activate a chat plan to send or reply to messages." : "Ative um pacote com chat para enviar ou responder a mensagens."}</span>
-              <a href="/conta/?section=plan">{english ? "See plans" : "Ver pacotes"}</a>
+              <span>{english ? "Text chat access required." : "Texto livre bloqueado."}</span>
+              <a href="/conta/?section=plan">{english ? "Wallet" : "Carteira"}</a>
               {canRecordVoice && <button type="button" onClick={startRecording}><Mic size={18}/> {english ? "Voice note" : "Nota de voz"}</button>}
             </div>
           ) : recording ? (

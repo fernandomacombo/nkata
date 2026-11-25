@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Check, CheckCheck, Clock, Flower2, Hand, Heart, HeartHandshake, MessageCircle, MoreVertical, Reply, Search, Send, ShieldCheck, Sparkles, Trash2, UserRound, X, Plus } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Clock, Flower2, Hand, Heart, HeartHandshake, MessageCircle, MoreVertical, Reply, Search, Send, ShieldCheck, Sparkles, Trash2, UserRound, X, Plus, WalletCards, LockKeyhole } from "lucide-react";
 import { request, blockProfile, reportProfile } from "../services/api.js";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import { usePresence } from "../components/profiles/Presence.jsx";
@@ -59,6 +59,14 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   const [menu, setMenu] = useState(false);
   const [messageMenu, setMessageMenu] = useState(null);
   const [extrasOpen, setExtrasOpen] = useState(false), [extraBusy, setExtraBusy] = useState(false);
+  const extrasRef = useRef(null), extrasTrigger = useRef(null);
+  useEffect(() => {
+    if (!extrasOpen) return;
+    function dismiss(event) { if (!extrasRef.current?.contains(event.target) && !extrasTrigger.current?.contains(event.target)) setExtrasOpen(false); }
+    function key(event) { if (event.key === "Escape") { setExtrasOpen(false); extrasTrigger.current?.focus(); } }
+    document.addEventListener("pointerdown", dismiss); document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", key); };
+  }, [extrasOpen]);
   async function sendExtra(kind, body) {
     if (extraBusy || !safetyAccepted) return;
     setExtraBusy(true); setError("");
@@ -149,7 +157,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           if ([401, 403, 404].includes(err.status)) {
             olderController.current?.abort(); setLoadingOlder(false);
             history.current = []; initialized.current = false; hasOlder.current = false;
-            restoreScroll.current = null; lastId.current = null; setReply(null); setText("");
+            restoreScroll.current = null; lastId.current = null; setReply(null); setText(""); setExtrasOpen(false);
             setThread(null);
           }
           setError(err.message);
@@ -187,7 +195,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
       if (!controller.signal.aborted) {
         if ([401, 403, 404].includes(err.status)) {
           history.current = []; initialized.current = false; hasOlder.current = false;
-          restoreScroll.current = null; lastId.current = null; setReply(null); setText(""); setThread(null);
+          restoreScroll.current = null; lastId.current = null; setReply(null); setText(""); setExtrasOpen(false); setThread(null);
           setRevision(v => v + 1);
         }
         setError(err.message);
@@ -278,22 +286,27 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           </div>}
         </li></Fragment>)}
       </ol>
-      {thread.a_escrever && <p className="nk-chat-typing" role="status">{thread.nome} está a escrever...</p>}
       <form className="nk-chat-compose" onSubmit={send}>
-        <div className="nk-chat-extras-head"><button type="button" className="nk-chat-extras-toggle" aria-expanded={extrasOpen} onClick={() => setExtrasOpen(v => !v)} disabled={!safetyAccepted}><Plus size={17}/> Sinais e quebra-gelo</button></div>
-        {extrasOpen && <section className="nk-chat-extras" aria-label="Sinais e quebra-gelo">
-          {!!thread.sinais?.signals?.length && <><strong>Sinais</strong><small>{thread.sinais.quota?.credit_mode ? `${thread.sinais.quota.credit_balance} créditos disponíveis` : `${thread.sinais.quota?.remaining_today ?? 0} disponíveis hoje · ${thread.sinais.quota?.recharge_balance ?? 0} de recarga`}</small><div className="nk-chat-signal-buttons">{thread.sinais.signals.map(item => <button type="button" key={item.type} disabled={extraBusy || item.available === false || item.sent_to_profile_today || thread.sinais.quota?.limit_reached || !safetyAccepted} onClick={() => sendSignal(item)}><span><SignalIcon type={item.type}/></span>{item.label}{thread.sinais.quota?.credit_mode && <small>{item.cost ? `${item.cost} crédito${item.cost === 1 ? "" : "s"}` : "Incluído"}</small>}</button>)}</div></>}
+        {extrasOpen && <section ref={extrasRef} id="nk-chat-extras-panel" className="nk-chat-extras nk-chat-extras--popover" aria-label="Acções da conversa">
+          <div className="nk-chat-extras-title"><strong>Acções da conversa</strong><button className="nk-chat-icon" type="button" aria-label="Fechar acções" onClick={() => {setExtrasOpen(false);extrasTrigger.current?.focus();}}><X size={18}/></button></div>
+          {thread.sinais?.quota?.credit_mode && <a className="nk-chat-wallet-link" href="/conta/?section=plan"><WalletCards size={17}/><span>Carteira · {thread.sinais.quota.credit_balance} créditos</span></a>}
+          {thread.credito_chat?.expires_at && <small>Texto livre até {new Date(thread.credito_chat.expires_at).toLocaleString("pt-MZ")}</small>}
+          {!thread.texto_livre && <small>{thread.predefinidas?.restantes ?? 0} mensagens gratuitas restantes hoje</small>}
+          {!thread.texto_livre && thread.credito_chat?.can_unlock && thread.credito_chat.balance >= thread.credito_chat.cost && <button type="button" className="nk-chat-unlock" disabled={extraBusy || !safetyAccepted} onClick={buyText}><LockKeyhole size={16}/>Texto livre 24 h · {thread.credito_chat.cost} créditos</button>}
+          {!thread.texto_livre && (!thread.credito_chat?.can_unlock || thread.credito_chat.balance < thread.credito_chat.cost) && <a className="nk-chat-wallet-link" href="/conta/?section=plan"><LockKeyhole size={16}/> Consultar acesso ao texto livre</a>}
+          {!!thread.sinais?.signals?.length && <><strong>Sinais</strong>{!thread.sinais.quota?.credit_mode && <small>{thread.sinais.quota?.remaining_today ?? 0} disponíveis hoje</small>}<div className="nk-chat-signal-buttons">{thread.sinais.signals.map(item => <button type="button" key={item.type} disabled={extraBusy || item.available === false || item.sent_to_profile_today || thread.sinais.quota?.limit_reached || !safetyAccepted} onClick={() => sendSignal(item)}><span><SignalIcon type={item.type}/></span>{item.label}{thread.sinais.quota?.credit_mode && <small>{item.cost ? `${item.cost} crédito${item.cost === 1 ? "" : "s"}` : "Incluído"}</small>}</button>)}</div></>}
           <strong>Quebra-gelo · {thread.quebra_gelo?.restantes ?? 0} restantes</strong>
           {thread.quebra_gelo?.perguntas?.map(item => <button className="nk-chat-icebreaker" type="button" key={item.codigo} disabled={extraBusy || !thread.quebra_gelo.restantes || !safetyAccepted} onClick={() => sendExtra("quebra-gelo", {codigo:item.codigo})}>{item.texto}<Send size={15}/></button>)}
         </section>}
         {reply && <div className="nk-independent-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
-        {!thread.texto_livre && <div className="nk-chat-preset-info"><span>{thread.predefinidas?.restantes ?? 0} mensagens gratuitas restantes hoje</span>{thread.credito_chat?.can_unlock ? (thread.credito_chat.balance >= thread.credito_chat.cost ? <button type="button" className="nk-chat-extras-toggle" disabled={extraBusy || !safetyAccepted} onClick={buyText}>Texto livre 24 h · {thread.credito_chat.cost} créditos</button> : <a href="/conta/?section=plan">Recarregar créditos</a>) : <a href="/conta/?section=plan">Desbloquear texto livre</a>}</div>}
-        {thread.credito_chat?.expires_at && <p className="nk-chat-preset-info">Texto livre até {new Date(thread.credito_chat.expires_at).toLocaleString("pt-MZ")}</p>}
-        {thread.texto_livre || thread.frases.length ? <div className="nk-chat-compose-line">
+        <div className="nk-chat-compose-line">
+          <button ref={extrasTrigger} className="nk-chat-icon nk-chat-plus" type="button" aria-label="Acções da conversa" aria-expanded={extrasOpen} aria-controls={extrasOpen ? "nk-chat-extras-panel" : undefined} onClick={() => setExtrasOpen(v => !v)} disabled={!safetyAccepted}>{extrasOpen?<X size={22}/>:<Plus size={22}/>}</button>
           {thread.texto_livre ? <textarea ref={composerRef} aria-label="Mensagem" placeholder="Escrever mensagem..." rows={1} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :
-            <select aria-label="Mensagem predefinida" value={text} onChange={e => setText(e.target.value)}><option value="">Escolher mensagem</option>{thread.frases.map(phrase => <option key={phrase}>{phrase}</option>)}</select>}
-          <button type="submit" className="nk-chat-send" aria-label="Enviar mensagem" disabled={sending || !text.trim() || !safetyAccepted || (!thread.texto_livre && !thread.frases.includes(text))}><Send size={20} /></button>
-        </div> : <p className="nk-chat-preset-info">Limite diário de mensagens gratuitas atingido. Poderá enviar novas frases amanhã.</p>}
+            thread.frases.length ? <select aria-label="Mensagem predefinida" value={text} onChange={e => setText(e.target.value)}><option value="">Escolher mensagem</option>{thread.frases.map(phrase => <option key={phrase}>{phrase}</option>)}</select> :
+            <span className="nk-chat-compose-locked">Mensagens gratuitas esgotadas</span>}
+          {thread.texto_livre || thread.frases.length ? <button type="submit" className="nk-chat-send" aria-label="Enviar mensagem" disabled={sending || !text.trim() || !safetyAccepted || (!thread.texto_livre && !thread.frases.includes(text))}><Send size={20} /></button> : null}
+          {!thread.texto_livre && <button type="button" className="nk-chat-icon nk-chat-unlock-short" aria-label="Opções para desbloquear texto livre" title="Desbloquear texto livre" disabled={!safetyAccepted} onClick={() => setExtrasOpen(true)}><LockKeyhole size={18}/></button>}
+        </div>
       </form>
       {(!safetyAccepted || safetyMode === "help") && <ChatSafetyNotice name={thread.nome} helpOnly={safetyMode === "help"} onAccept={safetyMode === "help" ? async () => setSafetyMode("") : onAcceptSafety} onExit={safetyMode === "help" ? () => setSafetyMode("") : onBack} />}
       <SafetyDialog open={["report", "block"].includes(safetyMode)} mode={safetyMode} personName={thread.nome} loading={safetyBusy} error={safetyError} onClose={() => setSafetyMode("")} onConfirm={confirmSafety} />
