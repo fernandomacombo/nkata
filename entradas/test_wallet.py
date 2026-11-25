@@ -102,10 +102,10 @@ class WalletTests(TestCase):
         from uuid import uuid4
         from django.core.files.uploadedfile import SimpleUploadedFile
         from django.test import override_settings
-        from .test_conversations import historical_match
+        from .test_conversations import accepted_match
         from .test_voice_note_validation import wav_note
         from .chat_media_models import MensagemAudioMatchNKATA
-        match = historical_match(perfil_1=self.a.perfil_nkata, perfil_2=self.b.perfil_nkata)
+        match = accepted_match(perfil_1=self.a.perfil_nkata, perfil_2=self.b.perfil_nkata)
         self.move()
         self.client.force_login(self.a)
         url = f"/api/minha-conta/matches/{match.pk}/audio/"
@@ -313,10 +313,10 @@ class WalletTests(TestCase):
         from unittest.mock import patch
         from django.test import override_settings
         from django.db import DatabaseError
-        from .test_conversations import historical_match
+        from .test_conversations import accepted_match
         from .test_voice_note_validation import wav_note
         from .chat_media_models import MensagemAudioMatchNKATA
-        match=historical_match(perfil_1=self.a.perfil_nkata,perfil_2=self.b.perfil_nkata)
+        match=accepted_match(perfil_1=self.a.perfil_nkata,perfil_2=self.b.perfil_nkata)
         self.move(amount=1)
         self.client.force_login(self.a)
         url=f"/api/minha-conta/matches/{match.pk}/audio/"
