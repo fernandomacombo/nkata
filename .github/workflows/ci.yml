@@ -104,3 +104,5 @@ jobs:
           npx playwright install --with-deps chromium webkit
       - name: Validar usabilidade dos Chats em Chromium e WebKit
         run: node scripts/test-chats-browser.mjs
+      - name: Validar carteira pessoal em Chromium e WebKit
+        run: node scripts/test-wallet-browser.mjs

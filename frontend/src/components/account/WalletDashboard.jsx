@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, WalletCards, Gift, History, RefreshCw, BarChart3, CreditCard } from "lucide-react";
 import { fetchWalletStatement } from "../../services/planApi.js";
 
@@ -12,6 +12,7 @@ export default function WalletDashboard({english, refreshKey, onRecharge}) {
   const [data,setData] = useState(null), [rows,setRows] = useState([]), [next,setNext] = useState(null);
   const [loading,setLoading] = useState(true), [error,setError] = useState("");
   const [more,setMore] = useState(false);
+  const moreRequest = useRef(null);
   useEffect(()=>{
     const controller = new AbortController();
     setLoading(true); setError(""); setData(null); setRows([]); setNext(null); setMore(false);
@@ -19,17 +20,21 @@ export default function WalletDashboard({english, refreshKey, onRecharge}) {
       .then(result=>{if(!controller.signal.aborted){setData(result);setRows(result.results);setNext(result.next_before);}})
       .catch(err=>{if(!controller.signal.aborted)setError(err.message);})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
-    return ()=>controller.abort();
+    return ()=>{controller.abort();moreRequest.current?.abort();moreRequest.current=null;};
   },[period,kind,version,refreshKey]);
   async function loadMore(){
-    if(!next || loading || more) return;
+    if(!next || loading || more || moreRequest.current) return;
+    const controller = new AbortController();
+    moreRequest.current = controller;
     setMore(true);setError("");
     try{
-      const result = await fetchWalletStatement({period,kind,before:next});
-      setRows(current=>[...current,...result.results.filter(row=>!current.some(old=>old.id===row.id))]);
-      setNext(result.next_before);
-    }catch(err){setError(err.message);}
-    finally{setMore(false);}
+      const result = await fetchWalletStatement({period,kind,before:next,signal:controller.signal});
+      if(!controller.signal.aborted){
+        setRows(current=>[...current,...result.results.filter(row=>!current.some(old=>old.id===row.id))]);
+        setNext(result.next_before);
+      }
+    }catch(err){if(!controller.signal.aborted)setError(err.message);}
+    finally{if(moreRequest.current===controller){moreRequest.current=null;setMore(false);}}
   }
   const summary=data?.summary;
   const consumed=data?.breakdown.reduce((sum,row)=>sum+row.credits,0)||0;
