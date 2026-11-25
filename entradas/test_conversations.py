@@ -89,6 +89,42 @@ class ConversationTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 404)
         self.assertEqual(self.client.get("/api/chats/").json()["conversas"], [])
 
+    def test_credit_mode_unverified_reads_but_cannot_send_or_spend(self):
+        from .wallet_service import record_movement, credit_balance
+        from .credit_catalog import ICEBREAKERS
+        from .plan_service import CHAT_PHRASES_PT
+        self.a.pedido.identidade_revogada = True
+        self.a.pedido.save()
+        with self.settings(NKATA_CREDIT_ONLY_ENABLED=True, NKATA_CREDIT_TRANSITION_ENABLED=True, NKATA_CREDIT_SPENDING_ENABLED=True):
+            record_movement(self.a.usuario, key="test-fund-a", kind="AJUSTE", amount=20, reference="TEST", reason="Test")
+            first = self.ask(self.b, self.a)
+            self.assertEqual(first.status_code, 201)
+            accepted = self.decide(self.a, first.json()["id"], "ACEITE")
+            chat = accepted.json()["conversation_id"]
+            root = f"/api/chats/{chat}/"
+            self.client.force_login(self.b.usuario)
+            self.assertEqual(self.client.get(root).status_code, 200)
+            with patch("entradas.conversations_api.can_send_chat_text", return_value=True):
+                self.assertEqual(self.client.post(root, {"texto": "Mensagem recebida"}).status_code, 201)
+            self.client.force_login(self.a.usuario)
+            row = self.client.get("/api/chats/").json()["conversas"][0]
+            self.assertTrue(row["read_only"])
+            self.assertEqual(row["nao_lidas"], 1)
+            data = self.client.get(root).json()
+            self.assertTrue(data["read_only"])
+            self.assertEqual(data["mensagens"][0]["texto"], "Mensagem recebida")
+            self.assertFalse(data["texto_livre"])
+            self.assertEqual(data["frases"], [])
+            self.assertFalse(data["credito_voz"]["enabled"])
+            self.assertEqual(self.client.post(root, {"texto": CHAT_PHRASES_PT[0]}).status_code, 403)
+            self.assertEqual(self.client.post(root + "quebra-gelo/", {"codigo": next(iter(ICEBREAKERS))}).status_code, 403)
+            self.assertEqual(self.client.post(root + "desbloquear/", {"expected_cost": 10}).status_code, 403)
+            self.assertEqual(self.client.post(root + "audio/").status_code, 403)
+            self.assertEqual(credit_balance(self.a.usuario), 20)
+            self.a.pedido.identidade_revogada = False
+            self.a.pedido.save()
+            self.assertFalse(self.client.get(root).json()["read_only"])
+
     def test_free_consent_before_identity_without_message_access(self):
         from .wallet_service import credit_balance
         self.a.pedido.identidade_revogada = True
