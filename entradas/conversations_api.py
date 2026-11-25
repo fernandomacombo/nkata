@@ -12,7 +12,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .chat_permissions import chat_pair_allowed
+from .chat_permissions import chat_pair_allowed, request_pair_allowed
 from .credit_catalog import ICEBREAKERS, ICEBREAKER_DAILY_LIMIT
 from .wallet_service import unlock_chat, chat_credit_snapshot, WalletError
 from .signal_views import _availability_payload, send_signal
@@ -30,9 +30,9 @@ from .serializers import MensagemMatchSerializer
 from .user_roles import active_member_profile_for_user
 
 
-def member(request):
+def member(request, *, require_identity=True):
     profile = active_member_profile_for_user(request.user)
-    if not profile or not pedido_tem_identidade_verificada(profile.pedido):
+    if not profile or (require_identity and not pedido_tem_identidade_verificada(profile.pedido)):
         raise PermissionDenied("Verifique a sua identidade para usar os chats.")
     return profile
 
@@ -41,7 +41,7 @@ def available(me, other):
     return chat_pair_allowed(me, other)
 
 
-def lock_pair(me, other_id):
+def lock_pair(me, other_id, *, for_request=False):
     # All mutations acquire the same two rows in the same order, including the
     # first request, when there is no request or conversation row to lock yet.
     profiles = list(PerfilNKATA.objects.select_for_update().filter(
@@ -50,7 +50,8 @@ def lock_pair(me, other_id):
         raise NotFound("Perfil indisponível.")
     other = next(profile for profile in profiles if profile.pk != me.pk)
     current = next(profile for profile in profiles if profile.pk == me.pk)
-    if not available(current, other):
+    allowed = request_pair_allowed if for_request else available
+    if not allowed(current, other):
         raise NotFound("Perfil indisponível.")
     return other, {"perfil_1": profiles[0], "perfil_2": profiles[1]}
 
@@ -75,6 +76,7 @@ def request_payload(item, me, now):
     state = "EXPIRADO" if item.estado == "PENDENTE" and item.expira_em <= now else item.estado
     return {"id": item.pk, "recebido": received, "nome": other.nome_publico, "perfil": chat_profile(other),
             "estado": state, "criado_em": item.criado_em, "expira_em": item.expira_em,
+            "identity_pending": not available(me, other),
             "decidido_em": item.decidido_em,
             "conversation_id": item.conversa_id if item.conversa_id and item.conversa.estado == Conversa.ESTADO_ATIVA else None,
             "segundos_restantes": max(0, int((item.expira_em - now).total_seconds())) if state == "PENDENTE" else 0}
@@ -93,23 +95,25 @@ def accept(pending, pair, now):
     pending.save(update_fields=["estado", "decidido_em", "conversa"])
     clear_request_notice(pending)
     notify(pending.remetente, pending.destinatario, "CHAT_ACEITE", f"chat-aceite:{chat.pk}",
-           "Pedido de conversa aceite", "Já pode abrir a conversa.")
-    return Response({"estado": "ACEITE", "conversation_id": chat.pk})
+           "Pedido de conversa aceite", "Pedido aceite. A troca de mensagens exige identidade verificada nos dois perfis.")
+    return Response({"estado": "ACEITE", "conversation_id": chat.pk,
+                     "identity_pending": not available(pending.remetente, pending.destinatario)})
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def send_request(request, profile_id):
-    me = member(request)
-    other, pair = lock_pair(me, profile_id)
+    me = member(request, require_identity=False)
+    other, pair = lock_pair(me, profile_id, for_request=True)
     if not other.visivel:
         raise NotFound("Perfil indisponível.")
     existing = Conversa.objects.filter(**pair).first()
     if existing:
         if existing.estado != Conversa.ESTADO_ATIVA:
             raise NotFound("Conversa indisponível.")
-        return Response({"estado": "ACEITE", "conversation_id": existing.pk})
+        return Response({"estado": "ACEITE", "conversation_id": existing.pk,
+                         "identity_pending": not available(me, other)})
     requests = PedidoConversa.objects.filter(
         Q(remetente=me, destinatario=other) | Q(remetente=other, destinatario=me))
     now = timezone.now()
@@ -136,16 +140,16 @@ def send_request(request, profile_id):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def decide_request(request, request_id):
-    me = member(request)
+    me = member(request, require_identity=False)
     pending = get_object_or_404(PedidoConversa.objects.filter(Q(remetente=me) | Q(destinatario=me)), pk=request_id)
     if request.method == "GET":
         other = pending.remetente if pending.destinatario_id == me.pk else pending.destinatario
-        if not available(me, other):
+        if not request_pair_allowed(me, other):
             raise NotFound("Pedido indisponível.")
         return Response(request_payload(pending, me, timezone.now()))
     if pending.destinatario_id != me.pk:
         raise NotFound("Pedido indisponível.")
-    _, pair = lock_pair(me, pending.remetente_id)
+    _, pair = lock_pair(me, pending.remetente_id, for_request=True)
     pending.refresh_from_db()
     now = timezone.now()
     decision = request.data.get("decisao")
@@ -171,7 +175,7 @@ def decide_request(request, request_id):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def cancel_request(request, request_id):
-    me = member(request)
+    me = member(request, require_identity=False)
     pending = get_object_or_404(PedidoConversa, pk=request_id, remetente=me)
     # Acquire the same pair locks as acceptance; cancellation is allowed even
     # when the recipient is no longer available or has blocked the sender.
@@ -207,10 +211,20 @@ def peer(chat, me):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def inbox(request):
-    me = member(request)
+    me = member(request, require_identity=False)
     chats = []
     eligible = [(chat, peer(chat, me)) for chat in participants(me).select_related("match_origem").order_by("-pk")]
-    eligible = [(chat, other) for chat, other in eligible if available(me, other)]
+    permitted = [(chat, other) for chat, other in eligible if request_pair_allowed(me, other)]
+    eligible = [(chat, other) for chat, other in permitted if available(me, other)]
+    # Accepted conversations remain visible as metadata only; no message previews,
+    # unread counts, media or thread contents until both identities are verified.
+    open_ids = {chat.pk for chat, _ in eligible}
+    for chat, other in permitted:
+        if chat.pk not in open_ids:
+            chats.append({"id": chat.pk, "nome": other.nome_publico, "perfil": chat_profile(other),
+                          "match_id": None, "ultima_mensagem": None, "nao_lidas": 0,
+                          "textos_nao_lidos": 0, "audios_nao_lidos": 0,
+                          "identity_pending": True, "atividade_em": chat.criado_em})
     native_ids = [chat.pk for chat, _ in eligible if not chat.match_origem_id]
     match_ids = [chat.match_origem_id for chat, _ in eligible if chat.match_origem_id]
     media_ids = [legacy_match_id(chat) for chat, _ in eligible if legacy_match_id(chat)]
@@ -270,13 +284,13 @@ def inbox(request):
     for rows, target in ((requests.filter(active), pending), (requests.exclude(active).order_by("-pk")[:50], history)):
         for item in rows:
             other = item.remetente if item.destinatario_id == me.pk else item.destinatario
-            if available(me, other):
+            if request_pair_allowed(me, other):
                 target.append(request_payload(item, me, now))
     # Connections are social interactions, not consent to a private chat.
     connections = {}
     active_chats = {item["perfil"]["id"]: item["id"] for item in chats}
     def add_connection(other, kind):
-        if not other or not other.visivel or not available(me, other):
+        if not other or not other.visivel or not request_pair_allowed(me, other):
             return
         item = connections.setdefault(other.pk, {"perfil": chat_profile(other), "nome": other.nome_publico,
                                                    "tipos": [], "conversation_id": active_chats.get(other.pk)})
