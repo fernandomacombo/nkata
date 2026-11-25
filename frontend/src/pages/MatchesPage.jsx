@@ -54,7 +54,7 @@ function MatchAvatar({ profile, english }) {
 }
 
 function LastMessagePreview({ message, english }) {
-  if (!message) return <>{english ? "The interest is mutual. Start the conversation." : "O interesse é mútuo. Pode começar a conversa."}</>;
+  if (!message) return <>{english ? "View profile" : "Ver perfil"}</>;
 
   if (message.type === "audio") {
     return (

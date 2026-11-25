@@ -194,7 +194,7 @@ def notificar_match(sender, instance, created, update_fields=None, **kwargs):
 
 @receiver(post_save, sender=MensagemMatch)
 def notificar_nova_mensagem(sender, instance, created, **kwargs):
-    if not created or not instance.remetente_id or instance.match.status != "ATIVO":
+    if not created or not instance.match_id or not instance.remetente_id or instance.match.status != "ATIVO":
         return
 
     perfil_remetente = _perfil_do_utilizador(instance.remetente)

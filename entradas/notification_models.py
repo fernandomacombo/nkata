@@ -9,6 +9,8 @@ class NotificacaoNKATA(models.Model):
         ("MOMENTO", "Reação em Momento"),
         ("PUBLICACAO", "Reação em Publicação"),
         ("MATCH", "Novo match"),
+        ("PEDIDO_CHAT", "Pedido de conversa"),
+        ("CHAT_ACEITE", "Conversa aceite"),
         ("MENSAGEM", "Nova mensagem"),
         ("EQUIPA", "Aviso da equipa"),
     ]
@@ -65,6 +67,15 @@ class NotificacaoNKATA(models.Model):
                 name="nkata_notif_user_read_idx",
             )
         ]
+
+    @property
+    def conversation_id(self):
+        prefix, _, identifier = self.chave.partition(":")
+        if prefix in {"chat-msg", "chat-aceite"} and identifier.isdecimal():
+            return int(identifier)
+        if self.tipo == "MENSAGEM" and self.match_id:
+            return getattr(getattr(self.match, "chat", None), "pk", None)
+        return None
 
     def __str__(self):
         return f"{self.get_tipo_display()} para {self.destinatario}"

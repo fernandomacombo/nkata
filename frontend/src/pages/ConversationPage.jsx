@@ -209,7 +209,7 @@ function MessageBubble({ message, english, onDelete, onReply, original }) {
   );
 }
 
-function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
+export function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
   const dialog = useRef(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);

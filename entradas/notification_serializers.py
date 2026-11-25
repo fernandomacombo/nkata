@@ -20,6 +20,7 @@ class NotificacaoSerializer(serializers.ModelSerializer):
             "lida",
             "perfil",
             "match_id",
+            "conversation_id",
             "criado_em",
             "atualizado_em",
         ]

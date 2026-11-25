@@ -351,7 +351,8 @@ class MatchPerfil(models.Model):
 
 class MensagemMatch(models.Model):
     resposta_a = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    match = models.ForeignKey(MatchPerfil, on_delete=models.CASCADE, related_name="mensagens")
+    match = models.ForeignKey(MatchPerfil, null=True, on_delete=models.CASCADE, related_name="mensagens")
+    conversa = models.ForeignKey("Conversa", null=True, on_delete=models.CASCADE, related_name="mensagens")
     remetente = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="mensagens_match_enviadas")
     apagada_em = models.DateTimeField(null=True, blank=True, editable=False)
     texto = models.TextField(max_length=1200)
@@ -438,4 +439,33 @@ class VotoPerguntaDiaria(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["data", "usuario"], name="nkata_um_voto_por_dia"),
             models.CheckConstraint(condition=models.Q(opcao__in=[0, 1]), name="nkata_voto_diario_valido"),
+        ]
+
+
+class Conversa(models.Model):
+    match_origem = models.OneToOneField(MatchPerfil, null=True, on_delete=models.CASCADE, related_name="chat")
+    perfil_1 = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="+")
+    perfil_2 = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="+")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(perfil_1__lt=models.F("perfil_2")), name="conversa_par_ordenado"),
+            models.UniqueConstraint(fields=["perfil_1", "perfil_2"], name="conversa_unica_por_par"),
+        ]
+
+
+class PedidoConversa(models.Model):
+    remetente = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="pedidos_chat_enviados")
+    destinatario = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="pedidos_chat_recebidos")
+    estado = models.CharField(max_length=10, default="PENDENTE")
+    expira_em = models.DateTimeField()
+    decidido_em = models.DateTimeField(null=True)
+    conversa = models.ForeignKey(Conversa, null=True, on_delete=models.SET_NULL)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=~models.Q(remetente=models.F("destinatario")), name="pedido_chat_perfis_distintos"),
+            models.UniqueConstraint(fields=["remetente", "destinatario"], condition=models.Q(estado="PENDENTE"), name="pedido_chat_pendente_unico"),
         ]

@@ -83,3 +83,18 @@ class ConcurrentOperationsTests(TransactionTestCase):
             results = self.race(lambda index: reconcile(order).estado)
         self.assertEqual(results, ["PAGO", "PAGO"])
         self.assertEqual(AcessoPlanoNKATA.objects.get(usuario=user).fim, before + timedelta(days=30))
+
+    def test_reciprocal_chat_requests_create_one_conversation(self):
+        from .models import Conversa, PedidoConversa
+        from .test_conversations import profile
+
+        peers = [profile(1), profile(2)]
+
+        def ask(index):
+            client = APIClient()
+            client.force_authenticate(peers[index].usuario)
+            return client.post(f"/api/chats/pedir/{peers[1-index].pk}/").status_code
+
+        self.assertEqual(sorted(self.race(ask)), [200, 201])
+        self.assertEqual(Conversa.objects.count(), 1)
+        self.assertEqual(PedidoConversa.objects.get().estado, "ACEITE")
