@@ -1,0 +1,60 @@
+/* Profile presentation: scoped to the redesigned detail page. */
+.nk-profile-detail.nk-profile-redesign > .nk-shell {width:min(100% - 40px,1220px);}
+.nk-profile-redesign .nk-profile-detail__layout {display:grid;grid-template-columns:minmax(280px,.78fr) minmax(0,1.22fr);gap:clamp(24px,4vw,56px);align-items:start;}
+.nk-profile-redesign .nk-profile-portrait {min-width:0;}
+.nk-profile-redesign .nk-profile-detail__media {position:relative;top:auto;width:100%;height:clamp(320px,36vw,465px);min-height:0;margin:0;border-radius:26px;border-width:5px;}
+.nk-profile-redesign .nk-profile-detail__media > img {height:100%;object-fit:cover;object-position:center 20%;}
+.nk-profile-redesign .nk-profile-detail__fallback {height:100%;min-height:0;}
+.nk-profile-redesign .nk-profile-detail__layout.has-cover .nk-profile-detail__media {margin:0;}
+.nk-profile-redesign .nk-profile-detail__cover {height:clamp(120px,16vw,205px);margin-bottom:16px;border-radius:25px;}
+.nk-profile-portrait__expand,.nk-profile-portrait__controls button {display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:rgba(28,21,20,.65);color:white;border:1px solid #ffffff44;}
+.nk-profile-portrait__expand {position:absolute;top:12px;left:12px;}
+.nk-profile-portrait__controls {position:absolute;bottom:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.nk-profile-portrait__controls span {border-radius:999px;background:#282020b0;color:white;padding:6px 11px;font-size:.75rem;font-weight:700;}
+.nk-profile-portrait__thumbs {display:flex;gap:7px;margin-top:10px;overflow-x:auto;padding:3px;}
+.nk-profile-portrait__thumbs button {flex:0 0 74px;height:65px;overflow:hidden;border:2px solid transparent;border-radius:12px;padding:2px;background:var(--nk-paper);}
+.nk-profile-portrait__thumbs button[aria-pressed=true] {border-color:var(--nk-wine);}
+.nk-profile-portrait__thumbs img {width:100%;height:100%;object-fit:cover;border-radius:8px;}
+.nk-profile-redesign .nk-profile-detail__content {margin:0;padding:10px 0 0;min-width:0;background:transparent;}
+.nk-profile-redesign .nk-profile-detail__heading {display:block;padding:0 0 18px;}
+.nk-profile-redesign .nk-profile-detail__heading .nk-eyebrow {display:inline-flex;align-items:center;gap:6px;}
+.nk-profile-redesign .nk-profile-detail__heading h1 {font-size:clamp(2.5rem,5vw,4.5rem);margin:14px 0 10px;line-height:1.08;}
+.nk-profile-intro__meta {display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;}
+.nk-profile-intro__meta span {display:inline-flex;align-items:center;gap:6px;color:var(--nk-muted);font-size:.86rem;font-weight:650;}
+.nk-profile-intro__meta span:last-child {color:var(--nk-wine);}
+.nk-profile-redesign .nk-profile-detail__heading p.nk-profile-intro__bio {margin:15px 0 18px;color:var(--nk-ink);font-size:1rem;line-height:1.65;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;}
+.nk-profile-intro__primary {display:flex;flex-wrap:wrap;gap:9px;margin:14px 0 12px;}
+.nk-profile-intro__primary .nk-button {min-height:47px;flex:0 1 auto;}
+.nk-profile-redesign .nk-profile-detail__quick-actions {display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;}
+.nk-profile-redesign .nk-profile-detail__quick-actions > * {width:auto;flex:none;}
+.nk-profile-redesign .nk-profile-detail__quick-actions button {min-height:40px;}
+.nk-profile-more {position:relative;}
+.nk-profile-more__menu {position:absolute;top:calc(100% + 7px);left:0;z-index:15;min-width:160px;padding:5px;border:1px solid var(--nk-line);border-radius:14px;background:var(--nk-paper);box-shadow:var(--nk-shadow-md);}
+.nk-profile-more__menu button {display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;text-align:left;color:var(--nk-ink);background:transparent;border-radius:8px;}
+.nk-profile-more__menu button:hover,.nk-profile-more__menu button:focus-visible {background:var(--nk-wine-soft);color:var(--nk-wine);}
+.nk-profile-essentials {padding:16px 0 0;}
+.nk-profile-essentials h2 {font-family:"Playfair Display",Georgia,serif;font-size:1.35rem;margin:0 0 12px;color:var(--nk-ink);}
+.nk-profile-redesign .nk-profile-detail__blocks {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0 0;}
+.nk-profile-redesign .nk-profile-detail__block,.nk-profile-redesign .nk-profile-detail__block:first-child {grid-column:auto;padding:14px 15px;border-radius:15px;}
+.nk-profile-redesign .nk-profile-detail__blocks:empty {display:none;}
+.nk-profile-redesign .nk-profile-signals {margin-top:24px;}
+.nk-profile-redesign .nk-profile-signals__grid {grid-template-columns:repeat(3,minmax(0,1fr));}
+.nk-profile-redesign .nk-profile-gallery {margin-top:16px;}
+.nk-profile-redesign .nk-profile-gallery__grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:9px;}
+.nk-profile-redesign .nk-profile-gallery__grid > button {aspect-ratio:4/3;}
+.nk-profile-privacy {display:flex;align-items:center;justify-content:center;gap:8px;padding:16px 0 0;color:var(--nk-muted);font-size:.75rem;text-align:center;}
+.nk-profile-redesign button:focus-visible {outline:2px solid var(--nk-wine);outline-offset:3px;}
+@media(max-width:699px){
+  .nk-profile-detail.nk-profile-redesign > .nk-shell {width:100%;padding-inline:12px;}
+  .nk-profile-redesign .nk-profile-detail__layout {grid-template-columns:1fr;gap:14px;}
+  .nk-profile-redesign .nk-profile-detail__media {height:clamp(285px,44dvh,400px);border-radius:24px;}
+  .nk-profile-redesign .nk-profile-detail__heading h1 {font-size:clamp(2rem,9vw,2.8rem);margin-top:10px;}
+  .nk-profile-redesign .nk-profile-detail__heading .nk-eyebrow {font-size:.66rem;}
+  .nk-profile-intro__primary .nk-button {flex:1 1 140px;}
+  .nk-profile-redesign .nk-profile-detail__quick-actions {gap:6px;}
+  .nk-profile-redesign .nk-profile-detail__quick-actions .nk-profile-follow-wrap {width:auto;flex:none;}
+  .nk-profile-redesign .nk-profile-detail__quick-actions .nk-profile-follow,.nk-profile-redesign .nk-profile-detail__quick-actions .nk-profile-detail__save,.nk-profile-redesign .nk-profile-detail__quick-actions .nk-profile-detail__share {width:auto;padding-inline:11px;}
+  .nk-profile-redesign .nk-profile-detail__blocks {grid-template-columns:1fr;}
+  .nk-profile-redesign .nk-profile-signals {margin-top:16px;}
+  .nk-profile-redesign .nk-profile-gallery__grid {grid-template-columns:repeat(3,minmax(0,1fr));}
+}
