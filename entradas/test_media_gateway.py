@@ -153,3 +153,37 @@ class MediaGatewayTests(TestCase):
         from .native_call_service import end_call
         end_call(self.call.pk,actor_id=self.b.usuario_id)
         self.assertEqual(self.ice(self.a.usuario).status_code,404)
+
+
+    def test_native_call_browser_lifecycle_without_debit(self):
+        from .native_call_service import end_call
+        end_call(self.call.pk, actor_id=self.a.usuario_id)
+        self.client.force_login(self.a.usuario)
+        url=f"/api/chats/{self.call.conversa_id}/chamadas/"
+        body={"key":str(uuid4()),"kind":"AUDIO","expected_rate":3,"max_minutes":3}
+        response=self.client.post(url,json.dumps(body),content_type="application/json",secure=True)
+        self.assertEqual(response.status_code,201,response.content)
+        sid=response.json()["id"]
+        self.assertEqual(response.json()["state"],"CHAMANDO")
+        self.assertEqual(self.client.post(url,json.dumps(body),content_type="application/json",secure=True).json()["id"],sid)
+        detail=f"/api/chats/chamadas/{sid}/"
+        self.assertEqual(self.client.post(detail,{"action":"accept"},secure=True).status_code,404)
+        self.client.force_login(self.b.usuario)
+        incoming=self.client.get("/api/chats/chamadas/actual/",secure=True).json()["call"]
+        self.assertEqual(incoming["id"],sid)
+        self.assertIsNone(incoming["balance"])
+        self.assertEqual(self.client.post(detail,{"action":"accept"},secure=True).json()["state"],"ACEITE")
+        self.assertEqual(self.client.post(detail,{"action":"end"},secure=True).json()["state"],"TERMINADA")
+        self.assertIsNone(self.client.get("/api/chats/chamadas/actual/",secure=True).json()["call"])
+        self.assertEqual(credit_balance(self.a.usuario),9)
+
+    def test_browser_call_api_rejects_outsider_and_production(self):
+        outsider=profile(82)
+        self.client.force_login(outsider.usuario)
+        detail=f"/api/chats/chamadas/{self.call.pk}/"
+        self.assertEqual(self.client.get(detail,secure=True).status_code,404)
+        self.assertEqual(self.client.post(detail,{"action":"end"},secure=True).status_code,404)
+        self.client.force_login(self.a.usuario)
+        with self.settings(NKATA_MEDIA_GATEWAY_TEST_ENABLED=False):
+            self.assertEqual(self.client.get(detail,secure=True).status_code,404)
+        self.assertEqual(credit_balance(self.a.usuario),9)
