@@ -284,7 +284,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     {thread && <>
       <ol className="nk-chat-lines" ref={scroll} onScroll={e => { const el=e.currentTarget; nearEnd.current=el.scrollHeight-el.scrollTop-el.clientHeight<150; }}>
         {thread.mais_antigas && <li className="nk-chat-load-older"><button type="button" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "A carregar..." : "Carregar mensagens anteriores"}</button></li>}
-        {!thread.mensagens.length && <li className="nk-chat-empty-thread"><ShieldCheck size={24} /><strong>Conversa aceite</strong><span>Comece a conhecer esta pessoa, com respeito e segurança.</span></li>}
+        {!thread.mensagens.length && <li className="nk-chat-empty-thread"><ShieldCheck size={24} /><strong>{thread.consent_state === "ACEITE" ? "Conversa aceite" : "Conversa anterior"}</strong><span>Comece a conhecer esta pessoa, com respeito e segurança.</span></li>}
         {thread.mensagens.map((message,index) => <Fragment key={message.id}>
           {(index === 0 || dayKey(thread.mensagens[index-1].criado_em) !== dayKey(message.criado_em)) && <li className="nk-chat-day"><time>{dayLabel(message.criado_em)}</time></li>}
           <li className={"nk-chat-bubble-row" + (message.minha ? " is-mine" : "") + (index > 0 && thread.mensagens[index-1].minha === message.minha && dayKey(thread.mensagens[index-1].criado_em) === dayKey(message.criado_em) ? " is-grouped" : "")}>
@@ -417,7 +417,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
         <div className="nk-chat-list">
           {!data && !error && <p className="nk-chat-placeholder">A carregar...</p>}
           {data && showChats && <>{visibleChats.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.id} aria-current={conversationId === c.id ? "page" : undefined} onClick={() => onSelect(c.id)}>
-            <Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.ultima_mensagem ? (c.ultima_mensagem.minha ? "Eu: " : "") + c.ultima_mensagem.texto : c.identity_pending ? "A aguardar verificação de identidade" : "Conversa aceite"}</small></span>
+            <Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.ultima_mensagem ? (c.ultima_mensagem.minha ? "Eu: " : "") + c.ultima_mensagem.texto : c.identity_pending ? "A aguardar verificação de identidade" : c.consent_state === "ACEITE" ? "Conversa aceite" : "Conversa anterior"}</small></span>
             <span className="nk-chat-row-meta"><time>{stamp(c.atividade_em)}</time>{c.nao_lidas > 0 && <span className="nk-chat-unread">{c.nao_lidas > 99 ? "99+" : c.nao_lidas}</span>}</span>
           </button>)}{!visibleChats.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : tab === "unread" ? "Está em dia com as mensagens." : "Ainda não tem conversas. Explore os perfis para começar."}</p>}</>}
           {data && (tab === "received" || tab === "sent") && <>
@@ -429,8 +429,8 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
           {data && tab === "connections" && <>{connections.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.perfil.id} onClick={() => onOpenProfile(c.perfil)}><Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.tipos.join(" · ")}</small></span><HeartHandshake size={18} /></button>)}{!connections.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : "Os seus matches e sinais aparecem aqui."}</p>}</>}
         </div>
       </aside>
-      {conversationId && lockedThread ? <section className="nk-chat-empty-panel">
-        <ShieldCheck size={42} strokeWidth={1.5}/><h2>Pedido aceite</h2>
+      {conversationId && data && !selectedChat ? <section className="nk-chat-empty-panel"><MessageCircle size={42}/><h2>Conversa ainda indisponível</h2><p>Consulte os pedidos enviados ou recebidos para confirmar o estado do pedido.</p><button type="button" className="nk-chat-primary" onClick={() => { setTab("sent"); onBack(); }}>Ver pedidos enviados</button><button type="button" className="nk-chat-icon" onClick={onBack}>Voltar</button></section> : conversationId && lockedThread ? <section className="nk-chat-empty-panel">
+        <ShieldCheck size={42} strokeWidth={1.5}/><h2>{selectedChat?.consent_state === "ACEITE" ? "Pedido aceite" : "A aguardar verificação de identidade"}</h2>
         <p>{identityRequired ? "Verifique a sua identidade para trocar mensagens." : "A outra pessoa ainda precisa de verificar a identidade. A conversa ficará disponível quando ambos estiverem verificados."}</p>
         {identityRequired && <button type="button" className="nk-chat-primary" onClick={onVerifyIdentity}>Verificar identidade</button>}
         <button type="button" className="nk-chat-icon" onClick={onBack}>Voltar</button>
