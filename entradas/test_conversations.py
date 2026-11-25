@@ -80,11 +80,41 @@ class ConversationTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 404)
         self.assertEqual(self.client.get("/api/chats/").json()["conversas"], [])
 
-    def test_identity_required(self):
+    def test_free_consent_before_identity_without_message_access(self):
+        from .wallet_service import credit_balance
         self.a.pedido.identidade_revogada = True
         self.a.pedido.save()
-        self.assertEqual(self.ask(self.a, self.b).status_code, 403)
-        self.assertEqual(self.ask(self.b, self.a).status_code, 404)
+        before = credit_balance(self.a.usuario)
+        first = self.ask(self.b, self.a)
+        self.assertEqual(first.status_code, 201, first.content)
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.get("/api/chats/").json()["pedidos"][0]["id"], first.json()["id"])
+        accepted = self.decide(self.a, first.json()["id"], "ACEITE")
+        self.assertTrue(accepted.json()["identity_pending"])
+        chat = accepted.json()["conversation_id"]
+        root = f"/api/chats/{chat}/"
+        self.assertEqual(self.client.get(root).status_code, 403)
+        self.assertEqual(self.client.post(root, {"texto": "Olá"}).status_code, 403)
+        self.client.force_login(self.b.usuario)
+        self.assertEqual(self.client.get(root).status_code, 404)
+        row = self.client.get("/api/chats/").json()["conversas"][0]
+        self.assertTrue(row["identity_pending"])
+        self.assertIsNone(row["ultima_mensagem"])
+        self.assertEqual(row["nao_lidas"], 0)
+        self.assertEqual(credit_balance(self.a.usuario), before)
+        self.a.pedido.identidade_revogada = False
+        self.a.pedido.save()
+        self.assertEqual(self.client.get(root).status_code, 200)
+
+    def test_unverified_member_can_send_but_not_to_blocked_or_inactive_profile(self):
+        self.a.pedido.verificacao_apos_entrada = True
+        self.a.pedido.save()
+        self.assertEqual(self.ask(self.a, self.b).status_code, 201)
+        AcaoPerfil.objects.create(usuario=self.c.usuario, perfil=self.a, tipo="BLOQUEIO")
+        self.assertEqual(self.ask(self.a, self.c).status_code, 404)
+        self.c.usuario.is_active = False
+        self.c.usuario.save()
+        self.assertEqual(self.ask(self.a, self.c).status_code, 404)
 
 
     def test_new_match_cannot_bypass_consent_through_legacy_routes(self):
