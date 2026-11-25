@@ -57,8 +57,8 @@ try {
     await root.getByText("Bónus de boas-vindas",{exact:true}).waitFor();
     assert.equal(await root.locator(".nk-wallet-statement article").count(),3);
     await root.getByLabel("Tipo de movimento").selectOption("CONSUMO");
-    await root.getByText("Sinal — Flor",{exact:true}).waitFor();
-    assert.equal(await root.locator(".nk-wallet-statement article").count(),1);
+     await page.waitForFunction(()=>{const rows=document.querySelectorAll(".nk-wallet-statement article");return rows.length===1 && rows[0].textContent.includes("Sinal — Flor");});
+     assert.equal(await root.locator(".nk-wallet-statement article").count(),1);
     await root.getByLabel("Período",{exact:true}).selectOption("7");
     await root.getByText("Nenhum movimento neste período.",{exact:true}).waitFor();
     await root.getByLabel("Período",{exact:true}).selectOption("30");
