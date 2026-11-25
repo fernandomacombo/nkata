@@ -112,3 +112,46 @@ class ConversationTests(TestCase):
         message.refresh_from_db()
         self.assertEqual(message.texto, "")
         self.assertIsNotNone(message.apagada_em)
+
+    def test_legacy_match_cannot_be_deleted_with_chat_history(self):
+        from django.db.models.deletion import RestrictedError
+
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        chat = match.chat
+        message = MensagemMatch.objects.create(
+            match=match, conversa=chat, remetente=self.a.usuario, texto="Histórico"
+        )
+        with self.assertRaises(RestrictedError):
+            match.delete()
+        self.assertTrue(MatchPerfil.objects.filter(pk=match.pk).exists())
+        self.assertTrue(Conversa.objects.filter(pk=chat.pk).exists())
+        self.assertEqual(MensagemMatch.objects.get(pk=message.pk).texto, "Histórico")
+
+    def test_match_without_conversation_can_still_be_deleted(self):
+        match = MatchPerfil.objects.create(perfil_1=self.a, perfil_2=self.b)
+        pk = match.pk
+        match.delete()
+        self.assertFalse(MatchPerfil.objects.filter(pk=pk).exists())
+
+    def test_history_reconciliation_only_updates_linked_matches(self):
+        from importlib import import_module
+        from django.apps import apps
+        from django.db import connection
+        from types import SimpleNamespace
+
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        other = MatchPerfil.objects.create(perfil_1=self.a, perfil_2=self.c)
+        message = MensagemMatch.objects.create(
+            match=match, remetente=self.a.usuario, texto="Mensagem anterior"
+        )
+        unrelated = MensagemMatch.objects.create(
+            match=other, remetente=self.a.usuario, texto="Outra mensagem"
+        )
+        migration = import_module("entradas.migrations.0043_proteger_historico_chats")
+        for _ in range(2):
+            migration.reconciliar_mensagens(apps, SimpleNamespace(connection=connection))
+        message.refresh_from_db()
+        unrelated.refresh_from_db()
+        self.assertEqual(message.conversa_id, match.chat.pk)
+        self.assertIsNone(unrelated.conversa_id)
+        self.assertEqual(Conversa.objects.count(), 1)

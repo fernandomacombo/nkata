@@ -443,7 +443,9 @@ class VotoPerguntaDiaria(models.Model):
 
 
 class Conversa(models.Model):
-    match_origem = models.OneToOneField(MatchPerfil, null=True, on_delete=models.CASCADE, related_name="chat")
+    # Legacy audio, calls and messages still depend on this match.
+    # Do not allow a standalone match deletion to destroy chat history.
+    match_origem = models.OneToOneField(MatchPerfil, null=True, on_delete=models.RESTRICT, related_name="chat")
     perfil_1 = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="+")
     perfil_2 = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="+")
     criado_em = models.DateTimeField(auto_now_add=True)
