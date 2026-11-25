@@ -494,6 +494,8 @@ NKATA_CREDIT_SPENDING_ENABLED = env_bool("NKATA_CREDIT_SPENDING_ENABLED", False)
 # Cutover retires new legacy sales, not existing entitlements or settlements.
 NKATA_CREDIT_TRANSITION_ENABLED = env_bool("NKATA_CREDIT_TRANSITION_ENABLED", False)
 NKATA_CREDIT_ONLY_ENABLED = env_bool("NKATA_CREDIT_ONLY_ENABLED", False)
+# Explicitly reviewed historical owner test orders; not simulated payments.
+NKATA_LEGACY_TEST_ORDER_REFERENCES = env_list("NKATA_LEGACY_TEST_ORDER_REFERENCES")
 if NKATA_CREDIT_ONLY_ENABLED and not NKATA_CREDIT_TRANSITION_ENABLED:
     raise ImproperlyConfigured("O modo exclusivo de créditos exige a transição ativa.")
 NKATA_PAYMENT_SIMULATION_ENABLED = env_bool("NKATA_PAYMENT_SIMULATION_ENABLED", False)
