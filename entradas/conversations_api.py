@@ -12,7 +12,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .chat_permissions import chat_pair_allowed, request_pair_allowed
+from .chat_permissions import chat_pair_allowed, request_pair_allowed, conversation_consent_state, conversation_has_access
 from .credit_catalog import ICEBREAKERS, ICEBREAKER_DAILY_LIMIT
 from .wallet_service import unlock_chat, chat_credit_snapshot, WalletError
 from .signal_views import _availability_payload, send_signal
@@ -112,8 +112,10 @@ def send_request(request, profile_id):
     if existing:
         if existing.estado != Conversa.ESTADO_ATIVA:
             raise NotFound("Conversa indisponível.")
-        return Response({"estado": "ACEITE", "conversation_id": existing.pk,
-                         "identity_pending": not available(me, other)})
+        consent = conversation_consent_state(existing)
+        if consent != "SEM_PEDIDO":
+            return Response({"estado": consent, "conversation_id": existing.pk,
+                             "identity_pending": not available(me, other)})
     requests = PedidoConversa.objects.filter(
         Q(remetente=me, destinatario=other) | Q(remetente=other, destinatario=me))
     now = timezone.now()
@@ -215,6 +217,8 @@ def inbox(request):
     chats = []
     eligible = [(chat, peer(chat, me)) for chat in participants(me).select_related("match_origem").order_by("-pk")]
     permitted = [(chat, other) for chat, other in eligible if request_pair_allowed(me, other)]
+    consent_states = {chat.pk: conversation_consent_state(chat) for chat, _ in permitted}
+    permitted = [(chat, other) for chat, other in permitted if consent_states[chat.pk] != "SEM_PEDIDO"]
     eligible = [(chat, other) for chat, other in permitted if available(me, other)]
     # Accepted conversations remain visible as metadata only; no message previews,
     # unread counts, media or thread contents until both identities are verified.
@@ -224,7 +228,7 @@ def inbox(request):
             chats.append({"id": chat.pk, "nome": other.nome_publico, "perfil": chat_profile(other),
                           "match_id": None, "ultima_mensagem": None, "nao_lidas": 0,
                           "textos_nao_lidos": 0, "audios_nao_lidos": 0,
-                          "identity_pending": True, "atividade_em": chat.criado_em})
+                          "identity_pending": True, "consent_state": consent_states[chat.pk], "atividade_em": chat.criado_em})
     native_ids = [chat.pk for chat, _ in eligible if not chat.match_origem_id]
     match_ids = [chat.match_origem_id for chat, _ in eligible if chat.match_origem_id]
     media_ids = [legacy_match_id(chat) for chat, _ in eligible if legacy_match_id(chat)]
@@ -271,7 +275,7 @@ def inbox(request):
                 if preview is None or item["criado_em"] > preview["criado_em"]:
                     preview = {"texto": item["texto"], "tipo": "CALL", "minha": item["minha"], "criado_em": item["criado_em"]}
         chats.append({"id": chat.pk, "nome": other.nome_publico, "perfil": chat_profile(other),
-                      "match_id": legacy_id, "ultima_mensagem": preview,
+                      "match_id": legacy_id, "ultima_mensagem": preview, "consent_state": consent_states[chat.pk],
                       "nao_lidas": unread_text + unread_audio, "textos_nao_lidos": unread_text,
                       "audios_nao_lidos": unread_audio,
                       "atividade_em": preview["criado_em"] if preview else chat.criado_em})
@@ -314,7 +318,7 @@ def accessible_thread(request, conversation_id):
     me = member(request)
     chat = get_object_or_404(participants(me), pk=conversation_id)
     other = peer(chat, me)
-    if not available(me, other):
+    if not available(me, other) or not conversation_has_access(chat):
         raise NotFound("Conversa indisponível.")
     return chat, me, other
 
@@ -381,7 +385,7 @@ def send_message(request, chat, me, other, thread):
         from .models import MatchPerfil
         MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
     locked = Conversa.objects.select_for_update().get(pk=chat.pk)
-    if locked.estado != Conversa.ESTADO_ATIVA:
+    if locked.estado != Conversa.ESTADO_ATIVA or not conversation_has_access(locked):
         raise NotFound("Conversa indisponível.")
     me.refresh_from_db()
     other.refresh_from_db()
@@ -533,6 +537,7 @@ def messages(request, conversation_id):
     features = plan_for_user(request.user)["features"]
     preset = preset_snapshot(request.user)
     return Response({"nome": other.nome_publico, "perfil": chat_profile(other), "match_id": legacy_match_id(chat),
+                      "consent_state": conversation_consent_state(chat),
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
                      "texto_livre": features["chat_text"], "frases": preset["frases"], "predefinidas": preset,
                      "credito_chat": chat_credit_snapshot(request.user, features["chat_text"]),
