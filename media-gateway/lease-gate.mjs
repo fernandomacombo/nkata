@@ -25,7 +25,13 @@ export class LeaseGate{
    const expired=this.clock()>=this.deadline;
    if(expired){
     // Freeze forwarding before contacting billing, including on first use.
-    await Promise.all(this.consumers().map(c=>c.pause()));
+    // If the SFU fails to acknowledge pause, close its transports instead.
+    // The real adapter still needs a process-level hard deadline watchdog.
+    const pauseGuard=this.schedule(()=>{void this.stop();},500);
+    try{await Promise.all(this.consumers().map(c=>c.pause()));}
+    finally{this.cancel(pauseGuard);}
+    if(this.closed)return;
+    if(!this.connected()){await this.stop();return;}
    }
    const index=this.minute+(expired?1:0);
    // At the deadline pause regardless of a slow in-flight permission check.
