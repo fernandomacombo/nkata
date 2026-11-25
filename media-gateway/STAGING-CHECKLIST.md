@@ -44,3 +44,17 @@ Qualquer falha de CI, configuração, transmissão, isolamento, auditoria,
 ou resultado financeiro não explicado bloqueia a activação.
 Mesmo com o CI verde, não publicar sem aprovação explícita e ensaio
 integrado do runtime real com Django e os dispositivos de teste.
+
+
+## Configuração do frontend experimental
+O build normal usa um módulo vazio; o modo `media-staging` selecciona
+mediasoup-client. A activação exige as duas origens exactas no build,
+`VITE_NKATA_MEDIA_STAGING_ORIGIN` e `VITE_NKATA_MEDIA_SIGNAL_URL`, e a
+resposta do endpoint autenticado /api/chats/chamadas/config/.
+Definir `NKATA_MEDIA_BROWSER_TEST_ENABLED` e `NKATA_MEDIA_STAGING_SIGNAL_URL`
+no backend de staging só depois de confirmar TURN, WSS e saúde do gateway.
+O endpoint valida configuração, não realiza sondagem de saúde do gateway.
+O job media-staging-build gera manifestos/lockfiles candidatos e compila
+com domínios reservados .test. Rever e versionar os lockfiles antes de
+alterar Dockerfile ou activar staging. Nenhuma configuração de produção
+ou imagem de deploy foi alterada.
