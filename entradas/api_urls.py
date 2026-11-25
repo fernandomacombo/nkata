@@ -49,6 +49,7 @@ from . import wallet_api, finance_admin_api
 urlpatterns = [
     path("minha-conta/carteira/", wallet_api.wallet),
     path("minha-conta/carteira/movimentos/", wallet_api.statement),
+    path("minha-conta/carteira/extrato.pdf", wallet_api.statement_pdf),
     path("minha-conta/carteira/boas-vindas/", wallet_api.claim_welcome),
     path("chats/", conversations_api.inbox),
     path("chats/<int:conversation_id>/", conversations_api.messages),

@@ -174,3 +174,40 @@ class WalletTests(TestCase):
         self.assertIsNone(second["next_before"])
         self.assertEqual(len({r["id"] for r in first["results"]+second["results"]}),25)
         self.assertEqual(second["balance"],25)
+
+
+    def test_pdf_statement_uses_own_complete_filtered_ledger(self):
+        from unittest.mock import patch
+        for i in range(25):
+            self.move(f"pdf:{i}",1)
+        self.move("signal:pdf",-2,"CONSUMO")
+        record_movement(self.b,key="other",kind="BONUS",amount=500,reference="private",reason="OUTRO_MEMBRO")
+        self.client.force_login(self.a)
+        url="/api/minha-conta/carteira/extrato.pdf"
+        with patch("entradas.wallet_api.render_statement_pdf",return_value=b"%PDF-example") as render:
+            response=self.client.get(url,{"period":"ALL","kind":"RECARGA","usuario":self.b.pk})
+            self.assertEqual(response.status_code,200)
+            data=render.call_args.args[0]
+            self.assertEqual(len(data["results"]),25)
+            self.assertEqual(data["balance"],23)
+            self.assertEqual(data["summary"]["spent"],2)
+            self.assertTrue(all(r["tipo"]=="RECARGA" for r in data["results"]))
+            self.assertEqual(render.call_args.kwargs["member_id"],self.a.pk)
+        response=self.client.get(url,{"period":"ALL"})
+        self.assertEqual(response.status_code,200)
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+        self.assertEqual(response["Content-Type"],"application/pdf")
+        self.assertIn("attachment",response["Content-Disposition"])
+        self.assertIn("no-store",response["Cache-Control"])
+        self.assertEqual(self.client.get(url,{"period":"invalid"}).status_code,400)
+        self.client.logout()
+        self.assertIn(self.client.get(url).status_code,(401,403))
+
+    def test_pdf_statement_refuses_truncation(self):
+        from unittest.mock import patch
+        self.move()
+        self.move("pdf:2",1)
+        self.client.force_login(self.a)
+        with patch("entradas.wallet_statement.EXPORT_LIMIT",1):
+            response=self.client.get("/api/minha-conta/carteira/extrato.pdf",{"period":"ALL"})
+        self.assertEqual(response.status_code,413)

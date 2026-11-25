@@ -63,3 +63,20 @@ export async function fetchWalletStatement({period="30", kind="ALL", before=0, s
   if (!response.ok) throw new PlanApiError(payload?.detail || "Não foi possível consultar os movimentos.", response.status, payload);
   return payload;
 }
+
+
+export async function downloadWalletStatement({period="30",kind="ALL"}={}) {
+  const params=new URLSearchParams({period,kind});
+  const response=await fetch(`${API_BASE_URL}/api/minha-conta/carteira/extrato.pdf?${params}`,{
+    credentials:"include",headers:{Accept:"application/pdf, application/json"},cache:"no-store"
+  });
+  if(!response.ok || !(response.headers.get("content-type")||"").includes("application/pdf")){
+    const payload=await response.json().catch(()=>null);
+    throw new PlanApiError(payload?.detail || "Não foi possível descarregar o extrato.",response.status,payload);
+  }
+  const blob=await response.blob();
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=url;link.download="NKATA-extrato-creditos.pdf";document.body.appendChild(link);
+  link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+}

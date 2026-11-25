@@ -10,6 +10,11 @@ from .wallet_service import active_chat_credit_access
 PERIODS = {"7": 7, "30": 30, "90": 90, "ALL": None}
 KINDS = {"ALL", "RECARGA", "BONUS", "CONSUMO", "ESTORNO", "AJUSTE"}
 PAGE_SIZE = 20
+EXPORT_LIMIT = 2000
+
+
+class StatementTooLarge(ValueError):
+    pass
 CATEGORIES = (
     ("signals", "Sinais"), ("text", "Texto livre"), ("voice", "Notas de voz"),
     ("audio", "Chamadas de áudio"), ("video", "Videochamadas"), ("other", "Outros consumos"),
@@ -17,7 +22,7 @@ CATEGORIES = (
 
 
 @transaction.atomic
-def member_statement(user, *, period="30", kind="ALL", before=0):
+def member_statement(user, *, period="30", kind="ALL", before=0, export=False):
     if period not in PERIODS or kind not in KINDS:
         raise ValueError("Invalid filter")
     now = timezone.now()
@@ -64,8 +69,11 @@ def member_statement(user, *, period="30", kind="ALL", before=0):
         rows = rows.filter(tipo=kind)
     if before:
         rows = rows.filter(pk__lt=before)
-    page = list(rows.order_by("-pk")[:PAGE_SIZE+1])
+    limit = EXPORT_LIMIT if export else PAGE_SIZE
+    page = list(rows.order_by("-pk")[:limit+1])
+    if export and len(page) > limit:
+        raise StatementTooLarge("O extrato excede 2000 movimentos. Seleccione um período mais curto.")
     result["results"] = [{"id": m.pk, "tipo": m.tipo, "quantidade": m.quantidade, "saldo_apos": m.saldo_apos,
-                          "motivo": m.motivo, "criado_em": m.criado_em} for m in page[:PAGE_SIZE]]
-    result["next_before"] = page[PAGE_SIZE-1].pk if len(page)>PAGE_SIZE else None
+                          "motivo": m.motivo, "criado_em": m.criado_em} for m in page[:limit]]
+    result["next_before"] = page[limit-1].pk if len(page)>limit else None
     return result
