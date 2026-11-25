@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from .native_call_service import authorize_gateway_minute, _locked_session, _allowed
 from .wallet_service import credit_spending_enabled
 from .wallet_service import WalletError
+from .webrtc_credentials import native_ice_servers
 
 PATH = "/api/internal/media-gateway/minute/"
 STAGING = "36306a53-86bc-4a07-9b09-7c42c58f2e43"
@@ -173,3 +174,21 @@ def redeem_join_ticket(request):
         return reply({"authorized": False}, 503)
     return reply({"authorized": True, "session_id": str(sid), "user_id": uid,
                   "kind": session.tipo})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def call_ice_config(request, session_id):
+    if not enabled():
+        return reply({"authorized": False}, 404)
+    if not request.is_secure():
+        return reply({"authorized": False}, 403)
+    try:
+        session = _admission(session_id, request.user.pk)
+    except WalletError:
+        return reply({"authorized": False}, 404)
+    config = native_ice_servers(session, request.user)
+    if config is None:
+        return reply({"authorized": False, "detail": "Media relay unavailable."}, 503)
+    return reply(config)
