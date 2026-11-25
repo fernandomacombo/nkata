@@ -323,3 +323,56 @@ class PaymentTests(TestCase):
         self.assertEqual(recharge_balance_for_user(self.user), 0)
         self.settle(order)
         self.assertEqual(recharge_balance_for_user(self.user), 10)
+
+
+
+@override_settings(NKATA_CREDIT_CHECKOUT_ENABLED=True)
+class WalletPaymentTests(TestCase):
+    def setUp(self):
+        from .test_conversations import profile
+        self.user = profile(93).usuario
+
+    def test_catalog_amounts_are_server_owned(self):
+        from .payment_service import snapshot
+        for product, amount, credits in (("CREDITOS_INICIAL", 50, 50), ("CREDITOS_ESSENCIAL", 100, 100),
+                                         ("CREDITOS_POPULAR", 250, 275), ("CREDITOS_PREMIUM", 500, 600)):
+            self.assertEqual(snapshot(product), (Decimal(amount), 0, credits))
+
+    @override_settings(NKATA_PAYMENTS_ENABLED=True, NKATA_PAYSUITE_TOKEN="test-token",
+        NKATA_PAYSUITE_WEBHOOK_SECRET="test-secret", NKATA_PAYMENT_ORIGIN="https://nkata.example",
+        NKATA_CHECKOUT_HOSTS=["paysuite.tech"])
+    def test_confirmed_wallet_topup_is_exactly_once_even_after_checkout_disabled(self):
+        from .wallet_service import wallet_snapshot
+        from .models import MovimentoCreditoNKATA
+        def create(method, payment_id=None, payload=None):
+            return {"id": "WALLETPAY01", "amount": payload["amount"], "reference": payload["reference"],
+                    "status": "pending", "checkout_url": "https://paysuite.tech/checkout/WALLETPAY01"}
+        with patch("entradas.payment_service.provider_request", side_effect=create):
+            order = start_checkout(self.user, "CREDITOS_POPULAR", uuid.uuid4())
+        self.assertEqual(order.valor, Decimal("250"))
+        self.assertEqual(order.creditos, 275)
+        self.assertEqual(wallet_snapshot(self.user)["saldo"], 0)
+        data = {"id": order.provedor_id, "amount": "250", "reference": order.referencia,
+                "status": "completed", "transaction": {"status": "completed", "transaction_id": "WALLET-TX"}}
+        with self.settings(NKATA_CREDIT_CHECKOUT_ENABLED=False):
+            with patch("entradas.payment_service.provider_request", return_value={**data, "amount": "50"}):
+                with self.assertRaises(PaymentError):
+                    reconcile(order)
+            self.assertEqual(wallet_snapshot(self.user)["saldo"], 0)
+            with patch("entradas.payment_service.provider_request", return_value=data):
+                self.assertEqual(reconcile(order).estado, "PAGO")
+                self.assertEqual(reconcile(order).estado, "PAGO")
+        self.assertEqual(wallet_snapshot(self.user)["saldo"], 275)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.user, tipo="RECARGA").count(), 1)
+        self.assertEqual(plan_code_for_user(self.user), "LIVRE")
+        self.assertEqual(recharge_balance_for_user(self.user), 0)
+
+    @override_settings(NKATA_CREDIT_CHECKOUT_ENABLED=False, NKATA_PAYMENTS_ENABLED=True,
+        NKATA_PAYSUITE_TOKEN="test-token", NKATA_PAYSUITE_WEBHOOK_SECRET="test-secret",
+        NKATA_PAYMENT_ORIGIN="https://nkata.example")
+    def test_checkout_disabled_does_not_create_order(self):
+        with patch("entradas.payment_service.provider_request") as provider:
+            with self.assertRaises(PaymentError):
+                start_checkout(self.user, "CREDITOS_POPULAR", uuid.uuid4())
+        provider.assert_not_called()
+        self.assertFalse(PedidoPagamentoNKATA.objects.filter(usuario=self.user).exists())

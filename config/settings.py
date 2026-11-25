@@ -488,6 +488,8 @@ LOGGING = {
 
 # Disabled until the company account, branding and sandbox flow are verified.
 NKATA_PAYMENTS_ENABLED = env_bool("NKATA_PAYMENTS_ENABLED", False)
+# Keep credit sales off until consumption and legacy migration are validated.
+NKATA_CREDIT_CHECKOUT_ENABLED = env_bool("NKATA_CREDIT_CHECKOUT_ENABLED", False)
 NKATA_PAYSUITE_TOKEN = os.getenv("NKATA_PAYSUITE_TOKEN", "").strip()
 NKATA_PAYSUITE_WEBHOOK_SECRET = os.getenv("NKATA_PAYSUITE_WEBHOOK_SECRET", "").strip()
 NKATA_PAYMENT_ORIGIN = os.getenv("NKATA_PAYMENT_ORIGIN", "").strip().rstrip("/")

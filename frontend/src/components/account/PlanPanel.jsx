@@ -158,7 +158,8 @@ export default function PlanPanel({ language = "PT" }) {
 
       {data.wallet && <section className="nk-wallet-preview" aria-label={english ? "NKATA Wallet" : "Carteira NKATA"}>
         <div className="nk-wallet-preview__header"><WalletCards size={24}/><div><small>{english ? "NKATA Wallet" : "Carteira NKATA"}</small><strong>{data.wallet.saldo} {english ? "credits" : "créditos"}</strong></div></div>
-        <p>{english ? "Credit purchases and spending are not available yet. Existing plans and signal top-ups remain valid." : "A compra e utilização de créditos ainda não estão disponíveis. Os planos e recargas de sinais atuais mantêm-se válidos."}</p>
+        <p>{data.wallet.catalogo.packs.some(p => p.purchase_enabled) ? (english ? "Choose a top-up. Credits arrive after payment confirmation." : "Escolha uma recarga. Os créditos entram após confirmação do pagamento.") : (english ? "Credit purchases are not available yet. Existing benefits remain valid." : "As recargas de créditos ainda não estão disponíveis. Os benefícios atuais mantêm-se válidos.")}</p>
+        <div className="nk-wallet-packs">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (english ? "Top up" : "Recarregar") : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
         {!!data.wallet.movimentos.length && <div className="nk-wallet-preview__history"><h3>{english ? "Recent transactions" : "Últimos movimentos"}</h3>{data.wallet.movimentos.map(m => <div key={m.id}><span>{m.motivo}<small>{new Date(m.criado_em).toLocaleString(english ? "en-GB" : "pt-PT")}</small></span><strong>{m.quantidade > 0 ? "+" : ""}{m.quantidade}</strong></div>)}</div>}
       </section>}
       <div className="nk-plan-current">
@@ -258,7 +259,7 @@ export default function PlanPanel({ language = "PT" }) {
         {paymentMessage && <p role="status">{paymentMessage}</p>}
         {payments.map((order) => (
           <article key={order.id} className="nk-plan-card">
-            <strong>{order.product} · {order.amount_mzn} MT</strong>
+            <strong>{order.wallet_credits ? `${order.wallet_credits} ${english ? "credits" : "créditos"}` : order.product} · {order.amount_mzn} MT</strong>
             <small>{order.reference}</small>
             <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
             {order.checkout_url && !["PAGO", "FALHOU"].includes(order.status) && (

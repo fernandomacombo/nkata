@@ -430,3 +430,10 @@
 .nk-wallet-preview > p { font-size:.85rem; color:#74696d; margin:12px 0 0; }
 .nk-wallet-preview__history > div { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #e9e1e4; }
 .nk-wallet-preview__history small { display:block; color:#74696d; }
+
+.nk-wallet-packs { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-top:12px; }
+.nk-wallet-packs article { display:grid; gap:5px; border:1px solid #e9e1e4; padding:12px; border-radius:12px; }
+.nk-wallet-packs b { color:#7d2638; font-size:1.1rem; }
+.nk-wallet-packs small { color:#74696d; }
+.nk-wallet-packs button { border:0; border-radius:8px; background:#7d2638; color:white; padding:9px; cursor:pointer; }
+.nk-wallet-packs button:disabled { opacity:.5; cursor:not-allowed; }

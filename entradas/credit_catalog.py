@@ -27,6 +27,8 @@ CREDIT_PACKS = (
     {"code": "PREMIUM", "label": "Premium", "price_mzn": 500, "credits": 600, "bonus": 100},
 )
 
+CREDIT_PRODUCTS = {f"CREDITOS_{pack['code']}": pack for pack in CREDIT_PACKS}
+
 WELCOME_CREDITS = 5
 
 ICEBREAKER_DAILY_LIMIT = 3
@@ -39,12 +41,12 @@ ICEBREAKERS = {
 SIGNAL_CHAT_TEXT = {"OLA": "Um olá para ti!", "FLOR": "Uma flor para ti!", "BEIJINHO": "Um beijinho para ti!"}
 
 
-def credit_catalog():
+def credit_catalog(purchase_enabled=False):
     return {
         "enabled": False,
         "version": 1,
         "welcome_credits": WELCOME_CREDITS,
-        "packs": [dict(pack, purchase_enabled=False) for pack in CREDIT_PACKS],
+        "packs": [dict(pack, product=product, purchase_enabled=bool(purchase_enabled)) for product, pack in CREDIT_PRODUCTS.items()],
         "actions": [
             *[{"code": code, "label": item["label"], "credits": item["credits"], "unit": "signal"}
               for code, item in SIGNAL_DEFINITIONS.items()],

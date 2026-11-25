@@ -70,7 +70,7 @@ class MomentChatUpdateTests(TestCase):
         self.assertEqual(plan_code_for_user(self.user), 'LIVRE')
         self.assertEqual(self.client.post(url, {'texto': 'Mensagem livre'}).status_code, 403)
 
-    def test_launch_bonus_can_start_with_preset_but_cannot_reply(self):
+    def test_launch_bonus_can_reply_with_preset_but_not_free_text(self):
         other_user, other = create_member("bonus-chat@nkata.test")
         match = historical_match(perfil_1=self.profile, perfil_2=other)
         url = f"/api/minha-conta/matches/{match.id}/conversa/"
@@ -81,7 +81,8 @@ class MomentChatUpdateTests(TestCase):
         self.assertEqual(self.client.post(url, {"texto": "Olá, tudo bem?"}).status_code, 201)
         MensagemMatch.objects.create(match=match, remetente=other_user, texto="Olá!")
         self.assertEqual(self.client.get(url).status_code, 200)
-        self.assertEqual(self.client.post(url, {"texto": "Olá, tudo bem?"}).status_code, 403)
+        self.assertEqual(self.client.post(url, {"texto": "Olá, tudo bem?"}).status_code, 201)
+        self.assertEqual(self.client.post(url, {"texto": "Resposta personalizada"}).status_code, 403)
 
     def test_fortnight_price_and_term(self):
         self.assertEqual(snapshot('QUINZENAL'), (Decimal('100'), 14, 0))

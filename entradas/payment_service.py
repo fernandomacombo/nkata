@@ -12,6 +12,10 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import AcessoPlanoNKATA, PedidoPagamentoNKATA
+from .credit_catalog import CREDIT_PRODUCTS
+from .wallet_service import record_movement, WalletError
+from .identity_models import pedido_tem_identidade_verificada
+from .user_roles import active_member_profile_for_user
 from .plan_service import (
     PLAN_PRICES_MZN, PLAN_DURATIONS, ACTIVE_RECHARGE_PRICES_MZN,
     active_plan_access, grant_recharge,
@@ -30,6 +34,12 @@ class PaymentError(Exception):
 def payments_enabled():
     return bool(settings.NKATA_PAYMENTS_ENABLED and settings.NKATA_PAYSUITE_TOKEN
                 and settings.NKATA_PAYSUITE_WEBHOOK_SECRET and settings.NKATA_PAYMENT_ORIGIN)
+
+
+def credit_checkout_enabled(user):
+    profile = active_member_profile_for_user(user)
+    return bool(payments_enabled() and settings.NKATA_CREDIT_CHECKOUT_ENABLED and profile
+                and pedido_tem_identidade_verificada(profile.pedido))
 
 
 def provider_request(method, payment_id=None, payload=None):
@@ -64,6 +74,9 @@ def valid_checkout_url(url):
 
 
 def snapshot(product):
+    if product in CREDIT_PRODUCTS:
+        pack = CREDIT_PRODUCTS[product]
+        return Decimal(pack["price_mzn"]), 0, pack["credits"]
     if product in ("ESSENCIAL", "PREMIUM", "QUINZENAL"):
         return Decimal(PLAN_PRICES_MZN[product]), PLAN_DURATIONS[product], 0
     if product == "RECARGA10":
@@ -92,12 +105,14 @@ def start_checkout(user, product, key):
         raise PaymentError("Chave do pedido inválida.") from None
     amount, days, credits = snapshot(product)
     with transaction.atomic():
-        get_user_model().objects.select_for_update().get(pk=user.pk)
+        user = get_user_model().objects.select_for_update().get(pk=user.pk)
         existing = PedidoPagamentoNKATA.objects.filter(usuario=user, chave=key).first()
         if existing:
             if existing.produto != product:
                 raise PaymentError("Esta chave já pertence a outro pacote.", 409)
             return existing
+        if product in CREDIT_PRODUCTS and not credit_checkout_enabled(user):
+            raise PaymentError("A compra de créditos ainda não está disponível para esta conta.", 403)
         profile = getattr(user, "perfil_nkata", None)
         if not profile or profile.status != "ATIVO":
             raise PaymentError("É necessário um perfil ativo para comprar.", 403)
@@ -109,7 +124,8 @@ def start_checkout(user, product, key):
         order = PedidoPagamentoNKATA.objects.create(usuario=user, chave=key,
             referencia=f"NKATA{uuid.uuid4().hex.upper()}", produto=product, valor=amount, dias=days, creditos=credits)
     origin = settings.NKATA_PAYMENT_ORIGIN
-    description = f"NKATA {product} - {days} dias" if days else "NKATA recarga de 10 sinais"
+    description = (f"NKATA - {order.creditos} créditos" if product in CREDIT_PRODUCTS else
+                   f"NKATA {product} - {days} dias" if days else "NKATA recarga de 10 sinais")
     try:
         data = provider_request("POST", payload={"amount": str(order.valor), "reference": order.referencia,
             "description": description, "return_url": f"{origin}/?nkata_payment={order.id}",
@@ -162,6 +178,21 @@ def reconcile(order):
                     AcessoPlanoNKATA.objects.update_or_create(usuario=user, defaults={
                         "plano": order.produto, "inicio": timezone.now(), "fim": end, "origem": "PAYSUITE"})
                     order.validade_concedida = end
+                elif order.produto in CREDIT_PRODUCTS:
+                    # Honor the immutable order snapshot even if future prices change.
+                    # Turning off new checkout must not prevent settlement of existing orders.
+                    if not order.creditos or user.is_staff or user.is_superuser:
+                        order.estado = "REVISAO"
+                        order.save()
+                        return order
+                    try:
+                        record_movement(user, key=f"paysuite:{order.pk}", kind="RECARGA",
+                                        amount=order.creditos, reference=order.referencia,
+                                        reason="Recarga de créditos NKATA")
+                    except WalletError:
+                        order.estado = "REVISAO"
+                        order.save()
+                        return order
                 else:
                     grant_recharge(user, order.creditos)
                 order.aplicado_em = timezone.now()
@@ -182,4 +213,5 @@ def serialize_order(order):
             "amount_mzn": str(order.valor), "currency": order.moeda, "status": order.estado,
             "checkout_url": order.checkout_url if order.estado == "PENDENTE" else None,
             "created_at": order.criado_em, "fulfilled_at": order.aplicado_em,
-            "valid_until": order.validade_concedida}
+            "valid_until": order.validade_concedida,
+            "wallet_credits": order.creditos if order.produto in CREDIT_PRODUCTS else 0}
