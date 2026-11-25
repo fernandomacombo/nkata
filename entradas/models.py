@@ -414,6 +414,7 @@ class PedidoPagamentoNKATA(models.Model):
     chave = models.UUIDField()
     referencia = models.CharField(max_length=50, unique=True)
     produto = models.CharField(max_length=24)
+    simulado = models.BooleanField(default=False, editable=False, db_index=True)
     valor = models.DecimalField(max_digits=8, decimal_places=2)
     moeda = models.CharField(max_length=3, default="MZN")
     dias = models.PositiveSmallIntegerField(default=0)

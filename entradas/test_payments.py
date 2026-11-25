@@ -376,3 +376,58 @@ class WalletPaymentTests(TestCase):
                 start_checkout(self.user, "CREDITOS_POPULAR", uuid.uuid4())
         provider.assert_not_called()
         self.assertFalse(PedidoPagamentoNKATA.objects.filter(usuario=self.user).exists())
+
+
+@override_settings(NKATA_PAYMENT_SIMULATION_ENABLED=True,
+    NKATA_RAILWAY_ENVIRONMENT_ID="36306a53-86bc-4a07-9b09-7c42c58f2e43",
+    NKATA_PAYMENTS_ENABLED=False, NKATA_CREDIT_TRANSITION_ENABLED=True,
+    EMAIL_BACKEND="django.core.mail.backends.dummy.EmailBackend")
+class SimulatedPaymentTests(TestCase):
+    def setUp(self):
+        from .test_conversations import profile
+        self.user = profile(93).usuario
+        self.other = profile(94).usuario
+
+    def test_simulation_credits_once_no_provider_and_no_real_revenue(self):
+        from .payment_service import resolve_simulated_checkout
+        from .wallet_service import credit_balance
+        from .finance_admin_api import _overview
+        from .models import MovimentoCreditoNKATA
+        with patch("entradas.payment_service.provider_request") as provider:
+            order = start_checkout(self.user, "CREDITOS_POPULAR", uuid.uuid4())
+            self.assertTrue(order.simulado)
+            self.assertEqual(credit_balance(self.user), 0)
+            with self.assertRaises(PaymentError):
+                resolve_simulated_checkout(self.other, order.pk, "completed")
+            with self.assertRaises(PaymentError):
+                reconcile(order)
+            for _ in range(2):
+                self.assertEqual(resolve_simulated_checkout(self.user, order.pk, "completed").estado, "PAGO")
+            provider.assert_not_called()
+        self.assertEqual(credit_balance(self.user), 275)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(chave__startswith="simulated:").count(), 1)
+        self.assertEqual(_overview()["settled_revenue_mzn"], "0.00")
+        self.assertEqual(_overview()["simulated_count"], 1)
+
+    def test_failed_simulation_and_wrong_environment_never_credit(self):
+        from .payment_service import resolve_simulated_checkout, simulation_enabled
+        from .wallet_service import credit_balance
+        order = start_checkout(self.user, "CREDITOS_INICIAL", uuid.uuid4())
+        self.assertEqual(resolve_simulated_checkout(self.user, order.pk, "failed").estado, "FALHOU")
+        self.assertEqual(resolve_simulated_checkout(self.user, order.pk, "completed").estado, "FALHOU")
+        self.assertEqual(credit_balance(self.user), 0)
+        with self.settings(NKATA_RAILWAY_ENVIRONMENT_ID="production"):
+            self.assertFalse(simulation_enabled())
+            with self.assertRaises(PaymentError):
+                start_checkout(self.user, "CREDITOS_INICIAL", uuid.uuid4())
+            with self.assertRaises(PaymentError):
+                resolve_simulated_checkout(self.user, order.pk, "completed")
+
+    def test_simulation_api_requires_own_order_and_rejects_amount(self):
+        order = start_checkout(self.user, "CREDITOS_INICIAL", uuid.uuid4())
+        url = f"/api/minha-conta/pagamentos/{order.pk}/simular/"
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.post(url, {"outcome":"completed"}, content_type="application/json").status_code, 404)
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.post(url, {"outcome":"completed","credits":999}, content_type="application/json").status_code, 400)
+        self.assertEqual(self.client.post(url, {"outcome":"completed"}, content_type="application/json").status_code, 200)

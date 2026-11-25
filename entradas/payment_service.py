@@ -36,14 +36,21 @@ def payments_enabled():
                 and settings.NKATA_PAYSUITE_WEBHOOK_SECRET and settings.NKATA_PAYMENT_ORIGIN)
 
 
+def simulation_enabled():
+    return bool(settings.NKATA_PAYMENT_SIMULATION_ENABLED
+                and settings.NKATA_RAILWAY_ENVIRONMENT_ID == "36306a53-86bc-4a07-9b09-7c42c58f2e43"
+                and not settings.NKATA_PAYMENTS_ENABLED and settings.NKATA_CREDIT_TRANSITION_ENABLED
+                and settings.EMAIL_BACKEND == "django.core.mail.backends.dummy.EmailBackend")
+
+
 def credit_checkout_enabled(user):
     profile = active_member_profile_for_user(user)
-    return bool(payments_enabled() and settings.NKATA_CREDIT_CHECKOUT_ENABLED and profile
+    return bool((simulation_enabled() or (payments_enabled() and settings.NKATA_CREDIT_CHECKOUT_ENABLED)) and profile
                 and pedido_tem_identidade_verificada(profile.pedido))
 
 
 def provider_request(method, payment_id=None, payload=None):
-    if not settings.NKATA_PAYSUITE_TOKEN:
+    if simulation_enabled() or not settings.NKATA_PAYSUITE_TOKEN:
         raise PaymentError("Pagamentos temporariamente indisponíveis.", 503)
     if payment_id is not None and not re.fullmatch(r"[A-Za-z0-9-]{1,64}", payment_id):
         raise PaymentError("Identificador de pagamento inválido.", 502)
@@ -97,6 +104,8 @@ def check_identity(order, data):
 
 
 def start_checkout(user, product, key):
+    if simulation_enabled():
+        return start_simulated_checkout(user, product, key)
     if not payments_enabled():
         raise PaymentError("Pagamentos ainda não disponíveis.", 503)
     try:
@@ -108,7 +117,7 @@ def start_checkout(user, product, key):
         user = get_user_model().objects.select_for_update().get(pk=user.pk)
         existing = PedidoPagamentoNKATA.objects.filter(usuario=user, chave=key).first()
         if existing:
-            if existing.produto != product:
+            if existing.produto != product or existing.simulado:
                 raise PaymentError("Esta chave já pertence a outro pacote.", 409)
             return existing
         if settings.NKATA_CREDIT_TRANSITION_ENABLED and product not in CREDIT_PRODUCTS:
@@ -151,12 +160,20 @@ def start_checkout(user, product, key):
 
 
 def reconcile(order):
+    if order.simulado or simulation_enabled():
+        raise PaymentError("Pedido indisponível para reconciliação real.", 409)
     if not order.provedor_id:
         raise PaymentError("Pagamento ainda em preparação ou a aguardar revisão.", 409)
     data = provider_request("GET", payment_id=order.provedor_id)
+    return _settle_authoritative(order, data, simulated=False)
+
+
+def _settle_authoritative(order, data, *, simulated):
     with transaction.atomic():
         user = get_user_model().objects.select_for_update().get(pk=order.usuario_id)
         order = PedidoPagamentoNKATA.objects.select_for_update().get(pk=order.pk)
+        if order.simulado != simulated or (simulated and not simulation_enabled()):
+            raise PaymentError("Origem do pagamento inválida.", 409)
         check_identity(order, data)
         order.ultima_verificacao = timezone.now()
         # An old failure notification must never undo a confirmed fulfillment.
@@ -188,9 +205,9 @@ def reconcile(order):
                         order.save()
                         return order
                     try:
-                        record_movement(user, key=f"paysuite:{order.pk}", kind="RECARGA",
+                        record_movement(user, key=f"{'simulated' if simulated else 'paysuite'}:{order.pk}", kind="RECARGA",
                                         amount=order.creditos, reference=order.referencia,
-                                        reason="Recarga de créditos NKATA")
+                                        reason="Recarga SIMULADA (sem dinheiro real)" if simulated else "Recarga de créditos NKATA")
                     except WalletError:
                         order.estado = "REVISAO"
                         order.save()
@@ -216,4 +233,51 @@ def serialize_order(order):
             "checkout_url": order.checkout_url if order.estado == "PENDENTE" else None,
             "created_at": order.criado_em, "fulfilled_at": order.aplicado_em,
             "valid_until": order.validade_concedida,
-            "wallet_credits": order.creditos if order.produto in CREDIT_PRODUCTS else 0}
+            "wallet_credits": order.creditos if order.produto in CREDIT_PRODUCTS else 0,
+            "simulated": order.simulado}
+
+
+@transaction.atomic
+def start_simulated_checkout(user, product, key):
+    if not simulation_enabled() or product not in CREDIT_PRODUCTS:
+        raise PaymentError("Simulação indisponível.", 403)
+    try:
+        key = uuid.UUID(str(key))
+    except (ValueError, TypeError, AttributeError):
+        raise PaymentError("Chave do pedido inválida.") from None
+    user = get_user_model().objects.select_for_update().get(pk=user.pk)
+    if not credit_checkout_enabled(user):
+        raise PaymentError("Identidade verificada obrigatória.", 403)
+    existing = PedidoPagamentoNKATA.objects.filter(usuario=user, chave=key).first()
+    if existing:
+        if not existing.simulado or existing.produto != product:
+            raise PaymentError("Chave já utilizada.", 409)
+        return existing
+    if PedidoPagamentoNKATA.objects.filter(usuario=user, simulado=True, estado__in=OPEN_STATES).exists():
+        raise PaymentError("Já existe uma simulação pendente.", 409)
+    amount, days, credits = snapshot(product)
+    return PedidoPagamentoNKATA.objects.create(usuario=user, chave=key,
+        referencia=f"SIMNKATA{uuid.uuid4().hex.upper()}", produto=product, valor=amount,
+        dias=days, creditos=credits, simulado=True, estado="PENDENTE",
+        provedor_id=f"SIM-{uuid.uuid4().hex}")
+
+
+@transaction.atomic
+def resolve_simulated_checkout(user, order_id, outcome):
+    if not simulation_enabled() or outcome not in ("completed", "failed"):
+        raise PaymentError("Simulação indisponível ou resultado inválido.", 403)
+    user = get_user_model().objects.select_for_update().get(pk=user.pk)
+    if not credit_checkout_enabled(user):
+        raise PaymentError("Identidade verificada obrigatória.", 403)
+    order = PedidoPagamentoNKATA.objects.select_for_update().filter(pk=order_id, usuario=user, simulado=True).first()
+    if not order:
+        raise PaymentError("Simulação não encontrada.", 404)
+    if order.estado in ("PAGO", "FALHOU"):
+        return order
+    if order.estado != "PENDENTE" or order.produto not in CREDIT_PRODUCTS or order.dias:
+        raise PaymentError("Simulação em revisão.", 409)
+    # The simulator is a trusted server-side fixture only. Never call the
+    # actual provider and never accept amounts or credit quantities from the browser.
+    data = {"id": order.provedor_id, "reference": order.referencia, "amount": str(order.valor),
+            "currency": order.moeda, "status": outcome, "transaction": {"status": outcome}}
+    return _settle_authoritative(order, data, simulated=True)

@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
 from .models import PedidoPagamentoNKATA
-from .payment_service import PaymentError, reconcile, serialize_order, start_checkout
+from .payment_service import PaymentError, reconcile, serialize_order, start_checkout, simulation_enabled, resolve_simulated_checkout
 
 
 class PaymentThrottle(UserRateThrottle):
@@ -23,7 +23,7 @@ class PaymentThrottle(UserRateThrottle):
 def api_payments(request):
     if request.method == "GET":
         return Response({"results": [serialize_order(o) for o in
-            PedidoPagamentoNKATA.objects.filter(usuario=request.user).order_by("-criado_em")[:20]]})
+            PedidoPagamentoNKATA.objects.filter(usuario=request.user, simulado=simulation_enabled()).order_by("-criado_em")[:20]]})
     if not isinstance(request.data, dict) or set(request.data) - {"product", "key"}:
         return Response({"detail": "Envie apenas o pacote e a chave do pedido."}, status=400)
     product = request.data.get("product")
@@ -81,6 +81,8 @@ def api_payment_close_if_terminal(request, payment_id):
 @permission_classes([permissions.AllowAny])
 @throttle_classes([])
 def api_paysuite_webhook(request):
+    if simulation_enabled():
+        return Response(status=503)
     secret = settings.NKATA_PAYSUITE_WEBHOOK_SECRET
     if not secret:
         return Response(status=503)
@@ -101,7 +103,7 @@ def api_paysuite_webhook(request):
     data = payload["data"]
     if not isinstance(data.get("reference"), str) or not isinstance(data.get("id"), str):
         return Response(status=400)
-    order = PedidoPagamentoNKATA.objects.filter(referencia=data["reference"]).first()
+    order = PedidoPagamentoNKATA.objects.filter(referencia=data["reference"], simulado=False).first()
     if not order:
         return Response(status=200)  # Other products may share the merchant account.
     if not order.provedor_id:
@@ -113,3 +115,18 @@ def api_paysuite_webhook(request):
     except PaymentError as error:
         return Response(status=error.status)
     return Response(status=200)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+@throttle_classes([PaymentThrottle])
+def api_payment_simulate(request, payment_id):
+    if not simulation_enabled():
+        return Response({"detail": "Simulação indisponível."}, status=404)
+    if not isinstance(request.data, dict) or set(request.data) != {"outcome"}:
+        return Response({"detail": "Envie apenas o resultado da simulação."}, status=400)
+    try:
+        order = resolve_simulated_checkout(request.user, payment_id, request.data["outcome"])
+        return Response(serialize_order(order))
+    except PaymentError as error:
+        return Response({"detail": str(error)}, status=error.status)

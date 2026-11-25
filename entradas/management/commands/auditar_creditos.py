@@ -33,7 +33,7 @@ class Command(BaseCommand):
                     flag("SALDO_DIVERGENTE", wallet.pk)
             for order in PedidoPagamentoNKATA.objects.filter(produto__startswith="CREDITOS_").iterator(chunk_size=200):
                 orders += 1
-                move = MovimentoCreditoNKATA.objects.filter(carteira__usuario_id=order.usuario_id, chave=f"paysuite:{order.pk}").first()
+                move = MovimentoCreditoNKATA.objects.filter(carteira__usuario_id=order.usuario_id, chave=f"{'simulated' if order.simulado else 'paysuite'}:{order.pk}").first()
                 paid = order.estado == "PAGO" and bool(order.confirmado_em and order.aplicado_em)
                 if paid:
                     if not move or (move.tipo, move.quantidade, move.referencia) != ("RECARGA", order.creditos, order.referencia):
@@ -42,11 +42,11 @@ class Command(BaseCommand):
                     flag("LIQUIDACAO_INCONSISTENTE", order.pk)
                 elif order.confirmado_em:
                     flag("PAGAMENTO_CONFIRMADO_EM_REVISAO", order.pk)
-            for move in MovimentoCreditoNKATA.objects.filter(chave__startswith="paysuite:").iterator(chunk_size=200):
-                order_id = move.chave.removeprefix("paysuite:")
+            for move in MovimentoCreditoNKATA.objects.filter(chave__startswith="paysuite:").union(MovimentoCreditoNKATA.objects.filter(chave__startswith="simulated:")).iterator(chunk_size=200):
+                prefix, order_id = move.chave.split(":", 1)
                 try:
                     exists = PedidoPagamentoNKATA.objects.filter(pk=order_id, usuario_id=move.carteira.usuario_id,
-                        produto__startswith="CREDITOS_").exists()
+                        produto__startswith="CREDITOS_", simulado=(prefix=="simulated")).exists()
                 except (ValueError, TypeError):
                     exists = False
                 except Exception as error:

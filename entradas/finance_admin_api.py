@@ -32,12 +32,14 @@ def _credit_orders():
 def _overview():
     orders = _credit_orders()
     settled = orders.filter(estado="PAGO", aplicado_em__isnull=False, confirmado_em__isnull=False)
+    real = settled.filter(simulado=False)
     ledger = MovimentoCreditoNKATA.objects.all()
     return {
         "wallet_count": CarteiraNKATA.objects.count(),
         "total_balance": _sum(CarteiraNKATA.objects.all(), "saldo"),
-        "settled_revenue_mzn": f'{_sum(settled, "valor"):.2f}',
-        "settled_count": settled.count(),
+        "settled_revenue_mzn": f'{_sum(real, "valor"):.2f}',
+        "settled_count": real.count(),
+        "simulated_count": settled.filter(simulado=True).count(),
         "pending_count": orders.filter(estado__in=["CRIADO", "PENDENTE", "INCERTO", "REVISAO"]).count(),
         "review_count": orders.filter(estado="REVISAO").count(),
         "recharge_credits": _sum(ledger.filter(tipo="RECARGA"), "quantidade"),
@@ -66,7 +68,7 @@ def _movement_row(move):
 def _payment_row(order):
     return {"id": str(order.pk), **_member(order.usuario), "product": order.produto,
             "amount_mzn": str(order.valor), "credits": order.creditos, "status": order.estado,
-            "reference": order.referencia, "created_at": order.criado_em,
+            "reference": order.referencia, "simulated": order.simulado, "created_at": order.criado_em,
             "confirmed_at": order.confirmado_em, "fulfilled_at": order.aplicado_em}
 
 

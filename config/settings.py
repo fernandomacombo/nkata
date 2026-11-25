@@ -493,6 +493,11 @@ NKATA_CREDIT_CHECKOUT_ENABLED = env_bool("NKATA_CREDIT_CHECKOUT_ENABLED", False)
 NKATA_CREDIT_SPENDING_ENABLED = env_bool("NKATA_CREDIT_SPENDING_ENABLED", False)
 # Cutover retires new legacy sales, not existing entitlements or settlements.
 NKATA_CREDIT_TRANSITION_ENABLED = env_bool("NKATA_CREDIT_TRANSITION_ENABLED", False)
+NKATA_PAYMENT_SIMULATION_ENABLED = env_bool("NKATA_PAYMENT_SIMULATION_ENABLED", False)
+NKATA_RAILWAY_ENVIRONMENT_ID = os.getenv("RAILWAY_ENVIRONMENT_ID", "")
+# Never permit simulated money in production, even if a flag is accidentally enabled.
+if NKATA_PAYMENT_SIMULATION_ENABLED and (NKATA_RAILWAY_ENVIRONMENT_ID != "36306a53-86bc-4a07-9b09-7c42c58f2e43" or NKATA_PAYMENTS_ENABLED or not NKATA_CREDIT_TRANSITION_ENABLED or EMAIL_BACKEND != "django.core.mail.backends.dummy.EmailBackend"):
+    raise ImproperlyConfigured("Simulação de pagamentos reservada ao staging isolado, sem pagamentos ou email reais.")
 NKATA_PAYSUITE_TOKEN = os.getenv("NKATA_PAYSUITE_TOKEN", "").strip()
 NKATA_PAYSUITE_WEBHOOK_SECRET = os.getenv("NKATA_PAYSUITE_WEBHOOK_SECRET", "").strip()
 NKATA_PAYMENT_ORIGIN = os.getenv("NKATA_PAYMENT_ORIGIN", "").strip().rstrip("/")

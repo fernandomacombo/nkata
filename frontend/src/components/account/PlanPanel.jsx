@@ -10,7 +10,7 @@ import {
   Volume2,
   WalletCards,
 } from "lucide-react";
-import { fetchMyPlan, fetchPayments, createPayment, claimWelcome } from "../../services/planApi.js";
+import { fetchMyPlan, fetchPayments, createPayment, claimWelcome, simulatePayment } from "../../services/planApi.js";
 import WalletDashboard from "./WalletDashboard.jsx";
 
 const planIcon = {
@@ -111,6 +111,14 @@ export default function PlanPanel({ language = "PT" }) {
     return () => controller.abort();
   }, [load]);
 
+  async function finishSimulation(order, outcome) {
+    if(paymentBusy || !data?.payment_simulation || !order.simulated) return;
+    setPaymentBusy(true); setPaymentMessage("");
+    try { const result=await simulatePayment(order.id,outcome); setPaymentMessage(result.status==="PAGO" ? (english ? "Test credits added. No real payment." : "Créditos de teste atribuídos. Sem pagamento real.") : (english ? "Simulation: "+result.status : "Simulação: "+result.status)); await loadPayments(); await load(); }
+    catch(failure){setPaymentMessage(failure.message);}
+    finally{setPaymentBusy(false);}
+  }
+
   async function receiveWelcome() {
     setBonusBusy(true); setBonusMessage("");
     try { await claimWelcome(); await load(); }
@@ -168,7 +176,8 @@ export default function PlanPanel({ language = "PT" }) {
         <div className="nk-wallet-preview__header"><WalletCards size={24}/><div><small>{english ? "NKATA Wallet" : "Carteira NKATA"}</small><strong>{data.wallet.saldo} {english ? "credits" : "créditos"}</strong></div></div>
         {data.welcome_bonus?.enabled && <div className="nk-plan-current__identity"><span><Sparkles size={20}/></span><div><strong>{data.welcome_bonus.converted ? (english ? "Launch promotion converted" : "Promoção de lançamento convertida") : (english ? "Welcome bonus" : "Bónus de boas-vindas")}</strong><small>{data.welcome_bonus.credits} {english ? "credits, one time only" : "créditos, uma única vez"}</small>{data.welcome_bonus.claimable ? <button type="button" disabled={bonusBusy} onClick={receiveWelcome}>{english ? "Receive credits" : "Receber créditos"}</button> : <small>{data.welcome_bonus.granted ? (english ? "Already granted" : "Já atribuído") : (english ? "Available after identity verification" : "Disponível após verificação de identidade")}</small>}{bonusMessage && <small role="alert">{bonusMessage}</small>}</div></div>}
         <p>{data.wallet.catalogo.packs.some(p => p.purchase_enabled) ? (english ? "Choose a top-up. Credits arrive after payment confirmation." : "Escolha uma recarga. Os créditos entram após confirmação do pagamento.") : (english ? "Credit purchases are not available yet. Existing benefits remain valid." : "As recargas de créditos ainda não estão disponíveis. Os benefícios atuais mantêm-se válidos.")}</p>
-        <div className="nk-wallet-packs" id="nk-wallet-recharge">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (english ? "Top up" : "Recarregar") : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
+        {data.payment_simulation && <p role="status"><strong>{english ? "TEST MODE — no real money" : "MODO DE TESTE — nenhum dinheiro real"}</strong></p>}
+        <div className="nk-wallet-packs" id="nk-wallet-recharge">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (data.payment_simulation ? (english ? "Simulate top-up" : "Simular recarga") : (english ? "Top up" : "Recarregar")) : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
         <WalletDashboard english={english} refreshKey={data} onRecharge={() => document.getElementById("nk-wallet-recharge")?.scrollIntoView({behavior:"smooth", block:"center"})} />
       </section>}
       {(!data.credit_transition || current.expires_at || recharge.balance > 0) && <div className="nk-plan-current">
@@ -270,7 +279,8 @@ export default function PlanPanel({ language = "PT" }) {
         {payments.map((order) => (
           <article key={order.id} className="nk-plan-card">
             <strong>{order.wallet_credits ? `${order.wallet_credits} ${english ? "credits" : "créditos"}` : order.product} · {order.amount_mzn} MT</strong>
-            <small>{order.reference}</small>
+            <small>{order.reference}{order.simulated ? (english ? " · SIMULATED" : " · SIMULADO") : ""}</small>
+            {data.payment_simulation && order.simulated && order.status==="PENDENTE" && <div className="nk-wallet-packs"><button type="button" disabled={paymentBusy} onClick={()=>finishSimulation(order,"completed")}>{english ? "Simulate success" : "Simular confirmação"}</button><button type="button" disabled={paymentBusy} onClick={()=>finishSimulation(order,"failed")}>{english ? "Simulate failure" : "Simular falha"}</button></div>}
             <p>{({PAGO: english ? "Paid" : "Pago", PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
             {order.checkout_url && !["PAGO", "FALHOU"].includes(order.status) && (
               <a className="nk-plan-payment-continue" href={order.checkout_url}>

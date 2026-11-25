@@ -3,7 +3,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .payment_service import payments_enabled, credit_checkout_enabled
+from .payment_service import payments_enabled, credit_checkout_enabled, simulation_enabled
 from .wallet_service import wallet_snapshot, welcome_status
 from .chat_media_api import voice_credit_offer
 from .credit_catalog import credit_catalog
@@ -47,6 +47,7 @@ def api_plano_da_conta(request):
         },
         "signal_quota": quota,
         "credit_transition": transition,
+        "payment_simulation": simulation_enabled(),
         "welcome_bonus": welcome_status(request.user) if member_profile_for_user(request.user) else None,
         "legacy_payments_enabled": legacy_enabled,
         "wallet": {**wallet_snapshot(request.user), "catalogo": credit_catalog(purchase_enabled=credit_checkout_enabled(request.user))} if member_profile_for_user(request.user) else None,

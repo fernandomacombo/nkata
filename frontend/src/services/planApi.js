@@ -80,3 +80,5 @@ export async function downloadWalletStatement({period="30",kind="ALL"}={}) {
   link.href=url;link.download="NKATA-extrato-creditos.pdf";document.body.appendChild(link);
   link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
+
+export const simulatePayment = (id, outcome) => paymentRequest(`/api/minha-conta/pagamentos/${encodeURIComponent(id)}/simular/`, {outcome});
