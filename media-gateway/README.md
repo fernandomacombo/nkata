@@ -46,3 +46,17 @@ frames de vídeo e encerramento após renovação negada com créditos simulados
 A permissão coturn de loopback é exclusiva do laboratório e não deve ser usada
 em staging público ou produção. Este ensaio não cobre Django real, dispositivos
 físicos, redes móveis, TURN/TLS público ou watchdog independente.
+
+
+## Supervisor independente (Linux)
+npm start executa supervisor.mjs, não server.mjs directamente. O supervisor
+inicia o Node e o worker nativo num grupo de processos, exige uma resposta
+de worker.dump a cada 250 ms e, após o arranque, termina o grupo com SIGKILL
+se ficar mais de 1,25 s sem heartbeat (mais a latência do agendamento do SO).
+O encerramento de todo o gateway é deliberado: afecta todas as chamadas
+activas desse processo, em vez de deixar media a circular sem controlo.
+Usar uma unidade systemd dedicada com KillMode=control-group, sem reinício
+automático até reconciliar sessões e débitos, para limpar também os filhos
+se o próprio supervisor falhar. O heartbeat não constitui uma garantia de
+corte exacto no prazo financeiro: a aplicação ainda precisa de um watchdog
+de leases individuais com prazo absoluto. Não publicar antes disso.
