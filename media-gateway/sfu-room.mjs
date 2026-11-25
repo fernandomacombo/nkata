@@ -79,6 +79,7 @@ export class SfuRoom{
    connected(p.transports.get("send"))&&connected(p.transports.get("recv"))&&
    !!p.producers.get("audio")&&!p.producers.get("audio").closed&&
    [...p.consumers.values()].some(c=>!c.closed&&c.kind==="audio")&&
+   (this.kind!=="VIDEO"||(!!p.producers.get("video")&&!p.producers.get("video").closed&&[...p.consumers.values()].some(c=>!c.closed&&c.kind==="video")))&&
    [...p.producers.values()].every(x=>!x.closed)&&[...p.consumers.values()].every(x=>!x.closed));
  }
  // Only called by the server after transport and client preparation; never
