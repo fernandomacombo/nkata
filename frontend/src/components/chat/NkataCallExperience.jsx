@@ -324,7 +324,10 @@ export default function NkataCallExperience({
         await processSignals(result.signals, callRef.current);
       }
     } catch (requestError) {
-      if (requestError.status === 503) {
+      if ([401, 403, 404].includes(requestError.status)) {
+        resetCall({ notice: english ? "Call access is no longer available." : "O acesso à chamada deixou de estar disponível." });
+      } else if (requestError.status === 503) {
+        if (callRef.current) resetCall({ notice: english ? "Call service unavailable." : "Serviço de chamadas indisponível." });
         setError(english ? "Calls still need to be configured in this environment." : "As chamadas ainda precisam de ser preparadas neste ambiente.");
       }
     } finally {
