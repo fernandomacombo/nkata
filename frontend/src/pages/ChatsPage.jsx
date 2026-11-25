@@ -10,6 +10,7 @@ import VoiceRecorder from "../components/chat/VoiceRecorder.jsx";
 import PrivateVoicePlayer from "../components/chat/PrivateVoicePlayer.jsx";
 import CallPanel, { CallActions } from "../components/chat/CallPanel.jsx";
 import useNativeCalls from "../components/chat/useNativeCalls.js";
+import useNativeCallConfig from "../components/chat/useNativeCallConfig.js";
 
 const SIGNAL_ICONS = {OLA:Hand,FLOR:Flower2,BEIJINHO:Heart};
 function SignalIcon({type,size=24}) { const Icon=SIGNAL_ICONS[type] || Sparkles; return <Icon size={size} strokeWidth={1.6} aria-hidden="true"/>; }
@@ -376,7 +377,8 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const matches = name => normalize(name).includes(normalize(query.trim()));
   const chats = data?.conversas || [], requests = data?.pedidos || [], history = data?.historico_pedidos || [];
-  const internalCallController = useNativeCalls(nativeCallConfig, chats, setError);
+  const discoveredCallConfig = useNativeCallConfig(threadProps.safetyAccepted === true);
+  const internalCallController = useNativeCalls(nativeCallConfig || discoveredCallConfig, chats, setError);
   const callController = suppliedCallController || internalCallController;
   const visibleChats = chats.filter(c => matches(c.nome) && (tab !== "unread" || c.nao_lidas > 0));
   const received = requests.filter(p => p.recebido), sent = requests.filter(p => !p.recebido);
