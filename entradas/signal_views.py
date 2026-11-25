@@ -9,7 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PerfilNKATA
-from .chat_permissions import chat_pair_allowed
+from .chat_permissions import chat_pair_allowed, conversation_has_access
 from .credit_catalog import SIGNAL_DEFINITIONS, SIGNAL_CHAT_TEXT, SIGNAL_SAFETY_LIMIT
 from .wallet_service import credit_spending_enabled, credit_balance, record_movement, WalletError
 from .plan_service import (
@@ -172,7 +172,7 @@ def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None,
         chat = None
         if chat_pair_allowed(perfil_atual, perfil_alvo):
             candidate = Conversa.objects.filter(perfil_1=profiles[0], perfil_2=profiles[1], estado=Conversa.ESTADO_ATIVA).first()
-            if candidate:
+            if candidate and conversation_has_access(candidate):
                 if candidate.match_origem_id:
                     MatchPerfil.objects.select_for_update().get(pk=candidate.match_origem_id)
                 chat = Conversa.objects.select_for_update().filter(pk=candidate.pk, estado=Conversa.ESTADO_ATIVA).first()
