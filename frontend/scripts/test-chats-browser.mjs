@@ -13,6 +13,7 @@ import React, {useState} from "react";
 import {createRoot} from "react-dom/client";
 import ChatsPage from "/src/pages/ChatsPage.jsx";
 import BottomNavigation from "/src/components/layout/BottomNavigation.jsx";
+import { PresenceProvider } from "/src/components/profiles/Presence.jsx";
 ${css}
 function Harness(){
  const [page,setPage] = useState("chats"), [id,setId] = useState(null), [accepted,setAccepted] = useState(false);
@@ -22,7 +23,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(<Harness/>);
+createRoot(document.getElementById("root")).render(<PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -33,7 +34,9 @@ try {
   try {
    for (const width of [1366, 375]) {
     const page = await browser.newPage({viewport:{width,height:820},isMobile:width<820,hasTouch:width<820});
-    const profile = {id:2,nome_publico:"Ana",foto_url:null};
+    const profile = {id:2,nome_publico:"Ana",foto_url:"/avatar-portrait-test.svg"};
+    await page.route("**/avatar-portrait-test.svg", route=>route.fulfill({contentType:"image/svg+xml",body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="300"><rect width="100" height="300" fill="#987"/><circle cx="50" cy="40" r="30" fill="#fff"/></svg>'}));
+    await page.route("**/api/presenca/", route=>route.fulfill({json:{perfis:{"2":120}}}));
     const message = {id:1,texto:"Olá",criado_em:"2026-11-25T07:00:00Z",minha:false,lida:true,apagada_em:null};
     await page.route("**/api/chats/**", async route=>{
      const url = new URL(route.request().url());
@@ -43,6 +46,23 @@ try {
     });
     await page.goto("http://127.0.0.1:5178/"+html);
     await page.getByRole("button",{name:/Ana/}).waitFor();
+    const avatar = page.locator(".nk-chat-conversation .nk-chat-avatar").first();
+    await avatar.locator("img").evaluate(img=>img.decode());
+    await avatar.locator(".nk-chat-avatar-dot[aria-label]").waitFor();
+    const shape = await avatar.evaluate(el=>{
+      const photo=el.querySelector(".nk-chat-avatar-photo"), img=photo.querySelector("img"), dot=el.querySelector(".nk-chat-avatar-dot");
+      const frame=photo.getBoundingClientRect(), image=img.getBoundingClientRect(), marker=dot.getBoundingClientRect();
+      return {w:frame.width,h:frame.height,iw:image.width,ih:image.height,fit:getComputedStyle(img).objectFit,
+        radius:getComputedStyle(photo).borderRadius,overflow:getComputedStyle(photo).overflow,
+        dotWidth:marker.width,dotHeight:marker.height,dotRadius:getComputedStyle(dot).borderRadius,
+        before:getComputedStyle(dot,"::before").content,after:getComputedStyle(dot,"::after").content,
+        count:el.querySelectorAll("[data-presence-id]").length, legacy:el.querySelectorAll(".nk-presence").length};
+    });
+    assert.equal(shape.w,shape.h,"Avatar must remain square even with tall portrait");
+    assert.equal(shape.iw,shape.ih); assert.equal(shape.fit,"cover");
+    assert.equal(shape.radius,"50%"); assert.equal(shape.overflow,"hidden");
+    assert.equal(shape.dotWidth,shape.dotHeight); assert.equal(shape.dotRadius,"50%");
+    assert.equal(shape.before,"none"); assert.equal(shape.after,"none"); assert.equal(shape.count,1); assert.equal(shape.legacy,0);
     if(width>820){
       const empty = page.locator(".nk-chat-empty-panel");
       const panel=await empty.boundingBox(), sidebar=await page.locator(".nk-chat-sidebar").boundingBox(), layout=await page.locator(".nk-chats-layout").boundingBox();

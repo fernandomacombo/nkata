@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Search, Send, ShieldCheck, UserRound, X } from "lucide-react";
 import { request, blockProfile, reportProfile } from "../services/api.js";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
-import Presence, { usePresence } from "../components/profiles/Presence.jsx";
+import { usePresence } from "../components/profiles/Presence.jsx";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
 
@@ -25,9 +25,13 @@ function remaining(item) {
 function Avatar({ profile }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [profile?.foto_url]);
+  const { online, label } = usePresence(profile?.id);
   return <span className="nk-chat-avatar">
-    {profile?.foto_url && !failed ? <img src={profile.foto_url} alt="" loading="lazy" onError={() => setFailed(true)} /> : <UserRound size={24} aria-hidden="true" />}
-    <Presence profile={profile} english={false} />
+    <span className="nk-chat-avatar-photo">
+      {profile?.foto_url && !failed ? <img src={profile.foto_url} alt="" loading="lazy" onError={() => setFailed(true)} /> : <UserRound size={24} aria-hidden="true" />}
+    </span>
+    {profile?.id && <span data-presence-id={profile.id} className={"nk-chat-avatar-dot" + (online ? " is-online" : "")}
+      role={label ? "img" : undefined} aria-label={label || undefined} title={label || undefined} />}
   </span>;
 }
 function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack, onOpenProfile }) {
