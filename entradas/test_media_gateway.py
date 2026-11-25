@@ -46,6 +46,9 @@ class MediaGatewayTests(TestCase):
         self.assertEqual(credit_balance(self.a.usuario),9)
 
     def test_replay_and_minute_index_cannot_charge_twice(self):
+        for peer in (self.a, self.b):
+            token=self.issue(peer.usuario).json()["ticket"]
+            self.assertEqual(self.redeem(token).status_code,200)
         nonce=str(uuid4())
         first=self.signed(nonce=nonce)
         self.assertEqual(first.status_code,200,first.content)
@@ -97,3 +100,14 @@ class MediaGatewayTests(TestCase):
         end_call(self.call.pk,actor_id=self.b.usuario_id)
         self.assertEqual(self.redeem(token).status_code,403)
         self.assertEqual(credit_balance(self.a.usuario),9)
+
+    def test_both_participants_must_be_admitted_before_billing(self):
+        self.assertEqual(self.signed().status_code,409)
+        token=self.issue(self.a.usuario).json()["ticket"]
+        self.assertEqual(self.redeem(token).status_code,200)
+        self.assertEqual(self.signed().status_code,409)
+        self.assertEqual(credit_balance(self.a.usuario),9)
+        token=self.issue(self.b.usuario).json()["ticket"]
+        self.assertEqual(self.redeem(token).status_code,200)
+        self.assertEqual(self.signed().status_code,200)
+        self.assertEqual(credit_balance(self.a.usuario),6)
