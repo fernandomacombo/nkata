@@ -13,7 +13,8 @@ from rest_framework.response import Response
 
 from .api_views import _bloqueio_entre_perfis
 from .identity_models import pedido_tem_identidade_verificada
-from .models import Conversa, MensagemMatch, PedidoConversa, PerfilNKATA
+from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PedidoConversa, PerfilNKATA
+from .profile_media_api import profile_photo_url
 from .notification_models import NotificacaoNKATA
 from .plan_service import CHAT_PHRASES, can_send_chat_text, plan_for_user
 from .serializers import MensagemMatchSerializer
@@ -56,11 +57,16 @@ def notify(other, me, kind, key, title, body):
     ), robust=True)
 
 
+def chat_profile(profile):
+    return {"id": profile.pk, "nome_publico": profile.nome_publico,
+            "foto_url": profile_photo_url(profile)}
+
+
 def request_payload(item, me, now):
     received = item.destinatario_id == me.pk
     other = item.remetente if received else item.destinatario
     state = "EXPIRADO" if item.estado == "PENDENTE" and item.expira_em <= now else item.estado
-    return {"id": item.pk, "recebido": received, "nome": other.nome_publico,
+    return {"id": item.pk, "recebido": received, "nome": other.nome_publico, "perfil": chat_profile(other),
             "estado": state, "criado_em": item.criado_em, "expira_em": item.expira_em,
             "decidido_em": item.decidido_em,
             "conversation_id": item.conversa_id if item.conversa_id and item.conversa.estado == Conversa.ESTADO_ATIVA else None,
@@ -196,10 +202,22 @@ def peer(chat, me):
 def inbox(request):
     me = member(request)
     chats = []
-    for chat in participants(me).order_by("-pk"):
+    for chat in participants(me).select_related("match_origem").order_by("-pk"):
         other = peer(chat, me)
         if available(me, other):
-            chats.append({"id": chat.pk, "nome": other.nome_publico, "match_id": legacy_match_id(chat)})
+            thread = chat.match_origem if chat.match_origem_id else chat
+            messages = thread.mensagens.all()
+            latest = messages.order_by("-criado_em", "-pk").first()
+            preview = None if latest is None else {
+                "texto": "Mensagem apagada" if latest.apagada_em else latest.texto[:160],
+                "minha": latest.remetente_id == request.user.pk,
+                "criado_em": latest.criado_em,
+            }
+            chats.append({"id": chat.pk, "nome": other.nome_publico, "perfil": chat_profile(other),
+                          "match_id": legacy_match_id(chat), "ultima_mensagem": preview,
+                          "nao_lidas": messages.filter(lida=False, apagada_em__isnull=True).exclude(remetente=request.user).count(),
+                          "atividade_em": latest.criado_em if latest else chat.criado_em})
+    chats.sort(key=lambda item: (item["atividade_em"], item["id"]), reverse=True)
     now = timezone.now()
     requests = PedidoConversa.objects.filter(Q(destinatario=me) | Q(remetente=me)).select_related(
         "remetente__usuario", "remetente__pedido", "destinatario__usuario", "destinatario__pedido", "conversa")
@@ -210,7 +228,28 @@ def inbox(request):
             other = item.remetente if item.destinatario_id == me.pk else item.destinatario
             if available(me, other):
                 target.append(request_payload(item, me, now))
-    return Response({"conversas": chats, "pedidos": pending, "historico_pedidos": history})
+    # Connections are social interactions, not consent to a private chat.
+    connections = {}
+    active_chats = {item["perfil"]["id"]: item["id"] for item in chats}
+    def add_connection(other, kind):
+        if not other or not other.visivel or not available(me, other):
+            return
+        item = connections.setdefault(other.pk, {"perfil": chat_profile(other), "nome": other.nome_publico,
+                                                   "tipos": [], "conversation_id": active_chats.get(other.pk)})
+        if kind not in item["tipos"]:
+            item["tipos"].append(kind)
+    matches = MatchPerfil.objects.filter(Q(perfil_1=me) | Q(perfil_2=me), status="ATIVO").select_related(
+        "perfil_1__pedido", "perfil_1__usuario", "perfil_2__pedido", "perfil_2__usuario")
+    for match in matches:
+        add_connection(match.perfil_2 if match.perfil_1_id == me.pk else match.perfil_1, "Match")
+    signals = AcaoPerfil.objects.filter(Q(usuario=request.user) | Q(perfil=me), tipo__in=["SINAL_FLOR", "SINAL_BEIJINHO", "SINAL_OLA"]).select_related(
+        "perfil__pedido", "perfil__usuario", "usuario__perfil_nkata__pedido").order_by("-criado_em")[:100]
+    for signal in signals:
+        other = signal.perfil if signal.usuario_id == request.user.pk else getattr(signal.usuario, "perfil_nkata", None)
+        if other and other.pk != me.pk:
+            add_connection(other, "Sinal enviado" if signal.usuario_id == request.user.pk else "Sinal recebido")
+    return Response({"conversas": chats, "pedidos": pending, "historico_pedidos": history,
+                     "conexoes": list(connections.values())})
 
 
 def accessible_thread(request, conversation_id):
@@ -311,7 +350,7 @@ def messages(request, conversation_id):
     rows = thread.mensagens.select_related("remetente__perfil_nkata").order_by("criado_em", "pk")
     features = plan_for_user(request.user)["features"]
     presets = CHAT_PHRASES[:4] if features.get("chat_presets") and not thread.mensagens.exclude(remetente=request.user).exists() else []
-    return Response({"nome": other.nome_publico, "match_id": legacy_match_id(chat),
+    return Response({"nome": other.nome_publico, "perfil": chat_profile(other), "match_id": legacy_match_id(chat),
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
                      "texto_livre": features["chat_text"], "frases": presets,
                      "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data})

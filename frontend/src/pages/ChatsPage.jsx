@@ -1,27 +1,39 @@
 import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Search, Send, ShieldCheck, UserRound, X } from "lucide-react";
 import { request } from "../services/api.js";
+import Presence from "../components/profiles/Presence.jsx";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
 
-const REQUEST_STATES = { PENDENTE: "Pendente", ACEITE: "Aceite", RECUSADO: "Recusado", EXPIRADO: "Expirado", CANCELADO: "Cancelado" };
-
+const STATES = { PENDENTE: "Pendente", ACEITE: "Aceite", RECUSADO: "Recusado", EXPIRADO: "Expirado", CANCELADO: "Cancelado" };
+const TABS = [["all", "Todas"], ["unread", "Não lidas"], ["received", "Pedidos"], ["sent", "Enviados"], ["connections", "Conexões"]];
+const stamp = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-MZ", date.toDateString() === new Date().toDateString()
+    ? { hour: "2-digit", minute: "2-digit" } : { day: "2-digit", month: "short" }).format(date);
+};
 function remaining(item) {
-  const seconds = item.segundos_restantes || 0;
+  const seconds = Math.max(0, Math.ceil((new Date(item.expira_em).getTime() - Date.now()) / 1000));
   if (!seconds) return "A expirar";
-  if (seconds >= 86400) return `${Math.ceil(seconds / 86400)} dias restantes`;
-  if (seconds >= 3600) return `${Math.ceil(seconds / 3600)} h restantes`;
-  return `${Math.max(1, Math.ceil(seconds / 60))} min restantes`;
+  if (seconds >= 86400) return Math.ceil(seconds / 86400) + " dias restantes";
+  if (seconds >= 3600) return Math.ceil(seconds / 3600) + " h restantes";
+  return Math.ceil(seconds / 60) + " min restantes";
 }
-
-function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed }) {
-  const lastTyping = useRef(0);
-  const [thread, setThread] = useState(null);
-  const [text, setText] = useState("");
-  const [error, setError] = useState("");
-  const [reply, setReply] = useState(null);
-  const [sending, setSending] = useState(false);
-  const [revision, setRevision] = useState(0);
-
+function Avatar({ profile }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [profile?.foto_url]);
+  return <span className="nk-chat-avatar">
+    {profile?.foto_url && !failed ? <img src={profile.foto_url} alt="" loading="lazy" onError={() => setFailed(true)} /> : <UserRound size={24} aria-hidden="true" />}
+    <Presence profile={profile} english={false} />
+  </span>;
+}
+function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack, onOpenProfile }) {
+  const lastTyping = useRef(0), scroll = useRef(null), lastId = useRef(null);
+  const [thread, setThread] = useState(null), [text, setText] = useState(""), [error, setError] = useState("");
+  const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
+  const [menu, setMenu] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     let timer;
@@ -30,10 +42,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed }) {
         const result = await request(`/api/chats/${id}/`, { signal: controller.signal });
         if (!controller.signal.aborted) setThread(result);
       } catch (err) {
-        if (!controller.signal.aborted) {
-          setThread(null);
-          setError(err.message);
-        }
+        if (!controller.signal.aborted) { setThread(null); setError(err.message); }
       } finally {
         if (!controller.signal.aborted) timer = setTimeout(refresh, 2500);
       }
@@ -41,7 +50,15 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed }) {
     refresh();
     return () => { controller.abort(); clearTimeout(timer); };
   }, [id, revision]);
-
+  useEffect(() => {
+    const latest = thread?.mensagens?.at(-1)?.id;
+    const el = scroll.current;
+    if (el && latest !== lastId.current) {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 180;
+      if (lastId.current === null || nearBottom || thread?.mensagens?.at(-1)?.minha) el.scrollTop = el.scrollHeight;
+      lastId.current = latest ?? null;
+    }
+  }, [thread]);
   function write(value) {
     setText(value);
     if (value.trim() && Date.now() - lastTyping.current > 2200) {
@@ -49,136 +66,157 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed }) {
       request(`/api/chats/${id}/escrita/`, { method: "POST" }).catch(() => {});
     }
   }
-
   async function close() {
+    setMenu(false);
     if (!window.confirm("Encerrar esta conversa? Ambos deixarão de poder enviar mensagens.")) return;
-    try {
-      await request(`/api/chats/${id}/encerrar/`, { method: "POST" });
-      onClosed();
-    } catch (err) { setError(err.message); }
+    try { await request(`/api/chats/${id}/encerrar/`, { method: "POST" }); onClosed(); }
+    catch (err) { setError(err.message); }
   }
-
   async function remove(messageId) {
-    try {
-      await request(`/api/chats/${id}/mensagens/${messageId}/`, { method: "DELETE" });
-      setRevision(value => value + 1);
-    } catch (err) { setError(err.message); }
+    if (!window.confirm("Apagar esta mensagem?")) return;
+    try { await request(`/api/chats/${id}/mensagens/${messageId}/`, { method: "DELETE" }); setRevision(v => v + 1); }
+    catch (err) { setError(err.message); }
   }
-
   async function send(event) {
     event.preventDefault();
-    if (sending || !text.trim()) return;
-    setSending(true);
-    setError("");
+    if (sending || !text.trim() || !safetyAccepted) return;
+    setSending(true); setError("");
     try {
       await request(`/api/chats/${id}/`, { method: "POST", body: { texto: text.trim(), resposta_a: reply?.id } });
-      setText("");
-      setReply(null);
-      setRevision(value => value + 1);
+      setText(""); setReply(null); setRevision(v => v + 1);
     } catch (err) { setError(err.message); }
     finally { setSending(false); }
   }
-
-  return <section aria-label="Conversa">
-    {error && <p role="alert">{error}</p>}
+  return <section className="nk-chat-thread" aria-label="Conversa">
+    <header className="nk-chat-thread-head">
+      <button className="nk-chat-icon nk-chat-back" type="button" onClick={onBack} aria-label="Voltar aos chats"><ArrowLeft size={22} /></button>
+      {thread && <><Avatar profile={thread.perfil} /><div className="nk-chat-title"><strong>{thread.nome}</strong><small>{thread.a_escrever ? "A escrever..." : "Conversa privada"}</small></div>
+        <div className="nk-chat-menu-wrap"><button className="nk-chat-icon" aria-label="Opções da conversa" aria-expanded={menu} type="button" onClick={() => setMenu(!menu)}><MoreVertical size={22} /></button>
+          {menu && <div className="nk-chat-menu">
+            {thread.perfil && <button type="button" onClick={() => { setMenu(false); onOpenProfile(thread.perfil); }}>Ver perfil</button>}
+            {thread.match_id && <button type="button" onClick={() => onLegacy(thread.match_id)}>Áudio, chamadas e histórico</button>}
+            <button type="button" onClick={close}>Encerrar conversa</button>
+          </div>}
+        </div></>}
+    </header>
+    {error && <p className="nk-chat-error" role="alert">{error}</p>}
+    {!thread && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
     {thread && <>
-      <h2>{thread.nome}</h2>
-      <button type="button" onClick={close}>Encerrar conversa</button>
-      {thread.match_id && <button type="button" onClick={() => onLegacy(thread.match_id)}>Áudio, chamadas e histórico completo</button>}
-      <ol className="nk-chat-lines">{thread.mensagens.map(message =>
-        <li key={message.id}><strong>{message.minha ? "Eu" : thread.nome}</strong>
-          {message.resposta_a && <small>Resposta a {thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "mensagem indisponível"}</small>}
-          <p>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
-          {!message.apagada_em && thread.texto_livre && <button type="button" onClick={() => setReply(message)}>Responder</button>}
-          {!message.apagada_em && message.minha && <button type="button" onClick={() => remove(message.id)}>Apagar</button>}</li>)}</ol>
-      {thread.a_escrever && <p role="status">{thread.nome} está a escrever…</p>}
-      <form onSubmit={send}>{reply && <p>A responder a {reply.texto} <button type="button" onClick={() => setReply(null)}>Cancelar</button></p>}
-        {thread.texto_livre ? <label>Mensagem<textarea value={text} maxLength={1200} onChange={e => write(e.target.value)} /></label> : thread.frases.length ? <label>Mensagem predefinida<select value={text} onChange={e => setText(e.target.value)}>
-          <option value="">Escolher mensagem</option>{thread.frases.map(phrase => <option key={phrase}>{phrase}</option>)}</select></label>
-          : <p>Active um pacote com chat para responder. <a href="/conta/?section=plan">Ver pacotes</a></p>}
-        <button className="nk-button nk-button--wine" disabled={sending || !text.trim()}>Enviar</button></form>
+      <ol className="nk-chat-lines" ref={scroll}>
+        {!thread.mensagens.length && <li className="nk-chat-empty-thread"><ShieldCheck size={24} /><strong>Conversa aceite</strong><span>Comece a conhecer esta pessoa, com respeito e segurança.</span></li>}
+        {thread.mensagens.map(message => <li key={message.id} className={message.minha ? "nk-chat-bubble-row is-mine" : "nk-chat-bubble-row"}>
+          <div className="nk-chat-bubble">
+            {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem indisponível"}</blockquote>}
+            <p>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
+            <div className="nk-chat-meta"><time dateTime={message.criado_em}>{stamp(message.criado_em)}</time>
+              {message.minha && (message.lida ? <CheckCheck size={15} aria-label="Lida" /> : <Check size={15} aria-label="Enviada" />)}</div>
+            {!message.apagada_em && <div className="nk-chat-message-actions">
+              {thread.texto_livre && <button type="button" onClick={() => setReply(message)}>Responder</button>}
+              {message.minha && <button type="button" onClick={() => remove(message.id)}>Apagar</button>}
+            </div>}
+          </div>
+        </li>)}
+      </ol>
+      {thread.a_escrever && <p className="nk-chat-typing" role="status">{thread.nome} está a escrever...</p>}
+      <form className="nk-chat-compose" onSubmit={send}>
+        {reply && <div className="nk-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
+        {thread.texto_livre || thread.frases.length ? <div className="nk-chat-compose-line">
+          {thread.texto_livre ? <textarea aria-label="Mensagem" placeholder="Escrever mensagem..." rows={2} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :
+            <select aria-label="Mensagem predefinida" value={text} onChange={e => setText(e.target.value)}><option value="">Escolher mensagem</option>{thread.frases.map(phrase => <option key={phrase}>{phrase}</option>)}</select>}
+          <button type="submit" className="nk-chat-send" aria-label="Enviar mensagem" disabled={sending || !text.trim() || !safetyAccepted}><Send size={20} /></button>
+        </div> : <p>Active um pacote com chat para responder. <a href="/conta/?section=plan">Ver pacotes</a></p>}
+      </form>
       {!safetyAccepted && <ChatSafetyNotice name={thread.nome} onAccept={onAcceptSafety} />}
     </>}
   </section>;
 }
-
-export default function ChatsPage({ conversationId, requestId, onSelect, ...threadProps }) {
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [closedId, setClosedId] = useState(null);
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [revision, setRevision] = useState(0);
+function RequestRow({ item, busy, decide, cancel, onSelect, onOpenProfile }) {
+  return <article className="nk-chat-request">
+    <div className="nk-chat-row"><Avatar profile={item.perfil} /><div className="nk-chat-title">
+      <button className="nk-chat-name" type="button" onClick={() => onOpenProfile(item.perfil)}>{item.nome}</button>
+      <small>{item.estado === "PENDENTE" ? (item.recebido ? "Pedido recebido" : "A aguardar resposta") : STATES[item.estado]}</small>
+      {item.estado === "PENDENTE" && <small className="nk-chat-expiry"><Clock size={13} />{remaining(item)}</small>}
+    </div></div>
+    {item.estado === "PENDENTE" ? <div className="nk-chat-request-actions">
+      {item.recebido ? <><button className="nk-chat-primary" disabled={busy} onClick={() => decide(item.id, "ACEITE")}>Aceitar</button><button disabled={busy} onClick={() => decide(item.id, "RECUSADO")}>Recusar</button></> :
+        <button disabled={busy} onClick={() => cancel(item.id)}>Cancelar pedido</button>}
+    </div> : item.conversation_id && <button type="button" onClick={() => onSelect(item.conversation_id)}>Abrir conversa</button>}
+  </article>;
+}
+export default function ChatsPage({ conversationId, requestId, onSelect, onBack, onOpenProfile, onDiscover, ...threadProps }) {
+  const [data, setData] = useState(null), [error, setError] = useState(""), [busy, setBusy] = useState(false), [revision, setRevision] = useState(0);
+  const [tab, setTab] = useState("all"), [query, setQuery] = useState(""), [selectedRequest, setSelectedRequest] = useState(null);
   useEffect(() => {
     const controller = new AbortController();
     let timer;
     async function load() {
       try {
         const options = { signal: controller.signal };
-        const [next, selected] = await Promise.all([
-          request("/api/chats/", options),
-          requestId ? request(`/api/chats/pedidos/${requestId}/`, options).catch(err => { if (!controller.signal.aborted) setError(err.message); return null; }) : null,
-        ]);
-        if (!controller.signal.aborted) setSelectedRequest(selected);
-        if (!controller.signal.aborted) setData(next);
-      } catch (err) {
-        if (!controller.signal.aborted) setError(err.message);
-      } finally {
-        if (!controller.signal.aborted) timer = setTimeout(load, 10000);
-      }
+        const next = await request("/api/chats/", options);
+        if (controller.signal.aborted) return;
+        setData(next);
+        if (requestId) {
+          try {
+            const item = await request(`/api/chats/pedidos/${requestId}/`, options);
+            if (!controller.signal.aborted) setSelectedRequest(item);
+          } catch (err) { if (!controller.signal.aborted) { setSelectedRequest(null); setError(err.message); } }
+        } else setSelectedRequest(null);
+      } catch (err) { if (!controller.signal.aborted) setError(err.message); }
+      finally { if (!controller.signal.aborted) timer = setTimeout(load, 10000); }
     }
-    load();
-    return () => { controller.abort(); clearTimeout(timer); };
+    load(); return () => { controller.abort(); clearTimeout(timer); };
   }, [conversationId, requestId, revision]);
-
+  useEffect(() => {
+    if (requestId && selectedRequest?.id === requestId) setTab(selectedRequest.recebido ? "received" : "sent");
+  }, [requestId, selectedRequest?.id, selectedRequest?.recebido]);
   async function decide(id, decisao) {
-    setBusy(true);
-    setError("");
-    try {
-      const result = await request(`/api/chats/pedidos/${id}/`, { method: "POST", body: { decisao } });
-      if (result.conversation_id) onSelect(result.conversation_id);
-    } catch (err) { setError(err.message); }
-    finally { setBusy(false); setRevision(value => value + 1); }
+    setBusy(true); setError("");
+    try { const result = await request(`/api/chats/pedidos/${id}/`, { method: "POST", body: { decisao } }); if (result.conversation_id) onSelect(result.conversation_id); }
+    catch (err) { setError(err.message); }
+    finally { setBusy(false); setRevision(v => v + 1); }
   }
-
   async function cancel(id) {
     if (!window.confirm("Cancelar este pedido de conversa?")) return;
-    setBusy(true);
-    setError("");
-    try {
-      await request(`/api/chats/pedidos/${id}/cancelar/`, { method: "POST" });
-    } catch (err) { setError(err.message); }
-    finally { setBusy(false); setRevision(value => value + 1); }
+    setBusy(true); setError("");
+    try { await request(`/api/chats/pedidos/${id}/cancelar/`, { method: "POST" }); }
+    catch (err) { setError(err.message); }
+    finally { setBusy(false); setRevision(v => v + 1); }
   }
-
-  const received = data?.pedidos.filter(p => p.recebido) || [];
-  const sent = data?.pedidos.filter(p => !p.recebido) || [];
-  return <main className="nk-shell"><h1>Chats</h1>
-    {error && <p role="alert">{error}</p>}
-    <div className="nk-chats-layout"><aside>
-      <h2>Pedidos de conversa</h2>
-      {requestId && selectedRequest && selectedRequest.estado !== "PENDENTE" && <p role="status">
-        Pedido de {selectedRequest.nome} · {REQUEST_STATES[selectedRequest.estado]}
-        {selectedRequest.conversation_id && <button onClick={() => onSelect(selectedRequest.conversation_id)}>Abrir conversa</button>}
-      </p>}
-      <h3>Recebidos ({received.length})</h3>
-      {!received.length && <p>Sem pedidos recebidos.</p>}
-      {received.map(p => <div key={p.id}><strong>{p.nome}</strong><p>{remaining(p)}</p>
-        <div><button disabled={busy} onClick={() => decide(p.id, "ACEITE")}>Aceitar</button>
-          <button disabled={busy} onClick={() => decide(p.id, "RECUSADO")}>Recusar</button></div></div>)}
-      <h3>Enviados ({sent.length})</h3>
-      {!sent.length && <p>Sem pedidos enviados.</p>}
-      {sent.map(p => <div key={p.id}><strong>{p.nome}</strong><p>A aguardar resposta · {remaining(p)}</p>
-        <button disabled={busy} onClick={() => cancel(p.id)}>Cancelar pedido</button></div>)}
-      {!!data?.historico_pedidos?.length && <details><summary>Histórico de pedidos</summary>
-        {data.historico_pedidos.map(p => <div key={p.id}><strong>{p.nome}</strong><p>{p.recebido ? "Recebido" : "Enviado"} · {REQUEST_STATES[p.estado]}</p>
-          {p.conversation_id && <button onClick={() => onSelect(p.conversation_id)}>Abrir conversa</button>}</div>)}
-      </details>}
-      <h2>Conversas</h2>
-      {data?.conversas.length === 0 && <p>Pode pedir conversa ao visitar um perfil.</p>}
-      {data?.conversas.map(c => <button key={c.id} aria-current={conversationId === c.id ? "page" : undefined}
-        onClick={() => onSelect(c.id)}>{c.nome}</button>)}
-    </aside>
-    {conversationId && conversationId !== closedId && <Thread key={conversationId} id={conversationId} {...threadProps} onClosed={() => { setClosedId(conversationId); setRevision(value => value + 1); }} />}
-    </div></main>;
+  const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const matches = name => normalize(name).includes(normalize(query.trim()));
+  const chats = data?.conversas || [], requests = data?.pedidos || [], history = data?.historico_pedidos || [];
+  const visibleChats = chats.filter(c => matches(c.nome) && (tab !== "unread" || c.nao_lidas > 0));
+  const received = requests.filter(p => p.recebido), sent = requests.filter(p => !p.recebido);
+  const counts = { unread: chats.filter(c => c.nao_lidas > 0).length, received: received.length, sent: sent.length };
+  const visibleRequests = (tab === "received" ? received : sent).filter(p => matches(p.nome));
+  const visibleHistory = history.filter(p => p.recebido === (tab === "received") && matches(p.nome));
+  const connections = (data?.conexoes || []).filter(c => matches(c.nome));
+  function chooseTab(key) { setTab(key); if (conversationId || requestId) onBack(); }
+  const showChats = tab === "all" || tab === "unread";
+  return <main className="nk-shell nk-chats-page">
+    <div className={"nk-chats-layout" + (conversationId ? " has-thread" : "")}>
+      <aside className="nk-chat-sidebar" aria-label="Lista de chats">
+        <div className="nk-chat-sidebar-head"><div><h1>Chats</h1><p>As suas conversas e conexões</p></div><button type="button" className="nk-chat-icon" aria-label="Explorar perfis" onClick={onDiscover}><MessageCircle size={23} /></button></div>
+        <label className="nk-chat-search"><Search size={18} /><input aria-label="Pesquisar chats" placeholder="Pesquisar por nome" value={query} onChange={e => setQuery(e.target.value)} />{query && <button className="nk-chat-icon" type="button" aria-label="Limpar pesquisa" onClick={() => setQuery("")}><X size={16} /></button>}</label>
+        <nav className="nk-chat-tabs" aria-label="Filtrar chats">{TABS.map(([key,label]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => chooseTab(key)}>{label}{counts[key] > 0 && <span>{counts[key]}</span>}</button>)}</nav>
+        {error && <p role="alert" className="nk-chat-error">{error}</p>}
+        <div className="nk-chat-list">
+          {!data && !error && <p className="nk-chat-placeholder">A carregar...</p>}
+          {data && showChats && <>{visibleChats.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.id} aria-current={conversationId === c.id ? "page" : undefined} onClick={() => onSelect(c.id)}>
+            <Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.ultima_mensagem ? (c.ultima_mensagem.minha ? "Eu: " : "") + c.ultima_mensagem.texto : "Conversa aceite"}</small></span>
+            <span className="nk-chat-row-meta"><time>{stamp(c.atividade_em)}</time>{c.nao_lidas > 0 && <span className="nk-chat-unread">{c.nao_lidas > 99 ? "99+" : c.nao_lidas}</span>}</span>
+          </button>)}{!visibleChats.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : tab === "unread" ? "Está em dia com as mensagens." : "Ainda não tem conversas. Explore os perfis para começar."}</p>}</>}
+          {data && (tab === "received" || tab === "sent") && <>
+            {selectedRequest?.id === requestId && !visibleRequests.some(p => p.id === requestId) && !visibleHistory.some(p => p.id === requestId) && <RequestRow item={selectedRequest} {...{busy, decide, cancel, onSelect, onOpenProfile}} />}
+            {visibleRequests.map(p => <RequestRow key={p.id} item={p} {...{busy, decide, cancel, onSelect, onOpenProfile}} />)}
+            {!visibleRequests.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : "Sem pedidos pendentes."}</p>}
+            {!!visibleHistory.length && <details className="nk-chat-history"><summary>Histórico de pedidos</summary>{visibleHistory.map(p => <RequestRow key={p.id} item={p} {...{busy, decide, cancel, onSelect, onOpenProfile}} />)}</details>}
+          </>}
+          {data && tab === "connections" && <>{connections.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.perfil.id} onClick={() => onOpenProfile(c.perfil)}><Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.tipos.join(" · ")}</small></span><HeartHandshake size={18} /></button>)}{!connections.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : "Os seus matches e sinais aparecem aqui."}</p>}</>}
+        </div>
+      </aside>
+      {conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} onBack={onBack} onOpenProfile={onOpenProfile} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
+        <section className="nk-chat-welcome"><MessageCircle size={46} strokeWidth={1.4} /><h2>Uma boa conversa começa aqui</h2><p>Escolha uma conversa ou conheça alguém novo.</p><button className="nk-chat-primary" onClick={onDiscover}>Explorar perfis</button></section>}
+    </div>
+  </main>;
 }
