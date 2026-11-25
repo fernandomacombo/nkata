@@ -532,3 +532,12 @@ class AcessoChatCreditoNKATA(models.Model):
 
     class Meta:
         constraints = [models.CheckConstraint(condition=models.Q(fim__gt=models.F("inicio")), name="nk_credito_chat_validade")]
+
+
+
+class EnvioAudioCreditoNKATA(models.Model):
+    """Receipt linking one paid upload to its original private audio record."""
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="envio_audio")
+    audio_id = models.PositiveBigIntegerField(unique=True)
+    match_id = models.PositiveBigIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True)

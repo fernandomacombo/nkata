@@ -88,10 +88,38 @@ class WalletTests(TestCase):
         self.client.force_login(self.a)
         url = f"/api/perfis/{self.b.perfil_nkata.pk}/sinais/"
         with self.settings(NKATA_CREDIT_SPENDING_ENABLED=True):
-            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 1}).status_code, 409)
+            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 1}, content_type="application/json").status_code, 409)
             self.assertEqual(wallet_snapshot(self.a)["saldo"], 50)
-            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 2}).status_code, 201)
-            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 2}).status_code, 409)
+            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 2}, content_type="application/json").status_code, 201)
+            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 2}, content_type="application/json").status_code, 409)
             self.assertEqual(wallet_snapshot(self.a)["saldo"], 48)
             self.assertEqual(AcaoPerfil.objects.filter(usuario=self.a, tipo="SINAL_FLOR").count(), 1)
             self.assertFalse(Conversa.objects.exists())
+
+
+    def test_paid_voice_note_charges_once_and_invalid_audio_is_free(self):
+        import tempfile
+        from uuid import uuid4
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from .test_conversations import historical_match
+        from .test_voice_note_validation import wav_note
+        from .chat_media_models import MensagemAudioMatchNKATA
+        match = historical_match(perfil_1=self.a.perfil_nkata, perfil_2=self.b.perfil_nkata)
+        self.move()
+        self.client.force_login(self.a)
+        url = f"/api/minha-conta/matches/{match.pk}/audio/"
+        key = str(uuid4())
+        with tempfile.TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory, NKATA_CREDIT_SPENDING_ENABLED=True):
+            def send(audio, cost="2"):
+                return self.client.post(url, {"audio": audio, "duracao_segundos": "2", "key": key, "expected_cost": cost})
+            self.assertEqual(send(SimpleUploadedFile("fake.wav", b"invalid", content_type="audio/wav")).status_code, 400)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"], 50)
+            self.assertEqual(send(wav_note(2), "1").status_code, 409)
+            first = send(wav_note(2))
+            self.assertEqual(first.status_code, 201, first.content)
+            retry = send(wav_note(2))
+            self.assertEqual(retry.status_code, 200, retry.content)
+            self.assertEqual(first.json()["id"], retry.json()["id"])
+            self.assertEqual(wallet_snapshot(self.a)["saldo"], 48)
+            self.assertEqual(MensagemAudioMatchNKATA.objects.filter(match=match).count(), 1)

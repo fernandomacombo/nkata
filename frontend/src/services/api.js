@@ -526,12 +526,14 @@ export async function sendMatchMessage(matchId, text, replyId = null) {
   return normalizeMessage(payload);
 }
 
-export async function sendMatchAudio(matchId, blob, durationSeconds) {
+export async function sendMatchAudio(matchId, blob, durationSeconds, {key, expectedCost} = {}) {
   const form = new FormData();
   const mimeType = blob?.type || "audio/webm";
   const extension = mimeType.includes("mp4") ? "m4a" : mimeType.includes("ogg") ? "ogg" : "webm";
   form.append("audio", blob, `nota-voz.${extension}`);
   form.append("duracao_segundos", String(Math.max(1, Math.round(durationSeconds || 0))));
+  if (key) form.append("key", key);
+  if (Number.isInteger(expectedCost)) form.append("expected_cost", String(expectedCost));
 
   const payload = await request(`/api/minha-conta/matches/${matchId}/audio/`, {
     method: "POST",

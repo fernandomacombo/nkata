@@ -1,20 +1,27 @@
 import mimetypes
 import os
+import uuid
+import logging
 
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import FileResponse
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .chat_permissions import ChatIdentityPermission
+from .chat_permissions import ChatIdentityPermission, legacy_chat_allowed
+from .credit_catalog import VOICE_NOTE_CREDITS
+from .wallet_service import credit_spending_enabled, credit_balance, record_movement, WalletError
 from .chat_media_models import MensagemAudioMatchNKATA
-from .models import MatchPerfil
+from .models import MatchPerfil, PerfilNKATA, Conversa, EnvioAudioCreditoNKATA
 from .plan_service import plan_for_user
 from .user_roles import active_member_profile_for_user
 from .audio_validation import prepare_voice_note, InvalidVoiceNote, AudioDecoderUnavailable
 
+
+logger = logging.getLogger(__name__)
 
 MAX_AUDIO_SIZE = 12 * 1024 * 1024
 MAX_AUDIO_DURATION_SECONDS = 180
@@ -52,6 +59,11 @@ def _match_do_utilizador(user, match_id):
     )
 
 
+def voice_credit_offer(user, included):
+    return {"enabled": credit_spending_enabled(), "cost": 0 if included else VOICE_NOTE_CREDITS,
+            "balance": credit_balance(user) if credit_spending_enabled() else 0}
+
+
 def chat_capabilities(user):
     plan = plan_for_user(user)
     return {
@@ -61,6 +73,7 @@ def chat_capabilities(user):
         "audio_enabled": bool(plan["features"].get("chat_audio", False)),
         "video_enabled": bool(plan["features"].get("chat_video", False)),
         "max_audio_seconds": MAX_AUDIO_DURATION_SECONDS,
+        "voice_credit": voice_credit_offer(user, plan["features"].get("chat_audio", False)),
     }
 
 
@@ -136,7 +149,7 @@ def api_audios_match(request, match_id):
             "setup_required": False,
         })
 
-    if not capabilities["audio_enabled"]:
+    if not capabilities["audio_enabled"] and not capabilities.get("voice_credit", {}).get("enabled"):
         return Response(
             {
                 "detail": "Notas de voz estão disponíveis no NKATA Essencial e Premium.",
@@ -163,15 +176,57 @@ def api_audios_match(request, match_id):
     except AudioDecoderUnavailable as error:
         return Response({"detail": str(error)}, status=503)
 
+    message = None
     try:
-        message = MensagemAudioMatchNKATA.objects.create(
-            match=match,
-            remetente=request.user,
-            audio=audio,
-            duracao_segundos=duration_seconds,
-        )
-        match.save(update_fields=["atualizado_em"])
-    except DatabaseError:
+        with transaction.atomic():
+            list(PerfilNKATA.objects.select_for_update().filter(
+                pk__in=[match.perfil_1_id, match.perfil_2_id]).order_by("pk"))
+            user = get_user_model().objects.select_for_update().get(pk=request.user.pk)
+            match = MatchPerfil.objects.select_for_update().get(pk=match.pk)
+            if not Conversa.objects.select_for_update().filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).first() or not legacy_chat_allowed(user, match):
+                return Response({"detail": "Conversa indisponível."}, status=404)
+            included = plan_for_user(user)["features"].get("chat_audio", False)
+            key = None
+            raw_key = request.data.get("key")
+            if raw_key:
+                try:
+                    key = str(uuid.UUID(str(raw_key)))
+                except (ValueError, TypeError, AttributeError):
+                    return Response({"detail": "Chave de operação inválida."}, status=400)
+                receipt = EnvioAudioCreditoNKATA.objects.filter(movimento__carteira__usuario=user,
+                    movimento__chave=f"voice:{key}").first()
+                if receipt:
+                    if receipt.match_id != match.pk:
+                        return Response({"detail": "Chave já utilizada noutra conversa."}, status=409)
+                    existing = MensagemAudioMatchNKATA.objects.filter(pk=receipt.audio_id, match=match, remetente=user).first()
+                    if not existing:
+                        return Response({"detail": "Nota de voz anteriormente enviada; consulte o histórico."}, status=409)
+                    return Response(serialize_audio_message(request, existing), status=200)
+            movement = None
+            if not included:
+                if not credit_spending_enabled():
+                    return Response({"detail": "Notas de voz exigem acesso pago.", "code": "paid_plan_required_for_chat_audio"}, status=403)
+                # Multipart carries the confirmed integer as a string.
+                expected = request.data.get("expected_cost")
+                if not key or str(expected) != str(VOICE_NOTE_CREDITS):
+                    return Response({"detail": "Confirme o custo atual da nota de voz.", "voice_credit": voice_credit_offer(user, False)}, status=409)
+                try:
+                    movement = record_movement(user, key=f"voice:{key}", kind="CONSUMO",
+                        amount=-VOICE_NOTE_CREDITS, reference=f"match:{match.pk}", reason="Nota de voz")
+                except WalletError as error:
+                    return Response({"detail": str(error), "voice_credit": voice_credit_offer(user, False)}, status=409)
+            message = MensagemAudioMatchNKATA.objects.create(
+                match=match, remetente=user, audio=audio, duracao_segundos=duration_seconds)
+            if movement:
+                EnvioAudioCreditoNKATA.objects.create(movimento=movement, audio_id=message.pk, match_id=match.pk)
+            match.save(update_fields=["atualizado_em"])
+    except (DatabaseError, OSError):
+        # If database commit failed after writing media, remove the orphan file.
+        if message and message.audio and message.audio.name:
+            try:
+                message.audio.storage.delete(message.audio.name)
+            except Exception:
+                logger.exception("Falha ao limpar nota de voz não confirmada.")
         return Response(
             {
                 "detail": "As notas de voz ainda precisam de ser preparadas neste ambiente.",

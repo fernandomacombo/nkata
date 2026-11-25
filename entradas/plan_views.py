@@ -4,6 +4,7 @@ from rest_framework.response import Response
 
 from .payment_service import payments_enabled, credit_checkout_enabled
 from .wallet_service import wallet_snapshot
+from .chat_media_api import voice_credit_offer
 from .credit_catalog import credit_catalog
 from .user_roles import member_profile_for_user
 
@@ -43,6 +44,7 @@ def api_plano_da_conta(request):
         "signal_quota": quota,
         "wallet": {**wallet_snapshot(request.user), "catalogo": credit_catalog(purchase_enabled=credit_checkout_enabled(request.user))} if member_profile_for_user(request.user) else None,
         "chat_presets": preset_snapshot(request.user),
+        "voice_credit": voice_credit_offer(request.user, plan["features"].get("chat_audio", False)),
         "recharge": {
             "balance": quota["recharge_balance"],
             "packs": [{**pack, "purchase_enabled": enabled} for pack in public_recharge_catalog()],
