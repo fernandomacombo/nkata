@@ -97,7 +97,8 @@ def _availability_payload(user, perfil_alvo):
         today_qs.filter(perfil=perfil_alvo).values_list("tipo", flat=True)
     )
     quota = _commercial_quota(user, today_qs.count())
-    identity_blocked = credit_spending_enabled() and not chat_pair_allowed(_perfil_do_utilizador(user), perfil_alvo)
+    sender = _perfil_do_utilizador(user) if credit_spending_enabled() else None
+    identity_blocked = credit_spending_enabled() and (not sender or not chat_pair_allowed(sender, perfil_alvo))
     signals = []
     for item in SIGNAL_DEFINITIONS.values():
         payload = _signal_payload(item)
