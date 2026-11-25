@@ -39,10 +39,13 @@ try {
     await page.route("**/api/presenca/", route=>route.fulfill({json:{perfis:{"2":120}}}));
     const message = {id:1,texto:"Olá",criado_em:"2026-11-25T07:00:00Z",minha:false,lida:true,apagada_em:null};
     const sentMessage = {...message,id:2,texto:"Tudo bem?",minha:true};
+    let rejectMessage=false, successfulPolls=0, freeText=true, voiceEnabled=true;
     await page.route("**/api/chats/**", async route=>{
      const url = new URL(route.request().url());
+     if(url.pathname==="/api/chats/1/" && route.request().method()==="POST" && rejectMessage){await route.fulfill({status:409,json:{detail:"Saldo insuficiente para esta operação."}});return;}
+     if(url.pathname==="/api/chats/1/" && route.request().method()==="GET")successfulPolls++;
      const inbox = {conversas:[{id:1,nome:"Ana",perfil:profile,ultima_mensagem:message,nao_lidas:0,atividade_em:message.criado_em}],pedidos:[],historico_pedidos:[],conexoes:[]};
-     const thread = {nome:"Ana",perfil:profile,mensagens:url.searchParams.has("depois")?[]:[message,sentMessage,{...sentMessage,id:3,tipo:"AUDIO",texto:"",audio_url:"/api/chats/1/audio/3/media/",duracao_segundos:5}],credito_voz:{enabled:true,cost:2,balance:20},texto_livre:true,frases:[],mais:false,modo:"inicial",apagadas:[],lidas_ate:0};
+     const thread = {nome:"Ana",perfil:profile,mensagens:url.searchParams.has("depois")?[]:[message,sentMessage,{...sentMessage,id:3,tipo:"AUDIO",texto:"",audio_url:"/api/chats/1/audio/3/media/",duracao_segundos:5}],credito_voz:{enabled:voiceEnabled,cost:2,balance:20},texto_livre:freeText,frases:freeText?[]:["Olá"],mais:false,modo:"inicial",apagadas:[],lidas_ate:0};
      await route.fulfill({json:url.pathname==="/api/chats/"?inbox:thread});
     });
     await page.goto("http://127.0.0.1:5178/"+html);
@@ -99,6 +102,21 @@ try {
     const submitted = page.waitForRequest(req=>req.method()==="POST" && new URL(req.url()).pathname==="/api/chats/1/");
     await page.getByRole("button",{name:"Enviar mensagem"}).click();
     assert.equal((await submitted).postDataJSON().texto,"Teste");
+    assert.equal(await page.getByRole("button",{name:"Chamada de áudio",exact:true}).count(),0);
+    assert.equal(await page.getByRole("button",{name:"Videochamada",exact:true}).count(),0);
+    if(width===1366){
+      await page.getByRole("textbox",{name:"Mensagem",exact:true}).fill("Teste de erro");
+      rejectMessage=true;
+      await page.getByRole("button",{name:"Enviar mensagem"}).click();
+      const alert=page.getByRole("alert").filter({hasText:"Saldo insuficiente"});
+      await alert.waitFor();
+      const before=successfulPolls;
+      for(let i=0;i<60 && successfulPolls<=before;i++)await page.waitForTimeout(100);
+      assert.ok(successfulPolls>before,"Polling must continue");
+      assert.ok(await alert.isVisible(),"Polling must not erase a send error");
+      await alert.getByRole("button",{name:"Fechar aviso"}).click();
+      rejectMessage=false;
+    }
     const bubble=await page.locator(".nk-chat-bubble").first().boundingBox();
     assert.ok(bubble.height<100,"Short message bubble must be compact");
     const own = await page.locator(".nk-chat-bubble-row.is-mine .nk-chat-bubble").first().boundingBox();
@@ -115,6 +133,14 @@ try {
     assert.equal(receivedAfter.x,received.x); assert.equal(receivedAfter.y,received.y);
     await page.getByRole("button",{name:"Responder",exact:true}).click();
     assert.ok(await page.getByText("A responder a:",{exact:false}).isVisible());
+    if(width===1366){
+      freeText=false;voiceEnabled=false;
+      await page.getByRole("combobox",{name:"Mensagem predefinida"}).waitFor();
+      await page.locator(".nk-independent-chat-reply").waitFor({state:"detached"});
+      assert.equal(await page.getByRole("combobox",{name:"Mensagem predefinida"}).inputValue(),"");
+      assert.equal(await page.getByRole("button",{name:"Gravar nota de voz"}).count(),0);
+      freeText=true;voiceEnabled=true;
+    }
     await page.getByRole("button",{name:"Voltar aos chats"}).click();
     await page.getByRole("button",{name:/Ana/}).click();
     if(width<820){
