@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
-from .test_conversations import historical_match
+from .test_conversations import accepted_match
 from .test_governance_rules import create_member
 from .test_extra_photo_moderation import valid_photo
 from .content_moderation_models import AnaliseAutomaticaConteudoNKATA
@@ -59,7 +59,7 @@ class MomentChatUpdateTests(TestCase):
 
     def test_free_chat_restricts_and_paid_chat_expires(self):
         _, other = create_member('other@nkata.test')
-        match = historical_match(perfil_1=self.profile, perfil_2=other)
+        match = accepted_match(perfil_1=self.profile, perfil_2=other)
         url = f'/api/minha-conta/matches/{match.id}/conversa/'
         self.assertEqual(self.client.post(url, {'texto': 'Mensagem livre'}).status_code, 403)
         self.assertEqual(MensagemMatch.objects.count(), 0)
@@ -72,7 +72,7 @@ class MomentChatUpdateTests(TestCase):
 
     def test_launch_bonus_can_reply_with_preset_but_not_free_text(self):
         other_user, other = create_member("bonus-chat@nkata.test")
-        match = historical_match(perfil_1=self.profile, perfil_2=other)
+        match = accepted_match(perfil_1=self.profile, perfil_2=other)
         url = f"/api/minha-conta/matches/{match.id}/conversa/"
         assign_plan(self.user, "QUINZENAL")
         AcessoPlanoNKATA.objects.filter(usuario=self.user).update(origem="PROMO_LANCAMENTO")
