@@ -188,3 +188,46 @@ class ConversationTests(TestCase):
         match.refresh_from_db()
         self.assertEqual(match.status, "ATIVO")
         self.assertEqual(MensagemMatch.objects.get(pk=message.pk).texto, "Histórico")
+
+    def test_cancel_only_sender_and_no_acceptance_after_cancel(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            pk = self.ask(self.a, self.b).json()["id"]
+        url = f"/api/chats/pedidos/{pk}/cancelar/"
+        for profile in (self.b, self.c):
+            self.client.force_login(profile.usuario)
+            self.assertEqual(self.client.post(url).status_code, 404)
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.post(url).json()["estado"], "CANCELADO")
+        self.assertEqual(self.client.post(url).status_code, 200)
+        self.assertTrue(NotificacaoNKATA.objects.get(chave=f"pedido-chat:{pk}").lida)
+        self.assertEqual(self.decide(self.b, pk, "ACEITE").status_code, 409)
+        self.assertFalse(Conversa.objects.exists())
+        self.assertEqual(self.ask(self.a, self.b).status_code, 201)
+
+    def test_cancel_after_acceptance_or_expiry_is_rejected(self):
+        pk = self.ask(self.a, self.b).json()["id"]
+        self.decide(self.b, pk, "ACEITE")
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.post(f"/api/chats/pedidos/{pk}/cancelar/").status_code, 409)
+        expired = self.ask(self.a, self.c).json()["id"]
+        PedidoConversa.objects.filter(pk=expired).update(expira_em=timezone.now())
+        response = self.client.post(f"/api/chats/pedidos/{expired}/cancelar/")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["estado"], "EXPIRADO")
+        self.assertEqual(Conversa.objects.count(), 1)
+
+    def test_request_details_and_history_for_both_participants(self):
+        pk = self.ask(self.a, self.b).json()["id"]
+        url = f"/api/chats/pedidos/{pk}/"
+        detail = self.client.get(url).json()
+        self.assertFalse(detail["recebido"])
+        self.assertGreater(detail["segundos_restantes"], 0)
+        self.assertEqual(self.client.get("/api/chats/").json()["pedidos"][0]["id"], pk)
+        self.client.force_login(self.c.usuario)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.decide(self.b, pk, "RECUSADO")
+        self.assertEqual(self.client.get("/api/chats/").json()["pedidos"], [])
+        history = self.client.get("/api/chats/").json()["historico_pedidos"]
+        self.assertEqual(history[0]["estado"], "RECUSADO")
+        self.assertTrue(history[0]["recebido"])
+        self.assertEqual(self.ask(self.a, self.b).status_code, 409)

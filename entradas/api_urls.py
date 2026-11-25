@@ -52,6 +52,7 @@ urlpatterns = [
     path("chats/<int:conversation_id>/mensagens/<int:message_id>/", conversations_api.delete_message),
     path("chats/pedir/<int:profile_id>/", conversations_api.send_request),
     path("chats/pedidos/<int:request_id>/", conversations_api.decide_request),
+    path("chats/pedidos/<int:request_id>/cancelar/", conversations_api.cancel_request),
     path("status/", api_views.api_status, name="status"),
     path("session/", api_views.api_session, name="session"),
     path("auth/login/", api_views.api_login, name="login"),

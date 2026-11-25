@@ -464,7 +464,8 @@ class Conversa(models.Model):
 class PedidoConversa(models.Model):
     remetente = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="pedidos_chat_enviados")
     destinatario = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="pedidos_chat_recebidos")
-    estado = models.CharField(max_length=10, default="PENDENTE")
+    ESTADOS = [(s, label) for s, label in (("PENDENTE", "Pendente"), ("ACEITE", "Aceite"), ("RECUSADO", "Recusado"), ("EXPIRADO", "Expirado"), ("CANCELADO", "Cancelado"))]
+    estado = models.CharField(max_length=10, default="PENDENTE", choices=ESTADOS)
     expira_em = models.DateTimeField()
     decidido_em = models.DateTimeField(null=True)
     conversa = models.ForeignKey(Conversa, null=True, on_delete=models.SET_NULL)
@@ -474,4 +475,5 @@ class PedidoConversa(models.Model):
         constraints = [
             models.CheckConstraint(condition=~models.Q(remetente=models.F("destinatario")), name="pedido_chat_perfis_distintos"),
             models.UniqueConstraint(fields=["remetente", "destinatario"], condition=models.Q(estado="PENDENTE"), name="pedido_chat_pendente_unico"),
+            models.CheckConstraint(condition=models.Q(estado__in=["PENDENTE", "ACEITE", "RECUSADO", "EXPIRADO", "CANCELADO"]), name="pedido_chat_estado_valido"),
         ]

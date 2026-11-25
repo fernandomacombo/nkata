@@ -3,6 +3,16 @@ import { request } from "../services/api.js";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
 
+const REQUEST_STATES = { PENDENTE: "Pendente", ACEITE: "Aceite", RECUSADO: "Recusado", EXPIRADO: "Expirado", CANCELADO: "Cancelado" };
+
+function remaining(item) {
+  const seconds = item.segundos_restantes || 0;
+  if (!seconds) return "A expirar";
+  if (seconds >= 86400) return `${Math.ceil(seconds / 86400)} dias restantes`;
+  if (seconds >= 3600) return `${Math.ceil(seconds / 3600)} h restantes`;
+  return `${Math.max(1, Math.ceil(seconds / 60))} min restantes`;
+}
+
 function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed }) {
   const lastTyping = useRef(0);
   const [thread, setThread] = useState(null);
@@ -107,7 +117,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, ...thre
         const options = { signal: controller.signal };
         const [next, selected] = await Promise.all([
           request("/api/chats/", options),
-          requestId ? request(`/api/chats/pedidos/${requestId}/`, options) : null,
+          requestId ? request(`/api/chats/pedidos/${requestId}/`, options).catch(err => { if (!controller.signal.aborted) setError(err.message); return null; }) : null,
         ]);
         if (!controller.signal.aborted) setSelectedRequest(selected);
         if (!controller.signal.aborted) setData(next);
@@ -131,18 +141,39 @@ export default function ChatsPage({ conversationId, requestId, onSelect, ...thre
     finally { setBusy(false); setRevision(value => value + 1); }
   }
 
+  async function cancel(id) {
+    if (!window.confirm("Cancelar este pedido de conversa?")) return;
+    setBusy(true);
+    setError("");
+    try {
+      await request(`/api/chats/pedidos/${id}/cancelar/`, { method: "POST" });
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); setRevision(value => value + 1); }
+  }
+
+  const received = data?.pedidos.filter(p => p.recebido) || [];
+  const sent = data?.pedidos.filter(p => !p.recebido) || [];
   return <main className="nk-shell"><h1>Chats</h1>
     {error && <p role="alert">{error}</p>}
     <div className="nk-chats-layout"><aside>
       <h2>Pedidos de conversa</h2>
       {requestId && selectedRequest && selectedRequest.estado !== "PENDENTE" && <p role="status">
-        Pedido de {selectedRequest.nome} · {{ACEITE: "Aceite", RECUSADO: "Recusado", EXPIRADO: "Expirado"}[selectedRequest.estado]}
+        Pedido de {selectedRequest.nome} · {REQUEST_STATES[selectedRequest.estado]}
         {selectedRequest.conversation_id && <button onClick={() => onSelect(selectedRequest.conversation_id)}>Abrir conversa</button>}
       </p>}
-      {data?.pedidos.length === 0 && <p>Sem pedidos pendentes.</p>}
-      {data?.pedidos.map(p => <div key={p.id}><strong>{p.nome}</strong>
-        {p.recebido ? <div><button disabled={busy} onClick={() => decide(p.id, "ACEITE")}>Aceitar</button>
-          <button disabled={busy} onClick={() => decide(p.id, "RECUSADO")}>Recusar</button></div> : <p>Pedido enviado</p>}</div>)}
+      <h3>Recebidos ({received.length})</h3>
+      {!received.length && <p>Sem pedidos recebidos.</p>}
+      {received.map(p => <div key={p.id}><strong>{p.nome}</strong><p>{remaining(p)}</p>
+        <div><button disabled={busy} onClick={() => decide(p.id, "ACEITE")}>Aceitar</button>
+          <button disabled={busy} onClick={() => decide(p.id, "RECUSADO")}>Recusar</button></div></div>)}
+      <h3>Enviados ({sent.length})</h3>
+      {!sent.length && <p>Sem pedidos enviados.</p>}
+      {sent.map(p => <div key={p.id}><strong>{p.nome}</strong><p>A aguardar resposta · {remaining(p)}</p>
+        <button disabled={busy} onClick={() => cancel(p.id)}>Cancelar pedido</button></div>)}
+      {!!data?.historico_pedidos?.length && <details><summary>Histórico de pedidos</summary>
+        {data.historico_pedidos.map(p => <div key={p.id}><strong>{p.nome}</strong><p>{p.recebido ? "Recebido" : "Enviado"} · {REQUEST_STATES[p.estado]}</p>
+          {p.conversation_id && <button onClick={() => onSelect(p.conversation_id)}>Abrir conversa</button>}</div>)}
+      </details>}
       <h2>Conversas</h2>
       {data?.conversas.length === 0 && <p>Pode pedir conversa ao visitar um perfil.</p>}
       {data?.conversas.map(c => <button key={c.id} aria-current={conversationId === c.id ? "page" : undefined}

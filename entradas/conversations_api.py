@@ -56,12 +56,29 @@ def notify(other, me, kind, key, title, body):
     ), robust=True)
 
 
+def request_payload(item, me, now):
+    received = item.destinatario_id == me.pk
+    other = item.remetente if received else item.destinatario
+    state = "EXPIRADO" if item.estado == "PENDENTE" and item.expira_em <= now else item.estado
+    return {"id": item.pk, "recebido": received, "nome": other.nome_publico,
+            "estado": state, "criado_em": item.criado_em, "expira_em": item.expira_em,
+            "decidido_em": item.decidido_em,
+            "conversation_id": item.conversa_id if item.conversa_id and item.conversa.estado == Conversa.ESTADO_ATIVA else None,
+            "segundos_restantes": max(0, int((item.expira_em - now).total_seconds())) if state == "PENDENTE" else 0}
+
+
+def clear_request_notice(item):
+    NotificacaoNKATA.objects.filter(destinatario_id=item.destinatario.usuario_id,
+                                     chave=f"pedido-chat:{item.pk}").update(lida=True)
+
+
 def accept(pending, pair, now):
     chat, _ = Conversa.objects.get_or_create(**pair)
     pending.estado = "ACEITE"
     pending.decidido_em = now
     pending.conversa = chat
     pending.save(update_fields=["estado", "decidido_em", "conversa"])
+    clear_request_notice(pending)
     notify(pending.remetente, pending.destinatario, "CHAT_ACEITE", f"chat-aceite:{chat.pk}",
            "Pedido de conversa aceite", "Já pode abrir a conversa.")
     return Response({"estado": "ACEITE", "conversation_id": chat.pk})
@@ -83,18 +100,23 @@ def send_request(request, profile_id):
     requests = PedidoConversa.objects.filter(
         Q(remetente=me, destinatario=other) | Q(remetente=other, destinatario=me))
     now = timezone.now()
-    requests.filter(estado="PENDENTE", expira_em__lte=now).update(estado="EXPIRADO")
+    expired = requests.filter(estado="PENDENTE", expira_em__lte=now)
+    for item in expired.select_related("destinatario"):
+        clear_request_notice(item)
+    expired.update(estado="EXPIRADO")
     pending = requests.filter(estado="PENDENTE").first()
+    if pending and pending.remetente_id == me.pk:
+        return Response(request_payload(pending, me, now))
+    refusal = requests.filter(remetente=me, estado="RECUSADO", decidido_em__gt=now-timedelta(days=30)).order_by("-decidido_em").first()
+    if refusal:
+        return Response({"detail": "Pode voltar a pedir conversa 30 dias após a recusa.",
+                         "pode_pedir_em": refusal.decidido_em + timedelta(days=30)}, status=409)
     if pending and pending.destinatario_id == me.pk:
         return accept(pending, pair, now)
-    if pending:
-        return Response({"id": pending.pk, "estado": pending.estado})
-    if requests.filter(remetente=me, estado="RECUSADO", decidido_em__gt=now-timedelta(days=30)).exists():
-        return Response({"detail": "Pode voltar a pedir conversa 30 dias após a recusa."}, status=409)
     pending = requests.create(remetente=me, destinatario=other, expira_em=now+timedelta(days=7))
     notify(other, me, "PEDIDO_CHAT", f"pedido-chat:{pending.pk}", "Novo pedido de conversa",
            f"{me.nome_publico} gostaria de conversar consigo.")
-    return Response({"id": pending.pk, "estado": pending.estado}, status=201)
+    return Response(request_payload(pending, me, now), status=201)
 
 
 @api_view(["GET", "POST"])
@@ -102,13 +124,14 @@ def send_request(request, profile_id):
 @transaction.atomic
 def decide_request(request, request_id):
     me = member(request)
-    pending = get_object_or_404(PedidoConversa, pk=request_id, destinatario=me)
+    pending = get_object_or_404(PedidoConversa.objects.filter(Q(remetente=me) | Q(destinatario=me)), pk=request_id)
     if request.method == "GET":
-        if not available(me, pending.remetente):
+        other = pending.remetente if pending.destinatario_id == me.pk else pending.destinatario
+        if not available(me, other):
             raise NotFound("Pedido indisponível.")
-        expired = pending.estado == "PENDENTE" and pending.expira_em <= timezone.now()
-        return Response({"estado": "EXPIRADO" if expired else pending.estado,
-                         "nome": pending.remetente.nome_publico, "conversation_id": pending.conversa_id})
+        return Response(request_payload(pending, me, timezone.now()))
+    if pending.destinatario_id != me.pk:
+        raise NotFound("Pedido indisponível.")
     _, pair = lock_pair(me, pending.remetente_id)
     pending.refresh_from_db()
     now = timezone.now()
@@ -118,6 +141,7 @@ def decide_request(request, request_id):
     if pending.estado == "PENDENTE" and pending.expira_em <= now:
         pending.estado = "EXPIRADO"
         pending.save(update_fields=["estado"])
+        clear_request_notice(pending)
     if pending.estado != "PENDENTE":
         return Response({"estado": pending.estado, "conversation_id": pending.conversa_id},
                         status=200 if pending.estado == decision else 409)
@@ -126,7 +150,31 @@ def decide_request(request, request_id):
     pending.estado = decision
     pending.decidido_em = now
     pending.save(update_fields=["estado", "decidido_em"])
-    return Response({"estado": decision})
+    clear_request_notice(pending)
+    return Response(request_payload(pending, me, now))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def cancel_request(request, request_id):
+    me = member(request)
+    pending = get_object_or_404(PedidoConversa, pk=request_id, remetente=me)
+    # Acquire the same pair locks as acceptance; cancellation is allowed even
+    # when the recipient is no longer available or has blocked the sender.
+    list(PerfilNKATA.objects.select_for_update().filter(pk__in=[me.pk, pending.destinatario_id]).order_by("pk"))
+    pending = get_object_or_404(PedidoConversa, pk=request_id, remetente=me)
+    now = timezone.now()
+    if pending.estado == "PENDENTE":
+        if pending.expira_em <= now:
+            pending.estado = "EXPIRADO"
+            pending.save(update_fields=["estado"])
+        else:
+            pending.estado = "CANCELADO"
+            pending.decidido_em = now
+            pending.save(update_fields=["estado", "decidido_em"])
+        clear_request_notice(pending)
+    return Response(request_payload(pending, me, now), status=200 if pending.estado == "CANCELADO" else 409)
 
 
 def participants(me):
@@ -152,15 +200,17 @@ def inbox(request):
         other = peer(chat, me)
         if available(me, other):
             chats.append({"id": chat.pk, "nome": other.nome_publico, "match_id": legacy_match_id(chat)})
-    requests = PedidoConversa.objects.filter(Q(destinatario=me) | Q(remetente=me),
-                                               estado="PENDENTE", expira_em__gt=timezone.now())
-    pending = []
-    for item in requests.select_related("remetente", "destinatario").order_by("-pk"):
-        received = item.destinatario_id == me.pk
-        other = item.remetente if received else item.destinatario
-        if available(me, other):
-            pending.append({"id": item.pk, "recebido": received, "nome": other.nome_publico})
-    return Response({"conversas": chats, "pedidos": pending})
+    now = timezone.now()
+    requests = PedidoConversa.objects.filter(Q(destinatario=me) | Q(remetente=me)).select_related(
+        "remetente__usuario", "remetente__pedido", "destinatario__usuario", "destinatario__pedido", "conversa")
+    active = Q(estado="PENDENTE", expira_em__gt=now)
+    pending, history = [], []
+    for rows, target in ((requests.filter(active), pending), (requests.exclude(active).order_by("-pk")[:50], history)):
+        for item in rows:
+            other = item.remetente if item.destinatario_id == me.pk else item.destinatario
+            if available(me, other):
+                target.append(request_payload(item, me, now))
+    return Response({"conversas": chats, "pedidos": pending, "historico_pedidos": history})
 
 
 def accessible_thread(request, conversation_id):
