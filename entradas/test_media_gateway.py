@@ -224,3 +224,20 @@ class MediaGatewayTests(TestCase):
         self.assertEqual(self.reconcile().json()["refunded"],0)
         self.assertEqual(self.signed().status_code,409)
         self.assertEqual(credit_balance(self.a.usuario),9)
+
+
+    def test_durable_resume_intent_prevents_automatic_refund(self):
+        from .models import RevisaoMinutoChamadaNKATA
+        from .native_call_service import mark_gateway_resume
+        for peer in (self.a,self.b):
+            self.assertEqual(self.redeem(self.issue(peer.usuario).json()["ticket"]).status_code,200)
+        self.assertEqual(self.signed().status_code,200)
+        row=RevisaoMinutoChamadaNKATA.objects.get(chamada=self.call,minuto=1)
+        self.assertEqual(row.estado,"AUTORIZADO")
+        ids=[self.a.usuario_id,self.b.usuario_id]
+        self.assertEqual(mark_gateway_resume(self.call.pk,user_ids=ids,minute=1,phase="INTENT"),"RETOMA_INICIADA")
+        self.assertEqual(self.reconcile().status_code,409)
+        self.assertEqual(credit_balance(self.a.usuario),6)
+        self.assertEqual(mark_gateway_resume(self.call.pk,user_ids=ids,minute=1,phase="CONFIRMED"),"CONFIRMADO")
+        row.refresh_from_db()
+        self.assertEqual(row.estado,"CONFIRMADO")
