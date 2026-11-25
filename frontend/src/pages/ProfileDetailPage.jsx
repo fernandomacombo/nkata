@@ -12,6 +12,7 @@ import {
   Images,
   LockKeyhole,
   MapPin,
+  MessageCircle,
   Play,
   Share2,
   ShieldCheck,
@@ -378,10 +379,18 @@ export default function ProfileDetailPage({
             <div className="nk-profile-detail__heading">
               <div>
                 <span className="nk-eyebrow nk-eyebrow--dark">
-                  <ShieldCheck size={15} /> {english ? "Verified profile" : "Perfil verificado"}
+                  <ShieldCheck size={15} /> {profile.verificado ? (english ? "Verified profile" : "Perfil verificado") : (english ? "Identity not verified" : "Identidade por verificar")}
                 </span>
                 <h1>{profile.nome_publico}{profile.idade ? `, ${profile.idade}` : ""}</h1>
                 <p>{objectiveLabel(profile.objetivo_display, english)}</p>
+                {onAskChat && !String(profile.id).startsWith("demo-") && (
+                  <div style={{ marginTop: "12px" }}>
+                    <button type="button" className="nk-button nk-button--wine" disabled={askingChat} onClick={askChat}>
+                      <MessageCircle size={18} /> {askingChat ? (english ? "Sending…" : "A enviar…") : (english ? "Request a chat" : "Pedir conversa")}
+                    </button>
+                    {chatError && <p role="alert">{chatError}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="nk-profile-detail__quick-actions">
@@ -543,10 +552,7 @@ export default function ProfileDetailPage({
             )}
 
             <div className="nk-profile-detail__actions">
-              {onAskChat && !String(profile.id).startsWith("demo-") && <button type="button" className="nk-button" disabled={askingChat} onClick={askChat}>
-                {english ? "Request a chat" : "Pedir conversa"}
-              </button>}
-              {chatError && <p role="alert">{chatError}</p>}
+
               <button
                 type="button"
                 className={`nk-button nk-button--wine ${interestActive ? "is-active" : ""}`}
