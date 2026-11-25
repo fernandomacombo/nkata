@@ -87,6 +87,15 @@ def minute(request):
             raise ValueError()
     except (TypeError,ValueError,AttributeError,UnicodeError):
         return reply({"authorized":False},400)
+    # Signed admission is required for each peer, in addition to the SFU's
+    # server-owned proof of connection. Cache failure must not permit billing.
+    keys=[f"media-gateway:admitted:{session_id}:{uid}" for uid in ids]
+    try:
+        admitted=cache.get_many(keys)
+        if any(admitted.get(key)!=1 for key in keys):
+            return reply({"authorized":False},409)
+    except Exception:
+        return reply({"authorized":False},503)
     try:
         deadline=authorize_gateway_minute(session_id,connected_user_ids=ids,expected_minute=index)
     except WalletError:
