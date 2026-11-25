@@ -90,6 +90,7 @@ class ConversationTests(TestCase):
         self.assertEqual(self.client.get("/api/chats/").json()["conversas"], [])
 
     def test_credit_mode_unverified_reads_but_cannot_send_or_spend(self):
+        from uuid import uuid4
         from .wallet_service import record_movement, credit_balance
         from .credit_catalog import ICEBREAKERS
         from .plan_service import CHAT_PHRASES_PT
@@ -104,8 +105,11 @@ class ConversationTests(TestCase):
             root = f"/api/chats/{chat}/"
             self.client.force_login(self.b.usuario)
             self.assertEqual(self.client.get(root).status_code, 200)
-            with patch("entradas.conversations_api.can_send_chat_text", return_value=True):
-                self.assertEqual(self.client.post(root, {"texto": "Mensagem recebida"}).status_code, 201)
+            record_movement(self.b.usuario, key="test-fund-b", kind="AJUSTE", amount=11, reference="TEST", reason="Test")
+            unlocked = self.client.post(root + "desbloquear/", {"key": str(uuid4()), "expected_cost": 10}, content_type="application/json")
+            self.assertEqual(unlocked.status_code, 200, unlocked.content)
+            self.assertEqual(self.client.post(root, {"texto": "Mensagem recebida"}).status_code, 201)
+            self.assertEqual(credit_balance(self.b.usuario), 1)
             self.client.force_login(self.a.usuario)
             row = self.client.get("/api/chats/").json()["conversas"][0]
             self.assertTrue(row["read_only"])
@@ -120,6 +124,7 @@ class ConversationTests(TestCase):
             self.assertEqual(self.client.post(root + "quebra-gelo/", {"codigo": next(iter(ICEBREAKERS))}).status_code, 403)
             self.assertEqual(self.client.post(root + "desbloquear/", {"expected_cost": 10}).status_code, 403)
             self.assertEqual(self.client.post(root + "audio/").status_code, 403)
+            self.assertEqual(self.client.post(root + "sinais/", {"tipo": "OLA", "expected_cost": 1}, content_type="application/json").status_code, 403)
             self.assertEqual(credit_balance(self.a.usuario), 20)
             self.a.pedido.identidade_revogada = False
             self.a.pedido.save()
