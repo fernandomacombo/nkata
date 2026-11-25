@@ -429,6 +429,61 @@ class WalletPaymentTests(TestCase):
             self.assertIsNone(item.confirmado_em)
             self.assertIsNotNone(item.ultima_verificacao)
 
+    @override_settings(NKATA_PAYSUITE_TOKEN="test-token", NKATA_PAYMENT_SIMULATION_ENABLED=False)
+    def test_reconciliation_backoff_preserves_late_settlement(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from django.core.management import call_command
+        from io import StringIO
+        from .wallet_service import credit_balance
+        now = timezone.now()
+
+        def order(ref, state, age, last):
+            item = PedidoPagamentoNKATA.objects.create(
+                usuario=self.user, chave=uuid.uuid4(), referencia=ref,
+                produto="CREDITOS_INICIAL", valor=50, creditos=50,
+                estado=state, provedor_id=ref)
+            PedidoPagamentoNKATA.objects.filter(pk=item.pk).update(
+                criado_em=now-age, ultima_verificacao=now-last)
+            return item
+
+        due = [
+            order("NEW", "PENDENTE", timedelta(minutes=8), timedelta(minutes=2)),
+            order("MID", "PENDENTE", timedelta(hours=1), timedelta(minutes=6)),
+            order("OLDER", "INCERTO", timedelta(hours=3), timedelta(minutes=31)),
+            order("LATE", "PENDENTE", timedelta(days=3), timedelta(hours=7)),
+            order("FAILED", "FALHOU", timedelta(days=3), timedelta(hours=25)),
+            order("REVIEW", "REVISAO", timedelta(days=3), timedelta(minutes=16)),
+        ]
+        not_due = [
+            order("NEW_WAIT", "PENDENTE", timedelta(minutes=8), timedelta(seconds=15)),
+            order("MID_WAIT", "PENDENTE", timedelta(hours=1), timedelta(minutes=2)),
+            order("OLDER_WAIT", "PENDENTE", timedelta(hours=3), timedelta(minutes=2)),
+            order("LATE_WAIT", "PENDENTE", timedelta(days=3), timedelta(hours=1)),
+            order("FAILED_WAIT", "FALHOU", timedelta(days=3), timedelta(hours=2)),
+            order("FAILED_RECENT", "FALHOU", timedelta(hours=1), timedelta(minutes=20)),
+        ]
+        def provider(method, payment_id=None, payload=None):
+            item = PedidoPagamentoNKATA.objects.get(provedor_id=payment_id)
+            state = "completed" if payment_id == "FAILED" else "pending"
+            return {"id": payment_id, "amount": "50", "reference": item.referencia,
+                    "status": state, "transaction": {"status": state}}
+        with patch("entradas.payment_service.provider_request", side_effect=provider) as remote:
+            call_command("reconcile_nkata_payments", stdout=StringIO())
+            self.assertEqual({call.kwargs["payment_id"] for call in remote.call_args_list},
+                             {item.provedor_id for item in due})
+            self.assertEqual(remote.call_count, len(due))
+            call_command("reconcile_nkata_payments", stdout=StringIO())
+            self.assertEqual(remote.call_count, len(due))
+        due[4].refresh_from_db()
+        self.assertEqual(due[4].estado, "PAGO")
+        self.assertEqual(credit_balance(self.user), 50)
+        for item in not_due:
+            original = item.estado
+            item.refresh_from_db()
+            self.assertEqual(item.estado, original)
+            self.assertIsNone(item.aplicado_em)
+
     def test_catalog_amounts_are_server_owned(self):
         from .payment_service import snapshot
         for product, amount, credits in (("CREDITOS_INICIAL", 50, 50), ("CREDITOS_ESSENCIAL", 100, 100),
