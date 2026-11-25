@@ -15,18 +15,26 @@ def chat_requires_identity(user):
     return bool(profile and not pedido_tem_identidade_verificada(profile.pedido))
 
 
-def chat_pair_allowed(a, b):
-    """Shared bilateral authorisation for native and historical chats."""
+def request_pair_allowed(a, b):
+    """Consent requests require active, unblocked members, not payment or ID."""
+    if a.pk == b.pk:
+        return False
     for profile in (a, b):
         user = profile.usuario
         if (profile.status != "ATIVO" or not user or not user.is_active
-                or user.is_staff or user.is_superuser
-                or not pedido_tem_identidade_verificada(profile.pedido)):
+                or user.is_staff or user.is_superuser):
             return False
     return not AcaoPerfil.objects.filter(
         Q(usuario_id=a.usuario_id, perfil_id=b.pk) |
         Q(usuario_id=b.usuario_id, perfil_id=a.pk), tipo="BLOQUEIO"
     ).exists()
+
+
+def chat_pair_allowed(a, b):
+    """Message and media access remains strictly bilateral and verified."""
+    return (request_pair_allowed(a, b)
+            and pedido_tem_identidade_verificada(a.pedido)
+            and pedido_tem_identidade_verificada(b.pedido))
 
 
 def legacy_chat_allowed(user, match):
