@@ -48,6 +48,23 @@ class PaymentTests(TestCase):
         with patch("entradas.payment_service.provider_request", return_value=data or self.paid_data(order)):
             return reconcile(order)
 
+    def test_retired_checkout_is_read_only_and_reviewed_test_does_not_block(self):
+        from .payment_service import serialize_order
+        order = self.order("ESSENCIAL")
+        self.assertTrue(serialize_order(order)["checkout_url"])
+        with self.settings(NKATA_CREDIT_TRANSITION_ENABLED=True, NKATA_CREDIT_ONLY_ENABLED=True,
+                           NKATA_LEGACY_TEST_ORDER_REFERENCES=[order.referencia]):
+            serialized = serialize_order(order)
+            self.assertTrue(serialized["retired_product"])
+            self.assertIsNone(serialized["checkout_url"])
+            self.assertFalse(serialized["blocks_checkout"])
+            order.confirmado_em = timezone.now()
+            self.assertTrue(serialize_order(order)["blocks_checkout"])
+        with self.settings(NKATA_CREDIT_TRANSITION_ENABLED=True, NKATA_CREDIT_ONLY_ENABLED=True,
+                           NKATA_LEGACY_TEST_ORDER_REFERENCES=[]):
+            self.assertTrue(serialize_order(order)["blocks_checkout"])
+            self.assertIsNone(serialize_order(order)["checkout_url"])
+
     def test_creation_response_cannot_overwrite_terminal_state(self):
         def late(method, payment_id=None, payload=None):
             PedidoPagamentoNKATA.objects.filter(referencia=payload["reference"]).update(estado="FALHOU")
