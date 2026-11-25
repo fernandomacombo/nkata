@@ -354,9 +354,11 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   const [tab, setTab] = useState("all"), [query, setQuery] = useState(""), [selectedRequest, setSelectedRequest] = useState(null);
   useEffect(() => {
     const controller = new AbortController();
-    let timer;
+    let timer, loadingList = false;
     async function load() {
-      if (document.hidden) { timer = setTimeout(load, 10000); return; }
+      if (controller.signal.aborted || document.hidden || loadingList) return;
+      clearTimeout(timer);
+      loadingList = true;
       try {
         const options = { signal: controller.signal };
         const next = await request("/api/chats/", options);
@@ -369,9 +371,18 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
           } catch (err) { if (!controller.signal.aborted) { setSelectedRequest(null); setError(err.message); } }
         } else setSelectedRequest(null);
       } catch (err) { if (!controller.signal.aborted) setError(err.message); }
-      finally { if (!controller.signal.aborted) timer = setTimeout(load, 10000); }
+      finally {
+        loadingList = false;
+        if (!controller.signal.aborted && !document.hidden) timer = setTimeout(load, conversationId && !requestId ? 20000 : 10000);
+      }
     }
-    load(); return () => { controller.abort(); clearTimeout(timer); };
+    function visibility() {
+      clearTimeout(timer);
+      if (!document.hidden) load();
+    }
+    load();
+    document.addEventListener("visibilitychange", visibility);
+    return () => { controller.abort(); clearTimeout(timer); document.removeEventListener("visibilitychange", visibility); };
   }, [conversationId, requestId, revision]);
   useEffect(() => {
     if (requestId && selectedRequest?.id === requestId) setTab(selectedRequest.recebido ? "received" : "sent");
