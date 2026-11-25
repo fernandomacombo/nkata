@@ -271,7 +271,7 @@ export default function ProfileDetailPage({
 
     try {
       const result = await sendProfileSignal(profile.id, type, offer?.cost);
-      setSignalData({ quota: result.quota, signals: result.signals });
+      setSignalData({ quota: result.quota, signals: result.signals, identity_blocked: result.identity_blocked });
       setSignalStatus(result.message || (english ? "Signal sent." : "Sinal enviado."));
       window.setTimeout(() => setSignalStatus(""), 3200);
     } catch (requestError) {
@@ -432,7 +432,7 @@ export default function ProfileDetailPage({
                   <span>{english ? "NKATA signals" : "Sinais NKATA"}</span>
                   <h2>{english ? "Send a signal" : "Enviar um sinal"}</h2>
                   <p>
-                    {authenticated && quota
+                    {authenticated && signalData?.identity_blocked ? (english ? "Signals require verified identities on both profiles." : "Os sinais exigem identidade verificada nos dois perfis.") : authenticated && quota
                       ? (quota.credit_mode ? (english ? "Confirm the cost before sending." : "Confirme o custo antes de enviar.") : (english ? `${quota.daily_limit} daily signals on your ${quota.plan_label} plan.` : `${quota.daily_limit} sinais diários no plano ${quota.plan_label}.`))
                       : (english ? "Show interest without starting a conversation." : "Mostre interesse sem iniciar uma conversa.")}
                   </p>
@@ -453,6 +453,8 @@ export default function ProfileDetailPage({
                   const disabled = (
                     signalLoading
                     || Boolean(signalSending)
+                    || !signalData
+                    || signalData?.identity_blocked
                     || sent
                     || limitReached
                     || signal.available === false
@@ -482,6 +484,8 @@ export default function ProfileDetailPage({
                               ? (english ? "Sent today" : "Enviado hoje")
                               : limitReached
                                 ? (english ? "Limit reached" : "Limite atingido")
+                                : signalData?.identity_blocked
+                                  ? (english ? "Unavailable" : "Indisponível")
                                 : quota?.credit_mode
                                   ? (signal.cost ? `${signal.cost} ${english ? "credits" : "créditos"}` : (english ? "Included" : "Incluído"))
                                 : quota?.next_source === "RECHARGE"
