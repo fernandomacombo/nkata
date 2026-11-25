@@ -279,7 +279,7 @@ class WalletTests(TestCase):
         self.client.force_login(self.a)
         url=f"/api/perfis/{self.b.perfil_nkata.pk}/sinais/"
         with self.settings(NKATA_CREDIT_ONLY_ENABLED=True,NKATA_CREDIT_TRANSITION_ENABLED=True,NKATA_CREDIT_SPENDING_ENABLED=True):
-            with patch("entradas.signal_views.chat_pair_allowed",return_value=False):
+            with patch("entradas.signal_views._signal_sender_allowed",return_value=False):
                 response=self.client.get(url)
                 self.assertEqual(response.status_code,200,response.content)
                 self.assertTrue(response.json()["identity_blocked"])
