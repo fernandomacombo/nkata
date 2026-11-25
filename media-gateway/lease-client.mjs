@@ -54,3 +54,13 @@ export function createReconcileClient(config){
   return false;
  };
 }
+
+
+export const resumePath="/api/internal/media-gateway/resume/";
+export function createResumeClient(config){
+ const post=createSignedPost(config);
+ return async ({sessionId,userIds,minute,phase})=>{
+  const result=await post(resumePath,{session_id:sessionId,user_ids:userIds,minute,phase});
+  return result?.recorded===true&&result.state===(phase==="INTENT"?"RETOMA_INICIADA":"CONFIRMADO");
+ };
+}
