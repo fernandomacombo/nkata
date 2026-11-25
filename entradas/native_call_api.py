@@ -1,4 +1,6 @@
 """Experimental browser call lifecycle; no browser-controlled billing."""
+from urllib.parse import urlsplit
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -9,8 +11,8 @@ from .media_gateway_api import enabled, reply
 from .native_call_service import (
     prepare_call, decide_call, end_call, _locked_session, _allowed, LIVE,
 )
-from .models import ChamadaConversaCreditoNKATA as Session
-from .wallet_service import WalletError, credit_balance, credit_spending_enabled
+from .models import ChamadaConversaCreditoNKATA as Session, PerfilNKATA
+from .wallet_service import WalletError, credit_balance, credit_spending_enabled, welcome_eligible
 
 
 def gate(request):
@@ -119,3 +121,33 @@ def detail(request, session_id):
         except WalletError:
             return reply({"detail": "Chamada indisponível."}, 404)
     return reply(serialize(session, request.user))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def browser_config(request):
+    error = gate(request)
+    if error is not None:
+        return error
+    if not settings.NKATA_MEDIA_BROWSER_TEST_ENABLED or not credit_spending_enabled():
+        return reply({"enabled": False})
+    profile = PerfilNKATA.objects.filter(usuario=request.user).select_related("usuario", "pedido").first()
+    if not welcome_eligible(profile):
+        return reply({"enabled": False})
+    signal = settings.NKATA_MEDIA_STAGING_SIGNAL_URL
+    try:
+        url = urlsplit(signal)
+        host = url.hostname or ""
+        if (url.scheme != "wss" or not host or url.username or url.password
+                or url.path != "/signal" or url.query or url.fragment
+                or host == "nkata.date" or (host.endswith(".nkata.date") and not host.startswith("staging."))):
+            return reply({"enabled": False})
+        if url.port not in (None, 443):
+            return reply({"enabled": False})
+    except ValueError:
+        return reply({"enabled": False})
+    if (len(settings.NKATA_WEBRTC_TURN_SHARED_SECRET) < 32
+            or settings.NKATA_WEBRTC_TURN_SHARED_SECRET == settings.NKATA_MEDIA_GATEWAY_SECRET
+            or not any(x.startswith("turns:") for x in settings.NKATA_WEBRTC_TURN_URLS)):
+        return reply({"enabled": False})
+    return reply({"enabled": True, "signal_url": signal})
