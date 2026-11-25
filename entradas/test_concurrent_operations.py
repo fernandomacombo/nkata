@@ -12,7 +12,7 @@ from django.db import connection, connections, close_old_connections
 from django.test import TransactionTestCase
 from rest_framework.test import APIClient
 
-from .test_conversations import historical_match
+from .test_conversations import historical_match, accepted_match
 from .account_limits import save_limited_request
 from .models import PedidoEntrada, PerfilNKATA, MatchPerfil, AcessoPlanoNKATA, PedidoPagamentoNKATA, QuestionarioEntrada
 from .plan_service import assign_plan
@@ -61,7 +61,7 @@ class ConcurrentOperationsTests(TransactionTestCase):
             sobre_si="Test", o_que_valoriza="Test", o_que_nao_aceita="Test", aceita_regras=True)
         profile = PerfilNKATA.objects.create(pedido=pedido, usuario=third, nome_publico="Third", idade=30)
         assign_plan(third, "ESSENCIAL")
-        second = historical_match(perfil_1=self.users[0].perfil_nkata, perfil_2=profile)
+        second = accepted_match(perfil_1=self.users[0].perfil_nkata, perfil_2=profile)
         match_ids = [self.match.pk, second.pk]
 
         def start(index):
