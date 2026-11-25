@@ -442,7 +442,7 @@ export default function App() {
       return;
     }
 
-    if (["moments", "matches", "notifications", "account", "admin"].includes(page) && !authenticated) {
+    if (["moments", "chats", "matches", "notifications", "account", "admin"].includes(page) && !authenticated) {
       openLogin(page);
       return;
     }

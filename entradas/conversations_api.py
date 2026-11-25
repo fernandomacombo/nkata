@@ -15,6 +15,9 @@ from .api_views import _bloqueio_entre_perfis
 from .identity_models import pedido_tem_identidade_verificada
 from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PedidoConversa, PerfilNKATA
 from .profile_media_api import profile_photo_url
+from .chat_media_models import MensagemAudioMatchNKATA
+from .call_models import ChamadaMatchNKATA
+from .call_history_api import serialize_call_message
 from .notification_models import NotificacaoNKATA
 from .plan_service import CHAT_PHRASES, can_send_chat_text, plan_for_user
 from .serializers import MensagemMatchSerializer
@@ -59,7 +62,7 @@ def notify(other, me, kind, key, title, body):
 
 def chat_profile(profile):
     return {"id": profile.pk, "nome_publico": profile.nome_publico,
-            "foto_url": profile_photo_url(profile)}
+            "foto_url": profile_photo_url(profile) if profile.visivel else None}
 
 
 def request_payload(item, me, now):
@@ -213,10 +216,27 @@ def inbox(request):
                 "minha": latest.remetente_id == request.user.pk,
                 "criado_em": latest.criado_em,
             }
+            unread_text = messages.filter(lida=False, apagada_em__isnull=True).exclude(remetente=request.user).count()
+            unread_audio = 0
+            legacy_id = legacy_match_id(chat)
+            # Only count media that can still be opened in the legacy workspace.
+            if legacy_id:
+                audio = MensagemAudioMatchNKATA.objects.filter(match_id=legacy_id)
+                unread_audio = audio.filter(lida=False).exclude(remetente=request.user).count()
+                last_audio = audio.order_by("-criado_em", "-pk").first()
+                call = ChamadaMatchNKATA.objects.filter(match_id=legacy_id).order_by("-atualizada_em", "-pk").first()
+                if last_audio and (preview is None or last_audio.criado_em > preview["criado_em"]):
+                    preview = {"texto": "Nota de voz", "tipo": "AUDIO", "minha": last_audio.remetente_id == request.user.pk,
+                               "criado_em": last_audio.criado_em}
+                if call:
+                    item = serialize_call_message(call, request.user.pk)
+                    if preview is None or item["criado_em"] > preview["criado_em"]:
+                        preview = {"texto": item["texto"], "tipo": "CALL", "minha": item["minha"], "criado_em": item["criado_em"]}
             chats.append({"id": chat.pk, "nome": other.nome_publico, "perfil": chat_profile(other),
-                          "match_id": legacy_match_id(chat), "ultima_mensagem": preview,
-                          "nao_lidas": messages.filter(lida=False, apagada_em__isnull=True).exclude(remetente=request.user).count(),
-                          "atividade_em": latest.criado_em if latest else chat.criado_em})
+                          "match_id": legacy_id, "ultima_mensagem": preview,
+                          "nao_lidas": unread_text + unread_audio, "textos_nao_lidos": unread_text,
+                          "audios_nao_lidos": unread_audio,
+                          "atividade_em": preview["criado_em"] if preview else chat.criado_em})
     chats.sort(key=lambda item: (item["atividade_em"], item["id"]), reverse=True)
     now = timezone.now()
     requests = PedidoConversa.objects.filter(Q(destinatario=me) | Q(remetente=me)).select_related(
@@ -279,6 +299,10 @@ def close_conversation(request, conversation_id):
     if chat.estado == Conversa.ESTADO_ATIVA:
         chat.estado = Conversa.ESTADO_ENCERRADA
         chat.save(update_fields=["estado"])
+        keys = [f"chat-msg:{chat.pk}", f"chat-aceite:{chat.pk}"]
+        if chat.match_origem_id:
+            keys.append(f"mensagem:{chat.match_origem_id}")
+        NotificacaoNKATA.objects.filter(chave__in=keys, destinatario_id__in=[chat.perfil_1.usuario_id, chat.perfil_2.usuario_id]).update(lida=True)
     return Response({"estado": chat.estado})
 
 
@@ -329,7 +353,7 @@ def send_message(request, chat, me, other, thread):
         raise ValidationError({"detail": "A mensagem original está indisponível."})
     message = MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, resposta_a_id=reply,
                                            remetente=request.user, texto=text)
-    if not legacy_match_id(chat):
+    if not chat.match_origem_id:
         notify(other, me, "MENSAGEM", f"chat-msg:{chat.pk}", "Nova mensagem",
                f"{me.nome_publico} enviou-lhe uma mensagem.")
     return Response({"id": message.pk}, status=201)

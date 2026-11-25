@@ -5,6 +5,8 @@ from rest_framework.response import Response
 
 from .chat_permissions import chat_requires_identity
 from .notification_models import NotificacaoNKATA
+from .models import PedidoConversa
+from django.utils import timezone
 from .notification_serializers import NotificacaoSerializer
 
 
@@ -24,7 +26,13 @@ def api_notificacoes(request):
     try:
         notificacoes = NotificacaoNKATA.objects.filter(destinatario=request.user)
         if chat_requires_identity(request.user):
-            notificacoes = notificacoes.exclude(tipo="MENSAGEM")
+            notificacoes = notificacoes.exclude(tipo__in=["MENSAGEM", "PEDIDO_CHAT", "CHAT_ACEITE"])
+        else:
+            # Clear the unread indicator of requests that elapsed without a decision.
+            expired = PedidoConversa.objects.filter(destinatario__usuario=request.user, estado="PENDENTE", expira_em__lte=timezone.now())
+            keys = [f"pedido-chat:{pk}" for pk in expired.values_list("pk", flat=True)]
+            if keys:
+                notificacoes.filter(chave__in=keys, lida=False).update(lida=True)
         notificacoes = (
             notificacoes.select_related(
                 "ator",

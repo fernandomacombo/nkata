@@ -252,3 +252,52 @@ class ConversationTests(TestCase):
         result = self.client.get("/api/chats/").json()
         self.assertEqual(result["conversas"], [])
         self.assertNotIn(self.b.pk, [c["perfil"]["id"] for c in result["conexoes"]])
+
+    def test_inbox_counts_legacy_audio_until_opened(self):
+        from .chat_media_models import MensagemAudioMatchNKATA
+
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        audio = MensagemAudioMatchNKATA.objects.create(
+            match=match, remetente=self.b.usuario, audio="chat/test.webm", duracao_segundos=2
+        )
+        self.client.force_login(self.a.usuario)
+        item = self.client.get("/api/chats/").json()["conversas"][0]
+        self.assertEqual(item["audios_nao_lidos"], 1)
+        self.assertEqual(item["nao_lidas"], 1)
+        self.assertEqual(item["ultima_mensagem"]["texto"], "Nota de voz")
+        self.client.get(f"/api/chats/{match.chat.pk}/")
+        audio.refresh_from_db()
+        self.assertFalse(audio.lida)
+        self.assertEqual(self.client.get(f"/api/minha-conta/matches/{match.pk}/audio/").status_code, 200)
+        self.assertEqual(self.client.get("/api/chats/").json()["conversas"][0]["nao_lidas"], 0)
+
+    def test_notifications_are_routed_to_independent_chat(self):
+        pk = self.ask(self.a, self.b).json()["id"]
+        with self.captureOnCommitCallbacks(execute=True):
+            chat_id = self.decide(self.b, pk, "ACEITE").json()["conversation_id"]
+        notice = NotificacaoNKATA.objects.get(destinatario=self.a.usuario, tipo="CHAT_ACEITE")
+        self.assertEqual(notice.conversation_id, chat_id)
+        with self.captureOnCommitCallbacks(execute=True):
+            with patch("entradas.conversations_api.can_send_chat_text", return_value=True):
+                self.assertEqual(self.client.post(f"/api/chats/{chat_id}/", {"texto": "Olá"}).status_code, 201)
+        notice = NotificacaoNKATA.objects.get(destinatario=self.a.usuario, tipo="MENSAGEM")
+        self.assertEqual(notice.conversation_id, chat_id)
+        self.client.force_login(self.a.usuario)
+        self.client.get(f"/api/chats/{chat_id}/")
+        notice.refresh_from_db()
+        self.assertTrue(notice.lida)
+
+    def test_hidden_profile_photo_is_not_exposed_in_chat(self):
+        from .conversations_api import chat_profile
+
+        self.b.visivel = False
+        with patch("entradas.conversations_api.profile_photo_url", return_value="/private-test-photo/"):
+            self.assertIsNone(chat_profile(self.b)["foto_url"])
+
+    def test_expired_request_notification_is_marked_read(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            pk = self.ask(self.a, self.b).json()["id"]
+        PedidoConversa.objects.filter(pk=pk).update(expira_em=timezone.now())
+        self.client.force_login(self.b.usuario)
+        self.assertEqual(self.client.get("/api/minha-conta/notificacoes/").status_code, 200)
+        self.assertTrue(NotificacaoNKATA.objects.get(chave=f"pedido-chat:{pk}").lida)

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Search, Send, ShieldCheck, UserRound, X } from "lucide-react";
 import { request } from "../services/api.js";
-import Presence from "../components/profiles/Presence.jsx";
+import Presence, { usePresence } from "../components/profiles/Presence.jsx";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
 
@@ -34,6 +34,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   const [thread, setThread] = useState(null), [text, setText] = useState(""), [error, setError] = useState("");
   const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
   const [menu, setMenu] = useState(false);
+  const { label: presenceLabel } = usePresence(thread?.perfil?.id);
   useEffect(() => {
     const controller = new AbortController();
     let timer;
@@ -90,7 +91,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   return <section className="nk-chat-thread" aria-label="Conversa">
     <header className="nk-chat-thread-head">
       <button className="nk-chat-icon nk-chat-back" type="button" onClick={onBack} aria-label="Voltar aos chats"><ArrowLeft size={22} /></button>
-      {thread && <><Avatar profile={thread.perfil} /><div className="nk-chat-title"><strong>{thread.nome}</strong><small>{thread.a_escrever ? "A escrever..." : "Conversa privada"}</small></div>
+      {thread && <><Avatar profile={thread.perfil} /><div className="nk-chat-title"><strong>{thread.nome}</strong><small>{thread.a_escrever ? "A escrever..." : presenceLabel || "Conversa privada"}</small></div>
         <div className="nk-chat-menu-wrap"><button className="nk-chat-icon" aria-label="Opções da conversa" aria-expanded={menu} type="button" onClick={() => setMenu(!menu)}><MoreVertical size={22} /></button>
           {menu && <div className="nk-chat-menu">
             {thread.perfil && <button type="button" onClick={() => { setMenu(false); onOpenProfile(thread.perfil); }}>Ver perfil</button>}
