@@ -11,7 +11,7 @@ const TABS = [
 const fmt = value => Number(value || 0).toLocaleString("pt-MZ");
 const money = value => Number(value || 0).toLocaleString("pt-MZ", {minimumFractionDigits:2, maximumFractionDigits:2}) + " MT";
 const date = value => value ? new Date(value).toLocaleString("pt-MZ") : "—";
-const labels = {CRIADO:"Criado",PENDENTE:"Pendente",INCERTO:"Incerto",REVISAO:"Em revisão",PAGO:"Pago",FALHOU:"Falhou",BONUS:"Bónus",RECARGA:"Recarga",CONSUMO:"Consumo",ESTORNO:"Estorno",AJUSTE:"Ajuste",CHAMANDO:"A chamar",ACEITE:"Aceite",ATIVA:"Activa",TERMINADA:"Terminada",RECUSADA:"Recusada",EXPIRADA:"Expirada",DIVERGENCIA:"Divergência financeira",EXPIRADA_SEM_FECHO:"Expirada sem fecho",ESTORNO:"Estorno registado",SEM_ALERTA:"Sem alerta detectado"};
+const labels = {CRIADO:"Criado",PENDENTE:"Pendente",INCERTO:"Incerto",REVISAO:"Em revisão",PAGO:"Pago",FALHOU:"Falhou",BONUS:"Bónus",RECARGA:"Recarga",CONSUMO:"Consumo",ESTORNO:"Estorno",AJUSTE:"Ajuste",CHAMANDO:"A chamar",ACEITE:"Aceite",ATIVA:"Activa",TERMINADA:"Terminada",RECUSADA:"Recusada",EXPIRADA:"Expirada",RETOMA_INCERTA:"Activação por confirmar",DIVERGENCIA:"Divergência financeira",EXPIRADA_SEM_FECHO:"Expirada sem fecho",ESTORNO:"Estorno registado",SEM_ALERTA:"Sem alerta detectado"};
 export default function FinanceAdminPanel() {
   const [tab,setTab] = useState("overview"), [draft,setDraft] = useState(""), [query,setQuery] = useState("");
   const [status,setStatus] = useState(""), [offset,setOffset] = useState(0), [version,setVersion] = useState(0);
