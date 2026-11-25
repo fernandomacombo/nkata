@@ -46,3 +46,26 @@ test("pause watchdog closes transport and late acknowledgement cannot charge",as
  watchdog();acknowledge();await pending;
  assert.equal(charged,0);assert.equal(closed,1);assert.equal(gate.closed,true);
 });
+
+test("admission uses signed HTTPS and only trusts Django identity",async()=>{
+ const {createAdmissionClient,joinPath}=await import("./lease-client.mjs");
+ const {createHmac}=await import("node:crypto");
+ const secret="x".repeat(40),sessionId="12345678-1234-1234-1234-123456789abc";
+ const admit=createAdmissionClient({origin:"https://example.test",secret,fetcher:async(url,opts)=>{
+  assert.equal(url.pathname,joinPath);assert.equal(opts.redirect,"error");
+  assert.deepEqual(JSON.parse(opts.body),{ticket:"opaque-ticket"});
+  const h=opts.headers;
+  assert.equal(h["X-NKATA-Media-Signature"],createHmac("sha256",secret)
+   .update("POST\n"+joinPath+"\n"+h["X-NKATA-Media-Time"]+"\n"+h["X-NKATA-Media-Nonce"]+"\n"+opts.body).digest("hex"));
+  return {ok:true,json:async()=>({authorized:true,session_id:sessionId,user_id:7,kind:"AUDIO"})};
+ }});
+ assert.deepEqual(await admit("opaque-ticket"),{sessionId,userId:7,kind:"AUDIO"});
+ assert.equal(await admit({ticket:"opaque-ticket",userId:99}),null);
+});
+test("admission rejects denied and invalid gateway responses",async()=>{
+ const {createAdmissionClient}=await import("./lease-client.mjs");
+ const config={origin:"https://example.test",secret:"x".repeat(40)};
+ assert.equal(await createAdmissionClient({...config,fetcher:async()=>({ok:false})})("ticket"),null);
+ assert.equal(await createAdmissionClient({...config,fetcher:async()=>({ok:true,json:async()=>({authorized:true,session_id:"bad",user_id:7,kind:"AUDIO"})})})("ticket"),null);
+ assert.throws(()=>createAdmissionClient({...config,origin:"http://example.test"}));
+});
