@@ -49,9 +49,18 @@ export class LeaseGate{
     if(!this.connected()){await this.stop();return;}
     if(this.watchdog&&this.armedDeadline){await this.watchdog.clear(this.sessionId,this.armedDeadline);this.armedDeadline=0;}
    }
+   // Never start a revalidation too close to the pause/debit boundary.
+   // A timer may fire a few milliseconds early; wait until the boundary
+   // instead of letting the in-flight request consume the remaining lease.
+   const boundary=this.deadline-(this.watchdog&&!this.pausedEarly?750:0);
+   if(!expired&&(this.pausedEarly||boundary-this.clock()<=2200)){
+    this.cancel(this.timer);
+    this.timer=this.schedule(()=>{void this.tick().catch(()=>this.stop());},Math.max(1,boundary-this.clock()));
+    return;
+   }
    const index=this.minute+(expired?1:0);
    // At the deadline pause regardless of a slow in-flight permission check.
-   const guard=!expired?this.schedule(()=>{void this.stop();},Math.max(0,this.deadline-this.clock())):null;
+   const guard=!expired?this.schedule(()=>{void this.stop();},Math.max(0,boundary-this.clock())):null;
    let deadline;
    if(expired)this.pendingUnstarted=index;
    try{deadline=await this.authorize({sessionId:this.sessionId,userIds:this.userIds,minute:index});}
