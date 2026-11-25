@@ -111,3 +111,45 @@ class MediaGatewayTests(TestCase):
         self.assertEqual(self.redeem(token).status_code,200)
         self.assertEqual(self.signed().status_code,200)
         self.assertEqual(credit_balance(self.a.usuario),6)
+
+
+    def ice(self, user):
+        self.client.force_login(user)
+        return self.client.post(f"/api/chats/chamadas/{self.call.pk}/ice/", secure=True)
+
+    @override_settings(NKATA_WEBRTC_TURN_URLS=["turn:relay.example.test:3478?transport=udp",
+        "turns:relay.example.test:5349?transport=tcp"],
+        NKATA_WEBRTC_TURN_SHARED_SECRET="relay-only-"+"x"*40)
+    def test_ice_credentials_require_participation_and_expire(self):
+        import base64
+        outsider=profile(82)
+        self.assertEqual(self.ice(outsider.usuario).status_code,404)
+        with patch("entradas.webrtc_credentials.time.time",return_value=1000000):
+            response=self.ice(self.a.usuario)
+        self.assertEqual(response.status_code,200,response.content)
+        self.assertEqual(response["Cache-Control"],"no-store")
+        result=response.json()
+        turn=result["ice_servers"][-1]
+        expected_expiry=1000000+3*60+300
+        self.assertEqual(result["expires_at"],expected_expiry)
+        self.assertEqual(turn["username"],f"{expected_expiry}:{self.call.pk}:{self.a.usuario_id}")
+        expected=base64.b64encode(hmac.new(("relay-only-"+"x"*40).encode(),
+                            turn["username"].encode(),hashlib.sha1).digest()).decode()
+        self.assertEqual(turn["credential"],expected)
+        self.assertNotIn("relay-only-",response.content.decode())
+        self.assertEqual(credit_balance(self.a.usuario),9)
+
+    @override_settings(NKATA_WEBRTC_TURN_URLS=["turns:relay.example.test:5349?transport=tcp"],
+        NKATA_WEBRTC_TURN_SHARED_SECRET="",NKATA_WEBRTC_TURN_USERNAME="fixed",
+        NKATA_WEBRTC_TURN_CREDENTIAL="fixed-password")
+    def test_native_ice_never_falls_back_to_static_credentials(self):
+        self.assertEqual(self.ice(self.a.usuario).status_code,503)
+        with self.settings(NKATA_MEDIA_GATEWAY_TEST_ENABLED=False):
+            self.assertEqual(self.ice(self.a.usuario).status_code,404)
+
+    @override_settings(NKATA_WEBRTC_TURN_URLS=["turns:relay.example.test:5349?transport=tcp"],
+        NKATA_WEBRTC_TURN_SHARED_SECRET="relay-only-"+"x"*40)
+    def test_ice_denied_after_call_ends(self):
+        from .native_call_service import end_call
+        end_call(self.call.pk,actor_id=self.b.usuario_id)
+        self.assertEqual(self.ice(self.a.usuario).status_code,404)
