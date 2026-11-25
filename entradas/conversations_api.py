@@ -428,7 +428,7 @@ def send_message(request, chat, me, other, thread):
         raise ValidationError({"detail": "A mensagem original está indisponível."})
     message = MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, resposta_a_id=reply,
                                            remetente=request.user, texto=text, tipo=chat_message_type(request.user, text))
-    if not chat.match_origem_id:
+    if credit_only_enabled() or not chat.match_origem_id:
         notify(other, me, "MENSAGEM", f"chat-msg:{chat.pk}", "Nova mensagem",
                f"{me.nome_publico} enviou-lhe uma mensagem.")
     return Response({"id": message.pk}, status=201)
@@ -437,7 +437,7 @@ def send_message(request, chat, me, other, thread):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def chat_signal(request, conversation_id):
-    chat, me, other = accessible_thread(request, conversation_id)
+    chat, me, other = writable_thread(request, conversation_id)
     return send_signal(request.user, me, other, request.data.get("tipo", ""), conversation_id=chat.pk, expected_cost=request.data.get("expected_cost"))
 
 
@@ -446,7 +446,7 @@ def chat_signal(request, conversation_id):
 @transaction.atomic
 def unlock_text(request, conversation_id):
     chat, me, other = writable_thread(request, conversation_id)
-    other, _ = lock_pair(me, other.pk)
+    other, _ = lock_pair(me, other.pk, for_send=True)
     get_user_model().objects.select_for_update().get(pk=request.user.pk)
     if chat.match_origem_id:
         MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
@@ -469,7 +469,7 @@ def icebreaker_remaining(user):
 @transaction.atomic
 def icebreaker(request, conversation_id):
     chat, me, other = writable_thread(request, conversation_id)
-    other, _ = lock_pair(me, other.pk)
+    other, _ = lock_pair(me, other.pk, for_send=True)
     get_user_model().objects.select_for_update().get(pk=request.user.pk)
     if chat.match_origem_id:
         MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
@@ -484,7 +484,7 @@ def icebreaker(request, conversation_id):
         return Response({"detail": "Já enviou esta pergunta hoje nesta conversa."}, status=409)
     message = MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, remetente=request.user,
                                          tipo="QUEBRA_GELO", texto=ICEBREAKERS[code])
-    if not chat.match_origem_id:
+    if credit_only_enabled() or not chat.match_origem_id:
         notify(other, me, "MENSAGEM", f"chat-msg:{chat.pk}", "Quebra-gelo",
                f"{me.nome_publico} enviou-lhe uma pergunta.")
     return Response({"id": message.pk, "restantes": icebreaker_remaining(request.user)}, status=201)
