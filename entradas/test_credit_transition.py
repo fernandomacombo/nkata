@@ -161,3 +161,30 @@ class CreditTransitionTests(TestCase):
         self.assertEqual(legacy_audit()["legacy_payment_blockers"],0)
         PedidoPagamentoNKATA.objects.create(usuario=self.member,chave=uuid4(),referencia="OLDPENDING",produto="QUINZENAL",valor=100,estado="PENDENTE")
         self.assertEqual(legacy_audit()["legacy_payment_blockers"],1)
+
+
+    @override_settings(NKATA_CREDIT_ONLY_ENABLED=True, NKATA_CREDIT_TRANSITION_ENABLED=True)
+    def test_existing_members_backfill_with_clear_pending_identity_status(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
+        from .account_limits import document_key
+        from .wallet_service import welcome_status, record_movement
+        now=timezone.now()
+        AcessoPlanoNKATA.objects.create(usuario=self.member,plano="QUINZENAL",inicio=now,fim=now+timedelta(days=14),origem="ADMINISTRATIVA")
+        record_movement(self.member,key="simulated:example",kind="RECARGA",amount=50,reference="example",reason="Recarga simulada")
+        self.assertEqual(welcome_status(self.member)["blocker"],"IDENTITY_REQUIRED")
+        call_command("reconciliar_bonus_creditos","--apply",stdout=StringIO())
+        self.assertEqual(credit_balance(self.member),50)
+        pedido=self.member.perfil_nkata.pedido
+        pedido.documento_chave=document_key("123456789015A")
+        pedido.documento_confirmado=True
+        pedido.verificacao_apos_entrada=True
+        pedido.save(update_fields=["documento_chave","documento_confirmado","verificacao_apos_entrada"])
+        VerificacaoIdentidadeNKATA.objects.create(pedido=pedido,email_hash="d"*64,
+            idade_declarada=30,desafio_selfie="teste",status="APROVADA",expira_em=nkata_id_expires_at())
+        for _ in range(2):
+            call_command("reconciliar_bonus_creditos","--apply",stdout=StringIO())
+            self.assertEqual(credit_balance(self.member),100)
+        self.assertTrue(welcome_status(self.member)["converted"])
+        self.assertFalse(welcome_status(self.member)["claimable"])

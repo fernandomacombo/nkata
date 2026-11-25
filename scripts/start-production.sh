@@ -19,6 +19,11 @@ fi
 
 python manage.py migrate --noinput
 python manage.py check_nkata_runtime
+# Credit cutover: reconcile existing eligible members before serving requests.
+# Both operations are idempotent and preserve the unique identity boundary.
+if [ "${NKATA_CREDIT_ONLY_ENABLED:-False}" = "True" ] || [ "${NKATA_CREDIT_ONLY_ENABLED:-false}" = "true" ] || [ "${NKATA_CREDIT_ONLY_ENABLED:-0}" = "1" ]; then
+  python manage.py reconciliar_bonus_creditos --apply
+fi
 python manage.py collectstatic --noinput
 
 # Run with the web service's existing database and email configuration.

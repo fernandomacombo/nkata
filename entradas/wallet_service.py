@@ -56,14 +56,22 @@ def record_movement(user, *, key, kind, amount, reference, reason):
     return movement
 
 
-def welcome_eligible(profile):
+def welcome_blocker(profile):
     if not profile or profile.status != "ATIVO" or not profile.usuario_id:
-        return False
+        return "ACCOUNT_INACTIVE"
     user, pedido = profile.usuario, profile.pedido
+    if not user.is_active or user.is_staff or user.is_superuser or not user.has_usable_password():
+        return "ACCOUNT_INACTIVE"
+    if pedido.status != "APROVADO" or getattr(pedido, "identidade_revogada", False):
+        return "IDENTITY_REQUIRED"
     verification = getattr(pedido, "verificacao_identidade", None)
-    return bool(user.is_active and not user.is_staff and not user.is_superuser and user.has_usable_password()
-                and pedido.status == "APROVADO" and pedido.documento_chave and pedido.documento_confirmado
-                and verification and verification.status == "APROVADA" and pedido_tem_identidade_verificada(pedido))
+    if not pedido.documento_chave or not pedido.documento_confirmado or not verification or verification.status != "APROVADA" or not pedido_tem_identidade_verificada(pedido):
+        return "IDENTITY_REQUIRED"
+    return None
+
+
+def welcome_eligible(profile):
+    return welcome_blocker(profile) is None
 
 
 @transaction.atomic
@@ -104,8 +112,12 @@ def welcome_status(user):
     promotional = convertible_quinzenal(user.pk).exists()
     granted = MovimentoCreditoNKATA.objects.filter(carteira__usuario=user, chave="welcome:v1").exists()
     converted = MovimentoCreditoNKATA.objects.filter(carteira__usuario=user, chave="welcome:launch:v1").exists()
-    eligible = welcome_eligible(profile)
-    return {"enabled": settings.NKATA_CREDIT_TRANSITION_ENABLED, "eligible": eligible,
+    blocker = welcome_blocker(profile)
+    eligible = blocker is None
+    if eligible and not granted and BonusIdentidadeCreditoNKATA.objects.filter(documento_chave=profile.pedido.documento_chave).exists():
+        eligible = False
+        blocker = "IDENTITY_ALREADY_AWARDED"
+    return {"enabled": settings.NKATA_CREDIT_TRANSITION_ENABLED, "eligible": eligible, "blocker": blocker,
             "claimable": settings.NKATA_CREDIT_TRANSITION_ENABLED and eligible and (not granted or promotional),
             "granted": granted, "converted": converted,
             "credits": LAUNCH_CONVERSION_CREDITS if promotional or converted else WELCOME_CREDITS}

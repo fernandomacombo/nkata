@@ -2,7 +2,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from entradas.models import PerfilNKATA, MovimentoCreditoNKATA, BonusIdentidadeCreditoNKATA, AcessoPlanoNKATA
-from entradas.wallet_service import welcome_eligible, grant_welcome_credits, WalletError
+from entradas.wallet_service import welcome_eligible, welcome_blocker, grant_welcome_credits, WalletError
 from entradas.legacy_commercial import convertible_quinzenal
 
 
@@ -16,12 +16,12 @@ class Command(BaseCommand):
         apply = options["apply"]
         if apply and not settings.NKATA_CREDIT_TRANSITION_ENABLED:
             raise CommandError("A transição de créditos está desativada.")
-        eligible = existing = granted = review = 0
-        profiles = PerfilNKATA.objects.filter(status="ATIVO", usuario__isnull=False,
-            pedido__documento_confirmado=True, pedido__verificacao_identidade__status="APROVADA"
-        ).select_related("usuario", "pedido", "pedido__verificacao_identidade")
+        eligible = existing = granted = review = identity_pending = 0
+        profiles = PerfilNKATA.objects.filter(status="ATIVO", usuario__isnull=False).select_related("usuario", "pedido", "pedido__verificacao_identidade")
         for profile in profiles.iterator(chunk_size=200):
             if not welcome_eligible(profile):
+                if welcome_blocker(profile) == "IDENTITY_REQUIRED":
+                    identity_pending += 1
                 continue
             granted_before = MovimentoCreditoNKATA.objects.filter(carteira__usuario_id=profile.usuario_id, chave="welcome:v1").exists()
             promotional = convertible_quinzenal(profile.usuario_id).exists()
@@ -38,4 +38,4 @@ class Command(BaseCommand):
                     granted += 1
                 except WalletError:
                     review += 1
-        self.stdout.write(f"Modo: {'aplicar' if apply else 'simulação'}; elegíveis: {eligible}; já atribuídos: {existing}; processados: {granted}; revisão: {review}.")
+        self.stdout.write(f"Modo: {'aplicar' if apply else 'simulação'}; elegíveis: {eligible}; já atribuídos: {existing}; processados: {granted}; revisão: {review}; identidade pendente: {identity_pending}.")
