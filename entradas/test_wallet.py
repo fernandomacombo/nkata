@@ -123,3 +123,13 @@ class WalletTests(TestCase):
             self.assertEqual(first.json()["id"], retry.json()["id"])
             self.assertEqual(wallet_snapshot(self.a)["saldo"], 48)
             self.assertEqual(MensagemAudioMatchNKATA.objects.filter(match=match).count(), 1)
+
+
+    def test_inconsistent_wallet_rejects_new_debits_and_credits(self):
+        self.move()
+        CarteiraNKATA.objects.filter(usuario=self.a).update(saldo=100)
+        for key, amount, kind in (("signal:1", -2, "CONSUMO"), ("pay:2", 50, "RECARGA")):
+            with self.assertRaises(WalletError):
+                self.move(key, amount, kind)
+        self.assertEqual(CarteiraNKATA.objects.get(usuario=self.a).saldo, 100)
+        self.assertEqual(MovimentoCreditoNKATA.objects.count(), 1)

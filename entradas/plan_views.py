@@ -31,7 +31,7 @@ def api_plano_da_conta(request):
     transition = settings.NKATA_CREDIT_TRANSITION_ENABLED
     legacy_enabled = enabled and not transition
 
-    return Response({
+    response = Response({
         "current_plan": {
             **plan,
             "is_launch_bonus": bool(access and access.origem == "PROMO_LANCAMENTO"),
@@ -61,3 +61,6 @@ def api_plano_da_conta(request):
             "Os pagamentos ainda não estão disponíveis."
         ),
     })
+
+    response["Cache-Control"] = "private, no-store"
+    return response

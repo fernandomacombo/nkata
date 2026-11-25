@@ -116,7 +116,7 @@ def start_checkout(user, product, key):
         if product in CREDIT_PRODUCTS and not credit_checkout_enabled(user):
             raise PaymentError("A compra de créditos ainda não está disponível para esta conta.", 403)
         profile = getattr(user, "perfil_nkata", None)
-        if not profile or profile.status != "ATIVO":
+        if not user.is_active or user.is_staff or user.is_superuser or not profile or profile.status != "ATIVO":
             raise PaymentError("É necessário um perfil ativo para comprar.", 403)
         if PedidoPagamentoNKATA.objects.filter(usuario=user, estado__in=OPEN_STATES).exists():
             raise PaymentError("Já existe um pagamento por confirmar. Consulte o histórico.", 409)

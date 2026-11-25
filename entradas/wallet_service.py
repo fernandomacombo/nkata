@@ -33,6 +33,11 @@ def record_movement(user, *, key, kind, amount, reference, reason):
         raise WalletError("Uma conta administrativa não possui carteira de membro.")
     wallet, _ = CarteiraNKATA.objects.get_or_create(usuario=locked_user)
     wallet = CarteiraNKATA.objects.select_for_update().get(pk=wallet.pk)
+    # A discrepancy must be investigated, never absorbed into a new debit.
+    total = wallet.movimentos.aggregate(total=Sum("quantidade"))["total"] or 0
+    tail = wallet.movimentos.values_list("saldo_apos", flat=True).first()
+    if wallet.saldo != total or wallet.saldo != (tail if tail is not None else 0):
+        raise WalletError("Carteira em revisão. Contacte a equipa NKATA.")
     previous = wallet.movimentos.filter(chave=key).first()
     if previous:
         if (previous.tipo, previous.quantidade, previous.referencia, previous.motivo) != (kind, amount, reference, reason):

@@ -12,4 +12,6 @@ from .wallet_service import wallet_snapshot
 def wallet(request):
     if not member_profile_for_user(request.user):
         return Response({"detail": "Carteira indisponível."}, status=403)
-    return Response({**wallet_snapshot(request.user), "catalogo": credit_catalog(purchase_enabled=credit_checkout_enabled(request.user))})
+    response = Response({**wallet_snapshot(request.user), "catalogo": credit_catalog(purchase_enabled=credit_checkout_enabled(request.user))})
+    response["Cache-Control"] = "private, no-store"
+    return response
