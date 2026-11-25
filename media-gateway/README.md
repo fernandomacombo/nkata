@@ -27,3 +27,12 @@ Documentação: https://mediasoup.org/documentation/v3/communication-between-cli
 - O username inclui expiração, sessão e utilizador; a validade cobre o limite máximo acordado mais cinco minutos. TURN não interpreta a sessão NKATA nem revoga automaticamente alocações activas quando a chamada termina. O SFU deve fechar o transporte; o relay deve restringir destinos, quotas e tráfego.
 - O ficheiro coturn.staging.conf.example é um modelo não executável até substituir os marcadores e validar a versão instalada. Restringir egress exclusivamente ao IP/porta do SFU de staging, incluindo IPv6; não expor redes internas. TLS válido e sincronização NTP obrigatórios.
 - Testar UDP e TURN/TLS TCP, incluindo iceTransportPolicy=relay no cliente de testes. Verificar os pares ICE seleccionados, áudio/vídeo, desconexão e fim de saldo. Nenhum servidor TURN foi instalado nesta etapa.
+
+
+## Validação nativa automatizada
+O job media-native instala mediasoup, ws e mediasoup-client num runner isolado,
+audita dependências e testa pacotes RTP sintéticos no worker C++.
+O teste exige recepção em ambos os sentidos somente após autorização e fecho
+dos consumidores quando a renovação é negada. Não usa contas nem dinheiro reais.
+Ainda é necessário gerar/rever e versionar o lockfile, testar browsers com ICE/DTLS/TURN
+reais e confirmar o watchdog independente; a passagem deste teste não autoriza deploy.
