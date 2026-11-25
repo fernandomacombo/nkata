@@ -47,3 +47,34 @@ class CreditTransitionTests(TestCase):
         with self.assertRaises(WalletError):
             grant_welcome_credits(self.member)
         self.assertEqual(credit_balance(self.member), 0)
+
+
+    @override_settings(NKATA_CREDIT_TRANSITION_ENABLED=True)
+    def test_approved_identity_receives_bonus_once(self):
+        from entradas.identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
+        from entradas.models import BonusIdentidadeCreditoNKATA
+        from entradas.account_limits import document_key
+        pedido = self.member.perfil_nkata.pedido
+        pedido.documento_chave = document_key("123456789012A")
+        pedido.documento_confirmado = True
+        pedido.verificacao_apos_entrada = True
+        with self.captureOnCommitCallbacks(execute=True):
+            pedido.save(update_fields=["documento_chave", "documento_confirmado", "verificacao_apos_entrada"])
+            verification = VerificacaoIdentidadeNKATA.objects.create(pedido=pedido, email_hash="a"*64,
+                idade_declarada=30, desafio_selfie="teste", status="APROVADA", expira_em=nkata_id_expires_at())
+        self.assertEqual(credit_balance(self.member), 5)
+        with self.captureOnCommitCallbacks(execute=True):
+            verification.save(update_fields=["status"])
+        grant_welcome_credits(self.member)
+        self.assertEqual(credit_balance(self.member), 5)
+        self.assertEqual(BonusIdentidadeCreditoNKATA.objects.count(), 1)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(tipo="BONUS").count(), 1)
+        with self.captureOnCommitCallbacks(execute=True):
+            verification.status = "REJEITADA"
+            verification.save(update_fields=["status"])
+        with self.assertRaises(WalletError):
+            grant_welcome_credits(self.member)
+        self.assertEqual(credit_balance(self.member), 5)
+        output = StringIO()
+        call_command("reconciliar_bonus_creditos", "--apply", stdout=output)
+        self.assertEqual(credit_balance(self.member), 5)
