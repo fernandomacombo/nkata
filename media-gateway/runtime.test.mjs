@@ -8,6 +8,8 @@ test("runtime refuses production, unsafe origin and missing explicit staging fla
  assert.throws(()=>readConfig({...env,NKATA_STAGING_API_ORIGIN:"https://nkata.date"}));
  assert.throws(()=>readConfig({...env,NKATA_STAGING_WEB_ORIGIN:"http://stage.example.test"}));
  assert.throws(()=>readConfig({...env,NKATA_MEDIA_ANNOUNCED_IP:"127.0.0.1"}));
+ assert.throws(()=>readConfig({...env,NKATA_MEDIA_ANNOUNCED_IP:"127.0.0.2"}));
+ assert.throws(()=>readConfig({...env,NKATA_MEDIA_ANNOUNCED_IP:"2001:db8::1"}));
 });
 test("each producer needs increasing inbound RTP counters",async()=>{
  const p=(increment)=>{let n=0;return {getStats:async()=>[{type:"inbound-rtp",packetCount:n+=increment}]};};
