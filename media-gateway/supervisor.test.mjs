@@ -33,3 +33,18 @@ test("independent supervisor kills blocked controller and its descendant",{skip:
   assert.equal(gone,true,"descendant must be terminated, not left forwarding");
  }finally{supervisor?.stop();await rm(dir,{recursive:true,force:true});}
 });
+
+
+test("financial deadline kills a responsive child with an uncleared lease",{skip:process.platform!=="linux",timeout:10000},async()=>{
+ const dir=await mkdtemp(join(tmpdir(),"nkata-lease-"));
+ let supervisor;
+ try{
+  const script=join(dir,"lease.cjs");
+  await writeFile(script,`
+   setInterval(()=>process.send({type:"media-heartbeat"}),100);
+   process.send({type:"lease-arm",sessionId:"test",deadline:Date.now()+1500,requestId:"req"});
+  `);
+  supervisor=supervise(script,{startupMs:5000,timeoutMs:1000,intervalMs:30});
+  assert.equal(await supervisor.done,"lease-deadline");
+ }finally{supervisor?.stop();await rm(dir,{recursive:true,force:true});}
+});
