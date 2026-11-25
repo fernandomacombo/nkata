@@ -351,8 +351,39 @@ class WalletTests(TestCase):
             response=self.client.get(media)
             self.assertEqual(response.status_code,200)
             self.assertIn("no-store",response["Cache-Control"])
-            response.close()
+            # Consume the streaming response through Django’s test-client wrapper,
+            # which preserves the test transaction when request_finished fires.
+            self.assertTrue(b"".join(response.streaming_content).startswith(b"RIFF"))
             self.client.force_login(self.a)
             self.assertEqual(self.client.delete(root+f"mensagens/{mid}/").status_code,204)
             self.assertEqual(self.client.get(media).status_code,404)
             self.assertEqual(wallet_snapshot(self.a)["saldo"],0)
+
+
+    def test_native_voice_storage_failure_rolls_back_and_can_retry_same_key(self):
+        import tempfile
+        from uuid import uuid4
+        from unittest.mock import patch
+        from django.test import override_settings
+        from django.db import DatabaseError
+        from .test_voice_note_validation import wav_note
+        from .models import Conversa, NotaVozConversaNKATA, MensagemMatch
+        chat=Conversa.objects.create(perfil_1=self.a.perfil_nkata,perfil_2=self.b.perfil_nkata)
+        self.move(amount=2)
+        self.client.force_login(self.a)
+        key=str(uuid4())
+        url=f"/api/chats/{chat.pk}/audio/"
+        def send():
+            return self.client.post(url,{"audio":wav_note(2),"duracao_segundos":"2","key":key,"expected_cost":"2"})
+        with tempfile.TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory,NKATA_CREDIT_SPENDING_ENABLED=True,NKATA_CREDIT_ONLY_ENABLED=True,NKATA_CREDIT_TRANSITION_ENABLED=True):
+            with patch("django.db.models.fields.files.FieldFile.save",side_effect=RuntimeError("simulated object storage error")):
+                self.assertEqual(send().status_code,503)
+            with patch("entradas.native_voice_api.NotaVozConversaNKATA.save",side_effect=DatabaseError("simulated database failure")):
+                self.assertEqual(send().status_code,503)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],2)
+            self.assertFalse(NotaVozConversaNKATA.objects.exists())
+            self.assertFalse(MensagemMatch.objects.filter(conversa=chat).exists())
+            self.assertFalse(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.a,tipo="CONSUMO").exists())
+            self.assertEqual(send().status_code,201)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],0)
+            self.assertEqual(send().status_code,200)

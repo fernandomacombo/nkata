@@ -22,7 +22,7 @@ export default function VoiceRecorder({conversationId,offer,onSent}){
    s.recorder.onstop=()=>{release(s);if(!alive.current||s.cancelled)return;const mime=s.recorder.mimeType||type||"audio/webm";const blob=new Blob(s.chunks,{type:mime});if(!blob.size){setError("Gravação vazia.");setState("idle");return;}const url=URL.createObjectURL(blob);preview.current=url;setDraft({blob,url,seconds:Math.max(1,Math.min(180,Math.round((Date.now()-s.start)/1000))),key:crypto.randomUUID()});setState("ready");};
    s.start=Date.now();s.recorder.start();setSeconds(0);setState("recording");
    s.timer=setInterval(()=>{const elapsed=Math.floor((Date.now()-s.start)/1000);setSeconds(Math.min(180,elapsed));if(elapsed>=180&&s.recorder.state==="recording")s.recorder.stop();},250);
-  }catch(e){release(s);if(alive.current){setError(e.message||"Não foi possível aceder ao microfone.");setState("idle");}}
+  }catch(e){release(s);if(alive.current&&!s.cancelled){setError(e.message||"Não foi possível aceder ao microfone.");setState("idle");}}
   finally{busy.current=false;}
  }
  function clear(){if(preview.current)URL.revokeObjectURL(preview.current);preview.current=null;setDraft(null);setState("idle");setSeconds(0);}

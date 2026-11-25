@@ -19,6 +19,10 @@ from .wallet_service import credit_spending_enabled, credit_balance, record_move
 logger = logging.getLogger(__name__)
 
 
+class VoiceStorageError(Exception):
+    pass
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def send_voice(request, conversation_id):
@@ -59,6 +63,7 @@ def send_voice(request, conversation_id):
     except AudioDecoderUnavailable as error:
         return Response({"detail":str(error)},status=503)
     note = None
+    stored = False
     try:
         with transaction.atomic():
             other,_ = lock_pair(me,other.pk)
@@ -75,19 +80,25 @@ def send_voice(request, conversation_id):
                 reference=f"conversa:{chat.pk}",reason="Nota de voz")
             message = MensagemMatch.objects.create(conversa=chat,match=chat.match_origem,remetente=user,tipo="AUDIO",texto="")
             note = NotaVozConversaNKATA(mensagem=message,movimento=movement,duracao_segundos=duration)
-            note.audio.save(audio.name,audio,save=False)
+            try:
+                note.audio.save(audio.name,audio,save=False)
+                stored = True
+            except Exception as error:
+                # Private storage can raise provider-specific errors (e.g. S3).
+                # Roll back the ledger and message for any storage failure.
+                raise VoiceStorageError() from error
             note.save()
             notify(other,me,"MENSAGEM",f"chat-msg:{chat.pk}","Nova nota de voz",f"{me.nome_publico} enviou-lhe uma nota de voz.")
-        return Response(MensagemMatchSerializer(message,context={"request":request}).data,status=201)
     except WalletError as error:
         return Response({"detail":str(error)},status=409)
-    except (DatabaseError,OSError):
-        if note and note.audio and note.audio.name:
+    except (DatabaseError,OSError,VoiceStorageError):
+        if stored and note and note.audio and note.audio.name:
             try:
                 note.audio.storage.delete(note.audio.name)
             except Exception:
                 logger.exception("Falha ao limpar áudio não confirmado.")
         return Response({"detail":"Não foi possível guardar a nota de voz. Nenhum débito foi confirmado."},status=503)
+    return Response(MensagemMatchSerializer(message,context={"request":request}).data,status=201)
 
 
 @api_view(["GET"])
