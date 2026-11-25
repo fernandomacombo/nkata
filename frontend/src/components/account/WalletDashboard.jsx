@@ -4,7 +4,7 @@ import { fetchWalletStatement, downloadWalletStatement } from "../../services/pl
 
 const labels = { RECARGA:["Recarga","Top-up"], BONUS:["Bónus","Bonus"], CONSUMO:["Consumo","Spending"], ESTORNO:["Estorno","Refund"], AJUSTE:["Ajuste","Adjustment"] };
 const categoryEN = { signals:"Signals", text:"Text chat", voice:"Voice notes", audio:"Audio calls", video:"Video calls", other:"Other spending" };
-export default function WalletDashboard({english, refreshKey, onRecharge}) {
+export default function WalletDashboard({english, simulation=false, refreshKey, onRecharge}) {
   const t = (pt,en) => english ? en : pt;
   const locale = english ? "en-GB" : "pt-MZ";
   const fmt = value => Number(value || 0).toLocaleString(locale);
@@ -53,8 +53,9 @@ export default function WalletDashboard({english, refreshKey, onRecharge}) {
     {error && <p role="alert">{error}</p>}
     {data && <>
       <div className="nk-wallet-stat-grid">
-        {[[WalletCards,t("Saldo atual","Current balance"),data.balance],[ArrowUpRight,t("Créditos utilizados","Credits spent"),summary.spent],[CreditCard,t("Créditos comprados","Purchased credits"),summary.recharged],[Gift,t("Bónus recebidos","Bonuses received"),summary.bonus],[ArrowDownLeft,t("Créditos devolvidos","Refunded credits"),summary.refunded]].map(([Icon,label,value])=><article key={label}><Icon size={18}/><small>{label}</small><strong>{fmt(value)}</strong></article>)}
+        {[[WalletCards,t("Saldo atual","Current balance"),data.balance],[ArrowUpRight,t("Créditos utilizados","Credits spent"),summary.spent],[CreditCard,t("Créditos comprados","Purchased credits"),summary.recharged],[Gift,t("Bónus recebidos","Bonuses received"),summary.bonus],[ArrowDownLeft,t("Créditos devolvidos","Refunded credits"),summary.refunded],...(simulation||summary.simulated_recharged ? [[CreditCard,t("Recargas de teste","Test top-ups"),summary.simulated_recharged]] : [])].map(([Icon,label,value])=><article key={label}><Icon size={18}/><small>{label}</small><strong>{fmt(value)}</strong></article>)}
       </div>
+      {simulation && <small role="status">{t("Ambiente de teste. As recargas simuladas não correspondem a compras reais.","Test environment. Simulated top-ups are not real purchases.")}</small>}
       <small>{t("O saldo é atual. Os restantes valores referem-se ao período seleccionado, em créditos, não em meticais.","Balance is current. Other totals are for the selected period, in credits, not money.")}</small>
       {data.chat_expires_at && <p>{t("Texto livre ativo até","Text chat active until")} {new Date(data.chat_expires_at).toLocaleString(locale)}</p>}
       <button className="nk-wallet-dashboard__recharge" type="button" onClick={onRecharge}>{t("Ver pacotes de recarga","View top-up packs")}</button>

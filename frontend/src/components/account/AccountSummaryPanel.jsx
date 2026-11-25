@@ -151,7 +151,7 @@ export default function AccountSummaryPanel({ language = "PT", onOpenSection }) 
 
       <footer className="nk-account-summary__actions">
         <button type="button" onClick={() => onOpenSection("profile")}>{english ? "Edit profile" : "Editar perfil"}</button>
-        <button type="button" onClick={() => onOpenSection("plan")}>{english ? "View plan" : "Ver plano"}</button>
+        <button type="button" onClick={() => onOpenSection("plan")}>{english ? "View wallet" : "Ver carteira"}</button>
       </footer>
     </section>
   );

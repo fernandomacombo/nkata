@@ -27,7 +27,7 @@ def member_statement(user, *, period="30", kind="ALL", before=0, export=False):
         raise ValueError("Invalid filter")
     now = timezone.now()
     start = now - timedelta(days=PERIODS[period]) if PERIODS[period] else None
-    summary = {"received": 0, "spent": 0, "recharged": 0, "bonus": 0, "refunded": 0, "adjustments": 0}
+    summary = {"received": 0, "spent": 0, "recharged": 0, "simulated_recharged": 0, "bonus": 0, "refunded": 0, "adjustments": 0}
     result = {"balance": 0, "period": period, "from": start, "as_of": now, "summary": summary,
               "breakdown": [{"code": code, "label": label, "credits": 0, "count": 0} for code, label in CATEGORIES],
               "results": [], "next_before": None, "chat_expires_at": None}
@@ -47,7 +47,8 @@ def member_statement(user, *, period="30", kind="ALL", before=0, export=False):
     totals = rows.aggregate(
         received=Sum("quantidade", filter=Q(quantidade__gt=0)),
         spent=Sum("quantidade", filter=Q(quantidade__lt=0)),
-        recharged=Sum("quantidade", filter=Q(tipo="RECARGA")),
+        recharged=Sum("quantidade", filter=Q(tipo="RECARGA") & ~Q(chave__startswith="simulated:")),
+        simulated_recharged=Sum("quantidade", filter=Q(tipo="RECARGA", chave__startswith="simulated:")),
         bonus=Sum("quantidade", filter=Q(tipo="BONUS")),
         refunded=Sum("quantidade", filter=Q(tipo="ESTORNO")),
         adjustments=Sum("quantidade", filter=Q(tipo="AJUSTE")),

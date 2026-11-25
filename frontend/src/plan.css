@@ -459,3 +459,18 @@
 .nk-wallet-statement__amount { text-align:right; font-variant-numeric:tabular-nums; }
 .nk-wallet-statement__amount .is-positive { color:#287252; }
 .nk-wallet-statement__amount .is-negative { color:#7d2638; }
+
+.nk-wallet-welcome { display:flex; align-items:center; flex-wrap:wrap; gap:12px; border:1px solid #eadde0; border-radius:12px; background:#fcf8f8; padding:14px; margin:12px 0; }
+.nk-wallet-welcome__icon { display:grid; place-items:center; flex:0 0 40px; height:40px; background:#f1e4e8; color:#7d2638; border-radius:12px; }
+.nk-wallet-welcome__copy { flex:1 1 160px; display:grid; gap:4px; min-width:0; }
+.nk-wallet-welcome__copy strong { color:#462b34; font-size:.9rem; }
+.nk-wallet-welcome__copy small { display:block; color:#74696d; font-size:.77rem; overflow-wrap:anywhere; }
+.nk-wallet-welcome__claim { border:0; border-radius:9px; background:#7d2638; color:#fff; padding:10px 14px; min-height:42px; cursor:pointer; font-weight:700; }
+.nk-wallet-welcome__claim:disabled { opacity:.6; }
+.nk-wallet-dashboard__recharge { display:flex; align-items:center; justify-content:center; gap:8px; min-height:42px; }
+.nk-wallet-packs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(min-width:1050px){ .nk-wallet-packs {grid-template-columns:repeat(4,minmax(0,1fr));} }
+@media(max-width:480px){ .nk-wallet-preview {padding:10px;} .nk-wallet-welcome__claim{width:100%;} .nk-wallet-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));} .nk-wallet-packs article{padding:10px;} }
+#nkata-payment-history {display:grid; gap:10px; min-width:0; }
+#nkata-payment-history h3 {color:#7d2638;font-weight:700;margin:0;}
+#nkata-payment-history .nk-plan-card small {overflow-wrap:anywhere;}

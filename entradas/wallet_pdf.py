@@ -51,7 +51,10 @@ def render_statement_pdf(data, *, kind, member_id):
         ("FONTNAME",(0,3),(-1,3),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),10),
         ("FONTSIZE",(0,1),(-1,1),16),("FONTSIZE",(0,3),(-1,3),16),
         ("TOPPADDING",(0,0),(-1,-1),8),("BOTTOMPADDING",(0,0),(-1,-1),8)]))
-    story += [table, Spacer(1,8),p("Saldo actual à data de emissão. Os totais abrangem todos os movimentos do período; o filtro aplica-se apenas ao extrato abaixo. Valores em créditos, não em meticais.",small),Spacer(1,15)]
+    story += [table, Spacer(1,8)]
+    if s.get("simulated_recharged"):
+        story += [p(f"Recargas simuladas: {number(s['simulated_recharged'])} créditos. Sem dinheiro real.", section), Spacer(1,5)]
+    story += [p("Saldo actual à data de emissão. Os totais abrangem todos os movimentos do período; o filtro aplica-se apenas ao extrato abaixo. Valores em créditos, não em meticais.",small),Spacer(1,15)]
     story += [p("Consumo por funcionalidade",section),Spacer(1,4)]
     for row in data["breakdown"]:
         if row["credits"]:

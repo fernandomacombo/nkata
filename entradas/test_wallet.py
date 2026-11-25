@@ -211,3 +211,14 @@ class WalletTests(TestCase):
         with patch("entradas.wallet_statement.EXPORT_LIMIT",1):
             response=self.client.get("/api/minha-conta/carteira/extrato.pdf",{"period":"ALL"})
         self.assertEqual(response.status_code,413)
+
+
+    def test_statement_distinguishes_simulated_credits_from_purchases(self):
+        self.move("real:1",100)
+        self.move("simulated:1",50)
+        self.client.force_login(self.a)
+        data=self.client.get("/api/minha-conta/carteira/movimentos/",{"period":"ALL"}).json()
+        self.assertEqual(data["balance"],150)
+        self.assertEqual(data["summary"]["recharged"],100)
+        self.assertEqual(data["summary"]["simulated_recharged"],50)
+        self.assertEqual(data["summary"]["received"],150)
