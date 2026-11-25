@@ -255,7 +255,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
         <div className="nk-chat-menu-wrap"><button className="nk-chat-icon" aria-label="Opções da conversa" aria-expanded={menu} type="button" onClick={() => setMenu(!menu)}><MoreVertical size={22} /></button>
           {menu && <div className="nk-chat-menu">
             {thread.perfil && <button type="button" onClick={() => { setMenu(false); onOpenProfile(thread.perfil); }}>Ver perfil</button>}
-            {thread.match_id && <button type="button" onClick={() => onLegacy(thread.match_id)}>Áudio, chamadas e histórico</button>}
+            {thread.match_id && <button type="button" onClick={() => onLegacy(thread.match_id)}>Histórico da conversa</button>}
             <button type="button" onClick={() => { setMenu(false); setSafetyMode("help"); }}>Golpes e ameaças</button>
             <button type="button" onClick={() => { setMenu(false); setSafetyError(""); setSafetyMode("report"); }}>Denunciar perfil</button>
             <button type="button" onClick={() => { setMenu(false); setSafetyError(""); setSafetyMode("block"); }}>Bloquear pessoa</button>
