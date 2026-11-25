@@ -134,11 +134,13 @@ export default function App() {
   } = useAppPreferences({ authenticated: memberAuthenticated, identity: sessionIdentity });
 
   const loadProfiles = useCallback(async ({ signal } = {}) => {
+    if (!memberAuthenticated) return;
     setLoading(true);
     setLoadError("");
 
     try {
       const apiProfiles = await fetchProfiles({ signal });
+      if (signal?.aborted) return;
       if (apiProfiles.length) {
         setProfiles(apiProfiles);
         setUsingDemoData(false);
@@ -155,7 +157,7 @@ export default function App() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [memberAuthenticated]);
 
   const loadMatches = useCallback(async ({ signal } = {}) => {
     if (!memberAuthenticated) return;
@@ -224,6 +226,13 @@ export default function App() {
 
   useEffect(() => {
     if (sessionLoading) return undefined;
+    if (!memberAuthenticated) {
+      setProfiles(demoProfiles);
+      setUsingDemoData(demoProfiles.length > 0);
+      setLoadError("");
+      setLoading(false);
+      return undefined;
+    }
 
     if (authenticated && session?.profile?.id) {
       setProfiles((current) => current.filter(
@@ -236,6 +245,7 @@ export default function App() {
     return () => controller.abort();
   }, [
     authenticated,
+    memberAuthenticated,
     loadProfiles,
     session?.profile?.id,
     sessionIdentity,
@@ -269,27 +279,42 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    loadNotifications({ signal: controller.signal });
-
-    const refresh = () => {
-      if (document.visibilityState === "visible") {
-        loadNotifications({ signal: controller.signal, silent: true });
+    let timer, busy = false, queued = false;
+    notificationVersions.current = null;
+    setNotifications([]);
+    async function refresh(initial = false) {
+      if (controller.signal.aborted || document.hidden) return;
+      if (busy) { queued = true; return; }
+      window.clearTimeout(timer);
+      busy = true;
+      try {
+        await loadNotifications({ signal: controller.signal, silent: !initial });
+      } finally {
+        busy = false;
+        if (!controller.signal.aborted && !document.hidden) {
+          if (queued) { queued = false; refresh(); }
+          else timer = window.setTimeout(refresh, 10000);
+        }
       }
+    }
+    const onVisibility = () => {
+      window.clearTimeout(timer);
+      if (!document.hidden) refresh();
     };
     const onPush = (event) => {
       if (event.data?.type === "nkata:notification") refresh();
     };
-    const intervalId = window.setInterval(refresh, 4000);
-    document.addEventListener("visibilitychange", refresh);
+    refresh(true);
+    document.addEventListener("visibilitychange", onVisibility);
     navigator.serviceWorker?.addEventListener("message", onPush);
 
     return () => {
       controller.abort();
-      window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", refresh);
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
       navigator.serviceWorker?.removeEventListener("message", onPush);
     };
-  }, [memberAuthenticated, loadNotifications]);
+  }, [memberAuthenticated, sessionIdentity, loadNotifications]);
 
   useEffect(() => {
     if (sessionLoading) return;
