@@ -252,8 +252,12 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     if (sending || voiceActive || !text.trim() || !safetyAccepted) return;
     setSending(true); setError("");
     try {
-      await request(`/api/chats/${id}/`, { method: "POST", body: { texto: text.trim(), resposta_a: reply?.id } });
-      setText(""); setReply(null); setRevision(v => v + 1);
+      const submittedText = text, submittedReply = reply;
+      await request(`/api/chats/${id}/`, { method: "POST", body: { texto: submittedText.trim(), resposta_a: submittedReply?.id } });
+      // Do not discard a new draft typed while the previous request was in flight.
+      setText(current => current === submittedText ? "" : current);
+      setReply(current => current === submittedReply ? null : current);
+      setRevision(v => v + 1);
     } catch (err) { setError(err.message); }
     finally { setSending(false); }
   }
