@@ -377,10 +377,10 @@ def send_message(request, chat, me, other, thread):
         raise ValidationError({"detail": "Escreva uma mensagem de até 1200 caracteres."})
     text = text.strip()
     if not can_send_chat_text(request.user, text, thread):
-        raise PermissionDenied("Active um pacote com chat para escrever ou responder.")
+        raise PermissionDenied("Desbloqueie o texto livre para escrever ou responder.")
     reply = request.data.get("resposta_a")
     if reply is not None and not plan_for_user(request.user)["features"]["chat_text"]:
-        raise PermissionDenied("Active um pacote com chat para responder a mensagens.")
+        raise PermissionDenied("Desbloqueie o texto livre para responder a mensagens.")
     if reply is not None and (type(reply) is not int or not 0 < reply < 2**63 or
                               not thread.mensagens.filter(pk=reply, apagada_em__isnull=True).exists()):
         raise ValidationError({"detail": "A mensagem original está indisponível."})

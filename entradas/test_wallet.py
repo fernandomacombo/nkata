@@ -222,3 +222,100 @@ class WalletTests(TestCase):
         self.assertEqual(data["summary"]["recharged"],100)
         self.assertEqual(data["summary"]["simulated_recharged"],50)
         self.assertEqual(data["summary"]["received"],150)
+
+
+    def test_credit_only_chat_api_lifecycle_and_expiration(self):
+        from uuid import uuid4
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import Conversa, AcessoChatCreditoNKATA, MensagemMatch
+        from .plan_service import CHAT_PHRASES_PT
+        c = profile(92)
+        first = Conversa.objects.create(perfil_1=self.a.perfil_nkata, perfil_2=self.b.perfil_nkata)
+        second = Conversa.objects.create(perfil_1=self.a.perfil_nkata, perfil_2=c)
+        self.move(amount=15)
+        self.client.force_login(self.a)
+        root = f"/api/chats/{first.pk}/"
+        other = f"/api/chats/{second.pk}/"
+        key = str(uuid4())
+        with self.settings(NKATA_CREDIT_ONLY_ENABLED=True, NKATA_CREDIT_TRANSITION_ENABLED=True, NKATA_CREDIT_SPENDING_ENABLED=True):
+            self.assertEqual(self.client.post(root, {"texto":"Mensagem livre de teste"}).status_code,403)
+            self.assertEqual(self.client.post(root, {"texto":CHAT_PHRASES_PT[0]}).status_code,201)
+            self.assertEqual(self.client.post(root+"quebra-gelo/", {"codigo":"VALORES"}).status_code,201)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],15)
+            self.assertEqual(self.client.post(root+"desbloquear/", {"key":key,"expected_cost":1},content_type="application/json").status_code,409)
+            result=self.client.post(root+"desbloquear/", {"key":key,"expected_cost":10},content_type="application/json")
+            self.assertEqual(result.status_code,200,result.content)
+            self.assertTrue(result.json()["charged"])
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],5)
+            for url, retry_key in ((root,key),(other,str(uuid4()))):
+                repeat=self.client.post(url+"desbloquear/",{"key":retry_key,"expected_cost":10},content_type="application/json")
+                self.assertEqual(repeat.status_code,200,repeat.content)
+                self.assertFalse(repeat.json()["charged"])
+                self.assertTrue(self.client.get(url).json()["texto_livre"])
+                self.assertEqual(self.client.post(url,{"texto":"Mensagem livre de teste"}).status_code,201)
+            self.client.force_login(self.b)
+            self.assertFalse(self.client.get(root).json()["texto_livre"])
+            self.assertEqual(self.client.post(root,{"texto":"Texto sem acesso"}).status_code,403)
+            self.assertEqual(self.client.post(other+"desbloquear/",{"key":str(uuid4()),"expected_cost":10},content_type="application/json").status_code,404)
+            self.client.force_login(self.a)
+            now=timezone.now()
+            AcessoChatCreditoNKATA.objects.filter(movimento__carteira__usuario=self.a).update(inicio=now-timedelta(days=1),fim=now)
+            self.assertFalse(self.client.get(root).json()["texto_livre"])
+            self.assertEqual(self.client.post(root,{"texto":"Texto depois da expiração"}).status_code,403)
+            self.assertEqual(self.client.post(root,{"texto":CHAT_PHRASES_PT[1]}).status_code,201)
+            retry=self.client.post(root+"desbloquear/",{"key":key,"expected_cost":10},content_type="application/json")
+            self.assertEqual(retry.status_code,200)
+            self.assertFalse(retry.json()["texto_livre"])
+            self.assertFalse(retry.json()["charged"])
+            self.assertEqual(self.client.post(root+"desbloquear/",{"key":str(uuid4()),"expected_cost":10},content_type="application/json").status_code,409)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],5)
+            self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.a,tipo="CONSUMO").count(),1)
+            self.assertFalse(MensagemMatch.objects.filter(texto="Texto depois da expiração").exists())
+
+    def test_credit_only_signals_exact_costs_and_no_free_fallback(self):
+        from .models import AcaoPerfil, Conversa
+        chat=Conversa.objects.create(perfil_1=self.a.perfil_nkata,perfil_2=self.b.perfil_nkata)
+        self.move(amount=6)
+        self.client.force_login(self.a)
+        url=f"/api/chats/{chat.pk}/sinais/"
+        with self.settings(NKATA_CREDIT_ONLY_ENABLED=True,NKATA_CREDIT_TRANSITION_ENABLED=True,NKATA_CREDIT_SPENDING_ENABLED=True):
+            for code,cost,balance in (("OLA",1,5),("FLOR",2,3),("BEIJINHO",3,0)):
+                response=self.client.post(url,{"tipo":code,"expected_cost":cost},content_type="application/json")
+                self.assertEqual(response.status_code,201,response.content)
+                self.assertEqual(wallet_snapshot(self.a)["saldo"],balance)
+            self.assertEqual(AcaoPerfil.objects.filter(usuario=self.a,tipo__startswith="SINAL_").count(),3)
+            self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.a,tipo="CONSUMO").count(),3)
+            another=profile(93)
+            profile_url=f"/api/perfis/{another.pk}/sinais/"
+            self.assertEqual(self.client.post(profile_url,{"tipo":"OLA","expected_cost":1},content_type="application/json").status_code,429)
+            with self.settings(NKATA_CREDIT_SPENDING_ENABLED=False):
+                self.assertEqual(self.client.post(profile_url,{"tipo":"OLA","expected_cost":0},content_type="application/json").status_code,429)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],0)
+
+    def test_voice_insufficient_balance_and_storage_failure_do_not_charge(self):
+        import tempfile
+        from uuid import uuid4
+        from unittest.mock import patch
+        from django.test import override_settings
+        from django.db import DatabaseError
+        from .test_conversations import historical_match
+        from .test_voice_note_validation import wav_note
+        from .chat_media_models import MensagemAudioMatchNKATA
+        match=historical_match(perfil_1=self.a.perfil_nkata,perfil_2=self.b.perfil_nkata)
+        self.move(amount=1)
+        self.client.force_login(self.a)
+        url=f"/api/minha-conta/matches/{match.pk}/audio/"
+        def send():
+            return self.client.post(url,{"audio":wav_note(2),"duracao_segundos":"2","key":str(uuid4()),"expected_cost":"2"})
+        with tempfile.TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory,NKATA_CREDIT_ONLY_ENABLED=True,NKATA_CREDIT_TRANSITION_ENABLED=True,NKATA_CREDIT_SPENDING_ENABLED=True):
+            self.assertEqual(send().status_code,409)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],1)
+            self.move("fund:2",2)
+            with patch("entradas.chat_media_api.MensagemAudioMatchNKATA.objects.create",side_effect=DatabaseError("simulated storage failure")):
+                self.assertEqual(send().status_code,503)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],3)
+            self.assertFalse(MensagemAudioMatchNKATA.objects.filter(match=match).exists())
+            self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.a,tipo="CONSUMO").count(),0)
+            self.assertEqual(send().status_code,201)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],1)

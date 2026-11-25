@@ -152,7 +152,7 @@ def api_audios_match(request, match_id):
     if not capabilities["audio_enabled"] and not capabilities.get("voice_credit", {}).get("enabled"):
         return Response(
             {
-                "detail": "Notas de voz estão disponíveis no NKATA Essencial e Premium.",
+                "detail": "Notas de voz indisponíveis neste momento.",
                 "code": "paid_plan_required_for_chat_audio",
                 "capabilities": capabilities,
             },
