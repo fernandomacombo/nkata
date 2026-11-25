@@ -23,7 +23,8 @@ function cleanPath(pathname = "/") {
   return path.endsWith("/") ? path : `${path}/`;
 }
 
-export function pathForPage(page, { profileId, matchId, conversationId } = {}) {
+export function pathForPage(page, { profileId, matchId, conversationId, requestId } = {}) {
+  if (page === "chats" && requestId) return `/chats/pedidos/${requestId}/`;
   if (page === "chats" && conversationId) return `/chats/${conversationId}/`;
   if (page === "profile" && profileId) return `/perfis/${profileId}/`;
   if (page === "conversation" && matchId) return `/matches/${matchId}/conversa/`;
@@ -33,6 +34,8 @@ export function pathForPage(page, { profileId, matchId, conversationId } = {}) {
 export function routeFromPath(pathname) {
   const path = cleanPath(pathname);
 
+  const pending = path.match(/^\/chats\/pedidos\/(\d+)\/$/);
+  if (pending) return { page: "chats", requestId: Number(pending[1]), canonicalPath: path };
   const chat = path.match(/^\/chats\/(\d+)\/$/);
   if (chat) return { page: "chats", conversationId: Number(chat[1]), canonicalPath: path };
 
@@ -89,7 +92,7 @@ export default function useAppRoute() {
     if (profileId) lastProfileId.current = profileId;
     if (matchId) lastMatchId.current = matchId;
 
-    const nextRoute = { page, profileId, matchId, conversationId: options.conversationId };
+    const nextRoute = { page, profileId, matchId, conversationId: options.conversationId, requestId: options.requestId };
     const path = pathForPage(page, nextRoute);
     const method = options.replace ? "replaceState" : "pushState";
 
@@ -122,6 +125,7 @@ export default function useAppRoute() {
   return {
     activePage: route.page,
     conversationId: route.conversationId,
+    requestId: route.requestId,
     routeProfileId: route.profileId,
     routeMatchId: route.matchId,
     setActivePage,

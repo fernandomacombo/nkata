@@ -55,6 +55,7 @@ export default function App() {
   const {
     activePage,
     conversationId,
+    requestId,
     routeProfileId,
     routeMatchId,
     setActivePage,
@@ -632,7 +633,7 @@ export default function App() {
     }
 
     if (notification.type === "PEDIDO_CHAT" || notification.conversationId) {
-      setActivePage("chats", { conversationId: notification.conversationId });
+      setActivePage("chats", { conversationId: notification.conversationId, requestId: notification.requestId });
       return;
     }
     if (notification.type === "MATCH") {
@@ -879,7 +880,7 @@ export default function App() {
       )}
 
       {activePage === "chats" && memberAuthenticated && !chatIdentityRequired && (
-        <ChatsPage key={sessionIdentity} conversationId={conversationId}
+        <ChatsPage key={`chats-${sessionIdentity}`} conversationId={conversationId} requestId={requestId}
           onSelect={(id) => setActivePage("chats", { conversationId: id })}
           onLegacy={(id) => setActivePage("conversation", { matchId: id })}
           safetyAccepted={preferences.aviso_chat_aceite === true}

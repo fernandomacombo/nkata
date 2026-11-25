@@ -835,6 +835,7 @@ def conversa_match(request, match_id):
             "perfil_1__usuario",
             "perfil_2__usuario",
         ),
+        chat__isnull=False,
         id=match_id,
         status="ATIVO"
     )
@@ -863,6 +864,7 @@ def conversa_match(request, match_id):
 
         MensagemMatch.objects.create(
             match=match,
+            conversa=match.chat,
             remetente=request.user,
             texto=texto
         )

@@ -69,6 +69,13 @@ class NotificacaoNKATA(models.Model):
         ]
 
     @property
+    def request_id(self):
+        prefix, _, identifier = self.chave.partition(":")
+        if self.tipo == "PEDIDO_CHAT" and prefix == "pedido-chat" and identifier.isdecimal():
+            return int(identifier)
+        return None
+
+    @property
     def conversation_id(self):
         prefix, _, identifier = self.chave.partition(":")
         if prefix in {"chat-msg", "chat-aceite"} and identifier.isdecimal():

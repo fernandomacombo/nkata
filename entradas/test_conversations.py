@@ -17,6 +17,14 @@ def profile(i):
     return PerfilNKATA.objects.create(usuario=user, pedido=pedido, idade=30, status="ATIVO", nome_publico=f"Membro {i}")
 
 
+def historical_match(**kwargs):
+    """Match with a conversation already associated by migration 0042."""
+    match = MatchPerfil.objects.create(**kwargs)
+    a, b = sorted((match.perfil_1_id, match.perfil_2_id))
+    Conversa.objects.create(perfil_1_id=a, perfil_2_id=b, match_origem=match)
+    return match
+
+
 class ConversationTests(TestCase):
     def setUp(self):
         self.a, self.b, self.c = [profile(i) for i in range(3)]
@@ -77,3 +85,30 @@ class ConversationTests(TestCase):
         self.a.pedido.save()
         self.assertEqual(self.ask(self.a, self.b).status_code, 403)
         self.assertEqual(self.ask(self.b, self.a).status_code, 404)
+
+
+    def test_new_match_cannot_bypass_consent_through_legacy_routes(self):
+        match = MatchPerfil.objects.create(perfil_1=self.a, perfil_2=self.b)
+        self.client.force_login(self.a.usuario)
+        for suffix in ("conversa/", "audio/", "live/", "call/", "calls/history/"):
+            self.assertEqual(self.client.get(f"/api/minha-conta/matches/{match.pk}/{suffix}").status_code, 404)
+        self.assertFalse(MensagemMatch.objects.exists())
+
+    def test_typing_replies_and_deletion_are_scoped_to_participants(self):
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        root = f"/api/chats/{chat.pk}/"
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.post(root + "escrita/").status_code, 204)
+        message = MensagemMatch.objects.create(conversa=chat, remetente=self.a.usuario, texto="Olá!")
+        self.client.force_login(self.b.usuario)
+        self.assertTrue(self.client.get(root).json()["a_escrever"])
+        delete = root + f"mensagens/{message.pk}/"
+        self.assertEqual(self.client.delete(delete).status_code, 404)
+        with patch("entradas.conversations_api.can_send_chat_text", return_value=True):
+            self.assertEqual(self.client.post(root, {"texto": "Olá!", "resposta_a": message.pk},
+                                              content_type="application/json").status_code, 201)
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.delete(delete).status_code, 204)
+        message.refresh_from_db()
+        self.assertEqual(message.texto, "")
+        self.assertIsNotNone(message.apagada_em)

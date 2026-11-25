@@ -1,6 +1,7 @@
 from datetime import timedelta
 from functools import partial
 
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -96,12 +97,18 @@ def send_request(request, profile_id):
     return Response({"id": pending.pk, "estado": pending.estado}, status=201)
 
 
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def decide_request(request, request_id):
     me = member(request)
     pending = get_object_or_404(PedidoConversa, pk=request_id, destinatario=me)
+    if request.method == "GET":
+        if not available(me, pending.remetente):
+            raise NotFound("Pedido indisponível.")
+        expired = pending.estado == "PENDENTE" and pending.expira_em <= timezone.now()
+        return Response({"estado": "EXPIRADO" if expired else pending.estado,
+                         "nome": pending.remetente.nome_publico, "conversation_id": pending.conversa_id})
     _, pair = lock_pair(me, pending.remetente_id)
     pending.refresh_from_db()
     now = timezone.now()
@@ -152,41 +159,79 @@ def inbox(request):
     return Response({"conversas": chats, "pedidos": pending})
 
 
-@api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated])
-@transaction.atomic
-def messages(request, conversation_id):
+def accessible_thread(request, conversation_id):
     me = member(request)
     chat = get_object_or_404(participants(me), pk=conversation_id)
     other = peer(chat, me)
     if not available(me, other):
         raise NotFound("Conversa indisponível.")
+    return chat, me, other
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def typing(request, conversation_id):
+    chat, me, _ = accessible_thread(request, conversation_id)
+    cache.set(f"chat-digitando:{chat.pk}:{me.pk}", True, timeout=5)
+    return Response(status=204)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def delete_message(request, conversation_id, message_id):
+    chat, _, _ = accessible_thread(request, conversation_id)
+    thread = chat.match_origem if chat.match_origem_id else chat
+    message = get_object_or_404(thread.mensagens.select_for_update(), pk=message_id, remetente=request.user)
+    if not message.apagada_em:
+        preview = " ".join(message.texto.split())
+        if len(preview) > 95:
+            preview = f"{preview[:92].rstrip()}…"
+        if chat.match_origem_id:
+            NotificacaoNKATA.objects.filter(chave=f"mensagem:{chat.match_origem_id}", ator=request.user, texto=preview).delete()
+        message.texto = ""
+        message.apagada_em = timezone.now()
+        message.save(update_fields=["texto", "apagada_em"])
+    return Response(status=204)
+
+
+@transaction.atomic
+def send_message(request, chat, me, other, thread):
+    Conversa.objects.select_for_update().only("pk").get(pk=chat.pk)
+    text = request.data.get("texto")
+    if not isinstance(text, str) or not 1 <= len(text.strip()) <= 1200:
+        raise ValidationError({"detail": "Escreva uma mensagem de até 1200 caracteres."})
+    text = text.strip()
+    if not can_send_chat_text(request.user, text, thread):
+        raise PermissionDenied("Active um pacote com chat para escrever ou responder.")
+    reply = request.data.get("resposta_a")
+    if reply is not None and (type(reply) is not int or not 0 < reply < 2**63 or
+                              not thread.mensagens.filter(pk=reply, apagada_em__isnull=True).exists()):
+        raise ValidationError({"detail": "A mensagem original está indisponível."})
+    message = MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, resposta_a_id=reply,
+                                           remetente=request.user, texto=text)
+    if not chat.match_origem_id:
+        notify(other, me, "MENSAGEM", f"chat-msg:{chat.pk}", "Nova mensagem",
+               f"{me.nome_publico} enviou-lhe uma mensagem.")
+    return Response({"id": message.pk}, status=201)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def messages(request, conversation_id):
+    chat, me, other = accessible_thread(request, conversation_id)
     thread = chat.match_origem if chat.match_origem_id else chat
     if request.method == "POST":
-        text = request.data.get("texto")
-        if not isinstance(text, str) or not 1 <= len(text.strip()) <= 1200:
-            raise ValidationError({"detail": "Escreva uma mensagem de até 1200 caracteres."})
-        text = text.strip()
-        if not can_send_chat_text(request.user, text, thread):
-            raise PermissionDenied("Active um pacote com chat para escrever ou responder.")
-        reply = request.data.get("resposta_a")
-        if reply is not None and (type(reply) is not int or not 0 < reply < 2**63 or
-                                  not thread.mensagens.filter(pk=reply, apagada_em__isnull=True).exists()):
-            raise ValidationError({"detail": "A mensagem original está indisponível."})
-        message = MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, resposta_a_id=reply,
-                                               remetente=request.user, texto=text)
-        if not chat.match_origem_id:
-            notify(other, me, "MENSAGEM", f"chat-msg:{chat.pk}", "Nova mensagem",
-                   f"{me.nome_publico} enviou-lhe uma mensagem.")
-        return Response({"id": message.pk}, status=201)
+        return send_message(request, chat, me, other, thread)
     thread.mensagens.filter(lida=False).exclude(remetente=request.user).update(lida=True)
     keys = [f"chat-msg:{chat.pk}", f"chat-aceite:{chat.pk}"]
     if chat.match_origem_id:
         keys.append(f"mensagem:{chat.match_origem_id}")
-    NotificacaoNKATA.objects.filter(destinatario=request.user, chave__in=keys).update(lida=True)
+    NotificacaoNKATA.objects.filter(destinatario=request.user, chave__in=keys, lida=False).update(lida=True)
     rows = thread.mensagens.select_related("remetente__perfil_nkata").order_by("criado_em", "pk")
     features = plan_for_user(request.user)["features"]
     presets = CHAT_PHRASES[:4] if features.get("chat_presets") and not thread.mensagens.exclude(remetente=request.user).exists() else []
     return Response({"nome": other.nome_publico, "match_id": chat.match_origem_id,
+                     "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
                      "texto_livre": features["chat_text"], "frases": presets,
                      "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data})

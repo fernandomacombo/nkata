@@ -21,6 +21,7 @@ class NotificacaoSerializer(serializers.ModelSerializer):
             "perfil",
             "match_id",
             "conversation_id",
+            "request_id",
             "criado_em",
             "atualizado_em",
         ]

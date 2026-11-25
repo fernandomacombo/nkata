@@ -188,6 +188,7 @@ function normalizeNotification(notification) {
     text: notification.texto || "",
     read: Boolean(notification.lida),
     profile: normalizeProfile(notification.perfil),
+    requestId: notification.request_id || null,
     conversationId: notification.conversation_id || null,
     matchId: notification.match_id || null,
     createdAt: notification.criado_em,
