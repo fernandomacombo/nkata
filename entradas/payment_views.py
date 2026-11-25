@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 
 from django.conf import settings
 from rest_framework import permissions
@@ -10,6 +11,9 @@ from rest_framework.throttling import UserRateThrottle
 
 from .models import PedidoPagamentoNKATA
 from .payment_service import PaymentError, reconcile, serialize_order, start_checkout, simulation_enabled, resolve_simulated_checkout
+
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentThrottle(UserRateThrottle):
@@ -91,7 +95,14 @@ def api_paysuite_webhook(request):
         return Response(status=413)
     expected = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
     signature = request.headers.get("X-Webhook-Signature", "")
-    if not isinstance(signature, str) or len(signature) != 64 or not signature.isascii() or not hmac.compare_digest(expected, signature):
+    if not signature:
+        logger.warning("PaySuite webhook recusado: assinatura ausente.")
+        return Response(status=403)
+    if not isinstance(signature, str) or len(signature) != 64 or not signature.isascii():
+        logger.warning("PaySuite webhook recusado: formato de assinatura inválido.")
+        return Response(status=403)
+    if not hmac.compare_digest(expected, signature):
+        logger.warning("PaySuite webhook recusado: assinatura não corresponde.")
         return Response(status=403)
     try:
         payload = json.loads(raw)
