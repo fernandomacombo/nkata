@@ -41,6 +41,8 @@ function featureLabels(plan, english) {
   return labels;
 }
 
+const blocksCheckout = order => order.blocks_checkout ?? ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status);
+
 export default function PlanPanel({ language = "PT" }) {
   const english = language === "EN";
   const [data, setData] = useState(null);
@@ -60,7 +62,7 @@ export default function PlanPanel({ language = "PT" }) {
   useEffect(() => { loadPayments(); }, [loadPayments]);
 
   async function buy(product) {
-    const existing = payments.find((order) => ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status));
+    const existing = payments.find(blocksCheckout);
     if (existing) {
       if (existing.product === product && existing.checkout_url) {
         window.location.assign(existing.checkout_url);
@@ -178,7 +180,7 @@ export default function PlanPanel({ language = "PT" }) {
       {data.wallet && <section className="nk-wallet-preview" aria-label={english ? "NKATA Wallet" : "Carteira NKATA"}>
         <div className="nk-wallet-preview__header"><WalletCards size={24}/><div><small>{english ? "NKATA Wallet" : "Carteira NKATA"}</small><strong>{data.wallet.saldo} {english ? "credits" : "créditos"}</strong></div></div>
         {data.welcome_bonus?.enabled && <div className="nk-wallet-welcome"><span className="nk-wallet-welcome__icon"><Sparkles size={20}/></span><div className="nk-wallet-welcome__copy"><strong>{english ? "Welcome bonus" : "Bónus de boas-vindas"}</strong><small>{data.welcome_bonus.credits} {english ? "credits, one time only" : "créditos, uma única vez"}</small>{!data.welcome_bonus.claimable && <small>{data.welcome_bonus.granted ? (english ? "Already granted" : "Já atribuído") : data.welcome_bonus.blocker === "IDENTITY_ALREADY_AWARDED" ? (english ? "This identity has already received a welcome bonus." : "Esta identidade já recebeu um bónus. Contacte o suporte se necessário.") : data.welcome_bonus.blocker === "ACCOUNT_INACTIVE" ? (english ? "Available after account activation." : "Disponível após activação da conta.") : (english ? "Complete NKATA ID verification to receive your bonus." : "Conclua a verificação NKATA ID para receber o seu bónus.")}</small>}{bonusMessage && <small role="alert">{bonusMessage}</small>}</div>{data.welcome_bonus.claimable && <button className="nk-wallet-welcome__claim" type="button" disabled={bonusBusy} onClick={receiveWelcome}>{bonusBusy ? (english ? "Processing…" : "A processar…") : (english ? "Receive credits" : "Receber créditos")}</button>}</div>}
-        <p>{data.wallet.catalogo.packs.some(p => p.purchase_enabled) ? (english ? "Choose a top-up. Credits arrive after payment confirmation." : "Escolha uma recarga. Os créditos entram após confirmação do pagamento.") : (english ? "Credit purchases are not available yet. Existing benefits remain valid." : "As recargas de créditos ainda não estão disponíveis. Os benefícios atuais mantêm-se válidos.")}</p>
+        <p>{data.wallet.catalogo.packs.some(p => p.purchase_enabled) ? (english ? "Choose a top-up. Credits arrive after payment confirmation." : "Escolha uma recarga. Os créditos entram após confirmação do pagamento.") : (english ? "Credit purchases are not available yet." : "As recargas de créditos ainda não estão disponíveis.")}</p>
         {data.payment_simulation && <p role="status"><strong>{english ? "TEST MODE — no real money" : "MODO DE TESTE — nenhum dinheiro real"}</strong></p>}
         <div className="nk-wallet-packs" id="nk-wallet-recharge">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (data.payment_simulation ? (english ? "Simulate top-up" : "Simular recarga") : (english ? "Top up" : "Recarregar")) : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
         <WalletDashboard english={english} simulation={data.payment_simulation} refreshKey={data} onRecharge={() => document.getElementById("nk-wallet-recharge")?.scrollIntoView({behavior:"smooth", block:"center"})} />
@@ -275,8 +277,8 @@ export default function PlanPanel({ language = "PT" }) {
       <section id="nkata-payment-history" aria-label={english ? "NKATA payments" : "Pagamentos NKATA"}>
         <h3>{english ? "NKATA payment history" : "Histórico de pagamentos NKATA"}</h3>
         <p>{english ? "Benefits activate only after payment confirmation." : "Os benefícios são ativados apenas após confirmação do pagamento."}</p>
-        {payments.some((order) => ["CRIADO", "PENDENTE", "INCERTO", "REVISAO"].includes(order.status)) && (
-          <p role="status">{english ? "A payment is pending. Continue it before choosing another top-up." : "Existe um pagamento pendente. Continue-o antes de escolher outra recarga."}</p>
+        {payments.some(blocksCheckout) && (
+          <p role="status">{english ? "A payment awaits confirmation. Review its status before choosing another top-up." : "Existe um pagamento por confirmar. Consulte o seu estado antes de escolher outra recarga."}</p>
         )}
         {paymentMessage && <p role="status">{paymentMessage}</p>}
         {payments.map((order) => (
@@ -285,7 +287,8 @@ export default function PlanPanel({ language = "PT" }) {
             <small>{order.reference}{order.simulated ? (english ? " · SIMULATED" : " · SIMULADO") : ""}</small>
             {data.payment_simulation && order.simulated && order.status==="PENDENTE" && <div className="nk-wallet-packs"><button type="button" disabled={paymentBusy} onClick={()=>finishSimulation(order,"completed")}>{english ? "Simulate success" : "Simular confirmação"}</button><button type="button" disabled={paymentBusy} onClick={()=>finishSimulation(order,"failed")}>{english ? "Simulate failure" : "Simular falha"}</button></div>}
             <p>{({PAGO: order.simulated ? (english ? "Simulation confirmed" : "Simulação confirmada") : (english ? "Paid" : "Pago"), PENDENTE: english ? "Pending" : "Pendente", FALHOU: english ? "Failed" : "Falhou", CRIADO: english ? "Preparing" : "A preparar", INCERTO: english ? "Awaiting verification" : "A aguardar verificação", REVISAO: english ? "Under review" : "Em revisão"})[order.status] || order.status}</p>
-            {order.checkout_url && !["PAGO", "FALHOU"].includes(order.status) && (
+            {order.retired_product && <small>{english ? "Historical product — no longer for sale." : "Produto antigo — indisponível para compra."}</small>}
+            {!order.retired_product && order.checkout_url && !["PAGO", "FALHOU"].includes(order.status) && (
               <a className="nk-plan-payment-continue" href={order.checkout_url}>
                 {english ? "Continue payment" : "Continuar pagamento"}
               </a>
