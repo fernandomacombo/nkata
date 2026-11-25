@@ -396,3 +396,29 @@ class ConversationTests(TestCase):
                                         content_type="application/json")
         self.assertEqual(response.status_code, 403)
         self.assertEqual(MensagemMatch.objects.count(), 1)
+
+    def test_block_api_preserves_report_and_history_and_cancels_pending(self):
+        from .models import DenunciaPerfil
+
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        message = MensagemMatch.objects.create(conversa=chat, remetente=self.b.usuario, texto="Histórico")
+        # Include a pending request left over from an older session.
+        pending = PedidoConversa.objects.create(remetente=self.b, destinatario=self.a,
+                                               expira_em=timezone.now()+timedelta(days=7))
+        self.client.force_login(self.a.usuario)
+        reported = self.client.post(f"/api/perfis/{self.b.pk}/denunciar/",
+                                    {"motivo": "COMPORTAMENTO_INADEQUADO", "detalhes": "Teste de segurança"})
+        self.assertEqual(reported.status_code, 201, reported.content)
+        blocked = self.client.post(f"/api/perfis/{self.b.pk}/bloquear/")
+        self.assertEqual(blocked.status_code, 200, blocked.content)
+        pending.refresh_from_db()
+        self.assertEqual(pending.estado, "CANCELADO")
+        self.assertEqual(MensagemMatch.objects.get(pk=message.pk).texto, "Histórico")
+        self.assertTrue(DenunciaPerfil.objects.filter(denunciante=self.a.usuario, perfil=self.b).exists())
+        for actor in (self.a, self.b):
+            self.client.force_login(actor.usuario)
+            root = f"/api/chats/{chat.pk}/"
+            self.assertEqual(self.client.get(root).status_code, 404)
+            self.assertEqual(self.client.post(root, {"texto": "Olá"}).status_code, 404)
+            self.assertEqual(self.client.post(root + "escrita/").status_code, 404)
+        self.assertEqual(self.decide(self.a, pending.pk, "ACEITE").status_code, 404)

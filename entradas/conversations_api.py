@@ -354,6 +354,9 @@ def delete_message(request, conversation_id, message_id):
 
 @transaction.atomic
 def send_message(request, chat, me, other, thread):
+    # Same lock order as blocking and request decisions; once a block commits,
+    # a concurrent native sender cannot write a new message.
+    other, _ = lock_pair(me, other.pk)
     if chat.match_origem_id:
         from .models import MatchPerfil
         MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
