@@ -60,3 +60,16 @@ automático até reconciliar sessões e débitos, para limpar também os filhos
 se o próprio supervisor falhar. O heartbeat não constitui uma garantia de
 corte exacto no prazo financeiro: a aplicação ainda precisa de um watchdog
 de leases individuais com prazo absoluto. Não publicar antes disso.
+
+## Prazo financeiro independente
+Cada autorização é registada por IPC no supervisor antes de retomar RTP. O
+supervisor mede o prazo restante num relógio monotónico independente e mata
+o grupo inteiro se um lease continuar registado no prazo. O controlador
+antecipa a pausa em 750 ms; só limpa o registo após a confirmação de pausa
+pelo SFU ou confirmação de remoção do router pelo worker. A renovação continua
+a ser pedida no prazo anterior, não antecipadamente. A margem pode causar
+uma breve pausa audível por minuto; é uma opção conservadora experimental.
+O agendamento Linux não oferece garantias de tempo real; medir a latência
+real de corte e testar falhas de IPC antes de publicar. Uma falha numa sala
+pode interromper todas as chamadas do grupo; ainda não existe isolamento
+por processo por chamada.
