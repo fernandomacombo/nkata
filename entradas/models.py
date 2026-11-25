@@ -602,3 +602,22 @@ class ChamadaConversaCreditoNKATA(models.Model):
             models.CheckConstraint(condition=models.Q(tipo="AUDIO",custo_minuto=3)|models.Q(tipo="VIDEO",custo_minuto=5),name="nk_call_native_rate"),
             models.CheckConstraint(condition=models.Q(minutos_pagos=0,pago_ate__isnull=True)|models.Q(minutos_pagos__gt=0,pago_ate__isnull=False),name="nk_call_native_lease"),
         ]
+
+
+class RevisaoMinutoChamadaNKATA(models.Model):
+    """Durable financial evidence, never a recording of a call."""
+    chamada = models.ForeignKey(ChamadaConversaCreditoNKATA, on_delete=models.PROTECT, related_name="revisoes_minutos")
+    minuto = models.PositiveSmallIntegerField()
+    estado = models.CharField(max_length=16, default="AUTORIZADO", choices=[
+        ("AUTORIZADO", "Autorizado"), ("RETOMA_INICIADA", "Retoma iniciada"),
+        ("CONFIRMADO", "Retoma confirmada"), ("ESTORNADO", "Estornado")])
+    prazo = models.DateTimeField()
+    criada_em = models.DateTimeField(auto_now_add=True)
+    atualizada_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["chamada", "minuto"], name="nk_call_review_minute"),
+            models.CheckConstraint(condition=models.Q(minuto__gte=1, minuto__lte=120), name="nk_call_review_range"),
+        ]
+        indexes = [models.Index(fields=["estado", "prazo"], name="nk_call_review_due_idx")]
