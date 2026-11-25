@@ -26,3 +26,23 @@ test("disconnected peer cannot trigger billing",async()=>{
   closeTransport:async()=>{closed=true;},authorize:async()=>{calls++;}});
  await gate.tick();assert.equal(calls,0);assert.equal(closed,true);
 });
+
+test("peer disconnecting while media pauses cannot trigger billing",async()=>{
+ let connected=true,charged=0,closed=0;
+ const gate=new LeaseGate({sessionId:"s",userIds:[1,2],connected:()=>connected,
+  consumers:()=>[{pause:async()=>{connected=false;},resume:async()=>{throw Error("unexpected resume");}}],
+  closeTransport:async()=>{closed++;},authorize:async()=>{charged++;},
+  schedule:()=>1,cancel:()=>{}});
+ await gate.tick();assert.equal(charged,0);assert.equal(closed,1);
+});
+test("pause watchdog closes transport and late acknowledgement cannot charge",async()=>{
+ let acknowledge,watchdog,charged=0,closed=0;
+ const gate=new LeaseGate({sessionId:"s",userIds:[1,2],connected:()=>true,
+  consumers:()=>[{pause:()=>new Promise(resolve=>{acknowledge=resolve;}),resume:async()=>{throw Error("unexpected resume");}}],
+  closeTransport:async()=>{closed++;},authorize:async()=>{charged++;},
+  schedule:(fn,ms)=>{if(ms===500)watchdog=fn;return 1;},cancel:()=>{}});
+ const pending=gate.tick();
+ assert.equal(typeof watchdog,"function");
+ watchdog();acknowledge();await pending;
+ assert.equal(charged,0);assert.equal(closed,1);assert.equal(gate.closed,true);
+});
