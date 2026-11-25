@@ -36,3 +36,13 @@ O teste exige recepção em ambos os sentidos somente após autorização e fech
 dos consumidores quando a renovação é negada. Não usa contas nem dinheiro reais.
 Ainda é necessário gerar/rever e versionar o lockfile, testar browsers com ICE/DTLS/TURN
 reais e confirmar o watchdog independente; a passagem deste teste não autoriza deploy.
+
+
+## Ensaio entre navegadores
+O job media-native inclui um ensaio Chromium com dois contextos independentes,
+microfone e câmara sintéticos, WSS com certificado efémero e coturn ligado
+exclusivamente ao loopback do runner. Testa AUDIO e VIDEO, RTP nos consumidores,
+frames de vídeo e encerramento após renovação negada com créditos simulados.
+A permissão coturn de loopback é exclusiva do laboratório e não deve ser usada
+em staging público ou produção. Este ensaio não cobre Django real, dispositivos
+físicos, redes móveis, TURN/TLS público ou watchdog independente.
