@@ -42,8 +42,8 @@ try{
  import {Device} from "mediasoup-client";
  import {createBrowserMedia} from "../frontend/src/services/nativeCallMedia.js";
  window.startTest=async config=>{
-  window.active=false;window.closed=false;window.streams=null;
-  const media=createBrowserMedia({Device,onActive:()=>window.active=true,onClosed:()=>window.closed=true,onStreams:s=>{
+  window.active=false;window.testClosed=false;window.streams=null;
+  const media=createBrowserMedia({Device,onActive:()=>window.active=true,onClosed:()=>window.testClosed=true,onStreams:s=>{
    window.streams=s;
    const el=document.querySelector("video");el.srcObject=s.remoteStream;el.play().catch(()=>{});
   }});
@@ -100,7 +100,7 @@ try{
    // The two browsers must have received actual decoded video frames.
    if(kind==="VIDEO")await Promise.all(pages.map(p=>p.waitForFunction(()=>document.querySelector("video").videoWidth>0,{},{timeout:3000})));
    await eventually(()=>room.closed,"Denied renewal must close SFU room",10000);
-   await eventually(async()=> (await Promise.all(pages.map(p=>p.evaluate(()=>window.closed&&window.streams.localStream.getTracks().every(t=>t.readyState==="ended"))))).every(Boolean),"Both clients must release local tracks");
+   await eventually(async()=> (await Promise.all(pages.map(p=>p.evaluate(()=>window.testClosed&&window.streams.localStream.getTracks().every(t=>t.readyState==="ended"))))).every(Boolean),"Both clients must release local tracks");
    assert.deepEqual(attempts.get(sid),[1,2]);
    console.log(kind+": real browser relay and denied renewal validated");
   }finally{for(const context of contexts)await context.close();}
