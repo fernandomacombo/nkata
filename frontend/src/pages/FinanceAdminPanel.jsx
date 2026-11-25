@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
-import { WalletCards, CreditCard, History, Coins, Gift, ShieldCheck, Settings, BarChart3, RefreshCw, Search } from "lucide-react";
+import { WalletCards, CreditCard, History, Coins, Gift, ShieldCheck, Settings, BarChart3, RefreshCw, Search, Phone } from "lucide-react";
 import { request } from "../services/api.js";
 
 const TABS = [
   ["overview","Visão geral",BarChart3], ["wallets","Carteiras",WalletCards],
   ["payments","Pagamentos e recargas",CreditCard], ["movements","Movimentos",History],
-  ["consumption","Consumo",Coins], ["bonuses","Bónus",Gift],
+  ["consumption","Consumo",Coins], ["calls","Chamadas",Phone], ["bonuses","Bónus",Gift],
   ["catalogue","Catálogo e preços",Settings], ["audit","Auditoria financeira",ShieldCheck],
 ];
 const fmt = value => Number(value || 0).toLocaleString("pt-MZ");
 const money = value => Number(value || 0).toLocaleString("pt-MZ", {minimumFractionDigits:2, maximumFractionDigits:2}) + " MT";
 const date = value => value ? new Date(value).toLocaleString("pt-MZ") : "—";
-const labels = {CRIADO:"Criado",PENDENTE:"Pendente",INCERTO:"Incerto",REVISAO:"Em revisão",PAGO:"Pago",FALHOU:"Falhou",BONUS:"Bónus",RECARGA:"Recarga",CONSUMO:"Consumo",ESTORNO:"Estorno",AJUSTE:"Ajuste"};
+const labels = {CRIADO:"Criado",PENDENTE:"Pendente",INCERTO:"Incerto",REVISAO:"Em revisão",PAGO:"Pago",FALHOU:"Falhou",BONUS:"Bónus",RECARGA:"Recarga",CONSUMO:"Consumo",ESTORNO:"Estorno",AJUSTE:"Ajuste",CHAMANDO:"A chamar",ACEITE:"Aceite",ATIVA:"Activa",TERMINADA:"Terminada",RECUSADA:"Recusada",EXPIRADA:"Expirada",DIVERGENCIA:"Divergência financeira",EXPIRADA_SEM_FECHO:"Expirada sem fecho",ESTORNO:"Estorno registado",SEM_ALERTA:"Sem alerta detectado"};
 export default function FinanceAdminPanel() {
   const [tab,setTab] = useState("overview"), [draft,setDraft] = useState(""), [query,setQuery] = useState("");
   const [status,setStatus] = useState(""), [offset,setOffset] = useState(0), [version,setVersion] = useState(0);
@@ -36,6 +36,7 @@ export default function FinanceAdminPanel() {
     {list && <form className="nk-admin-filters" onSubmit={event=>{event.preventDefault();setOffset(0);setQuery(draft.trim());setVersion(v=>v+1);}}>
       <label><Search size={17}/><input value={draft} onChange={event=>setDraft(event.target.value)} maxLength={120} placeholder="Pesquisar membro ou referência"/></label>
       {tab==="payments" && <select aria-label="Estado do pagamento" value={status} onChange={event=>{setStatus(event.target.value);setOffset(0);}}><option value="">Todos os estados</option>{["CRIADO","PENDENTE","INCERTO","REVISAO","PAGO","FALHOU"].map(value=><option key={value} value={value}>{labels[value]}</option>)}</select>}
+      {tab==="calls" && <select aria-label="Estado da chamada" value={status} onChange={event=>{setStatus(event.target.value);setOffset(0);}}><option value="">Todas as chamadas</option><option value="REVISAO">Requer revisão</option>{["CHAMANDO","ACEITE","ATIVA","TERMINADA","RECUSADA","EXPIRADA"].map(value=><option key={value} value={value}>{labels[value]}</option>)}</select>}
       <button type="submit" className="nk-admin-button is-primary">Pesquisar</button>
     </form>}
     {loading && <p role="status">A carregar dados financeiros…</p>}
@@ -59,9 +60,10 @@ export default function FinanceAdminPanel() {
       <p>Bónus de boas-vindas: {data.catalogue.welcome_credits} créditos, uma única vez após verificação. Catálogo de consulta, sem edição de preços.</p>
     </>}
     {!loading && !error && list && data && <>
+      {tab==="calls" && <p>Consulta de chamadas e créditos. Os minutos autorizados não comprovam a duração efectivamente recebida. Nenhuma alteração de saldo é permitida neste painel.</p>}
       {tab==="audit" && <p>Verificação entre saldo registado e soma dos movimentos. Esta consulta não modifica saldos.</p>}
       <div className="nk-admin-list-heading"><span>{fmt(data.total)} registo(s)</span><nav aria-label="Paginação financeira"><button type="button" disabled={!offset} onClick={()=>setOffset(v=>Math.max(0,v-50))}>Anterior</button><span>Página {Math.floor(offset/50)+1}</span><button type="button" disabled={offset+50>=data.total} onClick={()=>setOffset(v=>v+50)}>Seguinte</button></nav></div>
-      {data.results.length ? <div className="nk-finance-table"><table><thead><tr><th>Membro</th>{wallet?<><th>Saldo</th><th>Movimentos</th><th>Consistência</th><th>Atualizado</th></>:tab==="payments"?<><th>Referência / pacote</th><th>Valor</th><th>Créditos</th><th>Estado</th><th>Data</th></>:<><th>Tipo / motivo</th><th>Movimento</th><th>Saldo após</th><th>Referência</th><th>Data</th></>}</tr></thead><tbody>{data.results.map(row=><tr key={row.id}><td><strong>{row.name}</strong><small>{row.email}</small></td>{wallet?<><td>{fmt(row.balance)}</td><td>{fmt(row.ledger_total)}</td><td>{row.consistent?"Consistente":"Divergência"}</td><td>{date(row.updated_at)}</td></>:tab==="payments"?<><td>{row.reference}<small>{row.product}{row.simulated?" · SIMULADO":""}</small></td><td>{money(row.amount_mzn)}</td><td>{fmt(row.credits)}</td><td>{labels[row.status]||row.status}</td><td>{date(row.created_at)}</td></>:<><td>{labels[row.kind]||row.kind}<small>{row.reason}</small></td><td>{row.amount>0?"+":""}{fmt(row.amount)}</td><td>{fmt(row.balance_after)}</td><td>{row.reference}</td><td>{date(row.created_at)}</td></>}</tr>)}</tbody></table></div>:<p>{tab==="audit"?"Nenhuma divergência encontrada nos saldos consultados.":"Nenhum registo encontrado."}</p>}
+      {data.results.length ? <div className="nk-finance-table"><table><thead><tr><th>Membro</th>{tab==="calls"?<><th>Destinatário / tipo</th><th>Estado</th><th>Minutos autorizados</th><th>Débito / estorno</th><th>Consumo líquido</th><th>Auditoria</th><th>Data / referência</th></>:wallet?<><th>Saldo</th><th>Movimentos</th><th>Consistência</th><th>Atualizado</th></>:tab==="payments"?<><th>Referência / pacote</th><th>Valor</th><th>Créditos</th><th>Estado</th><th>Data</th></>:<><th>Tipo / motivo</th><th>Movimento</th><th>Saldo após</th><th>Referência</th><th>Data</th></>}</tr></thead><tbody>{data.results.map(row=><tr key={row.id}><td><strong>{row.name}</strong>{row.email&&<small>{row.email}</small>}</td>{tab==="calls"?<><td>{row.recipient}<small>{row.kind==="AUDIO"?"Áudio":"Vídeo"} · {row.rate} créditos/min</small></td><td>{labels[row.status]||row.status}</td><td>{fmt(row.paid_minutes)}</td><td>{fmt(row.debited)} / {fmt(row.refunded)}</td><td>{fmt(row.net)}</td><td>{labels[row.review]||row.review}</td><td>{date(row.created_at)}<small>{row.id}</small></td></>:wallet?<><td>{fmt(row.balance)}</td><td>{fmt(row.ledger_total)}</td><td>{row.consistent?"Consistente":"Divergência"}</td><td>{date(row.updated_at)}</td></>:tab==="payments"?<><td>{row.reference}<small>{row.product}{row.simulated?" · SIMULADO":""}</small></td><td>{money(row.amount_mzn)}</td><td>{fmt(row.credits)}</td><td>{labels[row.status]||row.status}</td><td>{date(row.created_at)}</td></>:<><td>{labels[row.kind]||row.kind}<small>{row.reason}</small></td><td>{row.amount>0?"+":""}{fmt(row.amount)}</td><td>{fmt(row.balance_after)}</td><td>{row.reference}</td><td>{date(row.created_at)}</td></>}</tr>)}</tbody></table></div>:<p>{tab==="audit"?"Nenhuma divergência encontrada nos saldos consultados.":"Nenhum registo encontrado."}</p>}
     </>}
   </section>;
 }
