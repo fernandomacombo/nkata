@@ -49,12 +49,27 @@ class Command(BaseCommand):
 
     def _process_due_orders(self, limit):
         now = timezone.now()
+        # New checkouts need quick confirmation; older unresolved orders can
+        # be checked less often. Keep checking indefinitely: a late payment
+        # must still be honoured, even after a failure reported by the provider.
+        open_states = ["CRIADO", "PENDENTE", "INCERTO"]
         due = (
-            Q(estado__in=["CRIADO", "PENDENTE", "INCERTO"],
+            Q(estado__in=open_states, criado_em__gt=now-timedelta(minutes=15),
               ultima_verificacao__lte=now-timedelta(seconds=60))
-            | Q(estado__in=["REVISAO", "FALHOU"],
-                ultima_verificacao__lte=now-timedelta(minutes=15))
-            | Q(estado__in=["CRIADO", "PENDENTE", "INCERTO", "REVISAO", "FALHOU"],
+            | Q(estado__in=open_states, criado_em__lte=now-timedelta(minutes=15),
+                criado_em__gt=now-timedelta(hours=2),
+                ultima_verificacao__lte=now-timedelta(minutes=5))
+            | Q(estado__in=open_states, criado_em__lte=now-timedelta(hours=2),
+                criado_em__gt=now-timedelta(days=1),
+                ultima_verificacao__lte=now-timedelta(minutes=30))
+            | Q(estado__in=open_states, criado_em__lte=now-timedelta(days=1),
+                ultima_verificacao__lte=now-timedelta(hours=6))
+            | Q(estado="REVISAO", ultima_verificacao__lte=now-timedelta(minutes=15))
+            | Q(estado="FALHOU", criado_em__gt=now-timedelta(days=1),
+                ultima_verificacao__lte=now-timedelta(hours=1))
+            | Q(estado="FALHOU", criado_em__lte=now-timedelta(days=1),
+                ultima_verificacao__lte=now-timedelta(days=1))
+            | Q(estado__in=open_states + ["REVISAO", "FALHOU"],
                 ultima_verificacao__isnull=True)
         )
         orders = list(PedidoPagamentoNKATA.objects.filter(
