@@ -9,7 +9,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PerfilNKATA
-from .chat_permissions import chat_pair_allowed, conversation_has_access
+from .chat_permissions import chat_pair_allowed, conversation_has_access, request_pair_allowed
+from .legacy_commercial import credit_only_enabled
+from .identity_models import pedido_tem_identidade_verificada
 from .credit_catalog import SIGNAL_DEFINITIONS, SIGNAL_CHAT_TEXT, SIGNAL_SAFETY_LIMIT
 from .wallet_service import credit_spending_enabled, credit_balance, record_movement, WalletError
 from .plan_service import (
@@ -91,6 +93,12 @@ def _commercial_quota(user, sent_today):
             "limit_reached": sent_today >= SIGNAL_SAFETY_LIMIT or (source == "WALLET" and balance < 1)}
 
 
+def _signal_sender_allowed(sender, recipient):
+    if credit_only_enabled():
+        return request_pair_allowed(sender, recipient) and pedido_tem_identidade_verificada(sender.pedido)
+    return chat_pair_allowed(sender, recipient)
+
+
 def _availability_payload(user, perfil_alvo):
     today_qs = _signals_today(user)
     sent_types = set(
@@ -98,7 +106,7 @@ def _availability_payload(user, perfil_alvo):
     )
     quota = _commercial_quota(user, today_qs.count())
     sender = _perfil_do_utilizador(user) if credit_spending_enabled() else None
-    identity_blocked = credit_spending_enabled() and (not sender or not chat_pair_allowed(sender, perfil_alvo))
+    identity_blocked = credit_spending_enabled() and (not sender or not _signal_sender_allowed(sender, perfil_alvo))
     signals = []
     for item in SIGNAL_DEFINITIONS.values():
         payload = _signal_payload(item)
@@ -167,10 +175,10 @@ def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None,
         if perfil_atual.status != "ATIVO" or perfil_alvo.status != "ATIVO" or not perfil_alvo.visivel or _bloqueio_entre_perfis(perfil_atual, perfil_alvo):
             return Response({"detail": "Esta interação não está disponível."}, status=403)
         user = User.objects.select_for_update().get(pk=user.pk)
-        if credit_spending_enabled() and not chat_pair_allowed(perfil_atual, perfil_alvo):
+        if credit_spending_enabled() and not _signal_sender_allowed(perfil_atual, perfil_alvo):
             return Response({"detail": "Identidade verificada obrigatória para enviar sinais."}, status=403)
         chat = None
-        if chat_pair_allowed(perfil_atual, perfil_alvo):
+        if _signal_sender_allowed(perfil_atual, perfil_alvo):
             candidate = Conversa.objects.filter(perfil_1=profiles[0], perfil_2=profiles[1], estado=Conversa.ESTADO_ATIVA).first()
             if candidate and conversation_has_access(candidate):
                 if candidate.match_origem_id:
