@@ -437,3 +437,25 @@
 .nk-wallet-packs small { color:#74696d; }
 .nk-wallet-packs button { border:0; border-radius:8px; background:#7d2638; color:white; padding:9px; cursor:pointer; }
 .nk-wallet-packs button:disabled { opacity:.5; cursor:not-allowed; }
+
+.nk-wallet-dashboard { display:grid; gap:12px; margin-top:20px; padding-top:18px; border-top:1px solid #e9e1e4; min-width:0; }
+.nk-wallet-dashboard header { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.nk-wallet-dashboard header h3 { margin:3px 0; color:#7d2638; }
+.nk-wallet-dashboard header button,.nk-wallet-dashboard__recharge { border:1px solid #e9e1e4; border-radius:10px; padding:9px 12px; color:#7d2638; background:white; cursor:pointer; }
+.nk-wallet-dashboard small { color:#74696d; font-size:.75rem; }
+.nk-wallet-stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr)); gap:8px; }
+.nk-wallet-stat-grid article { display:grid; gap:7px; padding:12px; border:1px solid #e9e1e4; border-radius:12px; color:#7d2638; }
+.nk-wallet-stat-grid strong { font-size:1.4rem; font-variant-numeric:tabular-nums; }
+.nk-wallet-filter { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; font-size:.8rem; }
+.nk-wallet-filter select { border:1px solid #e9e1e4; padding:8px; border-radius:8px; background:white; color:#3c3035; max-width:100%; }
+.nk-wallet-dashboard h4 { display:flex; align-items:center; gap:8px; margin:8px 0 0; color:#7d2638; }
+.nk-wallet-breakdown { display:grid; gap:5px; }
+.nk-wallet-breakdown div { display:flex; justify-content:space-between; gap:8px; font-size:.8rem; }
+.nk-wallet-breakdown progress { width:100%; height:8px; accent-color:#7d2638; }
+.nk-wallet-statement article { display:grid; grid-template-columns:32px minmax(0,1fr) auto; align-items:start; gap:8px; border-bottom:1px solid #e9e1e4; padding:12px 0; }
+.nk-wallet-statement__icon { display:grid; place-items:center; width:32px; height:32px; background:#f5eef0; color:#7d2638; border-radius:10px; }
+.nk-wallet-statement article div { display:grid; gap:4px; overflow-wrap:anywhere; }
+.nk-wallet-statement article strong { font-size:.82rem; }
+.nk-wallet-statement__amount { text-align:right; font-variant-numeric:tabular-nums; }
+.nk-wallet-statement__amount .is-positive { color:#287252; }
+.nk-wallet-statement__amount .is-negative { color:#7d2638; }

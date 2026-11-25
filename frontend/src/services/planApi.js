@@ -53,3 +53,13 @@ export const checkPayment = (id) => paymentRequest(`/api/minha-conta/pagamentos/
 export const closePaymentIfTerminal = (id) => paymentRequest(`/api/minha-conta/pagamentos/${encodeURIComponent(id)}/encerrar/`, {});
 
 export const claimWelcome = () => paymentRequest("/api/minha-conta/carteira/boas-vindas/", {});
+
+export async function fetchWalletStatement({period="30", kind="ALL", before=0, signal} = {}) {
+  const params = new URLSearchParams({period, kind, before:String(before)});
+  const response = await fetch(`${API_BASE_URL}/api/minha-conta/carteira/movimentos/?${params}`, {
+    credentials:"include", headers:{Accept:"application/json"}, signal, cache:"no-store",
+  });
+  const payload = await response.json().catch(()=>null);
+  if (!response.ok) throw new PlanApiError(payload?.detail || "Não foi possível consultar os movimentos.", response.status, payload);
+  return payload;
+}

@@ -133,3 +133,44 @@ class WalletTests(TestCase):
                 self.move(key, amount, kind)
         self.assertEqual(CarteiraNKATA.objects.get(usuario=self.a).saldo, 100)
         self.assertEqual(MovimentoCreditoNKATA.objects.count(), 1)
+
+
+    def test_personal_statement_filters_totals_and_privacy(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.move()
+        self.move("signal:1", -2, "CONSUMO")
+        self.move("chat24:1", -10, "CONSUMO")
+        bonus = self.move("bonus:1", 5, "BONUS")
+        MovimentoCreditoNKATA.objects.filter(pk=bonus.pk).update(criado_em=timezone.now()-timedelta(days=40))
+        record_movement(self.b, key="secret", kind="RECARGA", amount=500, reference="private", reason="Outro membro")
+        self.client.force_login(self.a)
+        url = "/api/minha-conta/carteira/movimentos/"
+        response = self.client.get(url, {"period":"30","kind":"CONSUMO","usuario":self.b.pk})
+        self.assertEqual(response.status_code,200)
+        self.assertIn("no-store", response["Cache-Control"])
+        data=response.json()
+        self.assertEqual(data["balance"],43)
+        self.assertEqual(data["summary"]["spent"],12)
+        self.assertEqual(data["summary"]["recharged"],50)
+        self.assertEqual(data["summary"]["bonus"],0)
+        self.assertEqual(len(data["results"]),2)
+        self.assertEqual({r["code"]:r["credits"] for r in data["breakdown"]}["signals"],2)
+        self.assertNotIn("Outro membro",str(data))
+        self.assertEqual(self.client.get(url, {"period":"ALL"}).json()["summary"]["bonus"],5)
+        self.assertEqual(self.client.get(url, {"period":"invalid"}).status_code,400)
+        self.assertEqual(self.client.get(url, {"before":"-1"}).status_code,400)
+        self.assertEqual(self.client.post(url, {"saldo":999}).status_code,405)
+
+    def test_personal_statement_cursor_paginates_without_duplicates(self):
+        for i in range(25):
+            self.move(f"pay:{i}", 1)
+        self.client.force_login(self.a)
+        url="/api/minha-conta/carteira/movimentos/"
+        first=self.client.get(url, {"period":"ALL"}).json()
+        self.assertEqual(len(first["results"]),20)
+        second=self.client.get(url, {"period":"ALL","before":first["next_before"]}).json()
+        self.assertEqual(len(second["results"]),5)
+        self.assertIsNone(second["next_before"])
+        self.assertEqual(len({r["id"] for r in first["results"]+second["results"]}),25)
+        self.assertEqual(second["balance"],25)

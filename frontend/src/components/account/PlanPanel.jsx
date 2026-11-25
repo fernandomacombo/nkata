@@ -11,6 +11,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { fetchMyPlan, fetchPayments, createPayment, claimWelcome } from "../../services/planApi.js";
+import WalletDashboard from "./WalletDashboard.jsx";
 
 const planIcon = {
   LIVRE: Sparkles,
@@ -167,8 +168,8 @@ export default function PlanPanel({ language = "PT" }) {
         <div className="nk-wallet-preview__header"><WalletCards size={24}/><div><small>{english ? "NKATA Wallet" : "Carteira NKATA"}</small><strong>{data.wallet.saldo} {english ? "credits" : "créditos"}</strong></div></div>
         {data.welcome_bonus?.enabled && <div className="nk-plan-current__identity"><span><Sparkles size={20}/></span><div><strong>{data.welcome_bonus.converted ? (english ? "Launch promotion converted" : "Promoção de lançamento convertida") : (english ? "Welcome bonus" : "Bónus de boas-vindas")}</strong><small>{data.welcome_bonus.credits} {english ? "credits, one time only" : "créditos, uma única vez"}</small>{data.welcome_bonus.claimable ? <button type="button" disabled={bonusBusy} onClick={receiveWelcome}>{english ? "Receive credits" : "Receber créditos"}</button> : <small>{data.welcome_bonus.granted ? (english ? "Already granted" : "Já atribuído") : (english ? "Available after identity verification" : "Disponível após verificação de identidade")}</small>}{bonusMessage && <small role="alert">{bonusMessage}</small>}</div></div>}
         <p>{data.wallet.catalogo.packs.some(p => p.purchase_enabled) ? (english ? "Choose a top-up. Credits arrive after payment confirmation." : "Escolha uma recarga. Os créditos entram após confirmação do pagamento.") : (english ? "Credit purchases are not available yet. Existing benefits remain valid." : "As recargas de créditos ainda não estão disponíveis. Os benefícios atuais mantêm-se válidos.")}</p>
-        <div className="nk-wallet-packs">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (english ? "Top up" : "Recarregar") : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
-        {!!data.wallet.movimentos.length && <div className="nk-wallet-preview__history"><h3>{english ? "Recent transactions" : "Últimos movimentos"}</h3>{data.wallet.movimentos.map(m => <div key={m.id}><span>{m.motivo}<small>{new Date(m.criado_em).toLocaleString(english ? "en-GB" : "pt-PT")}</small></span><strong>{m.quantidade > 0 ? "+" : ""}{m.quantidade}</strong></div>)}</div>}
+        <div className="nk-wallet-packs" id="nk-wallet-recharge">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (english ? "Top up" : "Recarregar") : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
+        <WalletDashboard english={english} refreshKey={data} onRecharge={() => document.getElementById("nk-wallet-recharge")?.scrollIntoView({behavior:"smooth", block:"center"})} />
       </section>}
       {(!data.credit_transition || current.expires_at || recharge.balance > 0) && <div className="nk-plan-current">
         <div className="nk-plan-current__identity">
