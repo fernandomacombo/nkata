@@ -10,7 +10,7 @@ export function createBrowserMedia({Device,WebSocketClass=globalThis.WebSocket,
   if(closed)return;closed=true;
   if(pending){clearTimeout(pending.timer);pending.reject(Error("Chamada encerrada."));pending=null;}
   for(const obj of [sendTransport,recvTransport])try{obj?.close();}catch{}
-  for(const stream of [local,remote])for(const track of stream?.getTracks()||[])track.stop();
+  for(const stream of [local,remote])for(const track of stream?.getTracks()||[])try{track.stop();}catch{}
   try{socket?.close();}catch{}
  }
  function failed(){if(closed)return;stop();onClosed();}
