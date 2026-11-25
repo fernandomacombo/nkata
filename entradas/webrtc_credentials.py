@@ -76,3 +76,25 @@ def ice_servers_for_user(user):
             "credential": credential,
         })
     return servers
+
+
+def native_ice_servers(session, user):
+    """Only for a previously authorized native call, never static credentials."""
+    secret = str(getattr(settings, "NKATA_WEBRTC_TURN_SHARED_SECRET", "") or "").strip()
+    urls = list(getattr(settings, "NKATA_WEBRTC_TURN_URLS", []) or [])
+    if (len(secret) < 32 or secret == settings.NKATA_MEDIA_GATEWAY_SECRET or not urls
+            or any(not isinstance(url, str) or not url.startswith(("turn:", "turns:")) for url in urls)
+            or not any(url.startswith("turns:") for url in urls)):
+        return None
+    # Covers the agreed maximum call duration plus setup and refresh margin.
+    ttl = min(120, session.max_minutos) * 60 + 300
+    expires_at = int(time.time()) + ttl
+    username = f"{expires_at}:{session.pk}:{user.pk}"
+    digest = hmac.new(secret.encode(), username.encode(), hashlib.sha1).digest()
+    servers = []
+    stun = list(getattr(settings, "NKATA_WEBRTC_STUN_URLS", []) or [])
+    if stun:
+        servers.append({"urls": stun})
+    servers.append({"urls": urls, "username": username,
+                    "credential": base64.b64encode(digest).decode("ascii")})
+    return {"ice_servers": servers, "expires_at": expires_at}
