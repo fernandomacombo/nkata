@@ -95,7 +95,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - name: Validar controlador de media
-        run: node --test ../media-gateway/lease-gate.test.mjs ../media-gateway/sfu-room.test.mjs
+        run: node --test ../media-gateway/lease-gate.test.mjs ../media-gateway/sfu-room.test.mjs ../media-gateway/signalling.test.mjs
       - run: npm run test:api-runtime
       - run: npm run test:nkata-id
       - run: npm run build
