@@ -483,3 +483,42 @@ class PedidoConversa(models.Model):
             models.UniqueConstraint(fields=["remetente", "destinatario"], condition=models.Q(estado="PENDENTE"), name="pedido_chat_pendente_unico"),
             models.CheckConstraint(condition=models.Q(estado__in=["PENDENTE", "ACEITE", "RECUSADO", "EXPIRADO", "CANCELADO"]), name="pedido_chat_estado_valido"),
         ]
+
+
+
+# Financial records are separate from subscriptions and historical signal grants.
+class CarteiraNKATA(models.Model):
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="carteira_nkata")
+    saldo = models.PositiveBigIntegerField(default=0, editable=False)
+    criada_em = models.DateTimeField(auto_now_add=True)
+    atualizada_em = models.DateTimeField(auto_now=True)
+
+
+class MovimentoCreditoNKATA(models.Model):
+    carteira = models.ForeignKey(CarteiraNKATA, on_delete=models.PROTECT, related_name="movimentos")
+    chave = models.CharField(max_length=120)
+    tipo = models.CharField(max_length=20, choices=[("BONUS", "Bónus"), ("RECARGA", "Recarga"), ("CONSUMO", "Consumo"), ("ESTORNO", "Estorno"), ("AJUSTE", "Ajuste")])
+    quantidade = models.BigIntegerField()
+    saldo_apos = models.PositiveBigIntegerField()
+    referencia = models.CharField(max_length=120)
+    motivo = models.CharField(max_length=240)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["carteira", "chave"], name="nk_credito_chave_unica"),
+            models.CheckConstraint(condition=(
+                models.Q(tipo__in=["BONUS", "RECARGA", "ESTORNO"], quantidade__gt=0)
+                | models.Q(tipo="CONSUMO", quantidade__lt=0)
+                | (models.Q(tipo="AJUSTE") & ~models.Q(quantidade=0))
+            ), name="nk_credito_movimento_valido"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValueError("Movimentos financeiros não podem ser alterados.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Movimentos financeiros não podem ser apagados.")

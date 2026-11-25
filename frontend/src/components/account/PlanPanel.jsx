@@ -156,6 +156,11 @@ export default function PlanPanel({ language = "PT" }) {
         ? "Start or answer calls with an active Fortnightly, Essential or Premium plan. Renewals are manual."
         : "Para iniciar ou atender chamadas, ative o plano Quinzenal, Essencial ou Premium. A renovação é manual."}</p>
 
+      {data.wallet && <section className="nk-wallet-preview" aria-label={english ? "NKATA Wallet" : "Carteira NKATA"}>
+        <div className="nk-wallet-preview__header"><WalletCards size={24}/><div><small>{english ? "NKATA Wallet" : "Carteira NKATA"}</small><strong>{data.wallet.saldo} {english ? "credits" : "créditos"}</strong></div></div>
+        <p>{english ? "Credit purchases and spending are not available yet. Existing plans and signal top-ups remain valid." : "A compra e utilização de créditos ainda não estão disponíveis. Os planos e recargas de sinais atuais mantêm-se válidos."}</p>
+        {!!data.wallet.movimentos.length && <div className="nk-wallet-preview__history"><h3>{english ? "Recent transactions" : "Últimos movimentos"}</h3>{data.wallet.movimentos.map(m => <div key={m.id}><span>{m.motivo}<small>{new Date(m.criado_em).toLocaleString(english ? "en-GB" : "pt-PT")}</small></span><strong>{m.quantidade > 0 ? "+" : ""}{m.quantidade}</strong></div>)}</div>}
+      </section>}
       <div className="nk-plan-current">
         <div className="nk-plan-current__identity">
           <span><CurrentIcon size={24} /></span>

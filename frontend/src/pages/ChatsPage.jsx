@@ -1,12 +1,14 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Reply, Search, Send, ShieldCheck, Sparkles, Trash2, UserRound, X, Plus } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Clock, Flower2, Hand, Heart, HeartHandshake, MessageCircle, MoreVertical, Reply, Search, Send, ShieldCheck, Sparkles, Trash2, UserRound, X, Plus } from "lucide-react";
 import { request, blockProfile, reportProfile } from "../services/api.js";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import { usePresence } from "../components/profiles/Presence.jsx";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
 
+const SIGNAL_ICONS = {OLA:Hand,FLOR:Flower2,BEIJINHO:Heart};
+function SignalIcon({type,size=24}) { const Icon=SIGNAL_ICONS[type] || Sparkles; return <Icon size={size} strokeWidth={1.6} aria-hidden="true"/>; }
 const STATES = { PENDENTE: "Pendente", ACEITE: "Aceite", RECUSADO: "Recusado", EXPIRADO: "Expirado", CANCELADO: "Cancelado" };
 const TABS = [["all", "Todas"], ["unread", "Não lidas"], ["received", "Pedidos"], ["sent", "Enviados"], ["connections", "Conexões"]];
 const stamp = (value) => {
@@ -250,7 +252,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           <li className={"nk-chat-bubble-row" + (message.minha ? " is-mine" : "") + (index > 0 && thread.mensagens[index-1].minha === message.minha && dayKey(thread.mensagens[index-1].criado_em) === dayKey(message.criado_em) ? " is-grouped" : "")}>
           <div className="nk-chat-bubble">
             {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem anterior ou indisponível"}</blockquote>}
-            {!message.apagada_em && message.tipo === "SINAL" && <span className="nk-chat-signal-art" aria-hidden="true">{{OLA:"👋",FLOR:"🌹",BEIJINHO:"😘"}[message.sinal] || "✨"}</span>}
+            {!message.apagada_em && message.tipo === "SINAL" && <span className="nk-chat-signal-art" aria-hidden="true"><SignalIcon type={message.sinal} size={28}/></span>}
             {!message.apagada_em && message.tipo === "QUEBRA_GELO" && <span className="nk-chat-extra-label"><Sparkles size={13}/>Quebra-gelo</span>}
             <p className={message.apagada_em ? "nk-chat-deleted" : undefined}>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
             <div className="nk-chat-meta"><time dateTime={message.criado_em}>{messageTime(message.criado_em)}</time>
@@ -270,7 +272,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
       <form className="nk-chat-compose" onSubmit={send}>
         <div className="nk-chat-extras-head"><button type="button" className="nk-chat-extras-toggle" aria-expanded={extrasOpen} onClick={() => setExtrasOpen(v => !v)} disabled={!safetyAccepted}><Plus size={17}/> Sinais e quebra-gelo</button></div>
         {extrasOpen && <section className="nk-chat-extras" aria-label="Sinais e quebra-gelo">
-          {!!thread.sinais?.signals?.length && <><strong>Sinais</strong><small>{thread.sinais.quota?.remaining_today ?? 0} disponíveis hoje · {thread.sinais.quota?.recharge_balance ?? 0} de recarga</small><div className="nk-chat-signal-buttons">{thread.sinais.signals.map(item => <button type="button" key={item.type} disabled={extraBusy || item.sent_to_profile_today || thread.sinais.quota?.limit_reached || !safetyAccepted} onClick={() => sendExtra("sinais", {tipo:item.type})}><span>{{OLA:"👋",FLOR:"🌹",BEIJINHO:"😘"}[item.type]}</span>{item.label}</button>)}</div></>}
+          {!!thread.sinais?.signals?.length && <><strong>Sinais</strong><small>{thread.sinais.quota?.remaining_today ?? 0} disponíveis hoje · {thread.sinais.quota?.recharge_balance ?? 0} de recarga</small><div className="nk-chat-signal-buttons">{thread.sinais.signals.map(item => <button type="button" key={item.type} disabled={extraBusy || item.sent_to_profile_today || thread.sinais.quota?.limit_reached || !safetyAccepted} onClick={() => sendExtra("sinais", {tipo:item.type})}><span><SignalIcon type={item.type}/></span>{item.label}</button>)}</div></>}
           <strong>Quebra-gelo · {thread.quebra_gelo?.restantes ?? 0} restantes</strong>
           {thread.quebra_gelo?.perguntas?.map(item => <button className="nk-chat-icebreaker" type="button" key={item.codigo} disabled={extraBusy || !thread.quebra_gelo.restantes || !safetyAccepted} onClick={() => sendExtra("quebra-gelo", {codigo:item.codigo})}>{item.texto}<Send size={15}/></button>)}
         </section>}

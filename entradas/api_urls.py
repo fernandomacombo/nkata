@@ -44,7 +44,10 @@ from . import (
 
 app_name = "entradas_api"
 
+from . import wallet_api
+
 urlpatterns = [
+    path("minha-conta/carteira/", wallet_api.wallet),
     path("chats/", conversations_api.inbox),
     path("chats/<int:conversation_id>/", conversations_api.messages),
     path("chats/<int:conversation_id>/escrita/", conversations_api.typing),

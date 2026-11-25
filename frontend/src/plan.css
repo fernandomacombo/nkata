@@ -422,3 +422,11 @@
   outline: 3px solid rgba(125, 38, 56, .28);
   outline-offset: 3px;
 }
+
+.nk-wallet-preview { border:1px solid #e9e1e4; border-radius:16px; padding:16px; background:#fff; }
+.nk-wallet-preview__header { display:flex; gap:12px; align-items:center; border-radius:12px; padding:18px; background:#7d2638; color:white; }
+.nk-wallet-preview__header div { display:grid; gap:5px; }
+.nk-wallet-preview__header strong { font-size:1.65rem; }
+.nk-wallet-preview > p { font-size:.85rem; color:#74696d; margin:12px 0 0; }
+.nk-wallet-preview__history > div { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #e9e1e4; }
+.nk-wallet-preview__history small { display:block; color:#74696d; }

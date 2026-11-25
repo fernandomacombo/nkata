@@ -3,6 +3,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .payment_service import payments_enabled
+from .wallet_service import wallet_snapshot
+from .credit_catalog import credit_catalog
+from .user_roles import member_profile_for_user
 
 from .plan_service import (
     plan_for_user,
@@ -38,6 +41,7 @@ def api_plano_da_conta(request):
             "expires_at": access.fim if access else None,
         },
         "signal_quota": quota,
+        "wallet": {**wallet_snapshot(request.user), "catalogo": credit_catalog()} if member_profile_for_user(request.user) else None,
         "chat_presets": preset_snapshot(request.user),
         "recharge": {
             "balance": quota["recharge_balance"],
