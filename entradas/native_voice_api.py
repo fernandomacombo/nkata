@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .audio_validation import prepare_voice_note, InvalidVoiceNote, AudioDecoderUnavailable
 from .chat_media_api import _validate_audio, MAX_AUDIO_DURATION_SECONDS
-from .conversations_api import accessible_thread, lock_pair, notify
+from .conversations_api import readable_thread, writable_thread, lock_pair, notify
 from .credit_catalog import VOICE_NOTE_CREDITS
 from .models import Conversa, MatchPerfil, MensagemMatch, NotaVozConversaNKATA, MovimentoCreditoNKATA
 from .serializers import MensagemMatchSerializer
@@ -26,7 +26,7 @@ class VoiceStorageError(Exception):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def send_voice(request, conversation_id):
-    chat, me, other = accessible_thread(request, conversation_id)
+    chat, me, other = writable_thread(request, conversation_id)
     try:
         key = str(uuid.UUID(str(request.data.get("key"))))
     except (ValueError, TypeError, AttributeError):
@@ -66,7 +66,7 @@ def send_voice(request, conversation_id):
     stored = False
     try:
         with transaction.atomic():
-            other,_ = lock_pair(me,other.pk)
+            other,_ = lock_pair(me,other.pk,for_send=True)
             user = get_user_model().objects.select_for_update().get(pk=request.user.pk)
             if chat.match_origem_id:
                 MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
@@ -104,7 +104,7 @@ def send_voice(request, conversation_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def voice_media(request, conversation_id, message_id):
-    chat,_,_ = accessible_thread(request,conversation_id)
+    chat,_,_ = readable_thread(request,conversation_id)
     note = get_object_or_404(NotaVozConversaNKATA.objects.filter(mensagem__conversa=chat,
         mensagem__apagada_em__isnull=True),mensagem_id=message_id)
     try:
