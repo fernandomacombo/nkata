@@ -52,6 +52,7 @@ urlpatterns = [
     path("internal/media-gateway/minute/", media_gateway_api.minute),
     path("internal/media-gateway/join/", media_gateway_api.redeem_join_ticket),
     path("chats/chamadas/<uuid:session_id>/ticket/", media_gateway_api.issue_join_ticket),
+    path("chats/chamadas/<uuid:session_id>/ice/", media_gateway_api.call_ice_config),
     path("minha-conta/carteira/", wallet_api.wallet),
     path("minha-conta/carteira/movimentos/", wallet_api.statement),
     path("minha-conta/carteira/extrato.pdf", wallet_api.statement_pdf),
