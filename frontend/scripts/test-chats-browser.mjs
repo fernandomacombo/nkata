@@ -12,13 +12,14 @@ await fs.writeFile(jsx, `
 import React, {useState} from "react";
 import {createRoot} from "react-dom/client";
 import ChatsPage from "/src/pages/ChatsPage.jsx";
+import MemberHomePage from "/src/pages/MemberHomePage.jsx";
 import BottomNavigation from "/src/components/layout/BottomNavigation.jsx";
 import { PresenceProvider } from "/src/components/profiles/Presence.jsx";
 ${css}
 function Harness(){
- const [page,setPage] = useState("chats"), [id,setId] = useState(null), [accepted,setAccepted] = useState(false);
+ const [page,setPage] = useState(new URLSearchParams(window.location.search).has("feed") ? "feed-test" : "chats"), [id,setId] = useState(null), [accepted,setAccepted] = useState(false);
  return <div className="nk-app"><header className="nk-header"><span className="nk-header__member">Member</span></header>
- {page === "chats" ? <ChatsPage conversationId={id} onSelect={setId} onBack={()=>setId(null)} onDiscover={()=>setPage("discover")} onOpenProfile={()=>setPage("profile")} safetyAccepted={accepted} onAcceptSafety={async()=>setAccepted(true)} /> : <main><h1>Other page</h1></main>}
+ {page === "feed-test" ? <MemberHomePage onNavigate={setPage} onOpenProfile={()=>setPage("profile")}/> : page === "chats" ? <ChatsPage conversationId={id} onSelect={setId} onBack={()=>setId(null)} onDiscover={()=>setPage("discover")} onOpenProfile={()=>setPage("profile")} safetyAccepted={accepted} onAcceptSafety={async()=>setAccepted(true)} /> : <main><h1>Other page</h1></main>}
  <BottomNavigation activePage={page} onNavigate={p=>{setPage(p);setId(null)}}/>
  </div>;
 }
@@ -149,6 +150,30 @@ try {
       await page.getByRole("heading",{name:"Other page"}).waitFor();
     }
     await page.close();
+    // Exercise the real feed after the asynchronous poll arrives. A successful
+    // bundle build alone does not catch undefined JSX variables at render time.
+    const feed = await browser.newPage({viewport:{width,height:820},isMobile:width<820,hasTouch:width<820});
+    const errors = [];
+    feed.on("pageerror", error => errors.push(error.message));
+    await feed.route("**/api/descoberta/sugestoes/", route=>route.fulfill({json:{results:[]}}));
+    await feed.route("**/api/descoberta/pergunta/", route=>route.fulfill({json:{
+      date:"2026-11-25",question:{pt:"Pergunta de teste",en:"Test question"},
+      options:[{pt:"Sim",en:"Yes"},{pt:"Não",en:"No"}],choice:0,counts:[1,0],participants:[]
+    }}));
+    await feed.route("**/api/publicacoes/", route=>route.fulfill({json:{
+      results:[],review_items:[],capabilities:{publish_media_enabled:true,credit_mode:true,
+      publication_offer:{free_photo_remaining:1,photo_cost:0,video_cost:5,balance:55,spending_enabled:true}}
+    }}));
+    await feed.route("**/api/presenca/", route=>route.fulfill({json:{perfis:{}}}));
+    await feed.goto("http://127.0.0.1:5178/"+html+"?feed=1");
+    await feed.getByRole("heading",{name:"Pergunta de teste"}).waitFor();
+    assert.equal(await feed.locator(".nk-poll-share").count(),0);
+    assert.equal(await feed.locator("#nk-feed-composer").isVisible(),false,"Composer must not appear until plus is pressed");
+    await feed.getByRole("button",{name:"Nova publicação",exact:true}).click();
+    await feed.locator("#nk-feed-composer").waitFor({state:"visible"});
+    await feed.getByText("Saldo: 55",{exact:false}).waitFor();
+    assert.equal(errors.length,0,errors.join("\n"));
+    await feed.close();
    }
   } finally {await browser.close();}
  }
