@@ -112,3 +112,21 @@ test("ambiguous failure during resume never triggers automatic refund",async()=>
   closeTransport:()=>{},authorize:async()=>61000,reconcile:async()=>{reports++;return true;}});
  await gate.tick();assert.equal(gate.closed,true);assert.equal(reports,0);
 });
+
+
+test("resume evidence is persisted before transmission",async()=>{
+ let events=[];
+ const gate=new LeaseGate({sessionId:"s",userIds:[1,2],clock:()=>1000,schedule:()=>1,cancel:()=>{},
+  connected:()=>true,consumers:()=>[{pause:async()=>{},resume:async()=>events.push("resume")}],
+  closeTransport:()=>{},authorize:async()=>61000,
+  recordResume:async({phase})=>{events.push(phase);return true;}});
+ await gate.tick();assert.deepEqual(events,["INTENT","resume","CONFIRMED"]);await gate.stop();
+});
+test("missing durable intent acknowledgement prevents transmission",async()=>{
+ let resumed=0,refunded=0;
+ const gate=new LeaseGate({sessionId:"s",userIds:[1,2],clock:()=>1000,schedule:()=>1,cancel:()=>{},
+  connected:()=>true,consumers:()=>[{pause:async()=>{},resume:async()=>resumed++}],
+  closeTransport:()=>{},authorize:async()=>61000,reconcile:async()=>{refunded++;return true;},
+  recordResume:async()=>false});
+ await gate.tick();assert.equal(resumed,0);assert.equal(refunded,0);assert.equal(gate.closed,true);
+});
