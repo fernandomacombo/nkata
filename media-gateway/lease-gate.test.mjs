@@ -69,3 +69,28 @@ test("admission rejects denied and invalid gateway responses",async()=>{
  assert.equal(await createAdmissionClient({...config,fetcher:async()=>({ok:true,json:async()=>({authorized:true,session_id:"bad",user_id:7,kind:"AUDIO"})})})("ticket"),null);
  assert.throws(()=>createAdmissionClient({...config,origin:"http://example.test"}));
 });
+
+
+test("independent lease is acknowledged before resume and cleared only after early pause",async()=>{
+ let now=1000,events=[],calls=0;
+ const consumer={async pause(){events.push("pause");},async resume(){events.push("resume");}};
+ const gate=new LeaseGate({sessionId:"lease",userIds:[1,2],clock:()=>now,schedule:()=>1,cancel:()=>{},
+  connected:()=>true,consumers:()=>[consumer],closeTransport:()=>events.push("close"),
+  authorize:async()=>{calls++;return calls===1?61000:121000;},
+  watchdog:{async arm(id,deadline){events.push("arm:"+deadline);},async clear(id,deadline){events.push("clear:"+deadline);}}});
+ await gate.tick();
+ assert.deepEqual(events,["pause","arm:61000","resume"]);
+ now=60250;await gate.tick();
+ assert.deepEqual(events.slice(-2),["pause","clear:61000"]);
+ assert.equal(calls,1);
+ now=61000;await gate.tick();
+ assert.equal(calls,2);assert.deepEqual(events.slice(-3),["pause","arm:121000","resume"]);
+ await gate.stop();
+});
+test("missing watchdog acknowledgement prevents resume",async()=>{
+ let resumed=0,closed=0;
+ const gate=new LeaseGate({sessionId:"lease",userIds:[1,2],clock:()=>1000,schedule:()=>1,cancel:()=>{},
+  connected:()=>true,consumers:()=>[{pause:async()=>{},resume:async()=>resumed++}],closeTransport:()=>closed++,
+  authorize:async()=>61000,watchdog:{arm:async()=>{throw Error("IPC");}}});
+ await gate.tick();assert.equal(resumed,0);assert.equal(closed,1);
+});
