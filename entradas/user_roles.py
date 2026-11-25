@@ -39,6 +39,12 @@ ADMIN_CAPABILITIES = (
         "group": "NKATA_STAFF_OPERACOES",
     },
     {
+        "code": "finance",
+        "label": "Créditos e finanças",
+        "description": "Consultar carteiras, pagamentos, movimentos e reconciliação financeira.",
+        "group": "NKATA_STAFF_FINANCAS",
+    },
+    {
         "code": "audit",
         "label": "Auditoria",
         "description": "Consultar o histórico das ações administrativas.",

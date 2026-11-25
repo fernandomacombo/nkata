@@ -44,7 +44,7 @@ from . import (
 
 app_name = "entradas_api"
 
-from . import wallet_api
+from . import wallet_api, finance_admin_api
 
 urlpatterns = [
     path("minha-conta/carteira/", wallet_api.wallet),
@@ -68,6 +68,7 @@ urlpatterns = [
     path("painel/fotografias/<int:profile_id>/<int:slot>/rever/", profile_photo_review_api.api_review_photo, name="painel_fotografias_rever"),
     path("painel/membros/<int:profile_id>/ficha/", admin_member_dossier_api.api_admin_member_dossier, name="admin_member_dossier"),
     path("painel/resumo/", admin_panel_api.api_admin_summary, name="admin_summary"),
+    path("painel/financas/", finance_admin_api.finance, name="admin_finance"),
     path("painel/lista/", admin_panel_api.api_admin_list, name="admin_list"),
     path(
         "painel/pedidos/<int:pedido_id>/",
