@@ -7,9 +7,9 @@ const connected=t=>!!t&&!t.closed&&t.dtlsState==="connected"&&["connected","comp
 const transportInfo=t=>({id:t.id,iceParameters:t.iceParameters,iceCandidates:t.iceCandidates,dtlsParameters:t.dtlsParameters});
 
 export class SfuRoom{
- constructor({router,sessionId,kind,transportOptions,authorize}){
+ constructor({router,sessionId,kind,transportOptions,authorize,watchdog=null,confirmClosed=null}){
   if(!router||!["AUDIO","VIDEO"].includes(kind)||!sessionId||typeof authorize!=="function")throw Error("Invalid room");
-  Object.assign(this,{router,sessionId,kind,transportOptions,authorize});
+  Object.assign(this,{router,sessionId,kind,transportOptions,authorize,watchdog,confirmClosed});
   this.peers=new Map();this.closed=false;this.sealed=false;this.queue=Promise.resolve();
  }
  // Serialize topology updates; no new producers or consumers after activation.
@@ -88,7 +88,7 @@ export class SfuRoom{
   return this.run(async()=>{
    if(!this.ready())throw Error("Room not ready");
    this.sealed=true;
-   this.gate=new LeaseGate({sessionId:this.sessionId,userIds:[...this.peers.keys()],authorize:this.authorize,
+   this.gate=new LeaseGate({sessionId:this.sessionId,userIds:[...this.peers.keys()],authorize:this.authorize,watchdog:this.watchdog,
     connected:()=>this.ready(),consumers:()=>[...this.peers.values()].flatMap(p=>[...p.consumers.values()]),
     closeTransport:()=>this.close()});
    await this.gate.tick();
@@ -100,6 +100,11 @@ export class SfuRoom{
   this.closed=true;
   // Dedicated router closure terminates every transport; no browser command.
   try{this.router.close();}finally{
+   // Only clear an armed lease after native worker confirms router removal.
+   const deadline=this.gate?.armedDeadline;
+   if(deadline&&this.watchdog&&this.confirmClosed)void (async()=>{
+    try{if(await this.confirmClosed(this.router.id)&&this.gate.armedDeadline===deadline){await this.watchdog.clear(this.sessionId,deadline);this.gate.armedDeadline=0;}}catch{}
+   })();
    if(this.gate&&!this.gate.closed)void this.gate.stop().catch(()=>{});
    this.peers.clear();
   }
