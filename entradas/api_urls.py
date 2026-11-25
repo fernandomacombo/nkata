@@ -56,6 +56,7 @@ urlpatterns = [
     path("internal/media-gateway/join/", media_gateway_api.redeem_join_ticket),
     path("chats/<int:conversation_id>/chamadas/", native_call_api.start),
     path("chats/chamadas/actual/", native_call_api.current),
+    path("chats/chamadas/config/", native_call_api.browser_config),
     path("chats/chamadas/<uuid:session_id>/", native_call_api.detail),
     path("chats/chamadas/<uuid:session_id>/ticket/", media_gateway_api.issue_join_ticket),
     path("chats/chamadas/<uuid:session_id>/ice/", media_gateway_api.call_ice_config),
