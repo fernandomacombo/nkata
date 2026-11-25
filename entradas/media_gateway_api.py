@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from .native_call_service import authorize_gateway_minute, _locked_session, _allowed
+from .native_call_service import authorize_gateway_minute, _locked_session, _allowed, reconcile_unstarted_minute
 from .wallet_service import credit_spending_enabled
 from .wallet_service import WalletError
 from .webrtc_credentials import native_ice_servers
@@ -192,3 +192,32 @@ def call_ice_config(request, session_id):
     if config is None:
         return reply({"authorized": False, "detail": "Media relay unavailable."}, 503)
     return reply(config)
+
+
+RECONCILE_PATH = "/api/internal/media-gateway/reconcile/"
+
+
+@csrf_exempt
+@require_POST
+def reconcile(request):
+    error = authenticate_gateway(request, RECONCILE_PATH)
+    if error is not None:
+        return error
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict) or set(data) != {"session_id", "user_ids", "minute", "outcome"}:
+            raise ValueError()
+        sid = uuid.UUID(data["session_id"])
+        ids, minute = data["user_ids"], data["minute"]
+        if (not isinstance(ids, list) or len(ids) != 2
+                or any(type(uid) is not int or uid <= 0 for uid in ids)
+                or len(set(ids)) != 2 or type(minute) is not int or not 1 <= minute <= 120
+                or data["outcome"] != "RESUME_NOT_ATTEMPTED"):
+            raise ValueError()
+    except (ValueError, TypeError, AttributeError, UnicodeError):
+        return reply({"reconciled": False}, 400)
+    try:
+        result = reconcile_unstarted_minute(sid, user_ids=ids, minute=minute)
+    except WalletError:
+        return reply({"reconciled": False}, 409)
+    return reply({"reconciled": True, **result})
