@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import TestCase
 
+from .test_conversations import historical_match
 from .identity_api import _live_capture_proof
 from .identity_models import VerificacaoIdentidadeNKATA
 from .models import AcessoPlanoNKATA, MatchPerfil, MensagemMatch, PedidoEntrada, PerfilNKATA, QuestionarioEntrada
@@ -78,7 +79,7 @@ class ChatIdentityFlowTests(TestCase):
             pedido=other, usuario=other_user, nome_publico="Outro Membro",
             cidade="Maputo", idade=30, objetivo="RELACIONAMENTO_SERIO", status="ATIVO",
         )
-        match = MatchPerfil.objects.create(
+        match = historical_match(
             perfil_1=member, perfil_2=other_profile, status="ATIVO",
         )
         MensagemMatch.objects.create(match=match, remetente=other_user, texto="Mensagem privada")

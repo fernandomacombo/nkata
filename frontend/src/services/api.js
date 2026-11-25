@@ -166,6 +166,7 @@ function normalizeMatch(match) {
   if (!match) return null;
   return {
     id: match.id,
+    conversationId: match.conversation_id || null,
     otherProfile: normalizeProfile(match.outro_perfil || match.perfil_2 || match.perfil_1),
     type: match.tipo_origem,
     typeLabel: match.tipo_origem_display || "Interesse mútuo",
@@ -187,6 +188,8 @@ function normalizeNotification(notification) {
     text: notification.texto || "",
     read: Boolean(notification.lida),
     profile: normalizeProfile(notification.perfil),
+    requestId: notification.request_id || null,
+    conversationId: notification.conversation_id || null,
     matchId: notification.match_id || null,
     createdAt: notification.criado_em,
     updatedAt: notification.atualizado_em || notification.criado_em,

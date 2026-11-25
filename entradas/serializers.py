@@ -336,6 +336,7 @@ class MensagemMatchSerializer(serializers.ModelSerializer):
 
 
 class MatchSerializer(serializers.ModelSerializer):
+    conversation_id = serializers.IntegerField(source="chat.pk", read_only=True, default=None)
     perfil_1 = PerfilResumoSerializer(read_only=True)
     perfil_2 = PerfilResumoSerializer(read_only=True)
     outro_perfil = serializers.SerializerMethodField()
@@ -347,6 +348,7 @@ class MatchSerializer(serializers.ModelSerializer):
         model = MatchPerfil
         fields = [
             "id",
+            "conversation_id",
             "perfil_1",
             "perfil_2",
             "outro_perfil",

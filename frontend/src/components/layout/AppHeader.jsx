@@ -12,6 +12,7 @@ import {
   LogIn,
   LogOut,
   Menu,
+  MessageCircle,
   PanelsTopLeft,
   Search,
   ShieldCheck,
@@ -155,6 +156,9 @@ export default function AppHeader({
               <HeartHandshake size={18} strokeWidth={1.5} aria-hidden="true" /> Matches {unreadMatches > 0 ? `(${unreadMatches})` : ""}
             </button>
           )}
+          {member && <button type="button" className={activePage === "chats" ? "is-active" : ""} onClick={() => navigate("chats")}>
+            <MessageCircle size={18} aria-hidden="true" /> Chats
+          </button>}
           {!operator && <button
             type="button"
             className={activePage === "security" ? "is-active" : ""}
@@ -360,6 +364,9 @@ export default function AppHeader({
                   {unreadMatches > 0 && <em>{unreadMatches > 99 ? "99+" : unreadMatches}</em>}
                 </button>
               )}
+          {member && <button type="button" className={activePage === "chats" ? "is-active" : ""} onClick={() => navigate("chats")}>
+            <MessageCircle size={18} aria-hidden="true" /> Chats
+          </button>}
 
               {member && (
                 <button

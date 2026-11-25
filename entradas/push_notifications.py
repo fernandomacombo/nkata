@@ -20,6 +20,12 @@ def push_configured():
 
 
 def _notification_url(notification):
+    if notification.request_id:
+        return f"/chats/pedidos/{notification.request_id}/"
+    if notification.tipo == "MATCH":
+        return "/matches/"
+    if notification.conversation_id:
+        return f"/chats/{notification.conversation_id}/"
     if notification.match_id:
         return f"/matches/{notification.match_id}/conversa/"
     return "/notificacoes/"

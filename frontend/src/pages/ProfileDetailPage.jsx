@@ -133,10 +133,20 @@ export default function ProfileDetailPage({
   interestLoading,
   interestMessage,
   onToggleSaved,
+  onAskChat,
   onToggleInterest,
   onRequireLogin,
   onBack,
 }) {
+  const [chatError, setChatError] = useState("");
+  const [askingChat, setAskingChat] = useState(false);
+  async function askChat() {
+    setAskingChat(true);
+    setChatError("");
+    try { await onAskChat(); }
+    catch (error) { setChatError(error.message); }
+    finally { setAskingChat(false); }
+  }
   const english = useInterfaceLanguage() === "EN";
   const [imageFailed, setImageFailed] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
@@ -523,6 +533,10 @@ export default function ProfileDetailPage({
             )}
 
             <div className="nk-profile-detail__actions">
+              {onAskChat && !String(profile.id).startsWith("demo-") && <button type="button" className="nk-button" disabled={askingChat} onClick={askChat}>
+                {english ? "Request a chat" : "Pedir conversa"}
+              </button>}
+              {chatError && <p role="alert">{chatError}</p>}
               <button
                 type="button"
                 className={`nk-button nk-button--wine ${interestActive ? "is-active" : ""}`}

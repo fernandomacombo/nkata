@@ -808,6 +808,7 @@ def api_conversa_match(request, match_id):
         mensagem = MensagemMatch.objects.create(
             resposta_a_id=reply_id,
             match=match,
+            conversa=match.chat,
             remetente=request.user,
             texto=texto,
         )

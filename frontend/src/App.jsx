@@ -15,6 +15,7 @@ import ChatIdentityPage from "./pages/ChatIdentityPage.jsx";
 import DiscoverPage from "./pages/DiscoverPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import ChatsPage from "./pages/ChatsPage.jsx";
 import MatchesPage from "./pages/MatchesPage.jsx";
 import MemberHomePage from "./pages/MemberHomePage.jsx";
 import MomentsPage from "./pages/MomentsPage.jsx";
@@ -26,6 +27,7 @@ import HelpCenterPage from "./pages/HelpCenterPage.jsx";
 import "./help-center.css";
 import useAppRoute from "./routing.js";
 import {
+  request,
   fetchMatchConversation,
   fetchMyAccount,
   fetchMyInterests,
@@ -41,7 +43,7 @@ import {
   updateMyAccount,
 } from "./services/api.js";
 
-const AUTH_ONLY_PAGES = ["moments", "matches", "conversation", "notifications", "account", "identity", "admin"];
+const AUTH_ONLY_PAGES = ["moments", "chats", "matches", "conversation", "notifications", "account", "identity", "admin"];
 const MOBILE_BACK_DESTINATIONS = {
   saved: "discover",
   notifications: "home",
@@ -52,6 +54,8 @@ const MOBILE_BACK_SAFE_ORIGINS = ["home", "discover", "moments", "matches", "acc
 export default function App() {
   const {
     activePage,
+    conversationId,
+    requestId,
     routeProfileId,
     routeMatchId,
     setActivePage,
@@ -581,35 +585,11 @@ export default function App() {
       setActivePage("conversation", { matchId: match.id });
       return;
     }
-    setSelectedMatch(match);
-    setConversationMessages([]);
-    setConversationError("");
-    setConversationLoading(true);
-    setActivePage("conversation", { matchId: match.id });
-    setNotifications((current) => current.map((item) => (
-      item.matchId === match.id ? { ...item, read: true } : item
-    )));
-    markMatchNotificationsRead(match.id).catch(() => {});
-    window.scrollTo({ top: 0, behavior: "smooth" });
-
-    try {
-      const result = await fetchMatchConversation(match.id);
-      setSelectedMatch(result.match || match);
-      setConversationMessages(result.messages);
-      setMatches((current) => current.map((item) => (
-        item.id === match.id
-          ? { ...(result.match || item), unreadCount: 0 }
-          : item
-      )));
-    } catch (error) {
-      if (error.status === 401 || error.status === 403) {
-        openLogin("matches");
-        return;
-      }
-      setConversationError(error.message || "Não foi possível abrir a conversa.");
-    } finally {
-      setConversationLoading(false);
+    if (match.conversationId) {
+      setActivePage("chats", { conversationId: match.conversationId });
+      return;
     }
+    await handleOpenProfile(match.otherProfile);
   };
 
   const handleSendMessage = async (text, replyId) => {
@@ -652,6 +632,14 @@ export default function App() {
       });
     }
 
+    if (notification.type === "PEDIDO_CHAT" || notification.conversationId) {
+      setActivePage("chats", { conversationId: notification.conversationId, requestId: notification.requestId });
+      return;
+    }
+    if (notification.type === "MATCH") {
+      setActivePage("matches");
+      return;
+    }
     if (notification.matchId) {
       const match = matches.find((item) => item.id === notification.matchId) || null;
       setSelectedMatch(chatIdentityRequired ? null : match);
@@ -865,13 +853,18 @@ export default function App() {
           interestLoading={interestState.loading}
           interestMessage={interestState.message}
           onToggleSaved={toggleSaved}
+          onAskChat={memberAuthenticated && String(selectedProfile?.id) !== String(session?.profile?.id) ? async () => {
+            if (chatIdentityRequired) return setActivePage("identity");
+            const result = await request(`/api/chats/pedir/${selectedProfile.id}/`, { method: "POST" });
+            setActivePage("chats", { conversationId: result.conversation_id });
+          } : null}
           onToggleInterest={handleToggleInterest}
           onRequireLogin={() => openLogin("profile")}
           onBack={handleBackFromProfile}
         />
       )}
 
-      {(activePage === "identity" || activePage === "conversation") && memberAuthenticated && chatIdentityRequired && (
+      {(["identity", "conversation", "chats"].includes(activePage)) && memberAuthenticated && chatIdentityRequired && (
         <ChatIdentityPage
           key={sessionIdentity}
           onBack={() => handleNavigate(activePage === "identity" ? "account" : "matches")}
@@ -886,6 +879,13 @@ export default function App() {
         </main>
       )}
 
+      {activePage === "chats" && memberAuthenticated && !chatIdentityRequired && (
+        <ChatsPage key={`chats-${sessionIdentity}`} conversationId={conversationId} requestId={requestId}
+          onSelect={(id) => setActivePage("chats", { conversationId: id })}
+          onLegacy={(id) => setActivePage("conversation", { matchId: id })}
+          safetyAccepted={preferences.aviso_chat_aceite === true}
+          onAcceptSafety={() => savePreferences({ aviso_chat_aceite: true })} />
+      )}
       {activePage === "matches" && memberAuthenticated && (
         <MatchesPage
           matches={matches}

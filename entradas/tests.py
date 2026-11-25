@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
+from .test_conversations import historical_match
 from .models import (
     AcaoPerfil,
     MatchPerfil,
@@ -264,7 +265,7 @@ class NkataApiTests(TestCase):
         _, perfil_a = self.create_profile("conversa-a@example.com", "Pessoa A")
         _, perfil_b = self.create_profile("conversa-b@example.com", "Pessoa B")
         user_c, _ = self.create_profile("conversa-c@example.com", "Pessoa C")
-        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+        match = historical_match(perfil_1=perfil_a, perfil_2=perfil_b)
 
         self.client.force_login(user_c)
         response = self.client.get(
@@ -276,7 +277,7 @@ class NkataApiTests(TestCase):
     def test_only_sender_can_delete_message_for_both_participants(self):
         user_a, perfil_a = self.create_profile("delete-a@example.com", "Pessoa A")
         user_b, perfil_b = self.create_profile("delete-b@example.com", "Pessoa B")
-        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+        match = historical_match(perfil_1=perfil_a, perfil_2=perfil_b)
         message = MensagemMatch.objects.create(match=match, remetente=user_a, texto="Mensagem privada")
         url = f"/api/minha-conta/matches/{match.id}/mensagens/{message.id}/"
         self.client.force_login(user_b)
@@ -294,7 +295,7 @@ class NkataApiTests(TestCase):
     def test_mensagem_pode_ser_enviada_e_marcada_como_lida(self):
         user_a, perfil_a = self.create_profile("msg-a@example.com", "Pessoa A")
         user_b, perfil_b = self.create_profile("msg-b@example.com", "Pessoa B")
-        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+        match = historical_match(perfil_1=perfil_a, perfil_2=perfil_b)
 
         self.client.force_login(user_a)
         enviar = self.client.post(
@@ -321,7 +322,7 @@ class NkataApiTests(TestCase):
     def test_mensagem_vazia_e_rejeitada(self):
         user_a, perfil_a = self.create_profile("vazia-a@example.com", "Pessoa A")
         _, perfil_b = self.create_profile("vazia-b@example.com", "Pessoa B")
-        match = MatchPerfil.objects.create(perfil_1=perfil_a, perfil_2=perfil_b)
+        match = historical_match(perfil_1=perfil_a, perfil_2=perfil_b)
 
         self.client.force_login(user_a)
         response = self.client.post(

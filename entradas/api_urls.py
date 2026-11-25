@@ -13,6 +13,7 @@ from . import (
     admin_staff_api,
     api_views,
     call_api,
+    conversations_api,
     call_history_api,
     chat_media_api,
     chat_realtime_api,
@@ -44,6 +45,12 @@ from . import (
 app_name = "entradas_api"
 
 urlpatterns = [
+    path("chats/", conversations_api.inbox),
+    path("chats/<int:conversation_id>/", conversations_api.messages),
+    path("chats/<int:conversation_id>/escrita/", conversations_api.typing),
+    path("chats/<int:conversation_id>/mensagens/<int:message_id>/", conversations_api.delete_message),
+    path("chats/pedir/<int:profile_id>/", conversations_api.send_request),
+    path("chats/pedidos/<int:request_id>/", conversations_api.decide_request),
     path("status/", api_views.api_status, name="status"),
     path("session/", api_views.api_session, name="session"),
     path("auth/login/", api_views.api_login, name="login"),
