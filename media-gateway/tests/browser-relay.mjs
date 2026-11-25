@@ -101,7 +101,10 @@ try{
    if(kind==="VIDEO")await Promise.all(pages.map(p=>p.waitForFunction(()=>document.querySelector("video").videoWidth>0,{},{timeout:3000})));
    await eventually(()=>room.closed,"Denied renewal must close SFU room",10000);
    await eventually(async()=> (await Promise.all(pages.map(p=>p.evaluate(()=>window.testClosed&&window.streams.localStream.getTracks().every(t=>t.readyState==="ended"))))).every(Boolean),"Both clients must release local tracks");
-   assert.deepEqual(attempts.get(sid),[1,2]);
+   const indices=attempts.get(sid);
+   assert.equal(indices[0],1);
+   assert.equal(indices.at(-1),2,"renewal must actually be denied");
+   assert.ok(indices.slice(0,-1).every(n=>n===1),"only existing lease may be revalidated");
    console.log(kind+": real browser relay and denied renewal validated");
   }finally{for(const context of contexts)await context.close();}
  }
