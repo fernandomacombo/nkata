@@ -3,7 +3,6 @@ from django.core.management.base import BaseCommand, CommandError
 
 from entradas.models import PerfilNKATA, MovimentoCreditoNKATA, BonusIdentidadeCreditoNKATA, AcessoPlanoNKATA
 from entradas.wallet_service import welcome_eligible, welcome_blocker, grant_welcome_credits, WalletError
-from entradas.legacy_commercial import convertible_quinzenal
 
 
 class Command(BaseCommand):
@@ -24,8 +23,7 @@ class Command(BaseCommand):
                     identity_pending += 1
                 continue
             granted_before = MovimentoCreditoNKATA.objects.filter(carteira__usuario_id=profile.usuario_id, chave="welcome:v1").exists()
-            promotional = convertible_quinzenal(profile.usuario_id).exists()
-            if granted_before and not promotional:
+            if granted_before:
                 existing += 1
                 continue
             if not granted_before and BonusIdentidadeCreditoNKATA.objects.filter(documento_chave=profile.pedido.documento_chave).exists():

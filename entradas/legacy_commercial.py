@@ -8,13 +8,6 @@ def credit_only_enabled():
     return bool(settings.NKATA_CREDIT_ONLY_ENABLED)
 
 
-def convertible_quinzenal(user_id):
-    origins = ["PROMO_LANCAMENTO"]
-    if credit_only_enabled():
-        origins.append("ADMINISTRATIVA")
-    return AcessoPlanoNKATA.objects.filter(usuario_id=user_id, plano="QUINZENAL", origem__in=origins)
-
-
 def legacy_audit():
     orders = PedidoPagamentoNKATA.objects.filter(simulado=False).exclude(produto__startswith="CREDITOS_")
     # A provider failure with evidence of confirmation is still a blocker.

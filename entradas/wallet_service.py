@@ -7,9 +7,8 @@ from django.contrib.auth import get_user_model
 from django.db import transaction, IntegrityError
 from django.db.models import Sum
 
-from .credit_catalog import WELCOME_CREDITS, CHAT_24H_CREDITS, LAUNCH_CONVERSION_CREDITS
+from .credit_catalog import WELCOME_CREDITS, CHAT_24H_CREDITS
 from .identity_models import pedido_tem_identidade_verificada
-from .legacy_commercial import convertible_quinzenal
 from .models import CarteiraNKATA, MovimentoCreditoNKATA, PerfilNKATA, AcessoChatCreditoNKATA, BonusIdentidadeCreditoNKATA, AcessoPlanoNKATA
 
 
@@ -92,35 +91,20 @@ def grant_welcome_credits(user):
                 BonusIdentidadeCreditoNKATA.objects.create(documento_chave=profile.pedido.documento_chave, movimento=prior)
         except IntegrityError:
             raise WalletError("Não foi possível atribuir o bónus; requer revisão.") from None
-    if settings.NKATA_CREDIT_TRANSITION_ENABLED:
-        # Only explicitly promotional grants qualify, even if the promotion expired.
-        # Preserve the entitlement row for audit, but retire its benefits atomically.
-        access = convertible_quinzenal(locked.pk).select_for_update().first()
-        if access:
-            if not BonusIdentidadeCreditoNKATA.objects.filter(movimento=prior, documento_chave=profile.pedido.documento_chave).exists():
-                raise WalletError("A origem do bónus precisa de revisão.")
-            record_movement(locked, key="welcome:launch:v1", kind="BONUS",
-                amount=LAUNCH_CONVERSION_CREDITS-WELCOME_CREDITS, reference=f"promo:{access.pk}",
-                reason="Conversão do bónus Quinzenal de lançamento")
-            access.origem = "PROMO_CONVERTIDA"
-            access.save(update_fields=["origem", "atualizado_em"])
     return prior
 
 
 def welcome_status(user):
     profile = PerfilNKATA.objects.filter(usuario=user).select_related("usuario", "pedido", "pedido__verificacao_identidade").first()
-    promotional = convertible_quinzenal(user.pk).exists()
     granted = MovimentoCreditoNKATA.objects.filter(carteira__usuario=user, chave="welcome:v1").exists()
-    converted = MovimentoCreditoNKATA.objects.filter(carteira__usuario=user, chave="welcome:launch:v1").exists()
     blocker = welcome_blocker(profile)
     eligible = blocker is None
     if eligible and not granted and BonusIdentidadeCreditoNKATA.objects.filter(documento_chave=profile.pedido.documento_chave).exists():
         eligible = False
         blocker = "IDENTITY_ALREADY_AWARDED"
     return {"enabled": settings.NKATA_CREDIT_TRANSITION_ENABLED, "eligible": eligible, "blocker": blocker,
-            "claimable": settings.NKATA_CREDIT_TRANSITION_ENABLED and eligible and (not granted or promotional),
-            "granted": granted, "converted": converted,
-            "credits": LAUNCH_CONVERSION_CREDITS if promotional or converted else WELCOME_CREDITS}
+            "claimable": settings.NKATA_CREDIT_TRANSITION_ENABLED and eligible and not granted,
+            "granted": granted, "credits": WELCOME_CREDITS}
 
 
 def wallet_snapshot(user):

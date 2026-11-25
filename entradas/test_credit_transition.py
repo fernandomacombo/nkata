@@ -81,7 +81,7 @@ class CreditTransitionTests(TestCase):
 
 
     @override_settings(NKATA_CREDIT_TRANSITION_ENABLED=True)
-    def test_launch_promotion_converts_to_fifty_once_and_admin_plan_is_preserved(self):
+    def test_launch_promotion_only_receives_five_and_admin_plan_is_preserved(self):
         from datetime import timedelta
         from django.utils import timezone
         from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
@@ -106,11 +106,11 @@ class CreditTransitionTests(TestCase):
         for _ in range(2):
             response = self.client.post("/api/minha-conta/carteira/boas-vindas/")
             self.assertEqual(response.status_code, 200, response.content)
-            self.assertEqual(response.json()["saldo"], 50)
-        self.assertEqual(AcessoPlanoNKATA.objects.get(usuario=self.member).origem, "PROMO_CONVERTIDA")
+            self.assertEqual(response.json()["saldo"], 5)
+        self.assertEqual(AcessoPlanoNKATA.objects.get(usuario=self.member).origem, "PROMO_LANCAMENTO")
         self.assertIsNone(active_plan_access(self.member))
         self.assertFalse(plan_for_user(self.member)["features"]["chat_text"])
-        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.member, tipo="BONUS").count(), 2)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.member, tipo="BONUS").count(), 1)
 
 
     @override_settings(NKATA_CREDIT_ONLY_ENABLED=True, NKATA_CREDIT_TRANSITION_ENABLED=True, NKATA_CREDIT_SPENDING_ENABLED=True)
@@ -136,7 +136,7 @@ class CreditTransitionTests(TestCase):
             grant_recharge(self.member,10)
 
     @override_settings(NKATA_CREDIT_ONLY_ENABLED=True, NKATA_CREDIT_TRANSITION_ENABLED=True)
-    def test_credit_only_converts_admin_quinzenal_once(self):
+    def test_credit_only_grants_admin_quinzenal_five_only(self):
         from datetime import timedelta
         from django.utils import timezone
         from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
@@ -152,8 +152,8 @@ class CreditTransitionTests(TestCase):
         AcessoPlanoNKATA.objects.create(usuario=self.member,plano="QUINZENAL",inicio=now,fim=now+timedelta(days=14),origem="ADMINISTRATIVA")
         for _ in range(2):
             grant_welcome_credits(self.member)
-            self.assertEqual(credit_balance(self.member),50)
-        self.assertEqual(AcessoPlanoNKATA.objects.get(usuario=self.member).origem,"PROMO_CONVERTIDA")
+            self.assertEqual(credit_balance(self.member),5)
+        self.assertEqual(AcessoPlanoNKATA.objects.get(usuario=self.member).origem,"ADMINISTRATIVA")
 
     def test_legacy_audit_never_assumes_no_real_payment(self):
         from .legacy_commercial import legacy_audit
@@ -185,6 +185,39 @@ class CreditTransitionTests(TestCase):
             idade_declarada=30,desafio_selfie="teste",status="APROVADA",expira_em=nkata_id_expires_at())
         for _ in range(2):
             call_command("reconciliar_bonus_creditos","--apply",stdout=StringIO())
-            self.assertEqual(credit_balance(self.member),100)
-        self.assertTrue(welcome_status(self.member)["converted"])
+            self.assertEqual(credit_balance(self.member),55)
+        self.assertEqual(welcome_status(self.member)["credits"],5)
         self.assertFalse(welcome_status(self.member)["claimable"])
+
+    @override_settings(NKATA_RAILWAY_ENVIRONMENT_ID="36306a53-86bc-4a07-9b09-7c42c58f2e43",
+        NKATA_CREDIT_ONLY_ENABLED=True, NKATA_PAYMENT_SIMULATION_ENABLED=True,
+        NKATA_PAYMENTS_ENABLED=False, EMAIL_BACKEND="django.core.mail.backends.dummy.EmailBackend")
+    def test_regularize_test_conversion_preserves_ledger_and_is_idempotent(self):
+        from .wallet_service import record_movement
+        from django.core.management.base import CommandError
+        record_movement(self.member,key="welcome:v1",kind="BONUS",amount=5,reference="welcome:v1",reason="Boas-vindas")
+        record_movement(self.member,key="welcome:launch:v1",kind="BONUS",amount=45,reference="promo:test",reason="Conversão antiga")
+        record_movement(self.member,key="simulated:example",kind="RECARGA",amount=50,reference="test",reason="Recarga simulada")
+        record_movement(self.member,key="chat:test",kind="CONSUMO",amount=-10,reference="test",reason="Chat")
+        call_command("regularizar_bonus_lancamento",stdout=StringIO())
+        self.assertEqual(credit_balance(self.member),90)
+        for _ in range(2):
+            call_command("regularizar_bonus_lancamento","--apply",stdout=StringIO())
+            self.assertEqual(credit_balance(self.member),45)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.member,chave="welcome:launch:v1").count(),1)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.member,chave="adjust:launch-cancelled:v1").count(),1)
+        with self.settings(NKATA_RAILWAY_ENVIRONMENT_ID="production"):
+            with self.assertRaises(CommandError):
+                call_command("regularizar_bonus_lancamento","--apply",stdout=StringIO())
+
+    @override_settings(NKATA_RAILWAY_ENVIRONMENT_ID="36306a53-86bc-4a07-9b09-7c42c58f2e43",
+        NKATA_CREDIT_ONLY_ENABLED=True, NKATA_PAYMENT_SIMULATION_ENABLED=True,
+        NKATA_PAYMENTS_ENABLED=False, EMAIL_BACKEND="django.core.mail.backends.dummy.EmailBackend")
+    def test_regularization_does_not_create_debt(self):
+        from .wallet_service import record_movement
+        record_movement(self.member,key="welcome:launch:v1",kind="BONUS",amount=45,reference="promo:test",reason="Conversão antiga")
+        record_movement(self.member,key="chat:test",kind="CONSUMO",amount=-10,reference="test",reason="Chat")
+        output=StringIO()
+        call_command("regularizar_bonus_lancamento","--apply",stdout=output)
+        self.assertIn("review=1",output.getvalue())
+        self.assertEqual(credit_balance(self.member),35)

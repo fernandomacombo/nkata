@@ -46,10 +46,10 @@ def member_statement(user, *, period="30", kind="ALL", before=0, export=False):
         rows = rows.filter(criado_em__gte=start)
     totals = rows.aggregate(
         received=Sum("quantidade", filter=Q(quantidade__gt=0)),
-        spent=Sum("quantidade", filter=Q(quantidade__lt=0)),
+        spent=Sum("quantidade", filter=Q(tipo="CONSUMO")),
         recharged=Sum("quantidade", filter=Q(tipo="RECARGA") & ~Q(chave__startswith="simulated:")),
         simulated_recharged=Sum("quantidade", filter=Q(tipo="RECARGA", chave__startswith="simulated:")),
-        bonus=Sum("quantidade", filter=Q(tipo="BONUS")),
+        bonus=Sum("quantidade", filter=Q(tipo="BONUS") | Q(tipo="AJUSTE", chave="adjust:launch-cancelled:v1")),
         refunded=Sum("quantidade", filter=Q(tipo="ESTORNO")),
         adjustments=Sum("quantidade", filter=Q(tipo="AJUSTE")),
     )
