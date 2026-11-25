@@ -301,3 +301,52 @@ class ConversationTests(TestCase):
         self.client.force_login(self.b.usuario)
         self.assertEqual(self.client.get("/api/minha-conta/notificacoes/").status_code, 200)
         self.assertTrue(NotificacaoNKATA.objects.get(chave=f"pedido-chat:{pk}").lida)
+
+    def test_chat_cursor_pagination_and_incremental_state(self):
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        root = f"/api/chats/{chat.pk}/"
+        items = MensagemMatch.objects.bulk_create([
+            MensagemMatch(conversa=chat, remetente=self.a.usuario, texto=f"Mensagem {i}")
+            for i in range(65)
+        ])
+        self.client.force_login(self.a.usuario)
+        initial = self.client.get(root, {"paginado": 1}).json()
+        self.assertEqual(len(initial["mensagens"]), 50)
+        self.assertTrue(initial["mais"])
+        first = initial["mensagens"][0]["id"]
+        last = initial["mensagens"][-1]["id"]
+        older = self.client.get(root, {"paginado": 1, "antes": first}).json()
+        self.assertEqual(len(older["mensagens"]), 15)
+        self.assertFalse(older["mais"])
+        self.assertEqual(older["mensagens"][0]["id"], items[0].pk)
+        self.client.force_login(self.b.usuario)
+        self.client.get(root)
+        self.client.force_login(self.a.usuario)
+        self.client.delete(root + f"mensagens/{items[0].pk}/")
+        new = MensagemMatch.objects.create(conversa=chat, remetente=self.b.usuario, texto="Nova")
+        delta = self.client.get(root, {"paginado": 1, "depois": last, "estado_desde": items[0].pk}).json()
+        self.assertEqual([m["id"] for m in delta["mensagens"]], [new.pk])
+        self.assertIn(items[0].pk, delta["apagadas"])
+        self.assertEqual(delta["lidas_ate"], last)
+        self.assertEqual(self.client.get(root, {"paginado": 1, "depois": -1}).status_code, 400)
+        self.assertEqual(self.client.get(root, {"paginado": 1, "depois": 0, "antes": 1}).status_code, 400)
+        self.client.force_login(self.c.usuario)
+        self.assertEqual(self.client.get(root, {"paginado": 1, "depois": 0}).status_code, 404)
+
+    def test_chat_cursor_catches_up_in_multiple_pages(self):
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        root = f"/api/chats/{chat.pk}/"
+        rows = MensagemMatch.objects.bulk_create([
+            MensagemMatch(conversa=chat, remetente=self.b.usuario, texto=str(i))
+            for i in range(101)
+        ])
+        self.client.force_login(self.a.usuario)
+        cursor = 0
+        seen = []
+        for _ in range(3):
+            page = self.client.get(root, {"paginado": 1, "depois": cursor}).json()
+            ids = [item["id"] for item in page["mensagens"]]
+            seen.extend(ids)
+            cursor = ids[-1]
+        self.assertFalse(page["mais"])
+        self.assertEqual(seen, [row.pk for row in rows])

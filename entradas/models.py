@@ -363,6 +363,10 @@ class MensagemMatch(models.Model):
         ordering = ["criado_em"]
         verbose_name = "Mensagem de match"
         verbose_name_plural = "Mensagens de matches"
+        indexes = [
+            models.Index(fields=["conversa", "id"], name="nk_chat_conversa_id_idx"),
+            models.Index(fields=["match", "id"], name="nk_chat_match_id_idx"),
+        ]
 
     def __str__(self):
         return f"Mensagem em {self.match} - {self.criado_em:%d/%m/%Y %H:%M}"

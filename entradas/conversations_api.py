@@ -3,7 +3,8 @@ from functools import partial
 
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, F, Q, Window
+from django.db.models.functions import RowNumber
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -205,38 +206,58 @@ def peer(chat, me):
 def inbox(request):
     me = member(request)
     chats = []
-    for chat in participants(me).select_related("match_origem").order_by("-pk"):
-        other = peer(chat, me)
-        if available(me, other):
-            thread = chat.match_origem if chat.match_origem_id else chat
-            messages = thread.mensagens.all()
-            latest = messages.order_by("-criado_em", "-pk").first()
-            preview = None if latest is None else {
-                "texto": "Mensagem apagada" if latest.apagada_em else latest.texto[:160],
-                "minha": latest.remetente_id == request.user.pk,
-                "criado_em": latest.criado_em,
-            }
-            unread_text = messages.filter(lida=False, apagada_em__isnull=True).exclude(remetente=request.user).count()
-            unread_audio = 0
-            legacy_id = legacy_match_id(chat)
-            # Only count media that can still be opened in the legacy workspace.
-            if legacy_id:
-                audio = MensagemAudioMatchNKATA.objects.filter(match_id=legacy_id)
-                unread_audio = audio.filter(lida=False).exclude(remetente=request.user).count()
-                last_audio = audio.order_by("-criado_em", "-pk").first()
-                call = ChamadaMatchNKATA.objects.filter(match_id=legacy_id).order_by("-atualizada_em", "-pk").first()
-                if last_audio and (preview is None or last_audio.criado_em > preview["criado_em"]):
-                    preview = {"texto": "Nota de voz", "tipo": "AUDIO", "minha": last_audio.remetente_id == request.user.pk,
-                               "criado_em": last_audio.criado_em}
-                if call:
-                    item = serialize_call_message(call, request.user.pk)
-                    if preview is None or item["criado_em"] > preview["criado_em"]:
-                        preview = {"texto": item["texto"], "tipo": "CALL", "minha": item["minha"], "criado_em": item["criado_em"]}
-            chats.append({"id": chat.pk, "nome": other.nome_publico, "perfil": chat_profile(other),
-                          "match_id": legacy_id, "ultima_mensagem": preview,
-                          "nao_lidas": unread_text + unread_audio, "textos_nao_lidos": unread_text,
-                          "audios_nao_lidos": unread_audio,
-                          "atividade_em": preview["criado_em"] if preview else chat.criado_em})
+    eligible = [(chat, peer(chat, me)) for chat in participants(me).select_related("match_origem").order_by("-pk")]
+    eligible = [(chat, other) for chat, other in eligible if available(me, other)]
+    native_ids = [chat.pk for chat, _ in eligible if not chat.match_origem_id]
+    match_ids = [chat.match_origem_id for chat, _ in eligible if chat.match_origem_id]
+    media_ids = [legacy_match_id(chat) for chat, _ in eligible if legacy_match_id(chat)]
+
+    def latest_by(queryset, key, date):
+        rows = queryset.annotate(chat_rank=Window(expression=RowNumber(), partition_by=[F(key)],
+            order_by=[F(date).desc(), F("pk").desc()])).filter(chat_rank=1)
+        return {getattr(row, key): row for row in rows}
+
+    def unread_by(queryset, key):
+        return dict(queryset.filter(lida=False).exclude(remetente=request.user).order_by().values(key)
+                    .annotate(total=Count("pk")).values_list(key, "total"))
+
+    native = MensagemMatch.objects.filter(conversa_id__in=native_ids)
+    legacy = MensagemMatch.objects.filter(match_id__in=match_ids)
+    native_latest = latest_by(native, "conversa_id", "criado_em")
+    legacy_latest = latest_by(legacy, "match_id", "criado_em")
+    native_unread = unread_by(native.filter(apagada_em__isnull=True), "conversa_id")
+    legacy_unread = unread_by(legacy.filter(apagada_em__isnull=True), "match_id")
+    audio = MensagemAudioMatchNKATA.objects.filter(match_id__in=media_ids)
+    audio_latest = latest_by(audio, "match_id", "criado_em")
+    audio_unread = unread_by(audio, "match_id")
+    call_latest = latest_by(ChamadaMatchNKATA.objects.filter(match_id__in=media_ids), "match_id", "atualizada_em")
+    for chat, other in eligible:
+        latest = legacy_latest.get(chat.match_origem_id) if chat.match_origem_id else native_latest.get(chat.pk)
+        preview = None if latest is None else {
+            "texto": "Mensagem apagada" if latest.apagada_em else latest.texto[:160],
+            "minha": latest.remetente_id == request.user.pk,
+            "criado_em": latest.criado_em,
+        }
+        unread_text = legacy_unread.get(chat.match_origem_id, 0) if chat.match_origem_id else native_unread.get(chat.pk, 0)
+        unread_audio = 0
+        legacy_id = legacy_match_id(chat)
+        # Only count media that can still be opened in the legacy workspace.
+        if legacy_id:
+            unread_audio = audio_unread.get(legacy_id, 0)
+            last_audio = audio_latest.get(legacy_id)
+            call = call_latest.get(legacy_id)
+            if last_audio and (preview is None or last_audio.criado_em > preview["criado_em"]):
+                preview = {"texto": "Nota de voz", "tipo": "AUDIO", "minha": last_audio.remetente_id == request.user.pk,
+                           "criado_em": last_audio.criado_em}
+            if call:
+                item = serialize_call_message(call, request.user.pk)
+                if preview is None or item["criado_em"] > preview["criado_em"]:
+                    preview = {"texto": item["texto"], "tipo": "CALL", "minha": item["minha"], "criado_em": item["criado_em"]}
+        chats.append({"id": chat.pk, "nome": other.nome_publico, "perfil": chat_profile(other),
+                      "match_id": legacy_id, "ultima_mensagem": preview,
+                      "nao_lidas": unread_text + unread_audio, "textos_nao_lidos": unread_text,
+                      "audios_nao_lidos": unread_audio,
+                      "atividade_em": preview["criado_em"] if preview else chat.criado_em})
     chats.sort(key=lambda item: (item["atividade_em"], item["id"]), reverse=True)
     now = timezone.now()
     requests = PedidoConversa.objects.filter(Q(destinatario=me) | Q(remetente=me)).select_related(
@@ -359,6 +380,50 @@ def send_message(request, chat, me, other, thread):
     return Response({"id": message.pk}, status=201)
 
 
+MESSAGE_PAGE_SIZE = 50
+
+
+def cursor_param(request, key):
+    value = request.query_params.get(key)
+    if value is None:
+        return None
+    if not value.isascii() or not value.isdecimal() or len(value) > 19 or int(value) >= 2**63:
+        raise ValidationError({key: "Cursor inválido."})
+    return int(value)
+
+
+def message_page(request, rows):
+    before = cursor_param(request, "antes")
+    after = cursor_param(request, "depois")
+    loaded_from = cursor_param(request, "estado_desde")
+    if before is not None and after is not None:
+        raise ValidationError("Utilize apenas um cursor de paginação.")
+    if before is not None:
+        page = list(rows.filter(pk__lt=before).order_by("-pk")[:MESSAGE_PAGE_SIZE + 1])
+        more = len(page) > MESSAGE_PAGE_SIZE
+        page = list(reversed(page[:MESSAGE_PAGE_SIZE]))
+    elif after is not None:
+        page = list(rows.filter(pk__gt=after).order_by("pk")[:MESSAGE_PAGE_SIZE + 1])
+        more = len(page) > MESSAGE_PAGE_SIZE
+        page = page[:MESSAGE_PAGE_SIZE]
+    else:
+        page = list(rows.order_by("-pk")[:MESSAGE_PAGE_SIZE + 1])
+        more = len(page) > MESSAGE_PAGE_SIZE
+        page = list(reversed(page[:MESSAGE_PAGE_SIZE]))
+    # Compact state reconciliation also covers older loaded pages. Do not
+    # disclose rows outside the authenticated conversation.
+    state_rows = rows.filter(pk__gte=loaded_from) if loaded_from is not None else rows.none()
+    deleted = list(state_rows.filter(apagada_em__isnull=False).order_by().values_list("pk", flat=True))
+    mine = rows.filter(remetente=request.user).order_by("pk")
+    first_unread = mine.filter(lida=False).values_list("pk", flat=True).first()
+    read = mine.filter(lida=True)
+    if first_unread is not None:
+        read = read.filter(pk__lt=first_unread)
+    read_through = read.order_by("-pk").values_list("pk", flat=True).first() or 0
+    return page, {"mais": more, "modo": "depois" if after is not None else "antes" if before is not None else "inicial",
+                  "apagadas": deleted, "lidas_ate": read_through}
+
+
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def messages(request, conversation_id):
@@ -366,15 +431,26 @@ def messages(request, conversation_id):
     thread = chat.match_origem if chat.match_origem_id else chat
     if request.method == "POST":
         return send_message(request, chat, me, other, thread)
+    paginated = request.query_params.get("paginado") == "1"
+    if paginated:
+        # Validate input before marking anything as read.
+        before, after = cursor_param(request, "antes"), cursor_param(request, "depois")
+        cursor_param(request, "estado_desde")
+        if before is not None and after is not None:
+            raise ValidationError("Utilize apenas um cursor de paginação.")
     thread.mensagens.filter(lida=False).exclude(remetente=request.user).update(lida=True)
     keys = [f"chat-msg:{chat.pk}", f"chat-aceite:{chat.pk}"]
     if chat.match_origem_id:
         keys.append(f"mensagem:{chat.match_origem_id}")
     NotificacaoNKATA.objects.filter(destinatario=request.user, chave__in=keys, lida=False).update(lida=True)
     rows = thread.mensagens.select_related("remetente__perfil_nkata").order_by("criado_em", "pk")
+    page_info = {}
+    if paginated:
+        rows, page_info = message_page(request, rows)
     features = plan_for_user(request.user)["features"]
     presets = CHAT_PHRASES[:4] if features.get("chat_presets") and not thread.mensagens.exclude(remetente=request.user).exists() else []
     return Response({"nome": other.nome_publico, "perfil": chat_profile(other), "match_id": legacy_match_id(chat),
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
                      "texto_livre": features["chat_text"], "frases": presets,
-                     "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data})
+                     "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data,
+                     **page_info})

@@ -31,30 +31,95 @@ function Avatar({ profile }) {
 }
 function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack, onOpenProfile }) {
   const lastTyping = useRef(0), scroll = useRef(null), lastId = useRef(null);
+  const history = useRef([]), initialized = useRef(false), hasOlder = useRef(false), olderController = useRef(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const restoreScroll = useRef(null);
   const [thread, setThread] = useState(null), [text, setText] = useState(""), [error, setError] = useState("");
   const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
   const [menu, setMenu] = useState(false);
   const { label: presenceLabel } = usePresence(thread?.perfil?.id);
+  function mergePage(result) {
+    const merged = new Map(history.current.map(message => [message.id, message]));
+    for (const message of result.mensagens) merged.set(message.id, message);
+    const deleted = new Set(result.apagadas || []);
+    history.current = Array.from(merged.values()).sort((a, b) => a.id - b.id).map(message => ({
+      ...message,
+      ...(deleted.has(message.id) ? { apagada_em: message.apagada_em || "deleted", texto: "" } : {}),
+      ...(message.minha && message.id <= result.lidas_ate ? { lida: true } : {}),
+    }));
+    if (result.modo !== "depois") hasOlder.current = result.mais;
+    setThread(current => ({ ...current, ...result, mensagens: history.current, mais_antigas: hasOlder.current }));
+  }
   useEffect(() => {
     const controller = new AbortController();
-    let timer;
+    let timer, busy = false;
     async function refresh() {
+      if (busy || controller.signal.aborted || document.hidden) return;
+      busy = true;
+      let delay = 2500;
       try {
-        const result = await request(`/api/chats/${id}/`, { signal: controller.signal });
-        if (!controller.signal.aborted) setThread(result);
+        const params = new URLSearchParams({ paginado: "1" });
+        if (initialized.current) {
+          params.set("depois", String(history.current.at(-1)?.id || 0));
+          if (history.current.length) params.set("estado_desde", String(history.current[0].id));
+        }
+        const result = await request(`/api/chats/${id}/?${params}`, { signal: controller.signal });
+        if (!controller.signal.aborted) {
+          mergePage(result);
+          initialized.current = true;
+          setError("");
+          if (result.modo === "depois" && result.mais) delay = 0;
+        }
       } catch (err) {
-        if (!controller.signal.aborted) { setThread(null); setError(err.message); }
+        if (!controller.signal.aborted) {
+          if ([401, 403, 404].includes(err.status)) {
+            history.current = []; initialized.current = false; hasOlder.current = false;
+            setThread(null);
+          }
+          setError(err.message);
+          delay = 5000;
+        }
       } finally {
-        if (!controller.signal.aborted) timer = setTimeout(refresh, 2500);
+        busy = false;
+        if (!controller.signal.aborted && !document.hidden) timer = setTimeout(refresh, delay);
       }
     }
+    function visibility() {
+      clearTimeout(timer);
+      if (!document.hidden) refresh();
+    }
     refresh();
-    return () => { controller.abort(); clearTimeout(timer); };
+    document.addEventListener("visibilitychange", visibility);
+    return () => { controller.abort(); clearTimeout(timer); document.removeEventListener("visibilitychange", visibility); };
   }, [id, revision]);
+  useEffect(() => () => olderController.current?.abort(), [id]);
+  async function loadOlder() {
+    if (loadingOlder || !history.current.length) return;
+    const controller = new AbortController();
+    olderController.current = controller;
+    setLoadingOlder(true);
+    try {
+      const first = history.current[0].id;
+      const params = new URLSearchParams({ paginado: "1", antes: String(first), estado_desde: String(first) });
+      const result = await request(`/api/chats/${id}/?${params}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      // Never allow an old page to overwrite state already received via polling.
+      result.mensagens = result.mensagens.filter(message => !history.current.some(current => current.id === message.id));
+      if (scroll.current) restoreScroll.current = { top: scroll.current.scrollTop, height: scroll.current.scrollHeight };
+      mergePage(result);
+    } catch (err) {
+      if (!controller.signal.aborted) setError(err.message);
+    } finally {
+      if (!controller.signal.aborted) setLoadingOlder(false);
+    }
+  }
   useEffect(() => {
     const latest = thread?.mensagens?.at(-1)?.id;
     const el = scroll.current;
-    if (el && latest !== lastId.current) {
+    if (el && restoreScroll.current) {
+      el.scrollTop = restoreScroll.current.top + el.scrollHeight - restoreScroll.current.height;
+      restoreScroll.current = null;
+    } else if (el && latest !== lastId.current) {
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 180;
       if (lastId.current === null || nearBottom || thread?.mensagens?.at(-1)?.minha) el.scrollTop = el.scrollHeight;
       lastId.current = latest ?? null;
@@ -104,10 +169,11 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     {!thread && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
     {thread && <>
       <ol className="nk-chat-lines" ref={scroll}>
+        {thread.mais_antigas && <li className="nk-chat-load-older"><button type="button" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "A carregar..." : "Carregar mensagens anteriores"}</button></li>}
         {!thread.mensagens.length && <li className="nk-chat-empty-thread"><ShieldCheck size={24} /><strong>Conversa aceite</strong><span>Comece a conhecer esta pessoa, com respeito e segurança.</span></li>}
         {thread.mensagens.map(message => <li key={message.id} className={message.minha ? "nk-chat-bubble-row is-mine" : "nk-chat-bubble-row"}>
           <div className="nk-chat-bubble">
-            {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem indisponível"}</blockquote>}
+            {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem anterior ou indisponível"}</blockquote>}
             <p>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
             <div className="nk-chat-meta"><time dateTime={message.criado_em}>{stamp(message.criado_em)}</time>
               {message.minha && (message.lida ? <CheckCheck size={15} aria-label="Lida" /> : <Check size={15} aria-label="Enviada" />)}</div>
@@ -151,6 +217,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
     const controller = new AbortController();
     let timer;
     async function load() {
+      if (document.hidden) { timer = setTimeout(load, 10000); return; }
       try {
         const options = { signal: controller.signal };
         const next = await request("/api/chats/", options);
