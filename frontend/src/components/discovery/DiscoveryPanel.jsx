@@ -106,9 +106,6 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore, canP
                 {person.name}<ChevronRight size={16} aria-hidden="true" />
               </a></li>)}</ul>}
           </details>
-          <a className="nk-poll-share" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl.href)}`}
-            target="_blank" rel="noopener noreferrer"><Share2 size={16} aria-hidden="true" />
-            {english ? "Share on Facebook" : "Partilhar no Facebook"}</a>
           {voteError && <p role="alert">{voteError}</p>}
         </section>
       )}
