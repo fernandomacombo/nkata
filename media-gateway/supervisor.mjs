@@ -9,6 +9,7 @@ export function supervise(script,{startupMs=15000,timeoutMs=1250,intervalMs=100,
  if(process.platform!=="linux")throw Error("Linux media supervisor required");
  const child=fork(script,[],{detached:true,stdio:["ignore","inherit","inherit","ipc"],env});
  let last=performance.now(),ready=false,stopped=false,reason=null,resolve;
+ const leases=new Map();
  const done=new Promise(r=>{resolve=r;});
  const killGroup=()=>{
   if(!child.pid)return;
@@ -22,12 +23,28 @@ export function supervise(script,{startupMs=15000,timeoutMs=1250,intervalMs=100,
   killGroup();
  }
  const timer=setInterval(()=>{
-  if(performance.now()-last>(ready?timeoutMs:startupMs))stop("heartbeat-timeout");
+  const now=performance.now();
+  if([...leases.values()].some(v=>now>=v.monotonic))return stop("lease-deadline");
+  if(now-last>(ready?timeoutMs:startupMs))stop("heartbeat-timeout");
  },intervalMs);
  child.on("message",msg=>{
-  if(stopped||msg?.type!=="media-heartbeat")return;
-  // Only the private child IPC channel is trusted; no network heartbeat.
-  last=performance.now();ready=true;
+  if(stopped)return;
+  if(msg?.type==="media-heartbeat"){last=performance.now();ready=true;return;}
+  if(msg?.type!=="lease-arm"&&msg?.type!=="lease-clear")return;
+  const {sessionId,deadline,requestId}=msg;
+  if(typeof sessionId!=="string"||sessionId.length>80||!Number.isSafeInteger(deadline)||typeof requestId!=="string")
+   return stop("invalid-lease");
+  const existing=leases.get(sessionId),now=performance.now();
+  if(existing&&now>=existing.monotonic)return stop("lease-deadline");
+  if(msg.type==="lease-arm"){
+   const remaining=deadline-Date.now();
+   if(existing||remaining<=750||remaining>61000||leases.size>=40)return stop("invalid-lease");
+   leases.set(sessionId,{deadline,monotonic:now+remaining});
+  }else{
+   if(!existing||existing.deadline!==deadline)return stop("invalid-lease");
+   leases.delete(sessionId);
+  }
+  child.send({type:"lease-ack",requestId},error=>{if(error)stop("lease-ipc-error");});
  });
  child.once("disconnect",()=>stop("ipc-disconnect"));
  child.once("error",()=>{stop("child-error");resolve(reason);});
