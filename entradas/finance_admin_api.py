@@ -1,18 +1,20 @@
 """Read-only financial administration. Never return provider secrets or media."""
 from django.conf import settings
-from django.db.models import BigIntegerField, F, Q, Sum, Value
+from django.db.models import BigIntegerField, F, Q, Sum, Value, OuterRef, Subquery, CharField
+from django.db.models.functions import Cast, Concat
+from django.utils import timezone
 from django.db.models.functions import Coalesce
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .credit_catalog import credit_catalog
-from .models import CarteiraNKATA, MovimentoCreditoNKATA, PedidoPagamentoNKATA
+from .models import CarteiraNKATA, MovimentoCreditoNKATA, PedidoPagamentoNKATA, ChamadaConversaCreditoNKATA
 from .user_roles import has_admin_capability
 from .payment_service import payments_enabled
 from .wallet_service import credit_spending_enabled
 
-SECTIONS = ("overview", "wallets", "payments", "movements", "consumption", "bonuses", "catalogue", "audit")
+SECTIONS = ("overview", "wallets", "payments", "movements", "consumption", "bonuses", "catalogue", "audit", "calls")
 PAGE_SIZE = 50
 
 
@@ -72,6 +74,38 @@ def _payment_row(order):
             "confirmed_at": order.confirmado_em, "fulfilled_at": order.aplicado_em}
 
 
+def _call_rows():
+    # Match immutable movements by the native call key prefix and exact payer.
+    # UUID casts on SQLite are unhyphenated; compare through normalized reference.
+    from django.db.models.functions import Replace
+    call_ref = Concat(Value("call:"), Replace(Cast(OuterRef("pk"), CharField()), Value("-"), Value("")))
+    ledger = MovimentoCreditoNKATA.objects.annotate(
+        normalized_ref=Replace(F("referencia"), Value("-"), Value(""))
+    ).filter(carteira__usuario_id=OuterRef("iniciador_id"), normalized_ref=call_ref,
+             chave__startswith="call:native:")
+    def total(kind):
+        return Coalesce(Subquery(ledger.filter(tipo=kind).order_by().values("carteira_id")
+            .annotate(total=Sum("quantidade")).values("total")[:1], output_field=BigIntegerField()),
+            Value(0), output_field=BigIntegerField())
+    return ChamadaConversaCreditoNKATA.objects.select_related("iniciador", "destinatario").annotate(
+        debit_total=-total("CONSUMO"), refund_total=total("ESTORNO")
+    )
+
+
+def _call_row(call):
+    expected = call.minutos_pagos * call.custo_minuto
+    expired = call.expira_em <= timezone.now() and call.estado in ("CHAMANDO", "ACEITE", "ATIVA")
+    inconsistent = call.debit_total != expected or not 0 <= call.refund_total <= call.debit_total
+    review = "DIVERGENCIA" if inconsistent else "EXPIRADA_SEM_FECHO" if expired else (
+        "ESTORNO" if call.refund_total else "SEM_ALERTA")
+    return {"id": str(call.pk), "name": call.iniciador.get_full_name() or call.iniciador.get_username(),
+            "recipient": call.destinatario.get_full_name() or call.destinatario.get_username(),
+            "kind": call.tipo, "status": call.estado, "rate": call.custo_minuto,
+            "paid_minutes": call.minutos_pagos, "debited": call.debit_total,
+            "refunded": call.refund_total, "net": call.debit_total - call.refund_total,
+            "review": review, "created_at": call.criada_em, "expires_at": call.expira_em}
+
+
 def _catalogue():
     return {"catalogue": credit_catalog(purchase_enabled=False),
             "checkout_configured": bool(payments_enabled() and settings.NKATA_CREDIT_CHECKOUT_ENABLED),
@@ -113,6 +147,24 @@ def finance(request):
                 | Q(usuario__first_name__icontains=q) | Q(usuario__last_name__icontains=q))
         rows = rows.order_by("-atualizada_em", "-pk")
         serialize = _wallet_row
+    elif section == "calls":
+        rows = _call_rows().order_by("-criada_em", "-pk")
+        if status == "REVISAO":
+            rows = rows.filter(
+                ~Q(debit_total=F("minutos_pagos") * F("custo_minuto")) |
+                Q(refund_total__gt=F("debit_total")) |
+                Q(refund_total__lt=0) |
+                Q(estado__in=["CHAMANDO", "ACEITE", "ATIVA"], expira_em__lte=timezone.now()))
+        elif status:
+            if status not in {"CHAMANDO", "ACEITE", "ATIVA", "TERMINADA", "RECUSADA", "EXPIRADA"}:
+                return Response({"detail": "Estado inválido."}, status=400)
+            rows = rows.filter(estado=status)
+        if q:
+            rows = rows.filter(Q(iniciador__username__icontains=q) | Q(destinatario__username__icontains=q)
+                | Q(iniciador__first_name__icontains=q) | Q(destinatario__first_name__icontains=q)
+                | Q(iniciador__last_name__icontains=q) | Q(destinatario__last_name__icontains=q)
+                | Q(pk__icontains=q))
+        serialize = _call_row
     elif section == "payments":
         rows = _credit_orders().select_related("usuario").order_by("-criado_em", "-pk")
         if status:
