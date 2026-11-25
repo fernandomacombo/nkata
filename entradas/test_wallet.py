@@ -273,6 +273,20 @@ class WalletTests(TestCase):
             self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.a,tipo="CONSUMO").count(),1)
             self.assertFalse(MensagemMatch.objects.filter(texto="Texto depois da expiração").exists())
 
+    def test_unverified_pair_signal_offer_matches_send_authorization(self):
+        from unittest.mock import patch
+        self.move(amount=5)
+        self.client.force_login(self.a)
+        url=f"/api/perfis/{self.b.perfil_nkata.pk}/sinais/"
+        with self.settings(NKATA_CREDIT_ONLY_ENABLED=True,NKATA_CREDIT_TRANSITION_ENABLED=True,NKATA_CREDIT_SPENDING_ENABLED=True):
+            with patch("entradas.signal_views.chat_pair_allowed",return_value=False):
+                response=self.client.get(url)
+                self.assertEqual(response.status_code,200,response.content)
+                self.assertTrue(response.json()["identity_blocked"])
+                self.assertTrue(all(not item["available"] for item in response.json()["signals"]))
+                self.assertEqual(self.client.post(url,{"tipo":"OLA","expected_cost":1},content_type="application/json").status_code,403)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],5)
+
     def test_credit_only_signals_exact_costs_and_no_free_fallback(self):
         from .models import AcaoPerfil, Conversa
         chat=Conversa.objects.create(perfil_1=self.a.perfil_nkata,perfil_2=self.b.perfil_nkata)
