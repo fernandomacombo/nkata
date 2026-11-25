@@ -2,6 +2,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.db.models import Q
+from entradas.credit_catalog import WELCOME_CREDITS
 from entradas.models import CarteiraNKATA, MovimentoCreditoNKATA, PedidoPagamentoNKATA, BonusIdentidadeCreditoNKATA
 
 
@@ -59,7 +60,7 @@ class Command(BaseCommand):
                     flag("RECARGA_SEM_PEDIDO", move.pk)
             for award in BonusIdentidadeCreditoNKATA.objects.select_related("movimento").iterator(chunk_size=200):
                 bonuses += 1
-                if award.movimento.tipo != "BONUS" or award.movimento.chave != "welcome:v1" or award.movimento.quantidade != 5:
+                if award.movimento.tipo != "BONUS" or award.movimento.chave != "welcome:v1" or award.movimento.quantidade != WELCOME_CREDITS:
                     flag("BONUS_INCONSISTENTE", award.pk)
             for move in MovimentoCreditoNKATA.objects.filter(chave="welcome:v1", bonus_identidade__isnull=True):
                 flag("BONUS_SEM_IDENTIDADE", move.pk)
