@@ -9,6 +9,7 @@ import "./chats.css";
 import VoiceRecorder from "../components/chat/VoiceRecorder.jsx";
 import PrivateVoicePlayer from "../components/chat/PrivateVoicePlayer.jsx";
 import CallPanel, { CallActions } from "../components/chat/CallPanel.jsx";
+import useNativeCalls from "../components/chat/useNativeCalls.js";
 
 const SIGNAL_ICONS = {OLA:Hand,FLOR:Flower2,BEIJINHO:Heart};
 function SignalIcon({type,size=24}) { const Icon=SIGNAL_ICONS[type] || Sparkles; return <Icon size={size} strokeWidth={1.6} aria-hidden="true"/>; }
@@ -261,7 +262,6 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           </div>}
         </div></>}
     </header>
-    {callController?.enabled === true && callController.call?.conversationId === id && <CallPanel call={callController.call} onAccept={callController.accept} onDecline={callController.decline} onEnd={callController.end} onDismiss={callController.dismiss} onToggleMic={callController.toggleMic} onToggleCamera={callController.toggleCamera}/>}
     {error && <p className="nk-chat-error" role="alert">{error}</p>}
     {safetyStatus && <p className="nk-chat-placeholder" role="status">{safetyStatus}</p>}
     {!thread && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
@@ -333,7 +333,7 @@ function RequestRow({ item, busy, decide, cancel, onSelect, onOpenProfile }) {
     </div> : item.conversation_id && <button type="button" onClick={() => onSelect(item.conversation_id)}>Abrir conversa</button>}
   </article>;
 }
-export default function ChatsPage({ conversationId, requestId, onSelect, onBack, onOpenProfile, onDiscover, ...threadProps }) {
+export default function ChatsPage({ conversationId, requestId, onSelect, onBack, onOpenProfile, onDiscover, nativeCallConfig, callController: suppliedCallController, ...threadProps }) {
   const [data, setData] = useState(null), [error, setError] = useState(""), [busy, setBusy] = useState(false), [revision, setRevision] = useState(0);
   const [tab, setTab] = useState("all"), [query, setQuery] = useState(""), [selectedRequest, setSelectedRequest] = useState(null);
   useEffect(() => {
@@ -376,6 +376,8 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const matches = name => normalize(name).includes(normalize(query.trim()));
   const chats = data?.conversas || [], requests = data?.pedidos || [], history = data?.historico_pedidos || [];
+  const internalCallController = useNativeCalls(nativeCallConfig, chats, setError);
+  const callController = suppliedCallController || internalCallController;
   const visibleChats = chats.filter(c => matches(c.nome) && (tab !== "unread" || c.nao_lidas > 0));
   const received = requests.filter(p => p.recebido), sent = requests.filter(p => !p.recebido);
   const counts = { unread: chats.filter(c => c.nao_lidas > 0).length, received: received.length, sent: sent.length };
@@ -385,6 +387,8 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   function chooseTab(key) { setTab(key); if (requestId || (conversationId && key !== "all" && key !== "unread")) onBack(); }
   const showChats = tab === "all" || tab === "unread";
   return <main className="nk-shell nk-chats-page">
+    {callController?.enabled === true && callController.call && <CallPanel call={callController.call} onAccept={callController.accept} onDecline={callController.decline} onEnd={callController.end} onDismiss={callController.dismiss} onToggleMic={callController.toggleMic} onToggleCamera={callController.toggleCamera}/>}
+
     <div className={"nk-chats-layout" + (conversationId ? " has-thread" : "")}>
       <aside className="nk-chat-sidebar" aria-label="Lista de chats">
         <div className="nk-chat-sidebar-head"><div><h1>Chats</h1><p>Conversas privadas e pedidos</p></div><button type="button" className="nk-chat-icon" aria-label="Explorar perfis" onClick={onDiscover}><MessageCircle size={23} /></button></div>
@@ -406,7 +410,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
           {data && tab === "connections" && <>{connections.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.perfil.id} onClick={() => onOpenProfile(c.perfil)}><Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.tipos.join(" · ")}</small></span><HeartHandshake size={18} /></button>)}{!connections.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : "Os seus matches e sinais aparecem aqui."}</p>}</>}
         </div>
       </aside>
-      {conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} onBack={onBack} onOpenProfile={onOpenProfile} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
+      {conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} callController={callController} onBack={onBack} onOpenProfile={onOpenProfile} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
         <section className="nk-chat-empty-panel"><MessageCircle size={46} strokeWidth={1.4} /><h2>Uma boa conversa começa aqui</h2><p>Escolha uma conversa ou conheça alguém novo.</p><button className="nk-chat-primary" onClick={onDiscover}>Explorar perfis</button></section>}
     </div>
   </main>;
