@@ -81,6 +81,8 @@ def _signal_payload(item):
 
 def _commercial_quota(user, sent_today):
     quota = signal_quota_for_user(user, sent_today=sent_today)
+    if quota.get("credit_mode"):
+        return quota
     if not credit_spending_enabled():
         return {**quota, "credit_mode": False}
     source = "PLAN" if active_plan_access(user) and quota["remaining_today"] else "RECHARGE" if quota["recharge_balance"] else "WALLET"
@@ -195,8 +197,8 @@ def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None,
             return Response(
                 {
                     "detail": (
-                        f"Usou os {quota['daily_limit']} sinais disponíveis hoje no "
-                        f"{quota['plan_label']} e não tem saldo de recarga."
+                        ("Limite de segurança atingido." if today_qs.count() >= SIGNAL_SAFETY_LIMIT else "Saldo insuficiente ou consumo de créditos indisponível.") if quota.get("credit_mode") else
+                        f"Usou os {quota['daily_limit']} sinais disponíveis hoje no {quota['plan_label']} e não tem saldo de recarga."
                     ),
                     "code": "signal_allowance_exhausted",
                     "quota": quota,

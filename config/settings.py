@@ -493,6 +493,9 @@ NKATA_CREDIT_CHECKOUT_ENABLED = env_bool("NKATA_CREDIT_CHECKOUT_ENABLED", False)
 NKATA_CREDIT_SPENDING_ENABLED = env_bool("NKATA_CREDIT_SPENDING_ENABLED", False)
 # Cutover retires new legacy sales, not existing entitlements or settlements.
 NKATA_CREDIT_TRANSITION_ENABLED = env_bool("NKATA_CREDIT_TRANSITION_ENABLED", False)
+NKATA_CREDIT_ONLY_ENABLED = env_bool("NKATA_CREDIT_ONLY_ENABLED", False)
+if NKATA_CREDIT_ONLY_ENABLED and not NKATA_CREDIT_TRANSITION_ENABLED:
+    raise ImproperlyConfigured("O modo exclusivo de créditos exige a transição ativa.")
 NKATA_PAYMENT_SIMULATION_ENABLED = env_bool("NKATA_PAYMENT_SIMULATION_ENABLED", False)
 NKATA_RAILWAY_ENVIRONMENT_ID = os.getenv("RAILWAY_ENVIRONMENT_ID", "")
 # Never permit simulated money in production, even if a flag is accidentally enabled.

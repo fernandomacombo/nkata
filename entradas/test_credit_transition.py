@@ -111,3 +111,53 @@ class CreditTransitionTests(TestCase):
         self.assertIsNone(active_plan_access(self.member))
         self.assertFalse(plan_for_user(self.member)["features"]["chat_text"])
         self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.member, tipo="BONUS").count(), 2)
+
+
+    @override_settings(NKATA_CREDIT_ONLY_ENABLED=True, NKATA_CREDIT_TRANSITION_ENABLED=True, NKATA_CREDIT_SPENDING_ENABLED=True)
+    def test_credit_only_ignores_old_entitlements_and_no_free_signal_fallback(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .plan_service import plan_for_user, signal_quota_for_user
+        now=timezone.now()
+        AcessoPlanoNKATA.objects.create(usuario=self.member,plano="QUINZENAL",inicio=now,fim=now+timedelta(days=14),origem="ADMINISTRATIVA")
+        self.assertIsNone(active_plan_access(self.member))
+        self.assertFalse(plan_for_user(self.member)["features"]["chat_text"])
+        quota=signal_quota_for_user(self.member)
+        self.assertEqual(quota["remaining_today"],0)
+        self.assertTrue(quota["limit_reached"])
+        self.assertEqual(quota["next_source"],"WALLET")
+        with self.settings(NKATA_CREDIT_SPENDING_ENABLED=False):
+            quota=signal_quota_for_user(self.member)
+            self.assertIsNone(quota["next_source"])
+            self.assertTrue(quota["limit_reached"])
+        with self.assertRaises(ValueError):
+            assign_plan(self.member,"PREMIUM")
+        with self.assertRaises(ValueError):
+            grant_recharge(self.member,10)
+
+    @override_settings(NKATA_CREDIT_ONLY_ENABLED=True, NKATA_CREDIT_TRANSITION_ENABLED=True)
+    def test_credit_only_converts_admin_quinzenal_once(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
+        from .account_limits import document_key
+        pedido=self.member.perfil_nkata.pedido
+        pedido.documento_chave=document_key("123456789014A")
+        pedido.documento_confirmado=True
+        pedido.verificacao_apos_entrada=True
+        pedido.save(update_fields=["documento_chave","documento_confirmado","verificacao_apos_entrada"])
+        VerificacaoIdentidadeNKATA.objects.create(pedido=pedido,email_hash="c"*64,
+            idade_declarada=30,desafio_selfie="teste",status="APROVADA",expira_em=nkata_id_expires_at())
+        now=timezone.now()
+        AcessoPlanoNKATA.objects.create(usuario=self.member,plano="QUINZENAL",inicio=now,fim=now+timedelta(days=14),origem="ADMINISTRATIVA")
+        for _ in range(2):
+            grant_welcome_credits(self.member)
+            self.assertEqual(credit_balance(self.member),50)
+        self.assertEqual(AcessoPlanoNKATA.objects.get(usuario=self.member).origem,"PROMO_CONVERTIDA")
+
+    def test_legacy_audit_never_assumes_no_real_payment(self):
+        from .legacy_commercial import legacy_audit
+        from .models import PedidoPagamentoNKATA
+        self.assertEqual(legacy_audit()["legacy_payment_blockers"],0)
+        PedidoPagamentoNKATA.objects.create(usuario=self.member,chave=uuid4(),referencia="OLDPENDING",produto="QUINZENAL",valor=100,estado="PENDENTE")
+        self.assertEqual(legacy_audit()["legacy_payment_blockers"],1)

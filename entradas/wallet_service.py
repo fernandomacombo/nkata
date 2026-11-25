@@ -9,6 +9,7 @@ from django.db.models import Sum
 
 from .credit_catalog import WELCOME_CREDITS, CHAT_24H_CREDITS, LAUNCH_CONVERSION_CREDITS
 from .identity_models import pedido_tem_identidade_verificada
+from .legacy_commercial import convertible_quinzenal
 from .models import CarteiraNKATA, MovimentoCreditoNKATA, PerfilNKATA, AcessoChatCreditoNKATA, BonusIdentidadeCreditoNKATA, AcessoPlanoNKATA
 
 
@@ -86,8 +87,7 @@ def grant_welcome_credits(user):
     if settings.NKATA_CREDIT_TRANSITION_ENABLED:
         # Only explicitly promotional grants qualify, even if the promotion expired.
         # Preserve the entitlement row for audit, but retire its benefits atomically.
-        access = AcessoPlanoNKATA.objects.select_for_update().filter(
-            usuario=locked, plano="QUINZENAL", origem="PROMO_LANCAMENTO").first()
+        access = convertible_quinzenal(locked.pk).select_for_update().first()
         if access:
             if not BonusIdentidadeCreditoNKATA.objects.filter(movimento=prior, documento_chave=profile.pedido.documento_chave).exists():
                 raise WalletError("A origem do bónus precisa de revisão.")
@@ -101,7 +101,7 @@ def grant_welcome_credits(user):
 
 def welcome_status(user):
     profile = PerfilNKATA.objects.filter(usuario=user).select_related("usuario", "pedido", "pedido__verificacao_identidade").first()
-    promotional = AcessoPlanoNKATA.objects.filter(usuario=user, plano="QUINZENAL", origem="PROMO_LANCAMENTO").exists()
+    promotional = convertible_quinzenal(user.pk).exists()
     granted = MovimentoCreditoNKATA.objects.filter(carteira__usuario=user, chave="welcome:v1").exists()
     converted = MovimentoCreditoNKATA.objects.filter(carteira__usuario=user, chave="welcome:launch:v1").exists()
     eligible = welcome_eligible(profile)

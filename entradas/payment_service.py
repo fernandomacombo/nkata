@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from .models import AcessoPlanoNKATA, PedidoPagamentoNKATA
 from .credit_catalog import CREDIT_PRODUCTS
+from .legacy_commercial import credit_only_enabled
 from .wallet_service import record_movement, WalletError
 from .identity_models import pedido_tem_identidade_verificada
 from .user_roles import active_member_profile_for_user
@@ -117,6 +118,8 @@ def start_checkout(user, product, key):
         user = get_user_model().objects.select_for_update().get(pk=user.pk)
         existing = PedidoPagamentoNKATA.objects.filter(usuario=user, chave=key).first()
         if existing:
+            if credit_only_enabled() and product not in CREDIT_PRODUCTS:
+                raise PaymentError("Produto antigo descontinuado; contacte o suporte se já pagou.", 409)
             if existing.produto != product or existing.simulado:
                 raise PaymentError("Esta chave já pertence a outro pacote.", 409)
             return existing
@@ -186,6 +189,10 @@ def _settle_authoritative(order, data, *, simulated):
             if not isinstance(transaction_data, dict) or transaction_data.get("status") != "completed":
                 raise PaymentError("A transação ainda não está confirmada.", 409)
             order.confirmado_em = order.confirmado_em or timezone.now()
+            if credit_only_enabled() and order.produto not in CREDIT_PRODUCTS:
+                order.estado = "REVISAO"
+                order.save()
+                return order
             access = active_plan_access(user)
             profile = getattr(user, "perfil_nkata", None)
             if (not user.is_active or not profile or profile.status != "ATIVO"

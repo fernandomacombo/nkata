@@ -173,7 +173,7 @@ export default function PlanPanel({ language = "PT" }) {
           <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
         </button>
       </header>
-      <p>{data.credit_transition ? (english ? "No daily free credits. Existing benefits remain valid until expiry." : "Sem créditos gratuitos diários. Os benefícios existentes mantêm-se até ao fim da validade.") : (english ? "Start or answer calls with an active Fortnightly, Essential or Premium plan. Renewals are manual." : "Para iniciar ou atender chamadas, ative o plano Quinzenal, Essencial ou Premium. A renovação é manual.")}</p>
+      <p>{data.credit_only ? (english ? "Use your credits for available paid actions. No daily free credits." : "Utilize os créditos nas funcionalidades disponíveis. Sem créditos gratuitos diários.") : data.credit_transition ? (english ? "No daily free credits. Existing benefits remain valid until expiry." : "Sem créditos gratuitos diários. Os benefícios existentes mantêm-se até ao fim da validade.") : (english ? "Start or answer calls with an active Fortnightly, Essential or Premium plan. Renewals are manual." : "Para iniciar ou atender chamadas, ative o plano Quinzenal, Essencial ou Premium. A renovação é manual.")}</p>
 
       {data.wallet && <section className="nk-wallet-preview" aria-label={english ? "NKATA Wallet" : "Carteira NKATA"}>
         <div className="nk-wallet-preview__header"><WalletCards size={24}/><div><small>{english ? "NKATA Wallet" : "Carteira NKATA"}</small><strong>{data.wallet.saldo} {english ? "credits" : "créditos"}</strong></div></div>
@@ -183,7 +183,7 @@ export default function PlanPanel({ language = "PT" }) {
         <div className="nk-wallet-packs" id="nk-wallet-recharge">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (data.payment_simulation ? (english ? "Simulate top-up" : "Simular recarga") : (english ? "Top up" : "Recarregar")) : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
         <WalletDashboard english={english} simulation={data.payment_simulation} refreshKey={data} onRecharge={() => document.getElementById("nk-wallet-recharge")?.scrollIntoView({behavior:"smooth", block:"center"})} />
       </section>}
-      {(!data.credit_transition || current.expires_at || recharge.balance > 0) && <div className="nk-plan-current">
+      {!data.credit_only && (!data.credit_transition || current.expires_at || recharge.balance > 0) && <div className="nk-plan-current">
         <div className="nk-plan-current__identity">
           <span><CurrentIcon size={24} /></span>
           <div>

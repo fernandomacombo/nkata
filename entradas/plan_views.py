@@ -8,6 +8,7 @@ from .wallet_service import wallet_snapshot, welcome_status
 from .chat_media_api import voice_credit_offer
 from .credit_catalog import credit_catalog
 from .user_roles import member_profile_for_user
+from .legacy_commercial import credit_only_enabled
 
 from .plan_service import (
     plan_for_user,
@@ -47,6 +48,7 @@ def api_plano_da_conta(request):
         },
         "signal_quota": quota,
         "credit_transition": transition,
+        "credit_only": credit_only_enabled(),
         "payment_simulation": simulation_enabled(),
         "welcome_bonus": welcome_status(request.user) if member_profile_for_user(request.user) else None,
         "legacy_payments_enabled": legacy_enabled,

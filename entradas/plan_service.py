@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import AcaoPerfil, AcessoPlanoNKATA, MensagemMatch
+from .legacy_commercial import credit_only_enabled
 
 
 PLAN_GROUP_ESSENCIAL = "NKATA_PLANO_ESSENCIAL"
@@ -156,6 +157,8 @@ def plan_code_for_user(user):
 
 
 def active_plan_access(user):
+    if credit_only_enabled():
+        return None
     if not user or not getattr(user, "is_authenticated", False):
         return None
     now = timezone.now()
@@ -166,6 +169,9 @@ def active_plan_access(user):
 
 
 def plan_for_user(user):
+    if credit_only_enabled():
+        definition = PLAN_DEFINITIONS["LIVRE"]
+        return _with_credit_chat(user, {**definition, "label": "Carteira NKATA", "daily_signal_limit": 0})
     access = active_plan_access(user)
     if access and access.origem == "PROMO_LANCAMENTO":
         bonus = PLAN_DEFINITIONS["QUINZENAL"]
@@ -249,6 +255,15 @@ def build_quota_snapshot(plan_code, sent_today=0, recharge_balance=0):
 def signal_quota_for_user(user, sent_today=None):
     if sent_today is None:
         sent_today = signals_sent_today(user)
+    if credit_only_enabled():
+        from .credit_catalog import SIGNAL_SAFETY_LIMIT
+        from .wallet_service import credit_balance, credit_spending_enabled
+        balance = credit_balance(user)
+        enabled = credit_spending_enabled()
+        return {"plan":"LIVRE","plan_label":"Carteira NKATA","daily_limit":0,"used_today":0,
+                "sent_today":sent_today,"remaining_today":0,"recharge_balance":0,
+                "credit_mode":True,"credit_balance":balance,"next_source":"WALLET" if enabled else None,
+                "limit_reached":not enabled or balance < 1 or sent_today >= SIGNAL_SAFETY_LIMIT}
     return build_quota_snapshot(
         plan_code_for_user(user),
         sent_today=sent_today,
@@ -288,6 +303,8 @@ def public_recharge_catalog():
 @transaction.atomic
 def assign_plan(user, plan_code):
     """Administrative grant only. A future payment service must verify settlement."""
+    if credit_only_enabled():
+        raise ValueError("Os planos antigos foram descontinuados.")
     plan_code = str(plan_code or "").strip().upper()
     if plan_code not in PLAN_DEFINITIONS:
         raise ValueError("Plano NKATA inválido.")
@@ -316,6 +333,8 @@ def assign_plan(user, plan_code):
 
 
 def grant_recharge(user, credits):
+    if credit_only_enabled():
+        raise ValueError("As recargas antigas foram descontinuadas.")
     credits = int(credits)
     pack = RECHARGE_PACKS.get(credits)
     if not pack:
