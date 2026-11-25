@@ -130,3 +130,17 @@ test("missing durable intent acknowledgement prevents transmission",async()=>{
   recordResume:async()=>false});
  await gate.tick();assert.equal(resumed,0);assert.equal(refunded,0);assert.equal(gate.closed,true);
 });
+
+
+test("early boundary timer waits without revalidating or charging ahead of time",async()=>{
+ let now=1000,calls=[],events=[],scheduled;
+ const gate=new LeaseGate({sessionId:"s",userIds:[1,2],clock:()=>now,
+  schedule:(fn,ms)=>{scheduled=ms;return 1;},cancel:()=>{},
+  connected:()=>true,consumers:()=>[{pause:async()=>events.push("pause"),resume:async()=>events.push("resume")}],
+  closeTransport:()=>events.push("close"),authorize:async({minute})=>{calls.push(minute);return minute===1?61000:null;}});
+ await gate.tick();
+ now=60999;await gate.tick();
+ assert.deepEqual(calls,[1]);assert.equal(scheduled,1);assert.equal(gate.closed,false);
+ now=61000;await gate.tick();
+ assert.deepEqual(calls,[1,2]);assert.equal(gate.closed,true);
+});
