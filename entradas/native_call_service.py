@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from .chat_permissions import chat_pair_allowed
-from .models import Conversa, PerfilNKATA, ChamadaConversaCreditoNKATA as Session, MovimentoCreditoNKATA
+from .models import Conversa, PerfilNKATA, ChamadaConversaCreditoNKATA as Session, MovimentoCreditoNKATA, RevisaoMinutoChamadaNKATA as Review
 from .call_credit_service import RATES, MAX_AUTHORIZED_MINUTES
 from .wallet_service import record_movement, credit_balance, credit_spending_enabled, WalletError
 
@@ -143,6 +143,7 @@ def authorize_gateway_minute(session_id, *, connected_user_ids, expected_minute=
     session.pago_ate=now+timedelta(seconds=60)
     session.expira_em=session.pago_ate+timedelta(seconds=5)
     session.save(update_fields=["estado","minutos_pagos","pago_ate","expira_em"])
+    Review.objects.create(chamada=session, minuto=number, prazo=session.pago_ate)
     return session.pago_ate
 
 
@@ -186,6 +187,9 @@ def reconcile_unstarted_minute(session_id, *, user_ids, minute):
     if debit and (minute != session.minutos_pagos or debit.tipo != "CONSUMO"
                   or debit.quantidade != -session.custo_minuto or debit.referencia != reference):
         raise WalletError("Débito inconsistente; requer revisão.")
+    review = Review.objects.filter(chamada=session, minuto=minute).first()
+    if debit and (not review or review.estado != "AUTORIZADO"):
+        raise WalletError("Retoma incerta ou iniciada; requer revisão.")
     if session.estado in LIVE:
         _end(session)
     if not debit:
@@ -193,5 +197,38 @@ def reconcile_unstarted_minute(session_id, *, user_ids, minute):
     movement = record_movement(payer, key=refund_key, kind="ESTORNO",
         amount=-debit.quantidade, reference=reference,
         reason=f"Estorno de chamada {session.tipo} — minuto {minute} não iniciado")
+    review.estado = "ESTORNADO"
+    review.save(update_fields=["estado", "atualizada_em"])
     # Keep the original minute index and debit immutable; the session is closed.
     return {"refunded": movement.quantidade, "state": session.estado}
+
+
+@transaction.atomic
+def mark_gateway_resume(session_id, *, user_ids, minute, phase):
+    session, chat, profiles, users = _locked_session(session_id)
+    if (set(user_ids) != {session.iniciador_id, session.destinatario_id}
+            or {u.pk for u in users} != set(user_ids)):
+        raise WalletError("Ocorrência indisponível.")
+    row = Review.objects.filter(chamada=session, minuto=minute).first()
+    if not row:
+        raise WalletError("Autorização inexistente.")
+    if phase == "INTENT":
+        if (session.estado != "ATIVA" or session.minutos_pagos != minute
+                or timezone.now() >= row.prazo or not credit_spending_enabled()
+                or not _allowed(chat, profiles, users)):
+            raise WalletError("Autorização expirada.")
+        if row.estado == "RETOMA_INICIADA":
+            return row.estado
+        if row.estado != "AUTORIZADO":
+            raise WalletError("Estado inválido.")
+        row.estado = "RETOMA_INICIADA"
+    elif phase == "CONFIRMED":
+        if row.estado == "CONFIRMADO":
+            return row.estado
+        if row.estado != "RETOMA_INICIADA":
+            raise WalletError("Estado inválido.")
+        row.estado = "CONFIRMADO"
+    else:
+        raise WalletError("Fase inválida.")
+    row.save(update_fields=["estado", "atualizada_em"])
+    return row.estado
