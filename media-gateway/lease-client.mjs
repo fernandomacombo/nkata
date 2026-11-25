@@ -38,3 +38,19 @@ export function createAdmissionClient(config){
   return Object.freeze({sessionId:data.session_id,userId:data.user_id,kind:data.kind});
  };
 }
+
+
+export const reconcilePath="/api/internal/media-gateway/reconcile/";
+export function createReconcileClient(config){
+ const post=createSignedPost(config);
+ return async ({sessionId,userIds,minute})=>{
+  for(let attempt=0;attempt<3;attempt++){
+   try{
+    const result=await post(reconcilePath,{session_id:sessionId,user_ids:userIds,minute,outcome:"RESUME_NOT_ATTEMPTED"});
+    if(result?.reconciled===true&&Number.isSafeInteger(result.refunded)&&result.refunded>=0)return true;
+   }catch{}
+   if(attempt<2)await new Promise(resolve=>setTimeout(resolve,250*(attempt+1)));
+  }
+  return false;
+ };
+}
