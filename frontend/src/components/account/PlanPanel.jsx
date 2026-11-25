@@ -141,7 +141,7 @@ export default function PlanPanel({ language = "PT" }) {
   return (
     <section className="nk-plan-panel">
       <header className="nk-plan-panel__heading">
-        <h2>{english ? "Plan" : "Plano"}</h2>
+        <h2>{data.credit_transition ? (english ? "Credits and wallet" : "Créditos e carteira") : (english ? "Plan" : "Plano")}</h2>
         <button
           type="button"
           className="nk-plan-panel__refresh"
@@ -152,9 +152,7 @@ export default function PlanPanel({ language = "PT" }) {
           <RefreshCw size={16} className={loading ? "is-spinning" : ""} />
         </button>
       </header>
-      <p>{english
-        ? "Start or answer calls with an active Fortnightly, Essential or Premium plan. Renewals are manual."
-        : "Para iniciar ou atender chamadas, ative o plano Quinzenal, Essencial ou Premium. A renovação é manual."}</p>
+      <p>{data.credit_transition ? (english ? "No daily free credits. Existing benefits remain valid until expiry." : "Sem créditos gratuitos diários. Os benefícios existentes mantêm-se até ao fim da validade.") : (english ? "Start or answer calls with an active Fortnightly, Essential or Premium plan. Renewals are manual." : "Para iniciar ou atender chamadas, ative o plano Quinzenal, Essencial ou Premium. A renovação é manual.")}</p>
 
       {data.wallet && <section className="nk-wallet-preview" aria-label={english ? "NKATA Wallet" : "Carteira NKATA"}>
         <div className="nk-wallet-preview__header"><WalletCards size={24}/><div><small>{english ? "NKATA Wallet" : "Carteira NKATA"}</small><strong>{data.wallet.saldo} {english ? "credits" : "créditos"}</strong></div></div>
@@ -162,7 +160,7 @@ export default function PlanPanel({ language = "PT" }) {
         <div className="nk-wallet-packs">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (english ? "Top up" : "Recarregar") : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
         {!!data.wallet.movimentos.length && <div className="nk-wallet-preview__history"><h3>{english ? "Recent transactions" : "Últimos movimentos"}</h3>{data.wallet.movimentos.map(m => <div key={m.id}><span>{m.motivo}<small>{new Date(m.criado_em).toLocaleString(english ? "en-GB" : "pt-PT")}</small></span><strong>{m.quantidade > 0 ? "+" : ""}{m.quantidade}</strong></div>)}</div>}
       </section>}
-      <div className="nk-plan-current">
+      {(!data.credit_transition || current.expires_at || recharge.balance > 0) && <div className="nk-plan-current">
         <div className="nk-plan-current__identity">
           <span><CurrentIcon size={24} /></span>
           <div>
@@ -173,7 +171,7 @@ export default function PlanPanel({ language = "PT" }) {
           </div>
         </div>
 
-        <div className="nk-plan-current__usage">
+        {(!data.credit_transition || current.expires_at) && <div className="nk-plan-current__usage">
           <div>
             <span>{english ? "Today's signals" : "Sinais de hoje"}</span>
             <strong>{quota.used_today} / {quota.daily_limit}</strong>
@@ -190,15 +188,15 @@ export default function PlanPanel({ language = "PT" }) {
                   : `Franquia diária usada. A recarga ainda tem ${quota.recharge_balance}.`)
                 : (english ? "Daily allowance used and no top-up balance." : "Franquia diária utilizada e sem saldo de recarga.")}
           </small>
-        </div>
+        </div>}
 
         <div className="nk-plan-current__recharge">
           <span><WalletCards size={19} /></span>
           <div><small>{english ? "Top-up balance" : "Saldo de recarga"}</small><strong>{recharge.balance} {english ? "signals" : "sinais"}</strong></div>
         </div>
-      </div>
+      </div>}
 
-      <div className="nk-plan-catalog" aria-label={english ? "Subscription plans" : "Planos de subscrição"}>
+      {!data.credit_transition && <><div className="nk-plan-catalog" aria-label={english ? "Subscription plans" : "Planos de subscrição"}>
         {[...data.available_plans].sort((a, b) => ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[a.code] ?? 9) - ({"LIVRE": 0, "QUINZENAL": 1, "ESSENCIAL": 2, "PREMIUM": 3}[b.code] ?? 9)).map((plan) => {
           const Icon = planIcon[plan.code] || Sparkles;
           const active = plan.code === current.code && !current.is_launch_bonus;
@@ -250,6 +248,7 @@ export default function PlanPanel({ language = "PT" }) {
         <small>{english ? "Plans last 14 or 30 days. No automatic charge. Top-ups do not unlock paid features." : "Planos válidos por 14 ou 30 dias. Sem cobrança automática. Recargas não desbloqueiam recursos pagos."}</small>
         {!data.payments_enabled && <small>{english ? "Payments are not available yet." : "Pagamentos ainda não disponíveis."}</small>}
       </div>
+      </>}
       <section id="nkata-payment-history" aria-label={english ? "NKATA payments" : "Pagamentos NKATA"}>
         <h3>{english ? "NKATA payment history" : "Histórico de pagamentos NKATA"}</h3>
         <p>{english ? "Benefits activate only after payment confirmation." : "Os benefícios são ativados apenas após confirmação do pagamento."}</p>

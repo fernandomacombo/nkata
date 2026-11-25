@@ -4,12 +4,12 @@ import uuid
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Sum
 
 from .credit_catalog import WELCOME_CREDITS, CHAT_24H_CREDITS
 from .identity_models import pedido_tem_identidade_verificada
-from .models import CarteiraNKATA, MovimentoCreditoNKATA, PerfilNKATA, AcessoChatCreditoNKATA
+from .models import CarteiraNKATA, MovimentoCreditoNKATA, PerfilNKATA, AcessoChatCreditoNKATA, BonusIdentidadeCreditoNKATA
 
 
 class WalletError(ValueError):
@@ -50,18 +50,36 @@ def record_movement(user, *, key, kind, amount, reference, reason):
     return movement
 
 
+def welcome_eligible(profile):
+    if not profile or profile.status != "ATIVO" or not profile.usuario_id:
+        return False
+    user, pedido = profile.usuario, profile.pedido
+    verification = getattr(pedido, "verificacao_identidade", None)
+    return bool(user.is_active and not user.is_staff and not user.is_superuser and user.has_usable_password()
+                and pedido.status == "APROVADO" and pedido.documento_chave and pedido.documento_confirmado
+                and verification and verification.status == "APROVADA" and pedido_tem_identidade_verificada(pedido))
+
+
 @transaction.atomic
 def grant_welcome_credits(user):
-    # Do not grant to unverified profiles or legacy approvals without an actual
-    # identity record. This function is deliberately not hooked into production yet.
+    # Keep the account and the document as independent idempotency boundaries.
     locked = get_user_model().objects.select_for_update().get(pk=user.pk)
-    profile = PerfilNKATA.objects.filter(usuario=locked, status="ATIVO").select_related("pedido", "pedido__verificacao_identidade").first()
-    verification = getattr(profile.pedido, "verificacao_identidade", None) if profile else None
-    if (not locked.is_active or not profile or not verification or verification.status != "APROVADA"
-            or not profile.pedido.documento_confirmado or not pedido_tem_identidade_verificada(profile.pedido)):
+    profile = PerfilNKATA.objects.filter(usuario=locked).select_related("usuario", "pedido", "pedido__verificacao_identidade").first()
+    if not welcome_eligible(profile):
         raise WalletError("Verificação de identidade obrigatória.")
-    return record_movement(locked, key="welcome:v1", kind="BONUS", amount=WELCOME_CREDITS,
-                           reference="welcome:v1", reason="Bónus de boas-vindas após verificação")
+    prior = MovimentoCreditoNKATA.objects.filter(carteira__usuario=locked, chave="welcome:v1").first()
+    if prior:
+        return prior
+    if BonusIdentidadeCreditoNKATA.objects.filter(documento_chave=profile.pedido.documento_chave).exists():
+        raise WalletError("Esta identidade já recebeu o bónus de boas-vindas.")
+    try:
+        with transaction.atomic():
+            movement = record_movement(locked, key="welcome:v1", kind="BONUS", amount=WELCOME_CREDITS,
+                                       reference="welcome:v1", reason="Bónus de boas-vindas após verificação")
+            BonusIdentidadeCreditoNKATA.objects.create(documento_chave=profile.pedido.documento_chave, movimento=movement)
+    except IntegrityError:
+        raise WalletError("Não foi possível atribuir o bónus; requer revisão.") from None
+    return movement
 
 
 def wallet_snapshot(user):

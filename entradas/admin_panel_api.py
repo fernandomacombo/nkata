@@ -863,6 +863,9 @@ def _action_member(request, object_id, action):
         plan_code = action.removeprefix("plan_").upper()
         if plan_code not in PLAN_DEFINITIONS:
             return None, "Plano inválido.", 400
+        from django.conf import settings
+        if settings.NKATA_CREDIT_TRANSITION_ENABLED:
+            return None, "Os planos antigos estão em transição e não podem ser alterados neste painel.", 409
         assign_plan(profile.usuario, plan_code)
         message = f"Plano alterado para {PLAN_DEFINITIONS[plan_code]['label']}."
     elif action == "pause":

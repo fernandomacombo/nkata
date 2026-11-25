@@ -74,7 +74,8 @@ def _catalogue():
     return {"catalogue": credit_catalog(purchase_enabled=False),
             "checkout_configured": bool(payments_enabled() and settings.NKATA_CREDIT_CHECKOUT_ENABLED),
             "spending_enabled": credit_spending_enabled(),
-            "call_billing_enabled": False}
+            "call_billing_enabled": False,
+            "credit_transition_enabled": settings.NKATA_CREDIT_TRANSITION_ENABLED}
 
 
 @api_view(["GET"])

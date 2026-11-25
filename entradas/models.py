@@ -561,3 +561,10 @@ class TarifacaoChamadaNKATA(models.Model):
             models.CheckConstraint(condition=models.Q(custo_minuto__gt=0, max_minutos__gt=0, minutos_pagos__lte=models.F("max_minutos")), name="nk_tarifa_chamada_limites"),
             models.CheckConstraint(condition=(models.Q(minutos_pagos=0, pago_ate__isnull=True) | models.Q(minutos_pagos__gt=0, pago_ate__isnull=False)), name="nk_tarifa_chamada_validade"),
         ]
+
+
+class BonusIdentidadeCreditoNKATA(models.Model):
+    """One welcome award per confirmed document, even across account changes."""
+    documento_chave = models.CharField(max_length=64, unique=True, editable=False)
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="bonus_identidade")
+    criado_em = models.DateTimeField(auto_now_add=True)

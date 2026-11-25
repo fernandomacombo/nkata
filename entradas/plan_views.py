@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -27,6 +28,8 @@ def api_plano_da_conta(request):
     quota = signal_quota_for_user(request.user)
     access = active_plan_access(request.user)
     enabled = payments_enabled()
+    transition = settings.NKATA_CREDIT_TRANSITION_ENABLED
+    legacy_enabled = enabled and not transition
 
     return Response({
         "current_plan": {
@@ -42,14 +45,16 @@ def api_plano_da_conta(request):
             "expires_at": access.fim if access else None,
         },
         "signal_quota": quota,
+        "credit_transition": transition,
+        "legacy_payments_enabled": legacy_enabled,
         "wallet": {**wallet_snapshot(request.user), "catalogo": credit_catalog(purchase_enabled=credit_checkout_enabled(request.user))} if member_profile_for_user(request.user) else None,
         "chat_presets": preset_snapshot(request.user),
         "voice_credit": voice_credit_offer(request.user, plan["features"].get("chat_audio", False)),
         "recharge": {
             "balance": quota["recharge_balance"],
-            "packs": [{**pack, "purchase_enabled": enabled} for pack in public_recharge_catalog()],
+            "packs": [{**pack, "purchase_enabled": legacy_enabled} for pack in public_recharge_catalog()] if not transition else [],
         },
-        "available_plans": [{**item, "purchase_enabled": enabled and item["paid"]} for item in public_plan_catalog()],
+        "available_plans": [{**item, "purchase_enabled": legacy_enabled and item["paid"]} for item in public_plan_catalog()] if not transition else [],
         "payments_enabled": enabled,
         "message": (
             "Os benefícios são ativados após confirmação do pagamento." if enabled else

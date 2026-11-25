@@ -111,6 +111,8 @@ def start_checkout(user, product, key):
             if existing.produto != product:
                 raise PaymentError("Esta chave já pertence a outro pacote.", 409)
             return existing
+        if settings.NKATA_CREDIT_TRANSITION_ENABLED and product not in CREDIT_PRODUCTS:
+            raise PaymentError("Os antigos planos e recargas deixaram de estar à venda. Consulte a Carteira NKATA.", 403)
         if product in CREDIT_PRODUCTS and not credit_checkout_enabled(user):
             raise PaymentError("A compra de créditos ainda não está disponível para esta conta.", 403)
         profile = getattr(user, "perfil_nkata", None)
