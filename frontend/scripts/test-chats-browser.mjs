@@ -42,7 +42,7 @@ try {
     await page.route("**/api/chats/**", async route=>{
      const url = new URL(route.request().url());
      const inbox = {conversas:[{id:1,nome:"Ana",perfil:profile,ultima_mensagem:message,nao_lidas:0,atividade_em:message.criado_em}],pedidos:[],historico_pedidos:[],conexoes:[]};
-     const thread = {nome:"Ana",perfil:profile,mensagens:url.searchParams.has("depois")?[]:[message,sentMessage],texto_livre:true,frases:[],mais:false,modo:"inicial",apagadas:[],lidas_ate:0};
+     const thread = {nome:"Ana",perfil:profile,mensagens:url.searchParams.has("depois")?[]:[message,sentMessage,{...sentMessage,id:3,tipo:"AUDIO",texto:"",audio_url:"/api/chats/1/audio/3/media/",duracao_segundos:5}],credito_voz:{enabled:true,cost:2,balance:20},texto_livre:true,frases:[],mais:false,modo:"inicial",apagadas:[],lidas_ate:0};
      await route.fulfill({json:url.pathname==="/api/chats/"?inbox:thread});
     });
     await page.goto("http://127.0.0.1:5178/"+html);
@@ -81,6 +81,12 @@ try {
     await page.getByRole("button",{name:"OK",exact:true}).click();
     await dialog.waitFor({state:"detached"});
     const composer = page.locator(".nk-chat-compose");
+    await composer.getByRole("button",{name:"Gravar nota de voz"}).waitFor();
+    const player=page.getByRole("group",{name:"Nota de voz",exact:true});
+    await player.getByRole("button",{name:"Reproduzir nota de voz"}).waitFor();
+    assert.equal(await player.locator("audio[controls]").count(),0);
+    assert.equal(await player.locator("audio").getAttribute("controlslist"),"nodownload noremoteplayback");
+    assert.equal(await page.locator("a[download]").count(),0);
     const historyBefore = await page.locator(".nk-chat-lines").boundingBox();
     assert.ok((await composer.boundingBox()).height < 90, "Composer must remain compact");
     await composer.getByRole("button",{name:"Acções da conversa",exact:true}).click();
@@ -95,7 +101,7 @@ try {
     assert.equal((await submitted).postDataJSON().texto,"Teste");
     const bubble=await page.locator(".nk-chat-bubble").first().boundingBox();
     assert.ok(bubble.height<100,"Short message bubble must be compact");
-    const own = await page.locator(".nk-chat-bubble-row.is-mine .nk-chat-bubble").boundingBox();
+    const own = await page.locator(".nk-chat-bubble-row.is-mine .nk-chat-bubble").first().boundingBox();
     const received = await page.locator(".nk-chat-bubble-row:not(.is-mine) .nk-chat-bubble").boundingBox();
     const lines = await page.locator(".nk-chat-lines").boundingBox();
     assert.ok(received.x < lines.x+lines.width/2 && own.x+own.width > lines.x+lines.width/2 && own.x > received.x, "Received left; sent right");

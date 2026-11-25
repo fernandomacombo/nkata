@@ -109,7 +109,10 @@ function VoiceNote({ message, english }) {
       <audio
         ref={audioRef}
         src={message.audioUrl}
-        preload="metadata"
+        preload="none"
+        controlsList="nodownload noremoteplayback"
+        disableRemotePlayback
+        onContextMenu={event=>event.preventDefault()}
         crossOrigin="use-credentials"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
@@ -628,7 +631,6 @@ export default function ConversationPage({
 
     const cost = audioEnabled ? 0 : voiceOffer?.cost;
     if (!canRecordVoice) return;
-    if (cost > 0 && !window.confirm(english ? `Send this voice note for ${cost} credits?` : `Enviar esta nota de voz por ${cost} créditos?`)) return;
     setSendingAudio(true);
     setAudioNotice("");
     try {
@@ -883,6 +885,9 @@ export default function ConversationPage({
               <audio
                 ref={previewAudioRef}
                 src={previewUrl}
+                controlsList="nodownload noremoteplayback"
+                disableRemotePlayback
+                onContextMenu={event=>event.preventDefault()}
                 onPlay={() => setPreviewPlaying(true)}
                 onPause={() => setPreviewPlaying(false)}
                 onEnded={() => setPreviewPlaying(false)}

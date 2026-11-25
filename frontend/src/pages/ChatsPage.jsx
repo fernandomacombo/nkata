@@ -7,6 +7,7 @@ import { usePresence } from "../components/profiles/Presence.jsx";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
 import VoiceRecorder from "../components/chat/VoiceRecorder.jsx";
+import PrivateVoicePlayer from "../components/chat/PrivateVoicePlayer.jsx";
 
 const SIGNAL_ICONS = {OLA:Hand,FLOR:Flower2,BEIJINHO:Heart};
 function SignalIcon({type,size=24}) { const Icon=SIGNAL_ICONS[type] || Sparkles; return <Icon size={size} strokeWidth={1.6} aria-hidden="true"/>; }
@@ -59,6 +60,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
   const [menu, setMenu] = useState(false);
   const [messageMenu, setMessageMenu] = useState(null);
+  const [voiceActive,setVoiceActive] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(false), [extraBusy, setExtraBusy] = useState(false);
   const extrasRef = useRef(null), extrasTrigger = useRef(null);
   useEffect(() => {
@@ -76,13 +78,11 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     finally { setExtraBusy(false); }
   }
   function sendSignal(item) {
-    if (item.cost > 0 && !window.confirm(`Enviar ${item.label} por ${item.cost} créditos?`)) return;
     sendExtra("sinais", {tipo:item.type, expected_cost:item.cost});
   }
   async function buyText() {
     const offer = thread?.credito_chat;
     if (!offer?.can_unlock || extraBusy || !safetyAccepted || offer.balance < offer.cost) return;
-    if (!window.confirm(`Utilizar ${offer.cost} créditos para desbloquear texto livre em todas as conversas durante 24 horas? Sem renovação automática.`)) return;
     await sendExtra("desbloquear", {key:crypto.randomUUID(), expected_cost:offer.cost});
   }
   const messageMenuRef = useRef(null), composerRef = useRef(null);
@@ -236,7 +236,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   }
   async function send(event) {
     event.preventDefault();
-    if (sending || !text.trim() || !safetyAccepted) return;
+    if (sending || voiceActive || !text.trim() || !safetyAccepted) return;
     setSending(true); setError("");
     try {
       await request(`/api/chats/${id}/`, { method: "POST", body: { texto: text.trim(), resposta_a: reply?.id } });
@@ -273,7 +273,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
             {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem anterior ou indisponível"}</blockquote>}
             {!message.apagada_em && message.tipo === "SINAL" && <span className="nk-chat-signal-art" aria-hidden="true"><SignalIcon type={message.sinal} size={28}/></span>}
             {!message.apagada_em && message.tipo === "QUEBRA_GELO" && <span className="nk-chat-extra-label"><Sparkles size={13}/>Quebra-gelo</span>}
-            {!message.apagada_em && message.tipo === "AUDIO" && message.audio_url ? <audio className="nk-native-voice-player" controls preload="none" src={message.audio_url} aria-label="Nota de voz"/> : <p className={message.apagada_em ? "nk-chat-deleted" : undefined}>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>}
+            {!message.apagada_em && message.tipo === "AUDIO" && message.audio_url ? <PrivateVoicePlayer src={message.audio_url} duration={message.duracao_segundos}/> : <p className={message.apagada_em ? "nk-chat-deleted" : undefined}>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>}
             <div className="nk-chat-meta"><time dateTime={message.criado_em}>{messageTime(message.criado_em)}</time>
               {message.minha && (message.lida ? <CheckCheck size={14} aria-label="Lida" /> : <Check size={14} aria-label="Enviada" />)}</div>
             
@@ -294,20 +294,22 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           {thread.credito_chat?.expires_at && <small>Texto livre até {new Date(thread.credito_chat.expires_at).toLocaleString("pt-MZ")}</small>}
           {!thread.texto_livre && <small>{thread.predefinidas?.restantes ?? 0} mensagens gratuitas restantes hoje</small>}
           {!thread.texto_livre && thread.credito_chat?.can_unlock && thread.credito_chat.balance >= thread.credito_chat.cost && <button type="button" className="nk-chat-unlock" disabled={extraBusy || !safetyAccepted} onClick={buyText}><LockKeyhole size={16}/>Texto livre 24 h · {thread.credito_chat.cost} créditos</button>}
-          {!thread.texto_livre && (!thread.credito_chat?.can_unlock || thread.credito_chat.balance < thread.credito_chat.cost) && <a className="nk-chat-wallet-link" href="/conta/?section=plan"><LockKeyhole size={16}/> Consultar acesso ao texto livre</a>}
+          {!thread.texto_livre && (!thread.credito_chat?.can_unlock || thread.credito_chat.balance < thread.credito_chat.cost) && <a className="nk-chat-wallet-link" href="/conta/?section=plan"><LockKeyhole size={16}/> Carteira</a>}
           {!!thread.sinais?.signals?.length && <><strong>Sinais</strong>{!thread.sinais.quota?.credit_mode && <small>{thread.sinais.quota?.remaining_today ?? 0} disponíveis hoje</small>}<div className="nk-chat-signal-buttons">{thread.sinais.signals.map(item => <button type="button" key={item.type} disabled={extraBusy || item.available === false || item.sent_to_profile_today || thread.sinais.quota?.limit_reached || !safetyAccepted} onClick={() => sendSignal(item)}><span><SignalIcon type={item.type}/></span>{item.label}{thread.sinais.quota?.credit_mode && <small>{item.cost ? `${item.cost} crédito${item.cost === 1 ? "" : "s"}` : "Incluído"}</small>}</button>)}</div></>}
           <strong>Quebra-gelo · {thread.quebra_gelo?.restantes ?? 0} restantes</strong>
           {thread.quebra_gelo?.perguntas?.map(item => <button className="nk-chat-icebreaker" type="button" key={item.codigo} disabled={extraBusy || !thread.quebra_gelo.restantes || !safetyAccepted} onClick={() => sendExtra("quebra-gelo", {codigo:item.codigo})}>{item.texto}<Send size={15}/></button>)}
         </section>}
         {reply && <div className="nk-independent-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
-        {thread.credito_voz?.enabled && safetyAccepted && <VoiceRecorder key={id} conversationId={id} offer={thread.credito_voz} onSent={()=>setRevision(v=>v+1)}/>}
         <div className="nk-chat-compose-line">
+          {!voiceActive && <>
           <button ref={extrasTrigger} className="nk-chat-icon nk-chat-plus" type="button" aria-label="Acções da conversa" aria-expanded={extrasOpen} aria-controls={extrasOpen ? "nk-chat-extras-panel" : undefined} onClick={() => setExtrasOpen(v => !v)} disabled={!safetyAccepted}>{extrasOpen?<X size={22}/>:<Plus size={22}/>}</button>
           {thread.texto_livre ? <textarea ref={composerRef} aria-label="Mensagem" placeholder="Escrever mensagem..." rows={1} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :
             thread.frases.length ? <select aria-label="Mensagem predefinida" value={text} onChange={e => setText(e.target.value)}><option value="">Escolher mensagem</option>{thread.frases.map(phrase => <option key={phrase}>{phrase}</option>)}</select> :
-            <span className="nk-chat-compose-locked">Mensagens gratuitas esgotadas</span>}
+            <span className="nk-chat-compose-locked">Texto bloqueado</span>}
           {thread.texto_livre || thread.frases.length ? <button type="submit" className="nk-chat-send" aria-label="Enviar mensagem" disabled={sending || !text.trim() || !safetyAccepted || (!thread.texto_livre && !thread.frases.includes(text))}><Send size={20} /></button> : null}
           {!thread.texto_livre && <button type="button" className="nk-chat-icon nk-chat-unlock-short" aria-label="Opções para desbloquear texto livre" title="Desbloquear texto livre" disabled={!safetyAccepted} onClick={() => setExtrasOpen(true)}><LockKeyhole size={18}/></button>}
+          </>}
+          {thread.credito_voz?.enabled && safetyAccepted && <VoiceRecorder key={id} conversationId={id} offer={thread.credito_voz} onActive={setVoiceActive} onSent={()=>setRevision(v=>v+1)}/>}
         </div>
       </form>
       {(!safetyAccepted || safetyMode === "help") && <ChatSafetyNotice name={thread.nome} helpOnly={safetyMode === "help"} onAccept={safetyMode === "help" ? async () => setSafetyMode("") : onAcceptSafety} onExit={safetyMode === "help" ? () => setSafetyMode("") : onBack} />}

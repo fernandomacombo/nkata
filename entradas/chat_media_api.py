@@ -264,6 +264,6 @@ def api_media_audio_match(request, match_id, audio_id):
     content_type = mimetypes.guess_type(message.audio.name)[0] or "application/octet-stream"
     response = FileResponse(handle, content_type=content_type)
     response["Content-Disposition"] = f'inline; filename="{os.path.basename(message.audio.name)}"'
-    response["Cache-Control"] = "private, max-age=120"
+    response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     return response
