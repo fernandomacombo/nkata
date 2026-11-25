@@ -90,8 +90,18 @@ def detail(request, session_id):
     error = gate(request)
     if error is not None:
         return error
+    action = None
+    if request.method == "POST":
+        data = request.data
+        if not isinstance(data, dict) or set(data) != {"action"}:
+            return reply({"detail": "Pedido inválido."}, 400)
+        if hasattr(data, "getlist") and len(data.getlist("action")) != 1:
+            return reply({"detail": "Pedido inválido."}, 400)
+        action = data.get("action")
+        if action not in ("accept", "decline", "end"):
+            return reply({"detail": "Pedido inválido."}, 400)
     # Ending remains available to a participant even after blocking or revocation.
-    if request.method == "POST" and request.data == {"action": "end"}:
+    if action == "end":
         try:
             session = end_call(session_id, actor_id=request.user.pk)
         except WalletError:
@@ -102,9 +112,6 @@ def detail(request, session_id):
     except WalletError:
         return reply({"detail": "Chamada indisponível."}, 404)
     if request.method == "POST":
-        action = request.data.get("action") if isinstance(request.data, dict) else None
-        if not isinstance(request.data, dict) or set(request.data) != {"action"} or action not in ("accept", "decline"):
-            return reply({"detail": "Pedido inválido."}, 400)
         if request.user.pk != session.destinatario_id:
             return reply({"detail": "Chamada indisponível."}, 404)
         try:
