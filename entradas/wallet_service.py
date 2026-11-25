@@ -1,11 +1,15 @@
 """Internal ledger. No public mutation endpoints until commercial rollout."""
+from datetime import timedelta
+import uuid
+from django.conf import settings
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Sum
 
-from .credit_catalog import WELCOME_CREDITS
+from .credit_catalog import WELCOME_CREDITS, CHAT_24H_CREDITS
 from .identity_models import pedido_tem_identidade_verificada
-from .models import CarteiraNKATA, MovimentoCreditoNKATA, PerfilNKATA
+from .models import CarteiraNKATA, MovimentoCreditoNKATA, PerfilNKATA, AcessoChatCreditoNKATA
 
 
 class WalletError(ValueError):
@@ -78,3 +82,55 @@ def reconcile_balance(wallet):
     wallet.refresh_from_db()
     total = wallet.movimentos.aggregate(total=Sum("quantidade"))["total"] or 0
     return {"saldo": wallet.saldo, "total_movimentos": total, "consistente": wallet.saldo == total}
+
+
+def credit_spending_enabled():
+    return bool(settings.NKATA_CREDIT_SPENDING_ENABLED)
+
+
+def active_chat_credit_access(user):
+    now = timezone.now()
+    return AcessoChatCreditoNKATA.objects.filter(
+        movimento__carteira__usuario=user, inicio__lte=now, fim__gt=now
+    ).order_by("-fim").first()
+
+
+def credit_balance(user):
+    return CarteiraNKATA.objects.filter(usuario=user).values_list("saldo", flat=True).first() or 0
+
+
+@transaction.atomic
+def unlock_chat(user, *, key, expected_cost):
+    from .plan_service import plan_for_user
+    try:
+        key = str(uuid.UUID(str(key)))
+    except (ValueError, TypeError, AttributeError):
+        raise WalletError("Chave de operação inválida.") from None
+    locked = get_user_model().objects.select_for_update().get(pk=user.pk)
+    profile = PerfilNKATA.objects.filter(usuario=locked, status="ATIVO").select_related("pedido").first()
+    if (not locked.is_active or locked.is_staff or locked.is_superuser or not profile
+            or not pedido_tem_identidade_verificada(profile.pedido)):
+        raise WalletError("Identidade verificada obrigatória.")
+    previous = AcessoChatCreditoNKATA.objects.filter(movimento__carteira__usuario=locked, movimento__chave=f"chat24:{key}").first()
+    if previous:
+        return previous, False
+    active = active_chat_credit_access(locked)
+    if active:
+        return active, False
+    if plan_for_user(locked)["features"]["chat_text"]:
+        return None, False
+    if not credit_spending_enabled():
+        raise WalletError("O consumo de créditos ainda não está disponível.")
+    if type(expected_cost) is not int or expected_cost != CHAT_24H_CREDITS:
+        raise WalletError("Confirme o preço atual antes de continuar.")
+    movement = record_movement(locked, key=f"chat24:{key}", kind="CONSUMO",
+        amount=-CHAT_24H_CREDITS, reference="CHAT_24H", reason="Texto livre durante 24 horas")
+    now = timezone.now()
+    return AcessoChatCreditoNKATA.objects.create(movimento=movement, inicio=now, fim=now+timedelta(hours=24)), True
+
+
+def chat_credit_snapshot(user, text_enabled):
+    access = active_chat_credit_access(user)
+    return {"enabled": credit_spending_enabled(), "cost": CHAT_24H_CREDITS,
+            "balance": credit_balance(user), "expires_at": access.fim if access else None,
+            "can_unlock": credit_spending_enabled() and not text_enabled}

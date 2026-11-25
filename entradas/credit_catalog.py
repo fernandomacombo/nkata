@@ -30,6 +30,8 @@ CREDIT_PACKS = (
 CREDIT_PRODUCTS = {f"CREDITOS_{pack['code']}": pack for pack in CREDIT_PACKS}
 
 WELCOME_CREDITS = 5
+CHAT_24H_CREDITS = 10
+SIGNAL_SAFETY_LIMIT = 100
 
 ICEBREAKER_DAILY_LIMIT = 3
 ICEBREAKERS = {
@@ -52,7 +54,7 @@ def credit_catalog(purchase_enabled=False):
               for code, item in SIGNAL_DEFINITIONS.items()],
             {"code": "ICEBREAKER", "label": "Quebra-gelo", "credits": 0, "unit": "limited"},
             {"code": "PRESET", "label": "Mensagem predefinida", "credits": 0, "unit": "limited"},
-            {"code": "CHAT_24H", "label": "Chat de texto", "credits": 10, "unit": "24h"},
+            {"code": "CHAT_24H", "label": "Chat de texto", "credits": CHAT_24H_CREDITS, "unit": "24h"},
             {"code": "VOICE_NOTE", "label": "Nota de voz", "credits": 2, "unit": "message"},
             {"code": "AUDIO_CALL", "label": "Chamada de áudio", "credits": 3, "unit": "minute"},
             {"code": "VIDEO_CALL", "label": "Videochamada", "credits": 5, "unit": "minute"},

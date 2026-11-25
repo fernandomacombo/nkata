@@ -169,7 +169,7 @@ def plan_for_user(user):
     access = active_plan_access(user)
     if access and access.origem == "PROMO_LANCAMENTO":
         bonus = PLAN_DEFINITIONS["QUINZENAL"]
-        return {
+        return _with_credit_chat(user, {
             **bonus,
             "label": "Bónus de lançamento",
             "paid": False,
@@ -180,8 +180,16 @@ def plan_for_user(user):
                 "chat_video": False,
                 "chat_presets": True,
             },
-        }
-    return PLAN_DEFINITIONS[access.plano if access else "LIVRE"]
+        })
+    definition = PLAN_DEFINITIONS[access.plano if access else "LIVRE"]
+    return _with_credit_chat(user, definition)
+
+
+def _with_credit_chat(user, definition):
+    from .wallet_service import active_chat_credit_access
+    if getattr(user, "is_authenticated", False) and not definition["features"]["chat_text"] and active_chat_credit_access(user):
+        return {**definition, "features": {**definition["features"], "chat_text": True}}
+    return definition
 
 
 def signal_actions_for_user(user):

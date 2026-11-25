@@ -522,3 +522,13 @@ class MovimentoCreditoNKATA(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("Movimentos financeiros não podem ser apagados.")
+
+
+
+class AcessoChatCreditoNKATA(models.Model):
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="acesso_chat")
+    inicio = models.DateTimeField()
+    fim = models.DateTimeField(db_index=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(fim__gt=models.F("inicio")), name="nk_credito_chat_validade")]

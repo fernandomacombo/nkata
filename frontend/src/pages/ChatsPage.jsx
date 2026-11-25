@@ -66,6 +66,12 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     catch(err) { setError(err.message); }
     finally { setExtraBusy(false); }
   }
+  async function buyText() {
+    const offer = thread?.credito_chat;
+    if (!offer?.can_unlock || extraBusy || !safetyAccepted || offer.balance < offer.cost) return;
+    if (!window.confirm(`Utilizar ${offer.cost} créditos para desbloquear texto livre em todas as conversas durante 24 horas? Sem renovação automática.`)) return;
+    await sendExtra("desbloquear", {key:crypto.randomUUID(), expected_cost:offer.cost});
+  }
   const messageMenuRef = useRef(null), composerRef = useRef(null);
   const messageAnchor = useRef(null), nearEnd = useRef(true);
   useEffect(() => {
@@ -277,7 +283,8 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           {thread.quebra_gelo?.perguntas?.map(item => <button className="nk-chat-icebreaker" type="button" key={item.codigo} disabled={extraBusy || !thread.quebra_gelo.restantes || !safetyAccepted} onClick={() => sendExtra("quebra-gelo", {codigo:item.codigo})}>{item.texto}<Send size={15}/></button>)}
         </section>}
         {reply && <div className="nk-independent-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
-        {!thread.texto_livre && <div className="nk-chat-preset-info"><span>{thread.predefinidas?.restantes ?? 0} mensagens gratuitas restantes hoje</span><a href="/conta/?section=plan">Desbloquear texto livre</a></div>}
+        {!thread.texto_livre && <div className="nk-chat-preset-info"><span>{thread.predefinidas?.restantes ?? 0} mensagens gratuitas restantes hoje</span>{thread.credito_chat?.can_unlock ? (thread.credito_chat.balance >= thread.credito_chat.cost ? <button type="button" className="nk-chat-extras-toggle" disabled={extraBusy || !safetyAccepted} onClick={buyText}>Texto livre 24 h · {thread.credito_chat.cost} créditos</button> : <a href="/conta/?section=plan">Recarregar créditos</a>) : <a href="/conta/?section=plan">Desbloquear texto livre</a>}</div>}
+        {thread.credito_chat?.expires_at && <p className="nk-chat-preset-info">Texto livre até {new Date(thread.credito_chat.expires_at).toLocaleString("pt-MZ")}</p>}
         {thread.texto_livre || thread.frases.length ? <div className="nk-chat-compose-line">
           {thread.texto_livre ? <textarea ref={composerRef} aria-label="Mensagem" placeholder="Escrever mensagem..." rows={1} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :
             <select aria-label="Mensagem predefinida" value={text} onChange={e => setText(e.target.value)}><option value="">Escolher mensagem</option>{thread.frases.map(phrase => <option key={phrase}>{phrase}</option>)}</select>}

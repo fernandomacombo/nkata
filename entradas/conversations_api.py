@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 from .chat_permissions import chat_pair_allowed
 from .credit_catalog import ICEBREAKERS, ICEBREAKER_DAILY_LIMIT
+from .wallet_service import unlock_chat, chat_credit_snapshot, WalletError
 from .signal_views import _availability_payload, send_signal
 from django.contrib.auth import get_user_model
 from .identity_models import pedido_tem_identidade_verificada
@@ -398,6 +399,23 @@ def chat_signal(request, conversation_id):
     return send_signal(request.user, me, other, request.data.get("tipo", ""), conversation_id=chat.pk)
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def unlock_text(request, conversation_id):
+    chat, me, other = accessible_thread(request, conversation_id)
+    other, _ = lock_pair(me, other.pk)
+    get_user_model().objects.select_for_update().get(pk=request.user.pk)
+    if chat.match_origem_id:
+        MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
+    get_object_or_404(Conversa.objects.select_for_update(), pk=chat.pk, estado=Conversa.ESTADO_ATIVA)
+    try:
+        access, charged = unlock_chat(request.user, key=request.data.get("key"), expected_cost=request.data.get("expected_cost"))
+    except WalletError as error:
+        return Response({"detail": str(error)}, status=409)
+    return Response({"charged": charged, "expires_at": access.fim if access else None, "texto_livre": plan_for_user(request.user)["features"]["chat_text"]})
+
+
 def icebreaker_remaining(user):
     used = MensagemMatch.objects.filter(remetente=user, tipo="QUEBRA_GELO",
                                         criado_em__date=timezone.localdate()).count()
@@ -502,6 +520,7 @@ def messages(request, conversation_id):
     return Response({"nome": other.nome_publico, "perfil": chat_profile(other), "match_id": legacy_match_id(chat),
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
                      "texto_livre": features["chat_text"], "frases": preset["frases"], "predefinidas": preset,
+                     "credito_chat": chat_credit_snapshot(request.user, features["chat_text"]),
                      "sinais": _availability_payload(request.user, other) if other.visivel else {"signals": [], "quota": {}},
                      "quebra_gelo": {"restantes": icebreaker_remaining(request.user), "perguntas": [{"codigo": code, "texto": text} for code, text in ICEBREAKERS.items()]},
                      "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data,

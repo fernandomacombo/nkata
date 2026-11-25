@@ -52,6 +52,7 @@ urlpatterns = [
     path("chats/<int:conversation_id>/", conversations_api.messages),
     path("chats/<int:conversation_id>/escrita/", conversations_api.typing),
     path("chats/<int:conversation_id>/sinais/", conversations_api.chat_signal),
+    path("chats/<int:conversation_id>/desbloquear/", conversations_api.unlock_text),
     path("chats/<int:conversation_id>/quebra-gelo/", conversations_api.icebreaker),
     path("chats/<int:conversation_id>/encerrar/", conversations_api.close_conversation),
     path("chats/<int:conversation_id>/mensagens/<int:message_id>/", conversations_api.delete_message),

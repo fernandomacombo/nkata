@@ -56,3 +56,27 @@ class WalletTests(TestCase):
         admin = get_user_model().objects.create_user("wallet-admin", is_staff=True)
         self.client.force_login(admin)
         self.assertEqual(self.client.get("/api/minha-conta/carteira/").status_code, 403)
+
+
+    def test_credit_chat_pass_is_idempotent_global_and_expires(self):
+        from uuid import uuid4
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import AcessoChatCreditoNKATA
+        from .plan_service import plan_for_user
+        from .wallet_service import unlock_chat
+        self.move()
+        key = uuid4()
+        with self.settings(NKATA_CREDIT_SPENDING_ENABLED=True):
+            access, charged = unlock_chat(self.a, key=key, expected_cost=10)
+            self.assertTrue(charged)
+            self.assertEqual(access.fim-access.inicio, timedelta(hours=24))
+            self.assertFalse(unlock_chat(self.a, key=key, expected_cost=10)[1])
+            self.assertFalse(unlock_chat(self.a, key=uuid4(), expected_cost=10)[1])
+            self.assertEqual(wallet_snapshot(self.a)["saldo"], 40)
+            self.assertTrue(plan_for_user(self.a)["features"]["chat_text"])
+            self.assertFalse(plan_for_user(self.a)["features"]["chat_audio"])
+            AcessoChatCreditoNKATA.objects.filter(pk=access.pk).update(inicio=timezone.now()-timedelta(days=2), fim=timezone.now()-timedelta(days=1))
+            self.assertFalse(plan_for_user(self.a)["features"]["chat_text"])
+            self.assertFalse(unlock_chat(self.a, key=key, expected_cost=10)[1])
+            self.assertEqual(wallet_snapshot(self.a)["saldo"], 40)
