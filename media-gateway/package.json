@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "start": "node server.mjs",
+    "start": "node supervisor.mjs",
     "test": "node --test *.test.mjs",
     "test:rtp": "node --test tests/real-rtp.mjs"
   },
