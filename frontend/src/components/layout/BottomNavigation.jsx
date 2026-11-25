@@ -25,7 +25,6 @@ export default function BottomNavigation({
       {items.map((item) => {
         const Icon = item.icon;
         const active = activePage === item.id;
-        const badgeCount = 0;
 
         return (
           <button
@@ -37,9 +36,6 @@ export default function BottomNavigation({
           >
             <span className="nk-bottom-nav__icon">
               <Icon size={19} strokeWidth={active ? 2.3 : 1.8} />
-              {badgeCount > 0 && (
-                <em>{badgeCount > 9 ? "9+" : badgeCount}</em>
-              )}
             </span>
             <span>{item.label[language] || item.label.PT}</span>
           </button>

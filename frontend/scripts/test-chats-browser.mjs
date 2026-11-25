@@ -21,8 +21,10 @@ function Harness(){
  <BottomNavigation activePage={page} onNavigate={p=>{setPage(p);setId(null)}}/>
  </div>;
 }
+document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
 createRoot(document.getElementById("root")).render(<Harness/>);
 `);
+process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
 try {
  await server.listen();
@@ -58,6 +60,9 @@ try {
     await page.getByRole("button",{name:"OK",exact:true}).click();
     await dialog.waitFor({state:"detached"});
     await page.getByRole("textbox",{name:"Mensagem",exact:true}).fill("Teste");
+    const submitted = page.waitForRequest(req=>req.method()==="POST" && new URL(req.url()).pathname==="/api/chats/1/");
+    await page.getByRole("button",{name:"Enviar mensagem"}).click();
+    assert.equal((await submitted).postDataJSON().texto,"Teste");
     const bubble=await page.locator(".nk-chat-bubble").first().boundingBox();
     assert.ok(bubble.height<100,"Short message bubble must be compact");
     await page.getByRole("button",{name:"Opções da mensagem"}).click();
