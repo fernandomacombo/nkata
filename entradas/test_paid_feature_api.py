@@ -9,11 +9,14 @@ from .call_api import api_chamada_match
 from .chat_media_api import api_audios_match
 from .posts_api import api_publicacoes
 from .plan_service import assign_plan, public_plan_catalog
+from .test_conversations import profile, historical_match
 
 
 class PaidFeatureApiTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(username="free-member")
+        self.a, self.b = profile(70), profile(71)
+        self.user = self.a.usuario
+        self.match = historical_match(perfil_1=self.a, perfil_2=self.b)
         self.factory = APIRequestFactory()
 
     def request(self, data):
@@ -23,7 +26,7 @@ class PaidFeatureApiTests(TestCase):
 
     def test_free_cannot_send_audio_even_if_client_claims_premium(self):
         with patch("entradas.chat_media_api._match_do_utilizador", return_value=object()):
-            response = api_audios_match(self.request({"plan": "PREMIUM"}), 1)
+            response = api_audios_match(self.request({"plan": "PREMIUM"}), self.match.pk)
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["code"], "paid_plan_required_for_chat_audio")
 
@@ -32,7 +35,7 @@ class PaidFeatureApiTests(TestCase):
             with self.subTest(call_type=call_type), patch(
                 "entradas.call_api._match_do_utilizador", return_value=object()
             ):
-                response = api_chamada_match(self.request({"action": "start", "type": call_type}), 1)
+                response = api_chamada_match(self.request({"action": "start", "type": call_type}), self.match.pk)
                 self.assertEqual(response.status_code, 403)
                 self.assertEqual(response.data["code"], "paid_plan_required_for_call")
 
@@ -45,10 +48,10 @@ class PaidFeatureApiTests(TestCase):
     def test_audio_access_is_revoked_when_plan_returns_to_free(self):
         with patch("entradas.chat_media_api._match_do_utilizador", return_value=object()):
             assign_plan(self.user, "ESSENCIAL")
-            response = api_audios_match(self.request({}), 1)
+            response = api_audios_match(self.request({}), self.match.pk)
             self.assertEqual(response.status_code, 400)  # Paid gate passed; upload absent.
             assign_plan(self.user, "LIVRE")
-            response = api_audios_match(self.request({}), 1)
+            response = api_audios_match(self.request({}), self.match.pk)
             self.assertEqual(response.status_code, 403)
 
     def test_catalog_does_not_advertise_unimplemented_features(self):
@@ -64,5 +67,5 @@ class PaidFeatureApiTests(TestCase):
         now = timezone.now()
         AcessoPlanoNKATA.objects.filter(usuario=self.user).update(inicio=now - timedelta(days=31), fim=now - timedelta(days=1))
         with patch("entradas.chat_media_api._match_do_utilizador", return_value=object()):
-            response = api_audios_match(self.request({}), 1)
+            response = api_audios_match(self.request({}), self.match.pk)
         self.assertEqual(response.status_code, 403)

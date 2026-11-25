@@ -661,12 +661,16 @@ def api_bloquear_perfil(request, perfil_id):
     _encerrar_matches_entre(perfil_atual, perfil_alvo)
     from .models import PedidoConversa
     from .notification_models import NotificacaoNKATA
-    pending = PedidoConversa.objects.filter(
-        Q(remetente=perfil_atual, destinatario=perfil_alvo) |
-        Q(remetente=perfil_alvo, destinatario=perfil_atual), estado="PENDENTE")
-    keys = [f"pedido-chat:{pk}" for pk in pending.values_list("pk", flat=True)]
-    pending.update(estado="CANCELADO", decidido_em=timezone.now())
-    NotificacaoNKATA.objects.filter(chave__in=keys).update(lida=True)
+    # Two indexed lookups avoid the SQLite multi-index OR planner issue.
+    pending_ids = []
+    for sender, recipient in ((perfil_atual, perfil_alvo), (perfil_alvo, perfil_atual)):
+        pending_ids.extend(PedidoConversa.objects.filter(
+            remetente=sender, destinatario=recipient, estado="PENDENTE"
+        ).order_by().values_list("pk", flat=True))
+    if pending_ids:
+        PedidoConversa.objects.filter(pk__in=pending_ids, estado="PENDENTE").update(
+            estado="CANCELADO", decidido_em=timezone.now())
+        NotificacaoNKATA.objects.filter(chave__in=[f"pedido-chat:{pk}" for pk in pending_ids]).update(lida=True)
 
     return Response({
         "ok": True,
