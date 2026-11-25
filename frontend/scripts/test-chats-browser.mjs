@@ -102,11 +102,12 @@ try {
     const submitted = page.waitForRequest(req=>req.method()==="POST" && new URL(req.url()).pathname==="/api/chats/1/");
     await page.getByRole("button",{name:"Enviar mensagem"}).click();
     assert.equal((await submitted).postDataJSON().texto,"Teste");
+    await page.waitForFunction(()=>document.querySelector('textarea[aria-label="Mensagem"]')?.value==="");
     assert.equal(await page.getByRole("button",{name:"Chamada de áudio",exact:true}).count(),0);
     assert.equal(await page.getByRole("button",{name:"Videochamada",exact:true}).count(),0);
     if(width===1366){
-      await page.getByRole("textbox",{name:"Mensagem",exact:true}).fill("Teste de erro");
       rejectMessage=true;
+      await page.getByRole("textbox",{name:"Mensagem",exact:true}).fill("Teste de erro");
       await page.getByRole("button",{name:"Enviar mensagem"}).click();
       const alert=page.getByRole("alert").filter({hasText:"Saldo insuficiente"});
       await alert.waitFor();
