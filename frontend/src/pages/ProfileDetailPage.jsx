@@ -128,6 +128,44 @@ function ProfileGallery({ items, personName, english }) {
   );
 }
 
+function ProfileMoments({ items = [], english }) {
+  const [now, setNow] = useState(Date.now);
+  const [selectedId, setSelectedId] = useState(null);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const current = items.filter(item => Date.parse(item.expiresAt) > now);
+  const selected = current.find(item => item.id === selectedId);
+  useEffect(() => {
+    if (!selected) return undefined;
+    const close = event => { if (event.key === "Escape") setSelectedId(null); };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, [selected]);
+  if (!current.length) return null;
+  function remaining(item) {
+    const minutes = Math.max(1, Math.ceil((Date.parse(item.expiresAt) - now) / 60000));
+    return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
+  }
+  return <section className="nk-profile-moments" aria-label={english ? "Moments" : "Momentos"}>
+    <header><h2>{english ? "Moments" : "Momentos"}</h2><span>{english ? "Available for 24 hours" : "Disponíveis durante 24 horas"}</span></header>
+    <div className="nk-profile-moments__strip">
+      {current.map((item,index) => <button key={item.id} type="button" className="nk-profile-moment" onClick={() => setSelectedId(item.id)} aria-label={english ? `Open moment ${index+1}` : `Abrir momento ${index+1}`}>
+        {item.mediaType === "VIDEO" && item.mediaUrl ? <><video src={item.mediaUrl} muted playsInline preload="metadata"/><span className="nk-profile-moment__play"><Play size={20}/></span></> : item.mediaUrl ? <img src={item.mediaUrl} alt="" loading="lazy"/> : <strong>{item.text}</strong>}
+        <small>{remaining(item)}</small>
+      </button>)}
+    </div>
+    {selected && <div className="nk-profile-gallery__viewer" onMouseDown={event => {if(event.target === event.currentTarget) setSelectedId(null);}}>
+      <section role="dialog" aria-modal="true" aria-label={english ? "Moment" : "Momento"}>
+        <button type="button" autoFocus onClick={() => setSelectedId(null)} aria-label={english ? "Close moment" : "Fechar momento"}><X size={21}/></button>
+        {selected.mediaType === "VIDEO" && selected.mediaUrl ? <video src={selected.mediaUrl} controls autoPlay playsInline/> : selected.mediaUrl ? <img src={selected.mediaUrl} alt=""/> : <div className="nk-profile-moment__text">{selected.text}</div>}
+        {selected.mediaUrl && selected.text && <p className="nk-profile-moment__caption">{selected.text}</p>}
+      </section>
+    </div>}
+  </section>;
+}
+
 export default function ProfileDetailPage({
   profile,
   loading,
@@ -445,7 +483,7 @@ export default function ProfileDetailPage({
             {safetyStatus && <div className="nk-interest-message is-active" role="status">{safetyStatus}</div>}
 
             <section className="nk-profile-essentials">
-              <h2>{english ? "What matters" : "O que mais importa"}</h2>
+              <h2>{english ? "Get to know me" : "Conheça-me melhor"}</h2>
               <ProfilePreferences values={profile.preferencias || {}} english={english}/>
               <div className="nk-profile-detail__blocks">
                 {profile.o_que_valoriza && <DetailBlock title={english ? "What I value" : "O que valorizo"}>{profile.o_que_valoriza}</DetailBlock>}
@@ -549,6 +587,7 @@ export default function ProfileDetailPage({
               )}
             </section>
 
+        <ProfileMoments key={profile.id} items={profile.moments || []} english={english}/>
         <ProfileGallery items={publications} personName={profile.nome_publico} english={english}/>
         <div className="nk-profile-privacy"><LockKeyhole size={15}/>{english ? "Phone, email and documents are kept private." : "Telefone, email e documentos permanecem privados."}</div>
         {loading && <span className="nk-profile-detail__updating">{english ? "Refreshing profile…" : "A atualizar o perfil…"}</span>}
