@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, ChevronRight, MessageCircle, Share2 } from "lucide-react";
+import { Check, ChevronRight, MessageCircle } from "lucide-react";
 import { normalizeProfile, request } from "../../services/api.js";
 import "./discovery-panel.css";
 import SuggestionStrip from "./SuggestionStrip.jsx";
@@ -42,8 +42,6 @@ export default function DiscoveryPanel({ english, onOpenProfile, onExplore, canP
 
   const totalVotes = poll?.counts?.reduce((total, count) => total + count, 0);
   const participants = poll?.participants || [];
-  const shareUrl = poll && new URL(`/pergunta-do-dia/${poll.date}/`, window.location.origin);
-  if (shareUrl && english) shareUrl.searchParams.set("lang", "en");
   function avatar(person) {
     return person.photo
       ? <img src={person.photo} alt="" loading="lazy" />
