@@ -104,7 +104,7 @@ class ConversationTests(TestCase):
         self.assertTrue(self.client.get(root).json()["a_escrever"])
         delete = root + f"mensagens/{message.pk}/"
         self.assertEqual(self.client.delete(delete).status_code, 404)
-        with patch("entradas.conversations_api.can_send_chat_text", return_value=True):
+        with patch("entradas.conversations_api.can_send_chat_text", return_value=True), patch("entradas.conversations_api.plan_for_user", return_value={"features": {"chat_text": True}}):
             self.assertEqual(self.client.post(root, {"texto": "Olá!", "resposta_a": message.pk},
                                               content_type="application/json").status_code, 201)
         self.client.force_login(self.a.usuario)
@@ -350,3 +350,16 @@ class ConversationTests(TestCase):
             cursor = ids[-1]
         self.assertFalse(page["mais"])
         self.assertEqual(seen, [row.pk for row in rows])
+
+    def test_presets_cannot_be_used_to_reply(self):
+        from .plan_service import CHAT_PHRASES
+
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        original = MensagemMatch.objects.create(conversa=chat, remetente=self.a.usuario, texto="Olá")
+        self.client.force_login(self.a.usuario)
+        with patch("entradas.conversations_api.can_send_chat_text", return_value=True), patch(
+            "entradas.conversations_api.plan_for_user", return_value={"features": {"chat_text": False, "chat_presets": True}}
+        ):
+            response = self.client.post(f"/api/chats/{chat.pk}/", {"texto": CHAT_PHRASES[0], "resposta_a": original.pk}, content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(MensagemMatch.objects.filter(conversa=chat).count(), 1)

@@ -896,7 +896,7 @@ export default function App() {
           loading={matchesLoading}
           error={matchesError}
           onReload={() => loadMatches()}
-          onOpenConversation={handleOpenConversation}
+          onOpenConversation={(match) => handleOpenProfile(match.otherProfile)}
           onDiscover={() => handleNavigate("discover")}
         />
       )}

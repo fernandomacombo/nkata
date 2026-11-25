@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Search, Send, ShieldCheck, UserRound, X } from "lucide-react";
-import { request } from "../services/api.js";
+import { request, blockProfile, reportProfile } from "../services/api.js";
+import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import Presence, { usePresence } from "../components/profiles/Presence.jsx";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
@@ -38,6 +39,21 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
   const [menu, setMenu] = useState(false);
   const [messageMenu, setMessageMenu] = useState(null);
+  const [safetyMode, setSafetyMode] = useState(""), [safetyBusy, setSafetyBusy] = useState(false), [safetyError, setSafetyError] = useState(""), [safetyStatus, setSafetyStatus] = useState("");
+  async function confirmSafety({reason, details} = {}) {
+    if (!thread?.perfil?.id || safetyBusy) return;
+    setSafetyBusy(true); setSafetyError("");
+    try {
+      if (safetyMode === "report") {
+        await reportProfile(thread.perfil.id, {reason, details});
+        setSafetyStatus("Denúncia enviada à equipa NKATA.");
+      } else if (safetyMode === "block") {
+        await blockProfile(thread.perfil.id); onClosed();
+      }
+      setSafetyMode("");
+    } catch (err) { setSafetyError(err.message); }
+    finally { setSafetyBusy(false); }
+  }
   const { label: presenceLabel } = usePresence(thread?.perfil?.id);
   function mergePage(result) {
     const merged = new Map(history.current.map(message => [message.id, message]));
@@ -171,11 +187,15 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           {menu && <div className="nk-chat-menu">
             {thread.perfil && <button type="button" onClick={() => { setMenu(false); onOpenProfile(thread.perfil); }}>Ver perfil</button>}
             {thread.match_id && <button type="button" onClick={() => onLegacy(thread.match_id)}>Áudio, chamadas e histórico</button>}
+            <button type="button" onClick={() => { setMenu(false); setSafetyMode("help"); }}>Golpes e ameaças</button>
+            <button type="button" onClick={() => { setMenu(false); setSafetyError(""); setSafetyMode("report"); }}>Denunciar perfil</button>
+            <button type="button" onClick={() => { setMenu(false); setSafetyError(""); setSafetyMode("block"); }}>Bloquear pessoa</button>
             <button type="button" onClick={close}>Encerrar conversa</button>
           </div>}
         </div></>}
     </header>
     {error && <p className="nk-chat-error" role="alert">{error}</p>}
+    {safetyStatus && <p className="nk-chat-placeholder" role="status">{safetyStatus}</p>}
     {!thread && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
     {thread && <>
       <ol className="nk-chat-lines" ref={scroll}>
@@ -207,7 +227,8 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           <button type="submit" className="nk-chat-send" aria-label="Enviar mensagem" disabled={sending || !text.trim() || !safetyAccepted}><Send size={20} /></button>
         </div> : <p>Active um pacote com chat para responder. <a href="/conta/?section=plan">Ver pacotes</a></p>}
       </form>
-      {!safetyAccepted && <ChatSafetyNotice name={thread.nome} onAccept={onAcceptSafety} onExit={onBack} />}
+      {(!safetyAccepted || safetyMode === "help") && <ChatSafetyNotice name={thread.nome} helpOnly={safetyMode === "help"} onAccept={safetyMode === "help" ? async () => setSafetyMode("") : onAcceptSafety} onExit={safetyMode === "help" ? () => setSafetyMode("") : onBack} />}
+      <SafetyDialog open={["report", "block"].includes(safetyMode)} mode={safetyMode} personName={thread.nome} loading={safetyBusy} error={safetyError} onClose={() => setSafetyMode("")} onConfirm={confirmSafety} />
     </>}
   </section>;
 }
