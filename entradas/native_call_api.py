@@ -103,7 +103,7 @@ def detail(request, session_id):
         return reply({"detail": "Chamada indisponível."}, 404)
     if request.method == "POST":
         action = request.data.get("action") if isinstance(request.data, dict) else None
-        if set(request.data) != {"action"} or action not in ("accept", "decline"):
+        if not isinstance(request.data, dict) or set(request.data) != {"action"} or action not in ("accept", "decline"):
             return reply({"detail": "Pedido inválido."}, 400)
         if request.user.pk != session.destinatario_id:
             return reply({"detail": "Chamada indisponível."}, 404)
