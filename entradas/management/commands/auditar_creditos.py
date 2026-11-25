@@ -1,6 +1,7 @@
 """Read-only audit of financial invariants, no provider calls, no balance repairs."""
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
+from django.db.models import Q
 from entradas.models import CarteiraNKATA, MovimentoCreditoNKATA, PedidoPagamentoNKATA, BonusIdentidadeCreditoNKATA
 
 
@@ -42,7 +43,7 @@ class Command(BaseCommand):
                     flag("LIQUIDACAO_INCONSISTENTE", order.pk)
                 elif order.confirmado_em:
                     flag("PAGAMENTO_CONFIRMADO_EM_REVISAO", order.pk)
-            for move in MovimentoCreditoNKATA.objects.filter(chave__startswith="paysuite:").union(MovimentoCreditoNKATA.objects.filter(chave__startswith="simulated:")).iterator(chunk_size=200):
+            for move in MovimentoCreditoNKATA.objects.filter(Q(chave__startswith="paysuite:") | Q(chave__startswith="simulated:")).iterator(chunk_size=200):
                 prefix, order_id = move.chave.split(":", 1)
                 try:
                     exists = PedidoPagamentoNKATA.objects.filter(pk=order_id, usuario_id=move.carteira.usuario_id,

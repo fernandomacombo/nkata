@@ -82,7 +82,10 @@ export default function PlanPanel({ language = "PT" }) {
       sessionStorage.removeItem(storageKey);
       await loadPayments();
       if (order.checkout_url) window.location.assign(order.checkout_url);
-      else setPaymentMessage(english ? "Check the payment status below." : "Consulte o estado do pagamento abaixo.");
+      else {
+        setPaymentMessage(order.simulated ? (english ? "Choose the simulated result below." : "Escolha o resultado da simulação abaixo.") : (english ? "Check the payment status below." : "Consulte o estado do pagamento abaixo."));
+        document.getElementById("nkata-payment-history")?.scrollIntoView({behavior:"smooth",block:"start"});
+      }
     } catch (failure) {
       setPaymentMessage(failure.message || (english ? "Could not start payment." : "Não foi possível iniciar o pagamento."));
       await loadPayments();
