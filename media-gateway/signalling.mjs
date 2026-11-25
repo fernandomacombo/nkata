@@ -11,8 +11,7 @@ export function attachSignalling({wss,origin,admit,createRoom,verifyMedia,maxSoc
   if(!entry||entry.closed)return;
   entry.closed=true;clearTimeout(entry.timer);
   if(rooms.get(entry.id)===entry)rooms.delete(entry.id);
-  entry.room?.close();
-  for(const peer of entry.sockets)end(peer);
+  try{entry.room?.close();}finally{for(const peer of entry.sockets)end(peer);}
  }
  function getRoom(identity){
   let entry=rooms.get(identity.sessionId);
@@ -48,7 +47,7 @@ export function attachSignalling({wss,origin,admit,createRoom,verifyMedia,maxSoc
   }
  },500);timer.unref?.();
  wss.on("connection",(ws,req)=>{
-  if(req.headers.origin!==origin||sockets.size>=maxSockets){end(ws);return;}
+  if(req?.headers?.origin!==origin||sockets.size>=maxSockets){end(ws);return;}
   sockets.add(ws);
   let entry=null,identity=null,closed=false,busy=false,count=0,windowAt=Date.now();
   const authTimer=setTimeout(()=>end(ws),5000);authTimer.unref?.();
