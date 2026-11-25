@@ -38,6 +38,16 @@ if [ "${RAILWAY_ENVIRONMENT_NAME:-}" = "production" ]; then
       sleep 3600
     done
   ) &
+  # Recover independently of webhook delivery. No new hosting service.
+  if [ "${NKATA_PAYMENT_RECONCILIATION_ENABLED:-false}" = "true" ] || [ "${NKATA_PAYMENT_RECONCILIATION_ENABLED:-False}" = "True" ] || [ "${NKATA_PAYMENT_RECONCILIATION_ENABLED:-0}" = "1" ]; then
+    (
+      while :; do
+        python manage.py reconcile_nkata_payments ||
+          echo "Falha na reconciliação PaySuite; nova tentativa em 60 segundos." >&2
+        sleep 60
+      done
+    ) &
+  fi
 fi
 
 exec gunicorn config.wsgi:application \
