@@ -9,6 +9,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction, IntegrityError
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import AcessoPlanoNKATA, PedidoPagamentoNKATA
@@ -130,7 +131,15 @@ def start_checkout(user, product, key):
         profile = getattr(user, "perfil_nkata", None)
         if not user.is_active or user.is_staff or user.is_superuser or not profile or profile.status != "ATIVO":
             raise PaymentError("É necessário um perfil ativo para comprar.", 403)
-        if PedidoPagamentoNKATA.objects.filter(usuario=user, estado__in=OPEN_STATES).exists():
+        pending = PedidoPagamentoNKATA.objects.filter(usuario=user, estado__in=OPEN_STATES)
+        if credit_only_enabled() and product in CREDIT_PRODUCTS:
+            pending = pending.exclude(
+                Q(referencia__in=settings.NKATA_LEGACY_TEST_ORDER_REFERENCES,
+                  estado__in=["CRIADO", "PENDENTE", "INCERTO"],
+                  confirmado_em__isnull=True, aplicado_em__isnull=True)
+                & ~Q(produto__startswith="CREDITOS_")
+            )
+        if pending.exists():
             raise PaymentError("Já existe um pagamento por confirmar. Consulte o histórico.", 409)
         access = active_plan_access(user)
         if days and access and access.origem != "PROMO_LANCAMENTO" and access.plano != product:
@@ -246,9 +255,15 @@ def _settle_authoritative(order, data, *, simulated):
 
 
 def serialize_order(order):
+    retired = settings.NKATA_CREDIT_TRANSITION_ENABLED and order.produto not in CREDIT_PRODUCTS
+    reviewed_test = (retired and credit_only_enabled()
+                     and order.referencia in settings.NKATA_LEGACY_TEST_ORDER_REFERENCES
+                     and order.estado in ["CRIADO", "PENDENTE", "INCERTO"]
+                     and not order.confirmado_em and not order.aplicado_em)
     return {"id": str(order.pk), "reference": order.referencia, "product": order.produto,
             "amount_mzn": str(order.valor), "currency": order.moeda, "status": order.estado,
-            "checkout_url": order.checkout_url if order.estado == "PENDENTE" else None,
+            "checkout_url": order.checkout_url if order.estado == "PENDENTE" and not retired else None,
+            "retired_product": retired, "blocks_checkout": order.estado in OPEN_STATES and not reviewed_test,
             "created_at": order.criado_em, "fulfilled_at": order.aplicado_em,
             "valid_until": order.validade_concedida,
             "wallet_credits": order.creditos if order.produto in CREDIT_PRODUCTS else 0,
