@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchSavedProfiles, toggleSavedProfile } from "../services/api.js";
 
 const LEGACY_SAVED_KEY = "nkata_saved_profiles";
@@ -25,12 +25,21 @@ export default function useProfileLibrary() {
   const [recentProfiles, setRecentProfiles] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
 
+  const activeUser = useRef(null);
+  const savedRequest = useRef(null);
   const loadSaved = useCallback(async () => {
+    const userId = activeUser.current;
+    if (!userId) return false;
+    savedRequest.current?.abort();
+    const controller = new AbortController();
+    savedRequest.current = controller;
     try {
-      const profiles = await fetchSavedProfiles();
+      const profiles = await fetchSavedProfiles({ signal: controller.signal });
+      if (controller.signal.aborted || activeUser.current !== userId) return false;
       setSavedProfiles(profiles);
       return true;
     } catch (error) {
+      if (controller.signal.aborted || activeUser.current !== userId) return false;
       if (error.status === 401 || error.status === 403) {
         setSavedProfiles([]);
         setRecentProfiles([]);
@@ -51,11 +60,16 @@ export default function useProfileLibrary() {
 
     const handleSessionChanged = (event) => {
       const session = event.detail || {};
-      const userId = session?.user?.id || null;
-      setCurrentUserId(userId);
-      setRecentProfiles(readRecent(userId));
+      const userId = session.authenticated && !session.user?.is_staff ? session.user?.id || null : null;
+      savedRequest.current?.abort();
+      if (activeUser.current !== userId) {
+        activeUser.current = userId;
+        setSavedProfiles([]);
+        setCurrentUserId(userId);
+        setRecentProfiles(readRecent(userId));
+      }
 
-      if (session?.authenticated) {
+      if (userId) {
         loadSaved();
       } else {
         setSavedProfiles([]);
@@ -63,9 +77,12 @@ export default function useProfileLibrary() {
     };
 
     window.addEventListener("nkata:session-changed", handleSessionChanged);
-    loadSaved();
 
-    return () => window.removeEventListener("nkata:session-changed", handleSessionChanged);
+    return () => {
+      savedRequest.current?.abort();
+      activeUser.current = null;
+      window.removeEventListener("nkata:session-changed", handleSessionChanged);
+    };
   }, [loadSaved]);
 
   useEffect(() => {
@@ -88,9 +105,17 @@ export default function useProfileLibrary() {
 
   const toggleSaved = useCallback(async (profile) => {
     if (!profile?.id) return false;
+    const userId = activeUser.current;
+    if (!userId) {
+      window.history.pushState({}, "", "/entrar/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      return false;
+    }
 
     try {
       const result = await toggleSavedProfile(profile.id);
+      if (activeUser.current !== userId) return false;
+      savedRequest.current?.abort();
       setSavedProfiles((current) => {
         const key = profileKey(profile);
         const exists = current.some((item) => profileKey(item) === key);
@@ -103,6 +128,7 @@ export default function useProfileLibrary() {
       });
       return Boolean(result.active);
     } catch (error) {
+      if (activeUser.current !== userId) return false;
       if (error.status === 401 || error.status === 403) {
         window.history.pushState({}, "", "/entrar/");
         window.dispatchEvent(new PopStateEvent("popstate"));
