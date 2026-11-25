@@ -52,6 +52,7 @@ from . import wallet_api, finance_admin_api
 urlpatterns = [
     path("internal/media-gateway/minute/", media_gateway_api.minute),
     path("internal/media-gateway/reconcile/", media_gateway_api.reconcile),
+    path("internal/media-gateway/resume/", media_gateway_api.resume_evidence),
     path("internal/media-gateway/join/", media_gateway_api.redeem_join_ticket),
     path("chats/<int:conversation_id>/chamadas/", native_call_api.start),
     path("chats/chamadas/actual/", native_call_api.current),
