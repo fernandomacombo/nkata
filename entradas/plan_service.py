@@ -162,7 +162,7 @@ def active_plan_access(user):
     return AcessoPlanoNKATA.objects.filter(
         usuario=user, inicio__lte=now, fim__gt=now,
         plano__in=["ESSENCIAL", "PREMIUM", "QUINZENAL"],
-    ).first()
+    ).exclude(origem="PROMO_CONVERTIDA").first()
 
 
 def plan_for_user(user):

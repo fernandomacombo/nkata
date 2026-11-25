@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from entradas.models import PerfilNKATA, MovimentoCreditoNKATA, BonusIdentidadeCreditoNKATA
+from entradas.models import PerfilNKATA, MovimentoCreditoNKATA, BonusIdentidadeCreditoNKATA, AcessoPlanoNKATA
 from entradas.wallet_service import welcome_eligible, grant_welcome_credits, WalletError
 
 
@@ -22,10 +22,12 @@ class Command(BaseCommand):
         for profile in profiles.iterator(chunk_size=200):
             if not welcome_eligible(profile):
                 continue
-            if MovimentoCreditoNKATA.objects.filter(carteira__usuario_id=profile.usuario_id, chave="welcome:v1").exists():
+            granted_before = MovimentoCreditoNKATA.objects.filter(carteira__usuario_id=profile.usuario_id, chave="welcome:v1").exists()
+            promotional = AcessoPlanoNKATA.objects.filter(usuario_id=profile.usuario_id, plano="QUINZENAL", origem="PROMO_LANCAMENTO").exists()
+            if granted_before and not promotional:
                 existing += 1
                 continue
-            if BonusIdentidadeCreditoNKATA.objects.filter(documento_chave=profile.pedido.documento_chave).exists():
+            if not granted_before and BonusIdentidadeCreditoNKATA.objects.filter(documento_chave=profile.pedido.documento_chave).exists():
                 review += 1
                 continue
             eligible += 1

@@ -30,6 +30,7 @@ CREDIT_PACKS = (
 CREDIT_PRODUCTS = {f"CREDITOS_{pack['code']}": pack for pack in CREDIT_PACKS}
 
 WELCOME_CREDITS = 5
+LAUNCH_CONVERSION_CREDITS = 50
 CHAT_24H_CREDITS = 10
 VOICE_NOTE_CREDITS = 2
 AUDIO_CALL_CREDITS_PER_MINUTE = 3
@@ -51,6 +52,7 @@ def credit_catalog(purchase_enabled=False):
         "enabled": False,
         "version": 1,
         "welcome_credits": WELCOME_CREDITS,
+        "launch_conversion_credits": LAUNCH_CONVERSION_CREDITS,
         "packs": [dict(pack, product=product, purchase_enabled=bool(purchase_enabled)) for product, pack in CREDIT_PRODUCTS.items()],
         "actions": [
             *[{"code": code, "label": item["label"], "credits": item["credits"], "unit": "signal"}

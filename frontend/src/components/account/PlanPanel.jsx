@@ -10,7 +10,7 @@ import {
   Volume2,
   WalletCards,
 } from "lucide-react";
-import { fetchMyPlan, fetchPayments, createPayment } from "../../services/planApi.js";
+import { fetchMyPlan, fetchPayments, createPayment, claimWelcome } from "../../services/planApi.js";
 
 const planIcon = {
   LIVRE: Sparkles,
@@ -48,6 +48,8 @@ export default function PlanPanel({ language = "PT" }) {
   const [payments, setPayments] = useState([]);
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
+  const [bonusBusy,setBonusBusy] = useState(false);
+  const [bonusMessage,setBonusMessage] = useState("");
 
   const loadPayments = useCallback(async () => {
     try { setPayments((await fetchPayments()).results || []); }
@@ -108,6 +110,13 @@ export default function PlanPanel({ language = "PT" }) {
     return () => controller.abort();
   }, [load]);
 
+  async function receiveWelcome() {
+    setBonusBusy(true); setBonusMessage("");
+    try { await claimWelcome(); await load(); }
+    catch (failure) { setBonusMessage(failure.message); }
+    finally { setBonusBusy(false); }
+  }
+
   if (loading && !data) {
     return (
       <section className="nk-plan-panel nk-plan-panel--loading">
@@ -156,6 +165,7 @@ export default function PlanPanel({ language = "PT" }) {
 
       {data.wallet && <section className="nk-wallet-preview" aria-label={english ? "NKATA Wallet" : "Carteira NKATA"}>
         <div className="nk-wallet-preview__header"><WalletCards size={24}/><div><small>{english ? "NKATA Wallet" : "Carteira NKATA"}</small><strong>{data.wallet.saldo} {english ? "credits" : "créditos"}</strong></div></div>
+        {data.welcome_bonus?.enabled && <div className="nk-plan-current__identity"><span><Sparkles size={20}/></span><div><strong>{data.welcome_bonus.converted ? (english ? "Launch promotion converted" : "Promoção de lançamento convertida") : (english ? "Welcome bonus" : "Bónus de boas-vindas")}</strong><small>{data.welcome_bonus.credits} {english ? "credits, one time only" : "créditos, uma única vez"}</small>{data.welcome_bonus.claimable ? <button type="button" disabled={bonusBusy} onClick={receiveWelcome}>{english ? "Receive credits" : "Receber créditos"}</button> : <small>{data.welcome_bonus.granted ? (english ? "Already granted" : "Já atribuído") : (english ? "Available after identity verification" : "Disponível após verificação de identidade")}</small>}{bonusMessage && <small role="alert">{bonusMessage}</small>}</div></div>}
         <p>{data.wallet.catalogo.packs.some(p => p.purchase_enabled) ? (english ? "Choose a top-up. Credits arrive after payment confirmation." : "Escolha uma recarga. Os créditos entram após confirmação do pagamento.") : (english ? "Credit purchases are not available yet. Existing benefits remain valid." : "As recargas de créditos ainda não estão disponíveis. Os benefícios atuais mantêm-se válidos.")}</p>
         <div className="nk-wallet-packs">{data.wallet.catalogo.packs.map(pack => <article key={pack.code}><strong>{pack.label}</strong><b>{pack.credits} {english ? "credits" : "créditos"}</b><span>{pack.price_mzn} MT</span>{!!pack.bonus && <small>+{pack.bonus} {english ? "bonus included" : "de bónus incluídos"}</small>}<button type="button" disabled={!pack.purchase_enabled || paymentBusy} onClick={() => buy(pack.product)}>{pack.purchase_enabled ? (english ? "Top up" : "Recarregar") : (english ? "Coming soon" : "Em breve")}</button></article>)}</div>
         {!!data.wallet.movimentos.length && <div className="nk-wallet-preview__history"><h3>{english ? "Recent transactions" : "Últimos movimentos"}</h3>{data.wallet.movimentos.map(m => <div key={m.id}><span>{m.motivo}<small>{new Date(m.criado_em).toLocaleString(english ? "en-GB" : "pt-PT")}</small></span><strong>{m.quantidade > 0 ? "+" : ""}{m.quantidade}</strong></div>)}</div>}
@@ -164,9 +174,9 @@ export default function PlanPanel({ language = "PT" }) {
         <div className="nk-plan-current__identity">
           <span><CurrentIcon size={24} /></span>
           <div>
-            <small>{english ? "Current plan" : "Plano atual"}</small>
+            <small>{data.credit_transition ? (english ? "Previous benefit" : "Benefício anterior") : (english ? "Current plan" : "Plano atual")}</small>
             <strong>{planLabel(current, english)}</strong>
-            <em>{current.paid ? (english ? "Paid plan" : "Plano pago") : (english ? "Free access" : "Acesso gratuito")}</em>
+            <em>{current.legacy_origin === "PAYSUITE" ? (english ? "Paid plan" : "Plano pago") : current.legacy_origin === "ADMINISTRATIVA" ? (english ? "Administratively granted" : "Atribuído pela administração") : current.is_launch_bonus ? (english ? "Launch promotion" : "Promoção de lançamento") : current.paid ? (english ? "Active benefit" : "Benefício activo") : (english ? "Free access" : "Acesso gratuito")}</em>
             {current.expires_at && <small>{english ? "Valid until: " : "Válido até: "}{new Date(current.expires_at).toLocaleString(english ? "en-GB" : "pt-PT")}</small>}
           </div>
         </div>

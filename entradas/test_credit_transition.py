@@ -78,3 +78,36 @@ class CreditTransitionTests(TestCase):
         output = StringIO()
         call_command("reconciliar_bonus_creditos", "--apply", stdout=output)
         self.assertEqual(credit_balance(self.member), 5)
+
+
+    @override_settings(NKATA_CREDIT_TRANSITION_ENABLED=True)
+    def test_launch_promotion_converts_to_fifty_once_and_admin_plan_is_preserved(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .identity_models import VerificacaoIdentidadeNKATA, nkata_id_expires_at
+        from .account_limits import document_key
+        from .plan_service import plan_for_user
+        pedido = self.member.perfil_nkata.pedido
+        pedido.documento_chave = document_key("123456789013A")
+        pedido.documento_confirmado = True
+        pedido.verificacao_apos_entrada = True
+        pedido.save(update_fields=["documento_chave", "documento_confirmado", "verificacao_apos_entrada"])
+        VerificacaoIdentidadeNKATA.objects.create(pedido=pedido, email_hash="b"*64,
+            idade_declarada=30, desafio_selfie="teste", status="APROVADA", expira_em=nkata_id_expires_at())
+        grant_welcome_credits(self.member)
+        self.assertEqual(credit_balance(self.member), 5)
+        assign_plan(self.member, "QUINZENAL")
+        grant_welcome_credits(self.member)
+        self.assertEqual(credit_balance(self.member), 5)
+        self.assertIsNotNone(active_plan_access(self.member))
+        AcessoPlanoNKATA.objects.filter(usuario=self.member).update(origem="PROMO_LANCAMENTO",
+            inicio=timezone.now()-timedelta(days=16), fim=timezone.now()-timedelta(days=1))
+        self.client.force_login(self.member)
+        for _ in range(2):
+            response = self.client.post("/api/minha-conta/carteira/boas-vindas/")
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertEqual(response.json()["saldo"], 50)
+        self.assertEqual(AcessoPlanoNKATA.objects.get(usuario=self.member).origem, "PROMO_CONVERTIDA")
+        self.assertIsNone(active_plan_access(self.member))
+        self.assertFalse(plan_for_user(self.member)["features"]["chat_text"])
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.member, tipo="BONUS").count(), 2)
