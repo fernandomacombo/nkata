@@ -133,3 +133,13 @@ jobs:
         run: npm audit --audit-level=high
       - name: Validar media RTP real no worker isolado
         run: npm run test:rtp
+      - name: Instalar relay e navegador para ensaio isolado
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y coturn openssl
+          npm install --no-save --package-lock=false playwright@1.58.2 esbuild
+          npx playwright install --with-deps chromium
+      - name: Testar dois navegadores com media e relay reais
+        env:
+          NKATA_MEDIA_BROWSER_TEST: isolated-ci
+        run: node tests/browser-relay.mjs
