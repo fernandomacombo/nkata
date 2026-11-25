@@ -396,7 +396,7 @@ def send_message(request, chat, me, other, thread):
 @permission_classes([IsAuthenticated])
 def chat_signal(request, conversation_id):
     chat, me, other = accessible_thread(request, conversation_id)
-    return send_signal(request.user, me, other, request.data.get("tipo", ""), conversation_id=chat.pk)
+    return send_signal(request.user, me, other, request.data.get("tipo", ""), conversation_id=chat.pk, expected_cost=request.data.get("expected_cost"))
 
 
 @api_view(["POST"])

@@ -66,6 +66,10 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     catch(err) { setError(err.message); }
     finally { setExtraBusy(false); }
   }
+  function sendSignal(item) {
+    if (item.cost > 0 && !window.confirm(`Enviar ${item.label} por ${item.cost} créditos?`)) return;
+    sendExtra("sinais", {tipo:item.type, expected_cost:item.cost});
+  }
   async function buyText() {
     const offer = thread?.credito_chat;
     if (!offer?.can_unlock || extraBusy || !safetyAccepted || offer.balance < offer.cost) return;
@@ -278,7 +282,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
       <form className="nk-chat-compose" onSubmit={send}>
         <div className="nk-chat-extras-head"><button type="button" className="nk-chat-extras-toggle" aria-expanded={extrasOpen} onClick={() => setExtrasOpen(v => !v)} disabled={!safetyAccepted}><Plus size={17}/> Sinais e quebra-gelo</button></div>
         {extrasOpen && <section className="nk-chat-extras" aria-label="Sinais e quebra-gelo">
-          {!!thread.sinais?.signals?.length && <><strong>Sinais</strong><small>{thread.sinais.quota?.remaining_today ?? 0} disponíveis hoje · {thread.sinais.quota?.recharge_balance ?? 0} de recarga</small><div className="nk-chat-signal-buttons">{thread.sinais.signals.map(item => <button type="button" key={item.type} disabled={extraBusy || item.sent_to_profile_today || thread.sinais.quota?.limit_reached || !safetyAccepted} onClick={() => sendExtra("sinais", {tipo:item.type})}><span><SignalIcon type={item.type}/></span>{item.label}</button>)}</div></>}
+          {!!thread.sinais?.signals?.length && <><strong>Sinais</strong><small>{thread.sinais.quota?.credit_mode ? `${thread.sinais.quota.credit_balance} créditos disponíveis` : `${thread.sinais.quota?.remaining_today ?? 0} disponíveis hoje · ${thread.sinais.quota?.recharge_balance ?? 0} de recarga`}</small><div className="nk-chat-signal-buttons">{thread.sinais.signals.map(item => <button type="button" key={item.type} disabled={extraBusy || item.available === false || item.sent_to_profile_today || thread.sinais.quota?.limit_reached || !safetyAccepted} onClick={() => sendSignal(item)}><span><SignalIcon type={item.type}/></span>{item.label}{thread.sinais.quota?.credit_mode && <small>{item.cost ? `${item.cost} crédito${item.cost === 1 ? "" : "s"}` : "Incluído"}</small>}</button>)}</div></>}
           <strong>Quebra-gelo · {thread.quebra_gelo?.restantes ?? 0} restantes</strong>
           {thread.quebra_gelo?.perguntas?.map(item => <button className="nk-chat-icebreaker" type="button" key={item.codigo} disabled={extraBusy || !thread.quebra_gelo.restantes || !safetyAccepted} onClick={() => sendExtra("quebra-gelo", {codigo:item.codigo})}>{item.texto}<Send size={15}/></button>)}
         </section>}

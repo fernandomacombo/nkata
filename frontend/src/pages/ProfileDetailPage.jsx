@@ -262,12 +262,15 @@ export default function ProfileDetailPage({
     }
     if (!profile?.id || String(profile.id).startsWith("demo-")) return;
 
+    const offer = signalData?.signals?.find(item => item.type === type);
+    if (signalData?.quota?.credit_mode && !offer?.available) return;
+    if (offer?.cost > 0 && !window.confirm(english ? `Send this signal for ${offer.cost} credits?` : `Enviar ${offer.label} por ${offer.cost} créditos?`)) return;
     setSignalSending(type);
     setSignalError("");
     setSignalStatus("");
 
     try {
-      const result = await sendProfileSignal(profile.id, type);
+      const result = await sendProfileSignal(profile.id, type, offer?.cost);
       setSignalData({ quota: result.quota, signals: result.signals });
       setSignalStatus(result.message || (english ? "Signal sent." : "Sinal enviado."));
       window.setTimeout(() => setSignalStatus(""), 3200);
@@ -430,14 +433,14 @@ export default function ProfileDetailPage({
                   <h2>{english ? "Send a signal" : "Enviar um sinal"}</h2>
                   <p>
                     {authenticated && quota
-                      ? (english ? `${quota.daily_limit} daily signals on your ${quota.plan_label} plan.` : `${quota.daily_limit} sinais diários no plano ${quota.plan_label}.`)
+                      ? (quota.credit_mode ? (english ? "Confirm the cost before sending." : "Confirme o custo antes de enviar.") : (english ? `${quota.daily_limit} daily signals on your ${quota.plan_label} plan.` : `${quota.daily_limit} sinais diários no plano ${quota.plan_label}.`))
                       : (english ? "Show interest without starting a conversation." : "Mostre interesse sem iniciar uma conversa.")}
                   </p>
                 </div>
                 {authenticated && quota && (
                   <strong className="nk-profile-signals__quota">
-                    {quota.used_today} {english ? "of" : "de"} {quota.daily_limit} {english ? "used" : "no plano"}
-                    {quota.recharge_balance > 0 ? ` · +${quota.recharge_balance} ${english ? "top-up" : "recarga"}` : ""}
+                    {quota.credit_mode ? `${quota.credit_balance} ${english ? "credits" : "créditos"}` : `${quota.used_today} ${english ? "of" : "de"} ${quota.daily_limit} ${english ? "used" : "no plano"}`}
+                    {!quota.credit_mode && quota.recharge_balance > 0 ? ` · +${quota.recharge_balance} ${english ? "top-up" : "recarga"}` : ""}
                   </strong>
                 )}
               </div>
@@ -452,6 +455,7 @@ export default function ProfileDetailPage({
                     || Boolean(signalSending)
                     || sent
                     || limitReached
+                    || signal.available === false
                     || String(profile.id).startsWith("demo-")
                   );
                   const translatedSignal = signalLabels[signal.type];
@@ -478,6 +482,8 @@ export default function ProfileDetailPage({
                               ? (english ? "Sent today" : "Enviado hoje")
                               : limitReached
                                 ? (english ? "Limit reached" : "Limite atingido")
+                                : quota?.credit_mode
+                                  ? (signal.cost ? `${signal.cost} ${english ? "credits" : "créditos"}` : (english ? "Included" : "Incluído"))
                                 : quota?.next_source === "RECHARGE"
                                   ? (english ? "Use top-up" : "Usar recarga")
                                   : (english ? "Send signal" : "Enviar sinal")}

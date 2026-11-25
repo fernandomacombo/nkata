@@ -80,3 +80,18 @@ class WalletTests(TestCase):
             self.assertFalse(plan_for_user(self.a)["features"]["chat_text"])
             self.assertFalse(unlock_chat(self.a, key=key, expected_cost=10)[1])
             self.assertEqual(wallet_snapshot(self.a)["saldo"], 40)
+
+
+    def test_signal_cost_requires_confirmation_and_charges_once(self):
+        from .models import AcaoPerfil, Conversa
+        self.move()
+        self.client.force_login(self.a)
+        url = f"/api/perfis/{self.b.perfil_nkata.pk}/sinais/"
+        with self.settings(NKATA_CREDIT_SPENDING_ENABLED=True):
+            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 1}).status_code, 409)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"], 50)
+            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 2}).status_code, 201)
+            self.assertEqual(self.client.post(url, {"tipo": "FLOR", "expected_cost": 2}).status_code, 409)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"], 48)
+            self.assertEqual(AcaoPerfil.objects.filter(usuario=self.a, tipo="SINAL_FLOR").count(), 1)
+            self.assertFalse(Conversa.objects.exists())

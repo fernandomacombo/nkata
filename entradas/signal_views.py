@@ -10,12 +10,14 @@ from rest_framework.response import Response
 
 from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PerfilNKATA
 from .chat_permissions import chat_pair_allowed
-from .credit_catalog import SIGNAL_DEFINITIONS, SIGNAL_CHAT_TEXT
+from .credit_catalog import SIGNAL_DEFINITIONS, SIGNAL_CHAT_TEXT, SIGNAL_SAFETY_LIMIT
+from .wallet_service import credit_spending_enabled, credit_balance, record_movement, WalletError
 from .plan_service import (
     PLAN_DEFINITIONS,
     PLAN_SIGNAL_PREFIX,
     RECHARGE_SIGNAL_PREFIX,
     signal_quota_for_user,
+    active_plan_access,
 )
 from .user_roles import active_member_profile_for_user
 
@@ -77,18 +79,31 @@ def _signal_payload(item):
     }
 
 
+def _commercial_quota(user, sent_today):
+    quota = signal_quota_for_user(user, sent_today=sent_today)
+    if not credit_spending_enabled():
+        return {**quota, "credit_mode": False}
+    source = "PLAN" if active_plan_access(user) and quota["remaining_today"] else "RECHARGE" if quota["recharge_balance"] else "WALLET"
+    balance = credit_balance(user)
+    return {**quota, "credit_mode": True, "credit_balance": balance, "next_source": source,
+            "limit_reached": sent_today >= SIGNAL_SAFETY_LIMIT or (source == "WALLET" and balance < 1)}
+
+
 def _availability_payload(user, perfil_alvo):
     today_qs = _signals_today(user)
     sent_types = set(
         today_qs.filter(perfil=perfil_alvo).values_list("tipo", flat=True)
     )
+    quota = _commercial_quota(user, today_qs.count())
     signals = []
     for item in SIGNAL_DEFINITIONS.values():
         payload = _signal_payload(item)
         payload["sent_to_profile_today"] = item["db_type"] in sent_types
+        payload["cost"] = item["credits"] if quota.get("credit_mode") and quota["next_source"] == "WALLET" else 0
+        payload["available"] = not quota["limit_reached"] and not payload["sent_to_profile_today"] and (payload["cost"] <= quota.get("credit_balance", 0))
         signals.append(payload)
     return {
-        "quota": signal_quota_for_user(user, sent_today=today_qs.count()),
+        "quota": quota,
         "signals": signals,
     }
 
@@ -124,10 +139,10 @@ def api_sinais_perfil(request, perfil_id):
     if request.method == "GET":
         return Response(_availability_payload(request.user, perfil_alvo))
 
-    return send_signal(request.user, perfil_atual, perfil_alvo, request.data.get("tipo", ""))
+    return send_signal(request.user, perfil_atual, perfil_alvo, request.data.get("tipo", ""), expected_cost=request.data.get("expected_cost"))
 
 
-def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None):
+def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None, expected_cost=None):
     raw_type = str(raw_type).strip().upper()
     definition = SIGNAL_DEFINITIONS.get(raw_type)
     if not definition:
@@ -146,7 +161,9 @@ def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None)
         perfil_alvo = next(p for p in profiles if p.pk != perfil_atual.pk)
         if perfil_atual.status != "ATIVO" or perfil_alvo.status != "ATIVO" or not perfil_alvo.visivel or _bloqueio_entre_perfis(perfil_atual, perfil_alvo):
             return Response({"detail": "Esta interação não está disponível."}, status=403)
-        User.objects.select_for_update().get(pk=user.pk)
+        user = User.objects.select_for_update().get(pk=user.pk)
+        if credit_spending_enabled() and not chat_pair_allowed(perfil_atual, perfil_alvo):
+            return Response({"detail": "Identidade verificada obrigatória para enviar sinais."}, status=403)
         chat = None
         if chat_pair_allowed(perfil_atual, perfil_alvo):
             candidate = Conversa.objects.filter(perfil_1=profiles[0], perfil_2=profiles[1], estado=Conversa.ESTADO_ATIVA).first()
@@ -172,9 +189,9 @@ def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None)
                 status=409,
             )
 
-        quota = signal_quota_for_user(user, sent_today=today_qs.count())
+        quota = _commercial_quota(user, today_qs.count())
         source = quota.get("next_source")
-        if not source:
+        if not source or quota["limit_reached"]:
             return Response(
                 {
                     "detail": (
@@ -187,7 +204,17 @@ def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None)
                 status=429,
             )
 
-        prefix = PLAN_SIGNAL_PREFIX if source == "PLAN" else RECHARGE_SIGNAL_PREFIX
+        cost = definition["credits"] if source == "WALLET" else 0
+        if quota.get("credit_mode") and (type(expected_cost) is not int or expected_cost != cost):
+            return Response({"detail": "Confirme o custo atual do sinal.", **_availability_payload(user, perfil_alvo)}, status=409)
+        if source == "WALLET":
+            key = f"signal:{perfil_alvo.pk}:{raw_type}:{timezone.localdate():%Y%m%d}"
+            try:
+                record_movement(user, key=key, kind="CONSUMO", amount=-cost,
+                    reference=key, reason=f"Sinal — {definition['label']}")
+            except WalletError as error:
+                return Response({"detail": str(error), **_availability_payload(user, perfil_alvo)}, status=409)
+        prefix = PLAN_SIGNAL_PREFIX if source == "PLAN" else RECHARGE_SIGNAL_PREFIX if source == "RECHARGE" else "sinal:carteira:"
         action = AcaoPerfil.objects.create(
             perfil=perfil_alvo,
             usuario=user,
