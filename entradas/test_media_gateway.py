@@ -241,3 +241,23 @@ class MediaGatewayTests(TestCase):
         self.assertEqual(mark_gateway_resume(self.call.pk,user_ids=ids,minute=1,phase="CONFIRMED"),"CONFIRMADO")
         row.refresh_from_db()
         self.assertEqual(row.estado,"CONFIRMADO")
+
+
+    def test_browser_config_requires_explicit_staging_and_turn(self):
+        url="/api/chats/chamadas/config/"
+        self.client.force_login(self.a.usuario)
+        self.assertFalse(self.client.get(url,secure=True).json()["enabled"])
+        with self.settings(NKATA_MEDIA_BROWSER_TEST_ENABLED=True,
+                NKATA_MEDIA_STAGING_SIGNAL_URL="wss://media-staging.example.test/signal",
+                NKATA_WEBRTC_TURN_SHARED_SECRET="t"*40,
+                NKATA_WEBRTC_TURN_URLS=["turns:relay.example.test"]):
+            with patch("entradas.native_call_api.welcome_eligible",return_value=True):
+                self.assertEqual(self.client.get(url,secure=True).json(),
+                    {"enabled":True,"signal_url":"wss://media-staging.example.test/signal"})
+            with patch("entradas.native_call_api.welcome_eligible",return_value=False):
+                self.assertFalse(self.client.get(url,secure=True).json()["enabled"])
+            with self.settings(NKATA_RAILWAY_ENVIRONMENT_ID="production"):
+                self.assertEqual(self.client.get(url,secure=True).status_code,404)
+            with self.settings(NKATA_MEDIA_STAGING_SIGNAL_URL="wss://nkata.date/signal"):
+                with patch("entradas.native_call_api.welcome_eligible",return_value=True):
+                    self.assertFalse(self.client.get(url,secure=True).json()["enabled"])
