@@ -38,10 +38,11 @@ try {
     await page.route("**/avatar-portrait-test.svg", route=>route.fulfill({contentType:"image/svg+xml",body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="300"><rect width="100" height="300" fill="#987"/><circle cx="50" cy="40" r="30" fill="#fff"/></svg>'}));
     await page.route("**/api/presenca/", route=>route.fulfill({json:{perfis:{"2":120}}}));
     const message = {id:1,texto:"Olá",criado_em:"2026-11-25T07:00:00Z",minha:false,lida:true,apagada_em:null};
+    const sentMessage = {...message,id:2,texto:"Tudo bem?",minha:true};
     await page.route("**/api/chats/**", async route=>{
      const url = new URL(route.request().url());
      const inbox = {conversas:[{id:1,nome:"Ana",perfil:profile,ultima_mensagem:message,nao_lidas:0,atividade_em:message.criado_em}],pedidos:[],historico_pedidos:[],conexoes:[]};
-     const thread = {nome:"Ana",perfil:profile,mensagens:url.searchParams.has("depois")?[]:[message],texto_livre:true,frases:[],mais:false,modo:"inicial",apagadas:[],lidas_ate:0};
+     const thread = {nome:"Ana",perfil:profile,mensagens:url.searchParams.has("depois")?[]:[message,sentMessage],texto_livre:true,frases:[],mais:false,modo:"inicial",apagadas:[],lidas_ate:0};
      await route.fulfill({json:url.pathname==="/api/chats/"?inbox:thread});
     });
     await page.goto("http://127.0.0.1:5178/"+html);
@@ -85,7 +86,18 @@ try {
     assert.equal((await submitted).postDataJSON().texto,"Teste");
     const bubble=await page.locator(".nk-chat-bubble").first().boundingBox();
     assert.ok(bubble.height<100,"Short message bubble must be compact");
-    await page.getByRole("button",{name:"Opções da mensagem"}).click();
+    const own = await page.locator(".nk-chat-bubble-row.is-mine .nk-chat-bubble").boundingBox();
+    const received = await page.locator(".nk-chat-bubble-row:not(.is-mine) .nk-chat-bubble").boundingBox();
+    const lines = await page.locator(".nk-chat-lines").boundingBox();
+    assert.ok(received.x < lines.x+lines.width/2 && own.x+own.width > lines.x+lines.width/2 && own.x > received.x, "Received left; sent right");
+    assert.equal(await page.locator(".nk-chat-day").count(),1);
+    const trigger = page.locator(".nk-chat-bubble-row:not(.is-mine)").getByRole("button",{name:"Opções da mensagem"});
+    await trigger.hover();
+    await trigger.click();
+    const popover = page.locator(".nk-chat-floating-actions");
+    await popover.waitFor();
+    const receivedAfter = await page.locator(".nk-chat-bubble-row:not(.is-mine) .nk-chat-bubble").boundingBox();
+    assert.equal(receivedAfter.x,received.x); assert.equal(receivedAfter.y,received.y);
     await page.getByRole("button",{name:"Responder",exact:true}).click();
     assert.ok(await page.getByText("A responder a:",{exact:false}).isVisible());
     await page.getByRole("button",{name:"Voltar aos chats"}).click();

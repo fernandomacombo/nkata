@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Search, Send, ShieldCheck, UserRound, X } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Reply, Search, Send, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
 import { request, blockProfile, reportProfile } from "../services/api.js";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import { usePresence } from "../components/profiles/Presence.jsx";
@@ -15,6 +16,18 @@ const stamp = (value) => {
   return new Intl.DateTimeFormat("pt-MZ", date.toDateString() === new Date().toDateString()
     ? { hour: "2-digit", minute: "2-digit" } : { day: "2-digit", month: "short" }).format(date);
 };
+const messageTime = value => {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("pt-MZ", {hour:"2-digit",minute:"2-digit"}).format(date) : "";
+};
+const dayKey = value => new Date(value).toDateString();
+function dayLabel(value) {
+  const date = new Date(value), today = new Date(), yesterday = new Date();
+  yesterday.setDate(today.getDate()-1);
+  if (dayKey(value) === today.toDateString()) return "Hoje";
+  if (dayKey(value) === yesterday.toDateString()) return "Ontem";
+  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("pt-MZ", {day:"numeric",month:"long",...(date.getFullYear() !== today.getFullYear() ? {year:"numeric"} : {})}).format(date) : "";
+}
 function remaining(item) {
   const seconds = Math.max(0, Math.ceil((new Date(item.expira_em).getTime() - Date.now()) / 1000));
   if (!seconds) return "A expirar";
@@ -43,6 +56,26 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
   const [menu, setMenu] = useState(false);
   const [messageMenu, setMessageMenu] = useState(null);
+  const messageMenuRef = useRef(null), composerRef = useRef(null);
+  const messageAnchor = useRef(null), nearEnd = useRef(true);
+  useEffect(() => {
+    if (!messageMenu) return;
+    const dismiss = event => { if (!messageMenuRef.current?.contains(event.target) && !messageAnchor.current?.contains(event.target)) setMessageMenu(null); };
+    const keyboard = event => { if (event.key === "Escape") { setMessageMenu(null); messageAnchor.current?.focus(); } };
+    const closeMenu = () => setMessageMenu(null);
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", keyboard);
+    window.addEventListener("resize", closeMenu);
+    window.addEventListener("scroll", closeMenu, true);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", keyboard); window.removeEventListener("resize", closeMenu); window.removeEventListener("scroll", closeMenu, true); };
+  }, [messageMenu]);
+  function openMessageMenu(event, message) {
+    if (messageMenu?.id === message.id) { setMessageMenu(null); return; }
+    const anchor = event.currentTarget;
+    messageAnchor.current = anchor;
+    const rect = anchor.getBoundingClientRect(), height = message.minha && thread.texto_livre ? 96 : 52, width = Math.min(176, window.innerWidth - 16);
+    setMessageMenu({id:message.id, left:Math.max(8, Math.min(rect.left, window.innerWidth-width-8)), top:Math.max(8, rect.bottom+height+8>window.innerHeight ? rect.top-height-4 : rect.bottom+4), width});
+  }
   const [safetyMode, setSafetyMode] = useState(""), [safetyBusy, setSafetyBusy] = useState(false), [safetyError, setSafetyError] = useState(""), [safetyStatus, setSafetyStatus] = useState("");
   async function confirmSafety({reason, details} = {}) {
     if (!thread?.perfil?.id || safetyBusy) return;
@@ -150,8 +183,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
       el.scrollTop = restoreScroll.current.top + el.scrollHeight - restoreScroll.current.height;
       restoreScroll.current = null;
     } else if (el && latest !== lastId.current) {
-      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 180;
-      if (lastId.current === null || nearBottom || thread?.mensagens?.at(-1)?.minha) el.scrollTop = el.scrollHeight;
+      if (lastId.current === null || nearEnd.current || thread?.mensagens?.at(-1)?.minha) el.scrollTop = el.scrollHeight;
       lastId.current = latest ?? null;
     }
   }, [thread]);
@@ -202,31 +234,33 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     {safetyStatus && <p className="nk-chat-placeholder" role="status">{safetyStatus}</p>}
     {!thread && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
     {thread && <>
-      <ol className="nk-chat-lines" ref={scroll}>
+      <ol className="nk-chat-lines" ref={scroll} onScroll={e => { const el=e.currentTarget; nearEnd.current=el.scrollHeight-el.scrollTop-el.clientHeight<150; }}>
         {thread.mais_antigas && <li className="nk-chat-load-older"><button type="button" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "A carregar..." : "Carregar mensagens anteriores"}</button></li>}
         {!thread.mensagens.length && <li className="nk-chat-empty-thread"><ShieldCheck size={24} /><strong>Conversa aceite</strong><span>Comece a conhecer esta pessoa, com respeito e segurança.</span></li>}
-        {thread.mensagens.map(message => <li key={message.id} className={message.minha ? "nk-chat-bubble-row is-mine" : "nk-chat-bubble-row"}>
+        {thread.mensagens.map((message,index) => <Fragment key={message.id}>
+          {(index === 0 || dayKey(thread.mensagens[index-1].criado_em) !== dayKey(message.criado_em)) && <li className="nk-chat-day"><time>{dayLabel(message.criado_em)}</time></li>}
+          <li className={"nk-chat-bubble-row" + (message.minha ? " is-mine" : "") + (index > 0 && thread.mensagens[index-1].minha === message.minha && dayKey(thread.mensagens[index-1].criado_em) === dayKey(message.criado_em) ? " is-grouped" : "")}>
           <div className="nk-chat-bubble">
             {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem anterior ou indisponível"}</blockquote>}
-            <p>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
-            <div className="nk-chat-meta"><time dateTime={message.criado_em}>{stamp(message.criado_em)}</time>
+            <p className={message.apagada_em ? "nk-chat-deleted" : undefined}>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
+            <div className="nk-chat-meta"><time dateTime={message.criado_em}>{messageTime(message.criado_em)}</time>
               {message.minha && (message.lida ? <CheckCheck size={14} aria-label="Lida" /> : <Check size={14} aria-label="Enviada" />)}</div>
             
           </div>
           {!message.apagada_em && (thread.texto_livre || message.minha) && <div className="nk-chat-action-wrap">
-            <button type="button" className="nk-chat-message-trigger" aria-label="Opções da mensagem" aria-expanded={messageMenu === message.id} onClick={() => setMessageMenu(v => v === message.id ? null : message.id)}><MoreVertical size={17}/></button>
-            {messageMenu === message.id && <div className="nk-chat-message-menu">
-              {thread.texto_livre && <button type="button" onClick={() => { setReply(message); setMessageMenu(null); }}>Responder</button>}
-              {message.minha && <button type="button" onClick={() => { setMessageMenu(null); remove(message.id); }}>Apagar</button>}
-            </div>}
+            <button type="button" className="nk-chat-message-trigger" aria-label="Opções da mensagem" aria-expanded={messageMenu?.id === message.id} onClick={event => openMessageMenu(event,message)}><MoreVertical size={17}/></button>
+            {messageMenu?.id === message.id && createPortal(<div ref={messageMenuRef} className="nk-chat-floating-actions" style={{left:messageMenu.left,top:messageMenu.top,width:messageMenu.width}}>
+              {thread.texto_livre && <button type="button" onClick={() => { setReply(message); setMessageMenu(null); composerRef.current?.focus(); }}><Reply size={16}/>Responder</button>}
+              {message.minha && <button type="button" className="is-danger" onClick={() => { setMessageMenu(null); remove(message.id); }}><Trash2 size={16}/>Apagar</button>}
+            </div>,document.body)}
           </div>}
-        </li>)}
+        </li></Fragment>)}
       </ol>
       {thread.a_escrever && <p className="nk-chat-typing" role="status">{thread.nome} está a escrever...</p>}
       <form className="nk-chat-compose" onSubmit={send}>
         {reply && <div className="nk-independent-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
         {thread.texto_livre || thread.frases.length ? <div className="nk-chat-compose-line">
-          {thread.texto_livre ? <textarea aria-label="Mensagem" placeholder="Escrever mensagem..." rows={1} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :
+          {thread.texto_livre ? <textarea ref={composerRef} aria-label="Mensagem" placeholder="Escrever mensagem..." rows={1} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :
             <select aria-label="Mensagem predefinida" value={text} onChange={e => setText(e.target.value)}><option value="">Escolher mensagem</option>{thread.frases.map(phrase => <option key={phrase}>{phrase}</option>)}</select>}
           <button type="submit" className="nk-chat-send" aria-label="Enviar mensagem" disabled={sending || !text.trim() || !safetyAccepted}><Send size={20} /></button>
         </div> : <p>Active um pacote com chat para responder. <a href="/conta/?section=plan">Ver pacotes</a></p>}
@@ -303,7 +337,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   return <main className="nk-shell nk-chats-page">
     <div className={"nk-chats-layout" + (conversationId ? " has-thread" : "")}>
       <aside className="nk-chat-sidebar" aria-label="Lista de chats">
-        <div className="nk-chat-sidebar-head"><div><h1>Chats</h1><p>As suas conversas e conexões</p></div><button type="button" className="nk-chat-icon" aria-label="Explorar perfis" onClick={onDiscover}><MessageCircle size={23} /></button></div>
+        <div className="nk-chat-sidebar-head"><div><h1>Chats</h1><p>Conversas privadas e pedidos</p></div><button type="button" className="nk-chat-icon" aria-label="Explorar perfis" onClick={onDiscover}><MessageCircle size={23} /></button></div>
         <label className="nk-chat-search"><Search size={18} /><input aria-label="Pesquisar chats" placeholder="Pesquisar por nome" value={query} onChange={e => setQuery(e.target.value)} />{query && <button className="nk-chat-icon" type="button" aria-label="Limpar pesquisa" onClick={() => setQuery("")}><X size={16} /></button>}</label>
         <nav className="nk-chat-tabs" aria-label="Filtrar chats">{TABS.map(([key,label]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => chooseTab(key)}>{label}{counts[key] > 0 && <span>{counts[key]}</span>}</button>)}</nav>
         {error && <p role="alert" className="nk-chat-error">{error}</p>}
