@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from .chat_permissions import chat_pair_allowed
-from .models import Conversa, PerfilNKATA, ChamadaConversaCreditoNKATA as Session
+from .models import Conversa, PerfilNKATA, ChamadaConversaCreditoNKATA as Session, MovimentoCreditoNKATA
 from .call_credit_service import RATES, MAX_AUTHORIZED_MINUTES
 from .wallet_service import record_movement, credit_balance, credit_spending_enabled, WalletError
 
@@ -154,3 +154,44 @@ def end_call(session_id, *, actor_id):
     if session.estado in LIVE:
         _end(session)
     return session
+
+
+@transaction.atomic
+def reconcile_unstarted_minute(session_id, *, user_ids, minute):
+    """Trusted SFU only: no consumer resume was attempted for this minute.
+
+    End the session under the same lock as authorization, even if the debit
+    request is still in flight. Never infer non-delivery from a timeout alone.
+    """
+    session, _, _, users = _locked_session(session_id)
+    if (set(user_ids) != {session.iniciador_id, session.destinatario_id}
+            or {u.pk for u in users} != set(user_ids)
+            or type(minute) is not int or not 1 <= minute <= session.max_minutos):
+        raise WalletError("Reconciliação indisponível.")
+    payer = next(u for u in users if u.pk == session.iniciador_id)
+    key = f"call:native:{session.pk}:minute:{minute}"
+    refund_key = f"{key}:refund"
+    reference = f"call:{session.pk}"
+    debit = MovimentoCreditoNKATA.objects.filter(carteira__usuario=payer, chave=key).first()
+    refund = MovimentoCreditoNKATA.objects.filter(carteira__usuario=payer, chave=refund_key).first()
+    if refund:
+        if (not debit or refund.tipo != "ESTORNO" or refund.quantidade != -debit.quantidade
+                or refund.referencia != reference):
+            raise WalletError("Reconciliação requer revisão.")
+        return {"refunded": refund.quantidade, "state": session.estado}
+    if minute not in (session.minutos_pagos, session.minutos_pagos + 1):
+        raise WalletError("Minuto não elegível para reconciliação automática.")
+    if debit is None and minute != session.minutos_pagos + 1:
+        raise WalletError("Débito ausente; requer revisão.")
+    if debit and (minute != session.minutos_pagos or debit.tipo != "CONSUMO"
+                  or debit.quantidade != -session.custo_minuto or debit.referencia != reference):
+        raise WalletError("Débito inconsistente; requer revisão.")
+    if session.estado in LIVE:
+        _end(session)
+    if not debit:
+        return {"refunded": 0, "state": session.estado}
+    movement = record_movement(payer, key=refund_key, kind="ESTORNO",
+        amount=-debit.quantidade, reference=reference,
+        reason=f"Estorno de chamada {session.tipo} — minuto {minute} não iniciado")
+    # Keep the original minute index and debit immutable; the session is closed.
+    return {"refunded": movement.quantidade, "state": session.estado}
