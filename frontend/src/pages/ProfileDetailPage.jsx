@@ -441,7 +441,7 @@ export default function ProfileDetailPage({
                   <span>{english ? "NKATA signals" : "Sinais NKATA"}</span>
                   <h2>{english ? "Send a signal" : "Enviar um sinal"}</h2>
                   <p>
-                    {authenticated && signalData?.identity_blocked ? (english ? "Signals require verified identities on both profiles." : "Os sinais exigem identidade verificada nos dois perfis.") : authenticated && quota
+                    {authenticated && signalData?.identity_blocked ? (english ? "Verify your identity to send signals." : "Verifique a sua identidade para enviar sinais.") : authenticated && quota
                       ? (quota.credit_mode ? (english ? "Confirm the cost before sending." : "Confirme o custo antes de enviar.") : (english ? `${quota.daily_limit} daily signals on your ${quota.plan_label} plan.` : `${quota.daily_limit} sinais diários no plano ${quota.plan_label}.`))
                       : (english ? "Show interest without starting a conversation." : "Mostre interesse sem iniciar uma conversa.")}
                   </p>
