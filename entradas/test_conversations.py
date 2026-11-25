@@ -24,6 +24,15 @@ def historical_match(**kwargs):
     Conversa.objects.create(perfil_1_id=a, perfil_2_id=b, match_origem=match)
     return match
 
+    
+def accepted_match(**kwargs):
+    """Test fixture: legacy conversation with explicit consent, no fabricated messages."""
+    match = historical_match(**kwargs)
+    now = timezone.now()
+    PedidoConversa.objects.create(remetente=match.perfil_1, destinatario=match.perfil_2,
+        estado="ACEITE", conversa=match.chat, decidido_em=now, expira_em=now+timedelta(days=7))
+    return match
+
 
 class ConversationTests(TestCase):
     def setUp(self):
@@ -530,7 +539,7 @@ class ConversationTests(TestCase):
     def test_free_presets_remain_after_received_message_and_share_daily_limit(self):
         from .plan_service import CHAT_PHRASES_PT, PRESET_DAILY_LIMIT
         chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
-        legacy = historical_match(perfil_1=self.a, perfil_2=self.c)
+        legacy = accepted_match(perfil_1=self.a, perfil_2=self.c)
         MensagemMatch.objects.create(conversa=chat, remetente=self.b.usuario, texto="Como estás?")
         self.client.force_login(self.a.usuario)
         root = f"/api/chats/{chat.pk}/"
