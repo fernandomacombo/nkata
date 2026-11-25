@@ -207,7 +207,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
             <span className="nk-chat-row-meta"><time>{stamp(c.atividade_em)}</time>{c.nao_lidas > 0 && <span className="nk-chat-unread">{c.nao_lidas > 99 ? "99+" : c.nao_lidas}</span>}</span>
           </button>)}{!visibleChats.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : tab === "unread" ? "Está em dia com as mensagens." : "Ainda não tem conversas. Explore os perfis para começar."}</p>}</>}
           {data && (tab === "received" || tab === "sent") && <>
-            {selectedRequest?.id === requestId && !visibleRequests.some(p => p.id === requestId) && !visibleHistory.some(p => p.id === requestId) && <RequestRow item={selectedRequest} {...{busy, decide, cancel, onSelect, onOpenProfile}} />}
+            {selectedRequest && selectedRequest.id === requestId && !visibleRequests.some(p => p.id === requestId) && !visibleHistory.some(p => p.id === requestId) && <RequestRow item={selectedRequest} {...{busy, decide, cancel, onSelect, onOpenProfile}} />}
             {visibleRequests.map(p => <RequestRow key={p.id} item={p} {...{busy, decide, cancel, onSelect, onOpenProfile}} />)}
             {!visibleRequests.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : "Sem pedidos pendentes."}</p>}
             {!!visibleHistory.length && <details className="nk-chat-history"><summary>Histórico de pedidos</summary>{visibleHistory.map(p => <RequestRow key={p.id} item={p} {...{busy, decide, cancel, onSelect, onOpenProfile}} />)}</details>}
