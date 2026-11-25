@@ -58,3 +58,13 @@ O job media-staging-build gera manifestos/lockfiles candidatos e compila
 com domínios reservados .test. Rever e versionar os lockfiles antes de
 alterar Dockerfile ou activar staging. Nenhuma configuração de produção
 ou imagem de deploy foi alterada.
+
+## Decisão de âmbito — 25-11-2026
+Adiar chamadas de áudio/vídeo, SFU e TURN. Manter código, migrations e testes
+unitários existentes; não alterar a carteira nem o histórico. A compilação
+normal não carrega mediasoup-client. Os jobs media-native e media-staging-build
+passam a opcionais por workflow_dispatch experimental_media; a suite normal
+continua a validar backend, migrations, isolamento, frontend e carteira.
+A aplicação deixa de montar o observador legado de chamadas recebidas. O menu
+legado conserva acesso ao histórico da conversa. Não activar flags de media,
+contratar servidores nem publicar a versão sem validação do CI e staging.
