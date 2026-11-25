@@ -143,3 +143,37 @@ jobs:
         env:
           NKATA_MEDIA_BROWSER_TEST: isolated-ci
         run: node tests/browser-relay.mjs
+
+
+  media-staging-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Gerar lockfile candidato do gateway
+        working-directory: media-gateway
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Gerar lockfile candidato do frontend de staging
+        working-directory: frontend
+        run: |
+          npm install --save-exact --package-lock-only --ignore-scripts --no-audit --no-fund mediasoup-client@3.26.0
+          npm ci
+          npm audit --audit-level=high
+      - name: Compilar exclusivamente para ensaio
+        working-directory: frontend
+        env:
+          VITE_NKATA_MEDIA_STAGING_ORIGIN: https://staging.example.test
+          VITE_NKATA_MEDIA_SIGNAL_URL: wss://media-staging.example.test/signal
+        run: npm run check:ui && npx vite build --mode media-staging
+      - name: Guardar manifestos candidatos para revisão
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-staging-dependency-locks
+          path: |
+            frontend/package.json
+            frontend/package-lock.json
+            media-gateway/package-lock.json
+          retention-days: 7
