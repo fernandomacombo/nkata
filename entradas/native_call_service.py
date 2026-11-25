@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from .chat_permissions import chat_pair_allowed
+from .chat_permissions import chat_pair_allowed, conversation_has_access
 from .models import Conversa, PerfilNKATA, ChamadaConversaCreditoNKATA as Session, MovimentoCreditoNKATA, RevisaoMinutoChamadaNKATA as Review
 from .call_credit_service import RATES, MAX_AUTHORIZED_MINUTES
 from .wallet_service import record_movement, credit_balance, credit_spending_enabled, WalletError
@@ -31,7 +31,7 @@ def _lock_chat(chat_id):
 
 
 def _allowed(chat,profiles,users):
-    return len(users)==2 and chat.estado==Conversa.ESTADO_ATIVA and chat_pair_allowed(*profiles)
+    return len(users)==2 and chat.estado==Conversa.ESTADO_ATIVA and conversation_has_access(chat) and chat_pair_allowed(*profiles)
 
 
 def _locked_session(session_id):
