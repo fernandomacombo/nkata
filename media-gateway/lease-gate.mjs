@@ -2,9 +2,9 @@
 // Consumers MUST be created paused and must not be resumed elsewhere.
 // Tests use fakes. Production requires actual SFU and process-level watchdog.
 export class LeaseGate{
- constructor({sessionId,userIds,authorize,connected,consumers,closeTransport,watchdog=null,reconcile=null,onReconcileFailure=()=>{},clock=Date.now,schedule=setTimeout,cancel=clearTimeout}){
+ constructor({sessionId,userIds,authorize,connected,consumers,closeTransport,watchdog=null,reconcile=null,recordResume=null,onReconcileFailure=()=>{},clock=Date.now,schedule=setTimeout,cancel=clearTimeout}){
   if(userIds.length!==2||new Set(userIds).size!==2)throw Error("Two participants required");
-  Object.assign(this,{sessionId,userIds,authorize,connected,consumers,closeTransport,watchdog,reconcile,onReconcileFailure,clock,schedule,cancel});
+  Object.assign(this,{sessionId,userIds,authorize,connected,consumers,closeTransport,watchdog,reconcile,recordResume,onReconcileFailure,clock,schedule,cancel});
   this.pendingUnstarted=0;this.minute=0;this.deadline=0;this.armedDeadline=0;this.pausedEarly=false;this.closed=false;this.busy=false;
  }
  async stop(){
@@ -71,9 +71,17 @@ export class LeaseGate{
     // Arm a deadline guard before enabling media; a slow resume cannot
     // extend the lease. Never attach an unpaused Consumer.
     this.timer=this.schedule(()=>{void this.stop();},Math.max(0,deadline-this.clock()));
-    // From this point partial forwarding is possible; never auto-refund.
+    // Persist intent before any resume. If the reply is lost, leave the
+    // durable record for manual review rather than claiming non-delivery.
+    const evidence={sessionId:this.sessionId,userIds:this.userIds,minute:index};
+    if(this.recordResume){
+     this.pendingUnstarted=0;
+     if(!await this.recordResume({...evidence,phase:"INTENT"})){await this.stop();return;}
+     if(this.closed||!this.connected()||deadline-this.clock()<=750){await this.stop();return;}
+    }
     this.pendingUnstarted=0;
     await Promise.all(this.consumers().map(c=>c.resume()));
+    if(this.recordResume&&!await this.recordResume({...evidence,phase:"CONFIRMED"})){await this.stop();return;}
    }
    if(!this.closed)this.arm();
   }catch{await this.stop();}
