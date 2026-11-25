@@ -17,6 +17,7 @@ from . import (
     call_history_api,
     chat_media_api,
     native_voice_api,
+    media_gateway_api,
     chat_realtime_api,
     follow_views,
     discovery_api,
@@ -48,6 +49,7 @@ app_name = "entradas_api"
 from . import wallet_api, finance_admin_api
 
 urlpatterns = [
+    path("internal/media-gateway/minute/", media_gateway_api.minute),
     path("minha-conta/carteira/", wallet_api.wallet),
     path("minha-conta/carteira/movimentos/", wallet_api.statement),
     path("minha-conta/carteira/extrato.pdf", wallet_api.statement_pdf),

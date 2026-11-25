@@ -100,7 +100,7 @@ def decide_call(session_id, *, recipient_id, accept):
 
 
 @transaction.atomic
-def authorize_gateway_minute(session_id, *, connected_user_ids):
+def authorize_gateway_minute(session_id, *, connected_user_ids, expected_minute=None):
     """Only called by an authenticated server-side media adapter, never HTTP clients.
 
     Return the absolute forwarding deadline. No debit before acceptance and
@@ -115,6 +115,15 @@ def authorize_gateway_minute(session_id, *, connected_user_ids):
         or set(connected_user_ids)!={session.iniciador_id,session.destinatario_id}):
         _end(session)
         return None
+    if expected_minute is not None:
+        if type(expected_minute) is not int or expected_minute < 1:
+            return None
+        if expected_minute == session.minutos_pagos:
+            return session.pago_ate if session.pago_ate and now < session.pago_ate else None
+        if expected_minute != session.minutos_pagos + 1:
+            return None
+        if session.pago_ate and now < session.pago_ate:
+            return None  # Do not authorize the next minute prematurely.
     if session.pago_ate and now<session.pago_ate:
         return session.pago_ate
     # A renewal may arrive at the boundary; beyond a short grace the

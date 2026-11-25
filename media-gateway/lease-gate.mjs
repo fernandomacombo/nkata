@@ -1,0 +1,51 @@
+// Gateway control core. Bind ONLY to server-owned SFU Consumers/Transports.
+// Consumers MUST be created paused and must not be resumed elsewhere.
+// Tests use fakes. Production requires actual SFU and process-level watchdog.
+export class LeaseGate{
+ constructor({sessionId,userIds,authorize,connected,consumers,closeTransport,clock=Date.now,schedule=setTimeout,cancel=clearTimeout}){
+  if(userIds.length!==2||new Set(userIds).size!==2)throw Error("Two participants required");
+  Object.assign(this,{sessionId,userIds,authorize,connected,consumers,closeTransport,clock,schedule,cancel});
+  this.minute=0;this.deadline=0;this.closed=false;this.busy=false;
+ }
+ async stop(){
+  if(this.closed)return;
+  this.closed=true;this.cancel(this.timer);
+  // Transport closure is the terminal gate, not a browser instruction.
+  await this.closeTransport();
+ }
+ arm(){
+  this.cancel(this.timer);
+  this.timer=this.schedule(()=>{void this.tick().catch(()=>this.stop());},Math.max(0,Math.min(5000,this.deadline-this.clock())));
+ }
+ async tick(){
+  if(this.closed||this.busy)return;
+  this.busy=true;
+  try{
+   if(!this.connected()){await this.stop();return;}
+   const expired=this.clock()>=this.deadline;
+   if(expired){
+    // Freeze forwarding before contacting billing, including on first use.
+    await Promise.all(this.consumers().map(c=>c.pause()));
+   }
+   const index=this.minute+(expired?1:0);
+   // At the deadline pause regardless of a slow in-flight permission check.
+   const guard=!expired?this.schedule(()=>{void this.stop();},Math.max(0,this.deadline-this.clock())):null;
+   let deadline;
+   try{deadline=await this.authorize({sessionId:this.sessionId,userIds:this.userIds,minute:index});}
+   finally{if(guard!==null)this.cancel(guard);}
+   if(this.closed)return;
+   if(!deadline||deadline<=this.clock()||!this.connected()||(!expired&&deadline!==this.deadline)){
+    await this.stop();return;
+   }
+   this.deadline=deadline;this.minute=index;
+   if(expired){
+    // Arm a deadline guard before enabling media; a slow resume cannot
+    // extend the lease. Never attach an unpaused Consumer.
+    this.timer=this.schedule(()=>{void this.stop();},Math.max(0,deadline-this.clock()));
+    await Promise.all(this.consumers().map(c=>c.resume()));
+   }
+   if(!this.closed)this.arm();
+  }catch{await this.stop();}
+  finally{this.busy=false;}
+ }
+}
