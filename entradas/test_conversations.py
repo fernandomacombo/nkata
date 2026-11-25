@@ -117,6 +117,37 @@ class ConversationTests(TestCase):
         self.assertEqual(self.ask(self.a, self.c).status_code, 404)
 
 
+    def test_imported_empty_chat_requires_real_acceptance(self):
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        chat = match.chat
+        root = f"/api/chats/{chat.pk}/"
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.get("/api/chats/").json()["conversas"], [])
+        self.assertEqual(self.client.get(root).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/minha-conta/matches/{match.pk}/conversa/").status_code, 404)
+        asked = self.ask(self.a, self.b)
+        self.assertEqual(asked.status_code, 201, asked.content)
+        self.assertEqual(asked.json()["estado"], "PENDENTE")
+        self.assertEqual(self.ask(self.a, self.b).json()["estado"], "PENDENTE")
+        self.assertEqual(self.client.get(root).status_code, 404)
+        self.assertEqual(self.decide(self.b, asked.json()["id"], "ACEITE").json()["conversation_id"], chat.pk)
+        self.assertEqual(self.client.get(root).status_code, 200)
+        self.assertEqual(self.client.get("/api/chats/").json()["conversas"][0]["consent_state"], "ACEITE")
+        self.assertEqual(Conversa.objects.count(), 1)
+
+    def test_imported_history_is_not_labelled_accepted_without_receipt(self):
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        chat = match.chat
+        MensagemMatch.objects.create(match=match, conversa=chat, remetente=self.a.usuario, texto="Histórico")
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.get("/api/chats/").json()["conversas"][0]["consent_state"], "ANTERIOR")
+        self.assertEqual(self.ask(self.a, self.b).json()["estado"], "ANTERIOR")
+        self.assertFalse(PedidoConversa.objects.exists())
+        PedidoConversa.objects.create(remetente=self.a, destinatario=self.b, expira_em=timezone.now()+timedelta(days=7))
+        self.assertEqual(self.client.get(f"/api/chats/{chat.pk}/").status_code, 404)
+        self.assertEqual(self.ask(self.a, self.b).json()["estado"], "PENDENTE")
+        self.assertEqual(MensagemMatch.objects.get(conversa=chat).texto, "Histórico")
+
     def test_new_match_cannot_bypass_consent_through_legacy_routes(self):
         match = MatchPerfil.objects.create(perfil_1=self.a, perfil_2=self.b)
         self.client.force_login(self.a.usuario)
@@ -189,6 +220,7 @@ class ConversationTests(TestCase):
     def test_closing_match_does_not_close_text_chat(self):
         match = historical_match(perfil_1=self.a, perfil_2=self.b)
         chat = match.chat
+        MensagemMatch.objects.create(match=match, conversa=chat, remetente=self.a.usuario, texto="Histórico")
         self.client.force_login(self.a.usuario)
         self.assertEqual(self.client.post(f"/api/minha-conta/matches/{match.pk}/encerrar/").status_code, 200)
         match.refresh_from_db()
