@@ -385,6 +385,50 @@ class WalletPaymentTests(TestCase):
         from .test_conversations import profile
         self.user = profile(93).usuario
 
+    @override_settings(NKATA_PAYSUITE_TOKEN="test-token", NKATA_PAYMENT_SIMULATION_ENABLED=False)
+    def test_automatic_reconciliation_recovers_confirmed_payment_once(self):
+        from django.core.management import call_command
+        from io import StringIO
+        from .models import MovimentoCreditoNKATA
+        from .wallet_service import credit_balance
+        order = PedidoPagamentoNKATA.objects.create(
+            usuario=self.user, chave=uuid.uuid4(), referencia="AUTO50",
+            produto="CREDITOS_INICIAL", valor=50, creditos=50,
+            estado="PENDENTE", provedor_id="AUTO50ID",
+        )
+        data = {"id": order.provedor_id, "amount": "50", "reference": order.referencia,
+                "status": "completed", "transaction": {"status": "completed"}}
+        with patch("entradas.payment_service.provider_request", return_value=data) as provider:
+            for _ in range(2):
+                call_command("reconcile_nkata_payments", stdout=StringIO())
+            provider.assert_called_once_with("GET", payment_id="AUTO50ID")
+        order.refresh_from_db()
+        self.assertEqual(order.estado, "PAGO")
+        self.assertEqual(credit_balance(self.user), 50)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.user, tipo="RECARGA").count(), 1)
+
+    @override_settings(NKATA_PAYSUITE_TOKEN="test-token", NKATA_PAYMENT_SIMULATION_ENABLED=False)
+    def test_reconciliation_rotates_failed_requests_and_excludes_simulation(self):
+        from django.core.management import call_command
+        from io import StringIO
+        def order(ref, **kwargs):
+            return PedidoPagamentoNKATA.objects.create(
+                usuario=self.user, chave=uuid.uuid4(), referencia=ref,
+                produto="CREDITOS_INICIAL", valor=50, creditos=50,
+                estado="PENDENTE", provedor_id=ref, **kwargs)
+        first = order("UNREACHABLE")
+        second = order("NEXT")
+        order("SIMULATED", simulado=True)
+        with patch("entradas.payment_service.provider_request", side_effect=PaymentError("offline",503)) as provider:
+            for _ in range(2):
+                call_command("reconcile_nkata_payments", limit=1, stdout=StringIO(), stderr=StringIO())
+            self.assertEqual([call.kwargs["payment_id"] for call in provider.call_args_list], ["UNREACHABLE","NEXT"])
+        for item in (first, second):
+            item.refresh_from_db()
+            self.assertEqual(item.estado,"PENDENTE")
+            self.assertIsNone(item.confirmado_em)
+            self.assertIsNotNone(item.ultima_verificacao)
+
     def test_catalog_amounts_are_server_owned(self):
         from .payment_service import snapshot
         for product, amount, credits in (("CREDITOS_INICIAL", 50, 50), ("CREDITOS_ESSENCIAL", 100, 100),
