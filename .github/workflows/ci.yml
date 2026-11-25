@@ -96,6 +96,8 @@ jobs:
       - run: npm ci
       - name: Validar controlador de media
         run: node --test ../media-gateway/*.test.mjs
+      - name: Validar controlador WebRTC do navegador
+        run: node --test scripts/test-native-call-media.mjs
       - name: Validar sintaxe do serviço de media
         run: node --check ../media-gateway/server.mjs
       - run: npm run test:api-runtime
