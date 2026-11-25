@@ -61,6 +61,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   const restoreScroll = useRef(null);
   const [thread, setThread] = useState(null), [text, setText] = useState(""), [error, setError] = useState("");
   const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
+  const [loadError, setLoadError] = useState("");
   const [menu, setMenu] = useState(false);
   const [messageMenu, setMessageMenu] = useState(null);
   const [voiceActive,setVoiceActive] = useState(false);
@@ -153,7 +154,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
         if (!controller.signal.aborted) {
           mergePage(result);
           initialized.current = true;
-          setError("");
+          setLoadError("");
           if (result.modo === "depois" && result.mais) delay = 0;
         }
       } catch (err) {
@@ -161,10 +162,10 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           if ([401, 403, 404].includes(err.status)) {
             olderController.current?.abort(); setLoadingOlder(false);
             history.current = []; initialized.current = false; hasOlder.current = false;
-            restoreScroll.current = null; lastId.current = null; setReply(null); setText(""); setExtrasOpen(false);
+            restoreScroll.current = null; lastId.current = null; setReply(null); setText(""); setExtrasOpen(false); setVoiceActive(false);
             setThread(null);
           }
-          setError(err.message);
+          setLoadError(err.message);
           delay = 5000;
         }
       } finally {
@@ -219,6 +220,15 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
       lastId.current = latest ?? null;
     }
   }, [thread]);
+  useEffect(() => {
+    if (!thread?.credito_voz?.enabled || !safetyAccepted) setVoiceActive(false);
+  }, [thread?.credito_voz?.enabled, safetyAccepted]);
+  useEffect(() => {
+    if (thread && !thread.texto_livre) {
+      setReply(null);
+      setText(value => thread.frases.includes(value) ? value : "");
+    }
+  }, [thread?.texto_livre]);
   function write(value) {
     setText(value);
     if (value.trim() && Date.now() - lastTyping.current > 2200) {
@@ -263,9 +273,10 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           </div>}
         </div></>}
     </header>
-    {error && <p className="nk-chat-error" role="alert">{error}</p>}
+    {loadError && <p className="nk-chat-error" role="alert">{loadError}</p>}
+    {error && <p className="nk-chat-error" role="alert">{error} <button type="button" aria-label="Fechar aviso" onClick={()=>setError("")}>×</button></p>}
     {safetyStatus && <p className="nk-chat-placeholder" role="status">{safetyStatus}</p>}
-    {!thread && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
+    {!thread && !loadError && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
     {thread && <>
       <ol className="nk-chat-lines" ref={scroll} onScroll={e => { const el=e.currentTarget; nearEnd.current=el.scrollHeight-el.scrollTop-el.clientHeight<150; }}>
         {thread.mais_antigas && <li className="nk-chat-load-older"><button type="button" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "A carregar..." : "Carregar mensagens anteriores"}</button></li>}
