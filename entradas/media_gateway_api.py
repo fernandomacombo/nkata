@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from .native_call_service import authorize_gateway_minute, _locked_session, _allowed, reconcile_unstarted_minute
+from .native_call_service import authorize_gateway_minute, _locked_session, _allowed, reconcile_unstarted_minute, mark_gateway_resume
 from .wallet_service import credit_spending_enabled
 from .wallet_service import WalletError
 from .webrtc_credentials import native_ice_servers
@@ -221,3 +221,32 @@ def reconcile(request):
     except WalletError:
         return reply({"reconciled": False}, 409)
     return reply({"reconciled": True, **result})
+
+
+RESUME_PATH = "/api/internal/media-gateway/resume/"
+
+
+@csrf_exempt
+@require_POST
+def resume_evidence(request):
+    error = authenticate_gateway(request, RESUME_PATH)
+    if error is not None:
+        return error
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict) or set(data) != {"session_id", "user_ids", "minute", "phase"}:
+            raise ValueError()
+        sid = uuid.UUID(data["session_id"])
+        ids, minute, phase = data["user_ids"], data["minute"], data["phase"]
+        if (not isinstance(ids, list) or len(ids) != 2
+                or any(type(uid) is not int or uid <= 0 for uid in ids)
+                or len(set(ids)) != 2 or type(minute) is not int or not 1 <= minute <= 120
+                or phase not in ("INTENT", "CONFIRMED")):
+            raise ValueError()
+    except (ValueError, TypeError, AttributeError, UnicodeError):
+        return reply({"recorded": False}, 400)
+    try:
+        state = mark_gateway_resume(sid, user_ids=ids, minute=minute, phase=phase)
+    except WalletError:
+        return reply({"recorded": False}, 409)
+    return reply({"recorded": True, "state": state})
