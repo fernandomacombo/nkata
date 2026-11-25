@@ -350,7 +350,7 @@ class MatchPerfil(models.Model):
 
 
 class MensagemMatch(models.Model):
-    tipo = models.CharField(max_length=16, default="TEXTO", choices=[("TEXTO", "Texto"), ("SINAL", "Sinal"), ("QUEBRA_GELO", "Quebra-gelo")])
+    tipo = models.CharField(max_length=16, default="TEXTO", choices=[("TEXTO", "Texto"), ("SINAL", "Sinal"), ("QUEBRA_GELO", "Quebra-gelo"), ("PREDEFINIDA", "Predefinida")])
     sinal_origem = models.OneToOneField(AcaoPerfil, null=True, blank=True, on_delete=models.SET_NULL, related_name="mensagem_chat")
     resposta_a = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     match = models.ForeignKey(MatchPerfil, null=True, on_delete=models.CASCADE, related_name="mensagens")

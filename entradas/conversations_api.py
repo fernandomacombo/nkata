@@ -23,7 +23,7 @@ from .chat_media_models import MensagemAudioMatchNKATA
 from .call_models import ChamadaMatchNKATA
 from .call_history_api import serialize_call_message
 from .notification_models import NotificacaoNKATA
-from .plan_service import CHAT_PHRASES, can_send_chat_text, plan_for_user
+from .plan_service import can_send_chat_text, plan_for_user, preset_snapshot, chat_message_type
 from .serializers import MensagemMatchSerializer
 from .user_roles import active_member_profile_for_user
 
@@ -360,6 +360,7 @@ def send_message(request, chat, me, other, thread):
     # Same lock order as blocking and request decisions; once a block commits,
     # a concurrent native sender cannot write a new message.
     other, _ = lock_pair(me, other.pk)
+    get_user_model().objects.select_for_update().get(pk=request.user.pk)
     if chat.match_origem_id:
         from .models import MatchPerfil
         MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
@@ -383,7 +384,7 @@ def send_message(request, chat, me, other, thread):
                               not thread.mensagens.filter(pk=reply, apagada_em__isnull=True).exists()):
         raise ValidationError({"detail": "A mensagem original está indisponível."})
     message = MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, resposta_a_id=reply,
-                                           remetente=request.user, texto=text)
+                                           remetente=request.user, texto=text, tipo=chat_message_type(request.user, text))
     if not chat.match_origem_id:
         notify(other, me, "MENSAGEM", f"chat-msg:{chat.pk}", "Nova mensagem",
                f"{me.nome_publico} enviou-lhe uma mensagem.")
@@ -497,10 +498,10 @@ def messages(request, conversation_id):
     if paginated:
         rows, page_info = message_page(request, rows)
     features = plan_for_user(request.user)["features"]
-    presets = CHAT_PHRASES[:4] if features.get("chat_presets") and not thread.mensagens.exclude(remetente=request.user).exists() else []
+    preset = preset_snapshot(request.user)
     return Response({"nome": other.nome_publico, "perfil": chat_profile(other), "match_id": legacy_match_id(chat),
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
-                     "texto_livre": features["chat_text"], "frases": presets,
+                     "texto_livre": features["chat_text"], "frases": preset["frases"], "predefinidas": preset,
                      "sinais": _availability_payload(request.user, other) if other.visivel else {"signals": [], "quota": {}},
                      "quebra_gelo": {"restantes": icebreaker_remaining(request.user), "perguntas": [{"codigo": code, "texto": text} for code, text in ICEBREAKERS.items()]},
                      "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data,

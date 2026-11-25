@@ -110,3 +110,6 @@
 .nk-chat-icebreaker { display:flex; align-items:center; text-align:left; justify-content:space-between; gap:8px; }
 .nk-chat-extras button:disabled { opacity:.5; cursor:not-allowed; }
 .nk-chat-extra-label { display:flex; flex:0 0 100%; align-items:center; gap:5px; font-size:.74rem; opacity:.85; }
+
+.nk-chat-preset-info { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:5px; margin:0 0 7px; color:var(--chat-muted); font-size:.76rem; }
+.nk-chat-preset-info a { color:var(--chat-wine); font-weight:600; }

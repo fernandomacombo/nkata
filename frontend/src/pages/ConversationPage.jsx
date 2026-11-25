@@ -286,6 +286,7 @@ export default function ConversationPage({
   const [safetyStatus, setSafetyStatus] = useState("");
   const [textEnabled, setTextEnabled] = useState(false);
   const [presetsEnabled, setPresetsEnabled] = useState(false);
+  const [presetData, setPresetData] = useState({restantes:0,frases:[],phrases_en:[]});
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [audioPlanLabel, setAudioPlanLabel] = useState("NKATA Livre");
   const [audioNotice, setAudioNotice] = useState("");
@@ -350,7 +351,8 @@ export default function ConversationPage({
     }
   }
 
-  const canUsePreset = presetsEnabled && !timeline.some((message) => !message.mine && !message.callDirection);
+  const canUsePreset = presetsEnabled && presetData.restantes > 0;
+  const presetChoices = english ? presetData.phrases_en : presetData.frases;
 
   const releaseRecordingResources = () => {
     if (timerRef.current) {
@@ -397,6 +399,7 @@ export default function ConversationPage({
         setAudioEnabled(Boolean(currentPlan?.features?.chat_audio));
         setTextEnabled(Boolean(currentPlan?.features?.chat_text));
         setPresetsEnabled(Boolean(currentPlan?.features?.chat_presets));
+        setPresetData(payload?.chat_presets || {restantes:0,frases:[],phrases_en:[]});
         setAudioPlanLabel(currentPlan?.label || "NKATA Livre");
       })
       .catch(() => {
@@ -511,10 +514,11 @@ export default function ConversationPage({
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text || sending || recording || recordedBlob) return;
+    if (!text || sending || recording || recordedBlob || (!textEnabled && (!canUsePreset || !presetChoices.includes(text)))) return;
 
     const sent = await onSend(text, reply?.id);
     if (sent) {
+      if (!textEnabled) setPresetData(current => ({...current, restantes:Math.max(0,current.restantes-1)}));
       setReply(null);
       setDraft("");
       updateMatchTyping(match.id, false).catch(() => {});
@@ -842,6 +846,7 @@ export default function ConversationPage({
             </div>
           )}
 
+          {!textEnabled && canUsePreset && <div className="nk-chat-dock__notice" role="status">{presetData.restantes} {english ? "free preset messages left today" : "mensagens gratuitas restantes hoje"}</div>}
           {!textEnabled && !canUsePreset ? (
             <div className="nk-chat-dock__notice" role="status">
               <LockKeyhole size={14} />
@@ -908,7 +913,7 @@ export default function ConversationPage({
                 <span className="sr-only">{english ? "Message" : "Mensagem"}</span>
                 {!textEnabled ? <select value={draft} onChange={(event) => setDraft(event.target.value)} aria-label={english ? "Preset message" : "Mensagem predefinida"} disabled={sending}>
                   <option value="">{english ? "Choose a message" : "Escolha uma mensagem"}</option>
-                  {(english ? ["Hello, how are you?", "Hello, I enjoyed reading your profile. How are you?", "I would like to learn more about your interests.", "Thank you for your interest!"] : ["Olá, tudo bem?", "Olá, gostei de conhecer o seu perfil. Como está?", "Gostaria de conhecer melhor os seus interesses.", "Obrigado pelo seu interesse!"]).map((phrase) => <option key={phrase} value={phrase}>{phrase}</option>)}
+                  {presetChoices.map((phrase) => <option key={phrase} value={phrase}>{phrase}</option>)}
                 </select> : <textarea
                   ref={composerTextareaRef}
                   value={draft}

@@ -1,5 +1,6 @@
 from .chat_permissions import IDENTITY_REQUIRED_MESSAGE, chat_requires_identity, legacy_chat_allowed
-from .plan_service import can_send_chat_text
+from .plan_service import can_send_chat_text, plan_for_user, preset_snapshot, chat_message_type
+from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -851,6 +852,8 @@ def conversa_match(request, match_id):
 
     if request.method == "POST":
         from .models import Conversa
+        list(PerfilNKATA.objects.select_for_update().filter(pk__in=[match.perfil_1_id, match.perfil_2_id]).order_by("pk"))
+        get_user_model().objects.select_for_update().get(pk=request.user.pk)
         MatchPerfil.objects.select_for_update().get(pk=match.pk)
         if not Conversa.objects.select_for_update().filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).first():
             return JsonResponse({"detail": "Conversa indisponível."}, status=404)
@@ -875,7 +878,8 @@ def conversa_match(request, match_id):
             match=match,
             conversa=match.chat,
             remetente=request.user,
-            texto=texto
+            texto=texto,
+            tipo=chat_message_type(request.user, texto),
         )
 
         return redirect("entradas:conversa_match", match_id=match.id)
@@ -898,4 +902,6 @@ def conversa_match(request, match_id):
         "match": match,
         "outro_perfil": outro_perfil,
         "mensagens_match": mensagens_match,
+        "texto_livre": plan_for_user(request.user)["features"]["chat_text"],
+        "predefinidas": preset_snapshot(request.user),
     })

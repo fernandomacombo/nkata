@@ -463,3 +463,26 @@ class ConversationTests(TestCase):
         self.assertEqual(self.client.get(root).json()["quebra_gelo"]["restantes"], 0)
         AcaoPerfil.objects.create(usuario=self.b.usuario, perfil=self.a, tipo="BLOQUEIO")
         self.assertEqual(self.client.post(url, {"codigo": "SONHO"}).status_code, 404)
+
+
+    def test_free_presets_remain_after_received_message_and_share_daily_limit(self):
+        from .plan_service import CHAT_PHRASES_PT, PRESET_DAILY_LIMIT
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        legacy = historical_match(perfil_1=self.a, perfil_2=self.c)
+        MensagemMatch.objects.create(conversa=chat, remetente=self.b.usuario, texto="Como estás?")
+        self.client.force_login(self.a.usuario)
+        root = f"/api/chats/{chat.pk}/"
+        legacy_url = f"/api/minha-conta/matches/{legacy.pk}/conversa/"
+        self.assertEqual(self.client.get(root).json()["predefinidas"]["restantes"], PRESET_DAILY_LIMIT)
+        self.assertEqual(self.client.post(root, {"texto": "Texto personalizado"}).status_code, 403)
+        for i in range(PRESET_DAILY_LIMIT):
+            response = self.client.post(root if i % 2 == 0 else legacy_url, {"texto": CHAT_PHRASES_PT[i]})
+            self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(self.client.get(root).json()["frases"], [])
+        self.assertEqual(self.client.post(legacy_url, {"texto": CHAT_PHRASES_PT[0]}).status_code, 403)
+        self.assertEqual(MensagemMatch.objects.filter(remetente=self.a.usuario, tipo="PREDEFINIDA").count(), PRESET_DAILY_LIMIT)
+        message = chat.mensagens.filter(remetente=self.a.usuario).first()
+        self.assertEqual(self.client.delete(root + f"mensagens/{message.pk}/").status_code, 204)
+        self.assertEqual(self.client.get(root).json()["predefinidas"]["restantes"], 0)
+        MensagemMatch.objects.filter(remetente=self.a.usuario).update(criado_em=timezone.now()-timedelta(days=1))
+        self.assertEqual(self.client.get(root).json()["predefinidas"]["restantes"], PRESET_DAILY_LIMIT)

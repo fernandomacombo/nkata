@@ -6,7 +6,7 @@ from django.contrib.auth.models import Group
 from django.db import transaction
 from django.utils import timezone
 
-from .models import AcaoPerfil, AcessoPlanoNKATA
+from .models import AcaoPerfil, AcessoPlanoNKATA, MensagemMatch
 
 
 PLAN_GROUP_ESSENCIAL = "NKATA_PLANO_ESSENCIAL"
@@ -72,16 +72,45 @@ PLAN_DEFINITIONS["QUINZENAL"] = {
     "features": dict(PLAN_DEFINITIONS["ESSENCIAL"]["features"]),
 }
 PLAN_DURATIONS = {"LIVRE": 0, "QUINZENAL": 14, "ESSENCIAL": 30, "PREMIUM": 30}
-CHAT_PHRASES = (
+PRESET_DAILY_LIMIT = 5
+CHAT_PHRASES_PT = (
     "Olá, tudo bem?",
     "Olá, gostei de conhecer o seu perfil. Como está?",
     "Gostaria de conhecer melhor os seus interesses.",
     "Obrigado pelo seu interesse!",
+    "Gostei de conhecer o teu perfil.",
+    "Gostaria de continuar esta conversa.",
+    "Neste momento não posso conversar.",
+)
+CHAT_PHRASES_EN = (
     "Hello, how are you?",
     "Hello, I enjoyed reading your profile. How are you?",
     "I would like to learn more about your interests.",
     "Thank you for your interest!",
+    "I enjoyed getting to know your profile.",
+    "I would like to continue this conversation.",
+    "I cannot chat right now.",
 )
+CHAT_PHRASES = CHAT_PHRASES_PT + CHAT_PHRASES_EN
+
+
+def preset_remaining(user):
+    # Deleted messages retain their type and timestamp; deleting is not a refund.
+    used = MensagemMatch.objects.filter(remetente=user, tipo="PREDEFINIDA",
+                                       criado_em__date=timezone.localdate()).count()
+    return max(0, PRESET_DAILY_LIMIT - used)
+
+
+def preset_snapshot(user):
+    features = plan_for_user(user)["features"]
+    remaining = preset_remaining(user) if features.get("chat_presets") and not features["chat_text"] else 0
+    return {"limite": PRESET_DAILY_LIMIT, "restantes": remaining,
+            "frases": list(CHAT_PHRASES_PT) if remaining else [],
+            "phrases_en": list(CHAT_PHRASES_EN) if remaining else []}
+
+
+def chat_message_type(user, text):
+    return "PREDEFINIDA" if text in CHAT_PHRASES and not plan_for_user(user)["features"]["chat_text"] else "TEXTO"
 
 
 def can_send_chat_text(user, text, match):
@@ -91,7 +120,7 @@ def can_send_chat_text(user, text, match):
     return (
         features.get("chat_presets", False)
         and text in CHAT_PHRASES
-        and not match.mensagens.exclude(remetente=user).exists()
+        and preset_remaining(user) > 0
     )
 
 

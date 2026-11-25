@@ -12,6 +12,7 @@ from .plan_service import (
     public_plan_catalog,
     public_recharge_catalog,
     signal_quota_for_user,
+    preset_snapshot,
 )
 
 
@@ -37,6 +38,7 @@ def api_plano_da_conta(request):
             "expires_at": access.fim if access else None,
         },
         "signal_quota": quota,
+        "chat_presets": preset_snapshot(request.user),
         "recharge": {
             "balance": quota["recharge_balance"],
             "packs": [{**pack, "purchase_enabled": enabled} for pack in public_recharge_catalog()],

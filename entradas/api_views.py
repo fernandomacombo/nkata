@@ -2,7 +2,7 @@ from pathlib import PurePath
 from uuid import uuid4
 
 from .chat_permissions import ChatIdentityPermission, chat_requires_identity, legacy_chat_allowed
-from .plan_service import can_send_chat_text, plan_for_user
+from .plan_service import can_send_chat_text, plan_for_user, chat_message_type
 from PIL import Image, UnidentifiedImageError
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -802,6 +802,8 @@ def api_conversa_match(request, match_id):
 
     if request.method == "POST":
         from .models import Conversa
+        list(PerfilNKATA.objects.select_for_update().filter(pk__in=[match.perfil_1_id, match.perfil_2_id]).order_by("pk"))
+        User.objects.select_for_update().get(pk=request.user.pk)
         MatchPerfil.objects.select_for_update().get(pk=match.pk)
         chat = Conversa.objects.select_for_update().filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).first()
         match.refresh_from_db()
@@ -836,6 +838,7 @@ def api_conversa_match(request, match_id):
             conversa=match.chat,
             remetente=request.user,
             texto=texto,
+            tipo=chat_message_type(request.user, texto),
         )
         match.save(update_fields=["atualizado_em"])
 
