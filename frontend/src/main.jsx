@@ -76,6 +76,7 @@ import "./appearance-polish.css";
 import "./visual-system-v2.css";
 import "./moments-refinement.css";
 import "./mobile-app-contract.css";
+import "./profile-redesign.css";
 import { registerServiceWorker } from "./services/pwa.js";
 
 const appModeMedia = window.matchMedia("(max-width: 820px)");
