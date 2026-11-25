@@ -853,7 +853,6 @@ export default function App() {
           interestMessage={interestState.message}
           onToggleSaved={toggleSaved}
           onAskChat={memberAuthenticated && String(selectedProfile?.id) !== String(session?.profile?.id) ? async () => {
-            if (chatIdentityRequired) return setActivePage("identity");
             const result = await request(`/api/chats/pedir/${selectedProfile.id}/`, { method: "POST" });
             setActivePage("chats", { conversationId: result.conversation_id, requestId: result.conversation_id ? undefined : result.id });
           } : null}
@@ -863,7 +862,7 @@ export default function App() {
         />
       )}
 
-      {(["identity", "conversation", "chats"].includes(activePage)) && memberAuthenticated && chatIdentityRequired && (
+      {(["identity", "conversation"].includes(activePage)) && memberAuthenticated && chatIdentityRequired && (
         <ChatIdentityPage
           key={sessionIdentity}
           onBack={() => handleNavigate(activePage === "identity" ? "account" : "matches")}
@@ -878,12 +877,14 @@ export default function App() {
         </main>
       )}
 
-      {activePage === "chats" && memberAuthenticated && !chatIdentityRequired && (
+      {activePage === "chats" && memberAuthenticated && (
         <ChatsPage key={`chats-${sessionIdentity}`} conversationId={conversationId} requestId={requestId}
           onSelect={(id) => setActivePage("chats", { conversationId: id })}
           onBack={() => setActivePage("chats")}
           onOpenProfile={handleOpenProfile}
           onDiscover={() => handleNavigate("discover")}
+          identityRequired={chatIdentityRequired}
+          onVerifyIdentity={() => setActivePage("identity")}
           onLegacy={(id) => setActivePage("conversation", { matchId: id })}
           safetyAccepted={preferences.aviso_chat_aceite === true}
           onAcceptSafety={() => savePreferences({ aviso_chat_aceite: true })} />
