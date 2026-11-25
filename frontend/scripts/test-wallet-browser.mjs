@@ -69,10 +69,13 @@ try {
     await root.getByRole("button",{name:"Carregar mais movimentos"}).click();
     await page.waitForFunction(()=>document.querySelector(".nk-wallet-dashboard__recharge:disabled")!==null);
     // Refreshing the parent must not allow a stale page to append to the new statement.
+    const refreshed = page.waitForResponse(response => {const url=new URL(response.url()); return url.pathname==="/api/minha-conta/carteira/movimentos/" && url.searchParams.get("before")==="0" && response.ok();});
     await page.getByRole("button",{name:"Atualizar conta"}).click();
     if(delayed) delayed();
+    await refreshed;
+    await page.waitForFunction(()=>document.querySelectorAll(".nk-wallet-statement article").length===2);
     await root.getByText("Recarga Inicial",{exact:true}).waitFor();
-    assert.equal(await root.locator(".nk-wallet-statement article").count(),2);
+    assert.equal(await root.getByText("Bónus de boas-vindas",{exact:true}).count(),0);
     await page.close();
    }
   }finally{await browser.close();}
