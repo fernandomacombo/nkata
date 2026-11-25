@@ -7,9 +7,9 @@ const connected=t=>!!t&&!t.closed&&t.dtlsState==="connected"&&["connected","comp
 const transportInfo=t=>({id:t.id,iceParameters:t.iceParameters,iceCandidates:t.iceCandidates,dtlsParameters:t.dtlsParameters});
 
 export class SfuRoom{
- constructor({router,sessionId,kind,transportOptions,authorize,watchdog=null,confirmClosed=null}){
+ constructor({router,sessionId,kind,transportOptions,authorize,watchdog=null,confirmClosed=null,reconcile=null,onReconcileFailure=()=>{}}){
   if(!router||!["AUDIO","VIDEO"].includes(kind)||!sessionId||typeof authorize!=="function")throw Error("Invalid room");
-  Object.assign(this,{router,sessionId,kind,transportOptions,authorize,watchdog,confirmClosed});
+  Object.assign(this,{router,sessionId,kind,transportOptions,authorize,watchdog,confirmClosed,reconcile,onReconcileFailure});
   this.peers=new Map();this.closed=false;this.sealed=false;this.queue=Promise.resolve();
  }
  // Serialize topology updates; no new producers or consumers after activation.
@@ -88,7 +88,7 @@ export class SfuRoom{
   return this.run(async()=>{
    if(!this.ready())throw Error("Room not ready");
    this.sealed=true;
-   this.gate=new LeaseGate({sessionId:this.sessionId,userIds:[...this.peers.keys()],authorize:this.authorize,watchdog:this.watchdog,
+   this.gate=new LeaseGate({sessionId:this.sessionId,userIds:[...this.peers.keys()],authorize:this.authorize,watchdog:this.watchdog,reconcile:this.reconcile,onReconcileFailure:this.onReconcileFailure,
     connected:()=>this.ready(),consumers:()=>[...this.peers.values()].flatMap(p=>[...p.consumers.values()]),
     closeTransport:()=>this.close()});
    await this.gate.tick();
