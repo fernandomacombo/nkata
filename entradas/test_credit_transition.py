@@ -206,6 +206,11 @@ class CreditTransitionTests(TestCase):
             self.assertEqual(credit_balance(self.member),45)
         self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.member,chave="welcome:launch:v1").count(),1)
         self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.member,chave="adjust:launch-cancelled:v1").count(),1)
+        from .wallet_statement import member_statement
+        summary=member_statement(self.member,period="ALL")["summary"]
+        self.assertEqual(summary["bonus"],5)
+        self.assertEqual(summary["spent"],10)
+        self.assertEqual(summary["adjustments"],0)
         with self.settings(NKATA_RAILWAY_ENVIRONMENT_ID="production"):
             with self.assertRaises(CommandError):
                 call_command("regularizar_bonus_lancamento","--apply",stdout=StringIO())

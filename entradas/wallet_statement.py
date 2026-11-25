@@ -51,7 +51,7 @@ def member_statement(user, *, period="30", kind="ALL", before=0, export=False):
         simulated_recharged=Sum("quantidade", filter=Q(tipo="RECARGA", chave__startswith="simulated:")),
         bonus=Sum("quantidade", filter=Q(tipo="BONUS") | Q(tipo="AJUSTE", chave="adjust:launch-cancelled:v1")),
         refunded=Sum("quantidade", filter=Q(tipo="ESTORNO")),
-        adjustments=Sum("quantidade", filter=Q(tipo="AJUSTE")),
+        adjustments=Sum("quantidade", filter=Q(tipo="AJUSTE") & ~Q(chave="adjust:launch-cancelled:v1")),
     )
     summary.update({k: v or 0 for k, v in totals.items()})
     summary["spent"] = -summary["spent"]

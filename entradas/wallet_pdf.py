@@ -40,7 +40,7 @@ def render_statement_pdf(data, *, kind, member_id):
         p(f"Filtro de movimentos: {KINDS[kind]}", small), Spacer(1, 15)]
     s = data["summary"]
     metrics = [
-        ["Saldo actual", "Créditos de recargas", "Bónus recebidos"],
+        ["Saldo actual", "Créditos de recargas", "Bónus líquidos"],
         [number(data["balance"]), number(s["recharged"]), number(s["bonus"])],
         ["Saídas de créditos", "Estornos", "Ajustes líquidos"],
         [number(s["spent"]), number(s["refunded"]), number(s["adjustments"], True)],

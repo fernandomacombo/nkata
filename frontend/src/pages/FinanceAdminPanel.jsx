@@ -46,7 +46,7 @@ export default function FinanceAdminPanel() {
         ["Saldo total",fmt(m.total_balance)+" créditos"],["Pagamentos liquidados",fmt(m.settled_count)],["Simulações concluídas",fmt(m.simulated_count)],
         ["Pagamentos por concluir",fmt(m.pending_count)],["Em revisão",fmt(m.review_count)],
         ["Créditos de recargas",fmt(m.recharge_credits)],["Créditos consumidos",fmt(m.consumed_credits)],
-        ["Créditos de bónus",fmt(m.bonus_credits)],["Carteiras inconsistentes",fmt(m.inconsistent_wallets)]
+        ["Créditos de bónus líquidos",fmt(m.bonus_credits)],["Carteiras inconsistentes",fmt(m.inconsistent_wallets)]
       ].map(([label,value])=><article className="nk-admin-card" key={label}><small>{label}</small><strong>{value}</strong></article>)}</div>
       <p>Valores acumulados. A receita não inclui planos antigos, pagamentos pendentes, taxas ou custos operacionais.</p>
       <button type="button" className="nk-admin-button" onClick={()=>changeTab("audit")}>Consultar reconciliação</button>

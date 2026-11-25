@@ -23,7 +23,7 @@ python manage.py check_nkata_runtime
 # Both operations are idempotent and preserve the unique identity boundary.
 if [ "${NKATA_CREDIT_ONLY_ENABLED:-False}" = "True" ] || [ "${NKATA_CREDIT_ONLY_ENABLED:-false}" = "true" ] || [ "${NKATA_CREDIT_ONLY_ENABLED:-0}" = "1" ]; then
   python manage.py reconciliar_bonus_creditos --apply
-  if [ "${RAILWAY_ENVIRONMENT_ID:-}" = "36306a53-86bc-4a07-9b09-7c42c58f2e43" ]; then
+  if [ "${RAILWAY_ENVIRONMENT_ID:-}" = "36306a53-86bc-4a07-9b09-7c42c58f2e43" ] && { [ "${NKATA_PAYMENT_SIMULATION_ENABLED:-False}" = "True" ] || [ "${NKATA_PAYMENT_SIMULATION_ENABLED:-false}" = "true" ] || [ "${NKATA_PAYMENT_SIMULATION_ENABLED:-0}" = "1" ]; }; then
     python manage.py regularizar_bonus_lancamento --apply
   fi
 fi

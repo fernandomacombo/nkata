@@ -44,7 +44,7 @@ def _overview():
         "review_count": orders.filter(estado="REVISAO").count(),
         "recharge_credits": _sum(ledger.filter(tipo="RECARGA"), "quantidade"),
         "consumed_credits": -_sum(ledger.filter(tipo="CONSUMO"), "quantidade"),
-        "bonus_credits": _sum(ledger.filter(tipo="BONUS"), "quantidade"),
+        "bonus_credits": _sum(ledger.filter(Q(tipo="BONUS") | Q(tipo="AJUSTE", chave="adjust:launch-cancelled:v1")), "quantidade"),
         "inconsistent_wallets": _wallets().exclude(saldo=F("ledger_total")).count(),
     }
 
@@ -128,7 +128,7 @@ def finance(request):
         if section == "consumption":
             rows = rows.filter(tipo="CONSUMO")
         if section == "bonuses":
-            rows = rows.filter(tipo="BONUS")
+            rows = rows.filter(Q(tipo="BONUS") | Q(tipo="AJUSTE", chave="adjust:launch-cancelled:v1"))
         if q:
             rows = rows.filter(Q(carteira__usuario__username__icontains=q) | Q(carteira__usuario__email__icontains=q)
                 | Q(carteira__usuario__first_name__icontains=q) | Q(referencia__icontains=q) | Q(motivo__icontains=q))
