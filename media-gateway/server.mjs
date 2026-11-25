@@ -5,6 +5,7 @@ import {WebSocketServer} from "ws";
 import {readConfig,verifyInboundMedia} from "./runtime.mjs";
 import {createAdmissionClient,createLeaseClient} from "./lease-client.mjs";
 import {SfuRoom} from "./sfu-room.mjs";
+import {createLeaseWatchdog} from "./lease-watchdog.mjs";
 import {attachSignalling} from "./signalling.mjs";
 
 const config=readConfig(process.env);
@@ -15,6 +16,7 @@ const webRtcServer=await worker.createWebRtcServer({listenInfos:["udp","tcp"].ma
 }))});
 const gateway={origin:config.backend,secret:config.secret};
 const authorize=createLeaseClient(gateway);
+const watchdog=createLeaseWatchdog();
 const server=createServer((req,res)=>{
  const ok=req.method==="GET"&&req.url==="/healthz"&&!worker.closed;
  res.writeHead(ok?200:404,{"Content-Type":"application/json","Cache-Control":"no-store"});
@@ -29,7 +31,7 @@ const control=attachSignalling({wss,origin:config.origin,admit:createAdmissionCl
    {kind:"video",mimeType:"video/VP8",clockRate:90000}
   ]});
   try{return new SfuRoom({router,sessionId:identity.sessionId,kind:identity.kind,
-   transportOptions:{webRtcServer,enableUdp:true,enableTcp:true,preferUdp:true,enableSctp:false},authorize});}
+   transportOptions:{webRtcServer,enableUdp:true,enableTcp:true,preferUdp:true,enableSctp:false},authorize,watchdog,confirmClosed:async id=>!(await worker.dump()).routerIds.includes(id)});}
   catch(error){router.close();throw error;}
  }
 });
