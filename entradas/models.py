@@ -443,6 +443,9 @@ class VotoPerguntaDiaria(models.Model):
 
 
 class Conversa(models.Model):
+    ESTADO_ATIVA = "ATIVA"
+    ESTADO_ENCERRADA = "ENCERRADA"
+    estado = models.CharField(max_length=10, default=ESTADO_ATIVA, choices=[(ESTADO_ATIVA, "Ativa"), (ESTADO_ENCERRADA, "Encerrada")])
     # Legacy audio, calls and messages still depend on this match.
     # Do not allow a standalone match deletion to destroy chat history.
     match_origem = models.OneToOneField(MatchPerfil, null=True, on_delete=models.RESTRICT, related_name="chat")
@@ -454,6 +457,7 @@ class Conversa(models.Model):
         constraints = [
             models.CheckConstraint(condition=models.Q(perfil_1__lt=models.F("perfil_2")), name="conversa_par_ordenado"),
             models.UniqueConstraint(fields=["perfil_1", "perfil_2"], name="conversa_unica_por_par"),
+            models.CheckConstraint(condition=models.Q(estado__in=["ATIVA", "ENCERRADA"]), name="conversa_estado_valido"),
         ]
 
 

@@ -155,3 +155,36 @@ class ConversationTests(TestCase):
         self.assertEqual(message.conversa_id, match.chat.pk)
         self.assertIsNone(unrelated.conversa_id)
         self.assertEqual(Conversa.objects.count(), 1)
+
+    def test_closing_match_does_not_close_text_chat(self):
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        chat = match.chat
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.post(f"/api/minha-conta/matches/{match.pk}/encerrar/").status_code, 200)
+        match.refresh_from_db()
+        self.assertEqual(match.status, "ENCERRADO")
+        self.assertEqual(self.client.get(f"/api/chats/{chat.pk}/").status_code, 200)
+        with patch("entradas.conversations_api.can_send_chat_text", return_value=True):
+            self.assertEqual(self.client.post(f"/api/chats/{chat.pk}/", {"texto": "Olá"}).status_code, 201)
+
+    def test_closing_chat_preserves_match_and_history_and_prevents_reopening(self):
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        chat = match.chat
+        message = MensagemMatch.objects.create(
+            match=match, conversa=chat, remetente=self.a.usuario, texto="Histórico"
+        )
+        root = f"/api/chats/{chat.pk}/"
+        self.client.force_login(self.c.usuario)
+        self.assertEqual(self.client.post(root + "encerrar/").status_code, 404)
+        self.client.force_login(self.a.usuario)
+        self.assertEqual(self.client.post(root + "encerrar/").status_code, 200)
+        self.assertEqual(self.client.post(root + "encerrar/").status_code, 200)
+        self.assertEqual(self.client.get(root).status_code, 404)
+        self.assertEqual(self.client.post(root, {"texto": "Olá"}).status_code, 404)
+        self.assertEqual(self.client.post(root + "escrita/").status_code, 404)
+        self.assertEqual(self.ask(self.b, self.a).status_code, 404)
+        for suffix in ("conversa/", "audio/", "live/", "call/", "calls/history/"):
+            self.assertEqual(self.client.get(f"/api/minha-conta/matches/{match.pk}/{suffix}").status_code, 404)
+        match.refresh_from_db()
+        self.assertEqual(match.status, "ATIVO")
+        self.assertEqual(MensagemMatch.objects.get(pk=message.pk).texto, "Histórico")

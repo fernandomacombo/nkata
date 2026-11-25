@@ -835,7 +835,7 @@ def conversa_match(request, match_id):
             "perfil_1__usuario",
             "perfil_2__usuario",
         ),
-        chat__isnull=False,
+        chat__estado="ATIVA",
         id=match_id,
         status="ATIVO"
     )

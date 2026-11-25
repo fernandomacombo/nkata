@@ -3,7 +3,7 @@ import { request } from "../services/api.js";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
 
-function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety }) {
+function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed }) {
   const lastTyping = useRef(0);
   const [thread, setThread] = useState(null);
   const [text, setText] = useState("");
@@ -40,6 +40,14 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety }) {
     }
   }
 
+  async function close() {
+    if (!window.confirm("Encerrar esta conversa? Ambos deixarão de poder enviar mensagens.")) return;
+    try {
+      await request(`/api/chats/${id}/encerrar/`, { method: "POST" });
+      onClosed();
+    } catch (err) { setError(err.message); }
+  }
+
   async function remove(messageId) {
     try {
       await request(`/api/chats/${id}/mensagens/${messageId}/`, { method: "DELETE" });
@@ -65,6 +73,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety }) {
     {error && <p role="alert">{error}</p>}
     {thread && <>
       <h2>{thread.nome}</h2>
+      <button type="button" onClick={close}>Encerrar conversa</button>
       {thread.match_id && <button type="button" onClick={() => onLegacy(thread.match_id)}>Áudio, chamadas e histórico completo</button>}
       <ol className="nk-chat-lines">{thread.mensagens.map(message =>
         <li key={message.id}><strong>{message.minha ? "Eu" : thread.nome}</strong>
@@ -85,6 +94,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety }) {
 
 export default function ChatsPage({ conversationId, requestId, onSelect, ...threadProps }) {
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [closedId, setClosedId] = useState(null);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -138,6 +148,6 @@ export default function ChatsPage({ conversationId, requestId, onSelect, ...thre
       {data?.conversas.map(c => <button key={c.id} aria-current={conversationId === c.id ? "page" : undefined}
         onClick={() => onSelect(c.id)}>{c.nome}</button>)}
     </aside>
-    {conversationId && <Thread key={conversationId} id={conversationId} {...threadProps} />}
+    {conversationId && conversationId !== closedId && <Thread key={conversationId} id={conversationId} {...threadProps} onClosed={() => { setClosedId(conversationId); setRevision(value => value + 1); }} />}
     </div></main>;
 }

@@ -744,7 +744,7 @@ def api_encerrar_match(request, match_id):
 
     return Response({
         "ok": True,
-        "message": "A ligação foi encerrada. A conversa deixou de estar disponível.",
+        "message": "O match foi encerrado. A conversa tem gestão independente.",
     })
 
 
@@ -777,6 +777,7 @@ def api_apagar_mensagem(request, match_id, message_id):
 
 @api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
+@transaction.atomic
 def api_conversa_match(request, match_id):
     match = _match_do_utilizador(request, match_id)
 
@@ -784,6 +785,10 @@ def api_conversa_match(request, match_id):
         return Response({"detail": "Conversa não encontrada."}, status=404)
 
     if request.method == "POST":
+        from .models import Conversa
+        chat = Conversa.objects.select_for_update().filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).first()
+        if not chat:
+            return Response({"detail": "Conversa indisponível."}, status=404)
         texto = str(request.data.get("texto", "")).strip()
 
         if not texto:

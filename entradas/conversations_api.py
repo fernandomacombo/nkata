@@ -77,7 +77,7 @@ def send_request(request, profile_id):
         raise NotFound("Perfil indisponível.")
     existing = Conversa.objects.filter(**pair).first()
     if existing:
-        if existing.match_origem_id and existing.match_origem.status != "ATIVO":
+        if existing.estado != Conversa.ESTADO_ATIVA:
             raise NotFound("Conversa indisponível.")
         return Response({"estado": "ACEITE", "conversation_id": existing.pk})
     requests = PedidoConversa.objects.filter(
@@ -130,9 +130,13 @@ def decide_request(request, request_id):
 
 
 def participants(me):
-    return Conversa.objects.filter(Q(perfil_1=me) | Q(perfil_2=me)).filter(
-        Q(match_origem__isnull=True) | Q(match_origem__status="ATIVO")
-    ).select_related("perfil_1__pedido", "perfil_2__pedido", "perfil_1__usuario", "perfil_2__usuario")
+    return Conversa.objects.filter(Q(perfil_1=me) | Q(perfil_2=me),
+                                  estado=Conversa.ESTADO_ATIVA).select_related("perfil_1__pedido", "perfil_2__pedido", "perfil_1__usuario", "perfil_2__usuario")
+
+
+def legacy_match_id(chat):
+    # Legacy audio/call endpoints still require an active Match.
+    return chat.match_origem_id if chat.match_origem_id and chat.match_origem.status == "ATIVO" else None
 
 
 def peer(chat, me):
@@ -147,7 +151,7 @@ def inbox(request):
     for chat in participants(me).order_by("-pk"):
         other = peer(chat, me)
         if available(me, other):
-            chats.append({"id": chat.pk, "nome": other.nome_publico, "match_id": chat.match_origem_id})
+            chats.append({"id": chat.pk, "nome": other.nome_publico, "match_id": legacy_match_id(chat)})
     requests = PedidoConversa.objects.filter(Q(destinatario=me) | Q(remetente=me),
                                                estado="PENDENTE", expira_em__gt=timezone.now())
     pending = []
@@ -166,6 +170,27 @@ def accessible_thread(request, conversation_id):
     if not available(me, other):
         raise NotFound("Conversa indisponível.")
     return chat, me, other
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def close_conversation(request, conversation_id):
+    from .models import MatchPerfil
+    from .call_api import _active_call_for_match
+
+    me = member(request)
+    chat = get_object_or_404(Conversa.objects.filter(Q(perfil_1=me) | Q(perfil_2=me)), pk=conversation_id)
+    # Keep lock order compatible with legacy call creation.
+    if chat.match_origem_id:
+        match = MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
+        if _active_call_for_match(match):
+            return Response({"detail": "Termine a chamada antes de encerrar a conversa."}, status=409)
+    chat = Conversa.objects.select_for_update().get(pk=chat.pk)
+    if chat.estado == Conversa.ESTADO_ATIVA:
+        chat.estado = Conversa.ESTADO_ENCERRADA
+        chat.save(update_fields=["estado"])
+    return Response({"estado": chat.estado})
 
 
 @api_view(["POST"])
@@ -197,7 +222,9 @@ def delete_message(request, conversation_id, message_id):
 
 @transaction.atomic
 def send_message(request, chat, me, other, thread):
-    Conversa.objects.select_for_update().only("pk").get(pk=chat.pk)
+    locked = Conversa.objects.select_for_update().get(pk=chat.pk)
+    if locked.estado != Conversa.ESTADO_ATIVA:
+        raise NotFound("Conversa indisponível.")
     text = request.data.get("texto")
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 1200:
         raise ValidationError({"detail": "Escreva uma mensagem de até 1200 caracteres."})
@@ -210,7 +237,7 @@ def send_message(request, chat, me, other, thread):
         raise ValidationError({"detail": "A mensagem original está indisponível."})
     message = MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, resposta_a_id=reply,
                                            remetente=request.user, texto=text)
-    if not chat.match_origem_id:
+    if not legacy_match_id(chat):
         notify(other, me, "MENSAGEM", f"chat-msg:{chat.pk}", "Nova mensagem",
                f"{me.nome_publico} enviou-lhe uma mensagem.")
     return Response({"id": message.pk}, status=201)
@@ -231,7 +258,7 @@ def messages(request, conversation_id):
     rows = thread.mensagens.select_related("remetente__perfil_nkata").order_by("criado_em", "pk")
     features = plan_for_user(request.user)["features"]
     presets = CHAT_PHRASES[:4] if features.get("chat_presets") and not thread.mensagens.exclude(remetente=request.user).exists() else []
-    return Response({"nome": other.nome_publico, "match_id": chat.match_origem_id,
+    return Response({"nome": other.nome_publico, "match_id": legacy_match_id(chat),
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
                      "texto_livre": features["chat_text"], "frases": presets,
                      "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data})

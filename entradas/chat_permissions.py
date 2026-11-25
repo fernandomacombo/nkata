@@ -22,6 +22,6 @@ class ChatIdentityPermission(BasePermission):
         if chat_requires_identity(request.user):
             return False
         match_id = view.kwargs.get("match_id")
-        if match_id and not Conversa.objects.filter(match_origem_id=match_id).exists():
+        if match_id and not Conversa.objects.filter(match_origem_id=match_id, estado=Conversa.ESTADO_ATIVA).exists():
             raise NotFound("Conversa indisponível.")
         return True

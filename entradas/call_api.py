@@ -42,6 +42,7 @@ def _match_do_utilizador(user, match_id, *, for_update=False):
         Q(perfil_1=perfil) | Q(perfil_2=perfil),
         id=match_id,
         status="ATIVO",
+        chat__estado="ATIVA",
     ).select_related(
         "perfil_1",
         "perfil_1__usuario",
@@ -442,6 +443,8 @@ def api_chamada_recebida(request):
             .filter(
                 Q(match__perfil_1=perfil) | Q(match__perfil_2=perfil),
                 estado=ChamadaMatchNKATA.ESTADO_CHAMANDO,
+                match__chat__estado="ATIVA",
+                match__status="ATIVO",
             )
             .exclude(iniciador=request.user)
             .select_related(
