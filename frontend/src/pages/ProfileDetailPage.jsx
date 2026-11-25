@@ -195,6 +195,7 @@ export default function ProfileDetailPage({
   const [photoIndex, setPhotoIndex] = useState(0);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [bioExpanded, setBioExpanded] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [safetyMode, setSafetyMode] = useState("");
   const [safetyLoading, setSafetyLoading] = useState(false);
@@ -218,7 +219,7 @@ export default function ProfileDetailPage({
     setImageFailed(false);
   }
   useEffect(() => {
-    setPhotoIndex(0); setImageFailed(false); setPhotoOpen(false); setMoreOpen(false);
+    setPhotoIndex(0); setImageFailed(false); setPhotoOpen(false); setMoreOpen(false); setBioExpanded(false);
     setChatError(""); setSignalData(null); setSignalStatus(""); setSignalError("");
   }, [profile?.id]);
   useEffect(() => {
@@ -395,6 +396,14 @@ export default function ProfileDetailPage({
   const quota = signalData?.quota || null;
   const signals = signalData?.signals?.length ? signalData.signals : DEFAULT_SIGNALS;
   const limitReached = Boolean(quota?.limit_reached);
+  const bio = (profile.sobre_si || "").trim();
+  const bioLong = bio.length > 190 || bio.split(/\r?\n/).filter(Boolean).length > 3;
+  const bioLines = bio.split(/\r?\n/).filter(line => line.trim());
+  const bioPreview = bioLong && !bioExpanded ? (bioLines.length > 3 ? bioLines.slice(0,3).join("\n") : bio).slice(0,190).trimEnd() : bio;
+  const ages = profile.preferencias?.ages;
+  const ageRange = Array.isArray(ages) && ages.length === 2 && ages[0] >= 18 && ages[1] >= ages[0];
+  const personalPreferences = { ...(profile.preferencias || {}), ages: undefined };
+  const hasPersonalPreferences = ["height","smoking","drinking","education","occupation"].some(key => personalPreferences[key]) || personalPreferences.pets?.length > 0;
 
   return (
     <main className={`nk-profile-detail nk-profile-redesign nk-profile-detail--theme-${profileTheme}`}>
@@ -437,12 +446,12 @@ export default function ProfileDetailPage({
                 <span className="nk-eyebrow nk-eyebrow--dark">
                   {profile.verificado ? <BadgeCheck size={15}/> : <ShieldCheck size={15}/>} {profile.verificado ? (english ? "Verified profile" : "Perfil verificado") : (english ? "Identity not verified" : "Identidade por verificar")}
                 </span>
-                <h1>{profile.nome_publico}{profile.idade ? `, ${profile.idade}` : ""}</h1>
+                <h1>{profile.nome_publico}{profile.idade ? <span className="nk-profile-intro__age">, {profile.idade}</span> : ""}</h1>
                 <div className="nk-profile-intro__meta">
                   {profile.cidade && <span><MapPin size={17}/>{profile.cidade}</span>}
                   {profile.objetivo_display && <span><Heart size={17}/>{objectiveLabel(profile.objetivo_display, english)}</span>}
                 </div>
-                <p className="nk-profile-intro__bio">{profile.sobre_si || (english ? "No introduction yet." : "Ainda sem apresentação.")}</p>
+                {ageRange && <div className="nk-profile-intro__looking"><UserRound size={17}/><div><small>{english ? "Who I would like to meet" : "Quem gostaria de conhecer"}</small><strong>{ages[0]}–{ages[1]} {english ? "years old" : "anos"}</strong></div></div>}
                 <div className="nk-profile-intro__primary">
                   {onAskChat && !String(profile.id).startsWith("demo-") && <button type="button" className="nk-button nk-button--wine" disabled={askingChat} onClick={askChat}><MessageCircle size={18}/> {askingChat ? (english ? "Sending…" : "A enviar…") : (english ? "Request a chat" : "Pedir conversa")}</button>}
               <button
@@ -482,21 +491,9 @@ export default function ProfileDetailPage({
             {error && <div className="nk-profile-detail__notice">{english ? "Some profile details could not be refreshed." : "Alguns dados deste perfil não foram atualizados."}</div>}
             {safetyStatus && <div className="nk-interest-message is-active" role="status">{safetyStatus}</div>}
 
-            <section className="nk-profile-essentials">
-              <h2>{english ? "Get to know me" : "Conheça-me melhor"}</h2>
-              <ProfilePreferences values={profile.preferencias || {}} english={english}/>
-              <div className="nk-profile-detail__blocks">
-                {profile.o_que_valoriza && <DetailBlock title={english ? "What I value" : "O que valorizo"}>{profile.o_que_valoriza}</DetailBlock>}
-                {profile.o_que_nao_aceita && <DetailBlock title={english ? "What I don't accept" : "O que não aceito"}>{profile.o_que_nao_aceita}</DetailBlock>}
-              </div>
-            </section>
-          </section>
-        </div>
-
             <section className={`nk-profile-signals ${limitReached ? "is-locked" : ""}`}>
               <div className="nk-profile-signals__heading">
                 <div>
-                  <span>{english ? "NKATA signals" : "Sinais NKATA"}</span>
                   <h2>{english ? "Send a signal" : "Enviar um sinal"}</h2>
                   <p>
                     {authenticated && signalData?.identity_blocked ? (english ? "Verify your identity to send signals." : "Verifique a sua identidade para enviar sinais.") : authenticated && quota
@@ -554,7 +551,7 @@ export default function ProfileDetailPage({
                                 : signalData?.identity_blocked
                                   ? (english ? "Unavailable" : "Indisponível")
                                 : quota?.credit_mode
-                                  ? (signal.cost ? `${signal.cost} ${english ? "credits" : "créditos"}` : (english ? "Included" : "Incluído"))
+                                  ? (signal.cost ? `${signal.cost} ${english ? (signal.cost === 1 ? "credit" : "credits") : (signal.cost === 1 ? "crédito" : "créditos")}` : (english ? "Included" : "Incluído"))
                                 : quota?.next_source === "RECHARGE"
                                   ? (english ? "Use top-up" : "Usar recarga")
                                   : (english ? "Send signal" : "Enviar sinal")}
@@ -586,6 +583,24 @@ export default function ProfileDetailPage({
                 </div>
               )}
             </section>
+          </section>
+        </div>
+
+        <section className="nk-profile-essentials nk-profile-essentials--wide">
+          <h2>{english ? "Get to know me" : "Conheça-me melhor"}</h2>
+          <div className="nk-profile-essentials__grid">
+            <section className="nk-profile-detail__block nk-profile-essentials__bio">
+              <span>{english ? "About me" : "Sobre mim"}</span>
+              <p className="nk-profile-intro__bio" id="nk-profile-bio">{bioPreview || (english ? "No introduction yet." : "Ainda sem apresentação.")}{bioLong && !bioExpanded ? "…" : ""}</p>
+              {bioLong && <button type="button" className="nk-profile-bio-toggle" aria-expanded={bioExpanded} aria-controls="nk-profile-bio" onClick={() => setBioExpanded(value => !value)}>{bioExpanded ? (english ? "Read less" : "Ver menos") : (english ? "Read more" : "Ler mais")}</button>}
+            </section>
+            {(profile.o_que_valoriza || profile.o_que_nao_aceita) && <div className="nk-profile-essentials__values">
+              {profile.o_que_valoriza && <DetailBlock title={english ? "What I value" : "O que valorizo"}>{profile.o_que_valoriza}</DetailBlock>}
+              {profile.o_que_nao_aceita && <DetailBlock title={english ? "What I don’t accept" : "O que não aceito"}>{profile.o_que_nao_aceita}</DetailBlock>}
+            </div>}
+            {hasPersonalPreferences && <section className="nk-profile-detail__block nk-profile-essentials__facts"><span>{english ? "Lifestyle" : "Estilo de vida"}</span><ProfilePreferences values={personalPreferences} english={english}/></section>}
+          </div>
+        </section>
 
         <ProfileMoments key={profile.id} items={profile.moments || []} english={english}/>
         <ProfileGallery items={publications} personName={profile.nome_publico} english={english}/>
