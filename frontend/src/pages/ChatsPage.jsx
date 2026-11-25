@@ -8,6 +8,7 @@ import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
 import VoiceRecorder from "../components/chat/VoiceRecorder.jsx";
 import PrivateVoicePlayer from "../components/chat/PrivateVoicePlayer.jsx";
+import CallPanel, { CallActions } from "../components/chat/CallPanel.jsx";
 
 const SIGNAL_ICONS = {OLA:Hand,FLOR:Flower2,BEIJINHO:Heart};
 function SignalIcon({type,size=24}) { const Icon=SIGNAL_ICONS[type] || Sparkles; return <Icon size={size} strokeWidth={1.6} aria-hidden="true"/>; }
@@ -51,7 +52,7 @@ function Avatar({ profile }) {
       role={label ? "img" : undefined} aria-label={label || undefined} title={label || undefined} />}
   </span>;
 }
-function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack, onOpenProfile }) {
+function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack, onOpenProfile, callController }) {
   const lastTyping = useRef(0), scroll = useRef(null), lastId = useRef(null);
   const history = useRef([]), initialized = useRef(false), hasOlder = useRef(false), olderController = useRef(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -248,6 +249,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     <header className="nk-chat-thread-head">
       <button className="nk-chat-icon nk-chat-back" type="button" onClick={onBack} aria-label="Voltar aos chats"><ArrowLeft size={22} /></button>
       {thread && <><Avatar profile={thread.perfil} /><div className="nk-chat-title"><strong>{thread.nome}</strong><small>{thread.a_escrever ? "A escrever..." : presenceLabel || "Conversa privada"}</small></div>
+        <CallActions enabled={callController?.enabled === true && typeof callController.start === "function"} disabled={!safetyAccepted || voiceActive || !!callController?.call} onStart={kind => callController.start(id,kind)}/>
         <div className="nk-chat-menu-wrap"><button className="nk-chat-icon" aria-label="Opções da conversa" aria-expanded={menu} type="button" onClick={() => setMenu(!menu)}><MoreVertical size={22} /></button>
           {menu && <div className="nk-chat-menu">
             {thread.perfil && <button type="button" onClick={() => { setMenu(false); onOpenProfile(thread.perfil); }}>Ver perfil</button>}
@@ -259,6 +261,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           </div>}
         </div></>}
     </header>
+    {callController?.enabled === true && callController.call?.conversationId === id && <CallPanel call={callController.call} onAccept={callController.accept} onDecline={callController.decline} onEnd={callController.end} onDismiss={callController.dismiss} onToggleMic={callController.toggleMic} onToggleCamera={callController.toggleCamera}/>}
     {error && <p className="nk-chat-error" role="alert">{error}</p>}
     {safetyStatus && <p className="nk-chat-placeholder" role="status">{safetyStatus}</p>}
     {!thread && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
