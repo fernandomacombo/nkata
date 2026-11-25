@@ -42,7 +42,7 @@ class FinanceAdminTests(TestCase):
     def test_metrics_exclude_old_plans_and_pending_revenue(self):
         self.login_finance()
         data = self.client.get(self.url).data["metrics"]
-        self.assertEqual(data["settled_revenue_mzn"], "250")
+        self.assertEqual(data["settled_revenue_mzn"], "250.00")
         self.assertEqual(data["settled_count"], 1)
         self.assertEqual(data["pending_count"], 1)
         self.assertEqual(data["total_balance"], 278)

@@ -26,7 +26,7 @@ export default function FinanceAdminPanel() {
       .finally(() => {if(!controller.signal.aborted) setLoading(false);});
     return () => controller.abort();
   },[tab,query,status,offset,version]);
-  const changeTab = next => {setData(null);setTab(next);setDraft("");setQuery("");setStatus("");setOffset(0);};
+  const changeTab = next => {if(next===tab)return;setData(null);setTab(next);setDraft("");setQuery("");setStatus("");setOffset(0);};
   const m = data?.metrics;
   const list = !["overview","catalogue"].includes(tab);
   const wallet = ["wallets","audit"].includes(tab);

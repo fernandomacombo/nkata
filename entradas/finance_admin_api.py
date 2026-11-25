@@ -36,7 +36,7 @@ def _overview():
     return {
         "wallet_count": CarteiraNKATA.objects.count(),
         "total_balance": _sum(CarteiraNKATA.objects.all(), "saldo"),
-        "settled_revenue_mzn": str(_sum(settled, "valor")),
+        "settled_revenue_mzn": f'{_sum(settled, "valor"):.2f}',
         "settled_count": settled.count(),
         "pending_count": orders.filter(estado__in=["CRIADO", "PENDENTE", "INCERTO", "REVISAO"]).count(),
         "review_count": orders.filter(estado="REVISAO").count(),
@@ -86,9 +86,13 @@ def finance(request):
     if section not in SECTIONS:
         return Response({"detail": "Área financeira inválida."}, status=400)
     if section == "overview":
-        return Response({"metrics": _overview(), **_catalogue()})
+        response = Response({"metrics": _overview(), **_catalogue()})
+        response["Cache-Control"] = "private, no-store"
+        return response
     if section == "catalogue":
-        return Response(_catalogue())
+        response = Response(_catalogue())
+        response["Cache-Control"] = "private, no-store"
+        return response
     q = request.query_params.get("q", "").strip()[:120]
     status = request.query_params.get("status", "")
     try:
