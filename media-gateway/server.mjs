@@ -8,6 +8,7 @@ import {SfuRoom} from "./sfu-room.mjs";
 import {attachSignalling} from "./signalling.mjs";
 
 const config=readConfig(process.env);
+if(typeof process.send!=="function"||!process.connected)throw Error("Start via the independent media supervisor");
 const worker=await createWorker({logLevel:"warn"});
 const webRtcServer=await worker.createWebRtcServer({listenInfos:["udp","tcp"].map(protocol=>({
  protocol,ip:"0.0.0.0",announcedAddress:config.announcedAddress,port:config.mediaPort
@@ -38,9 +39,18 @@ server.on("upgrade",(req,socket,head)=>{
  }
  wss.handleUpgrade(req,socket,head,ws=>wss.emit("connection",ws,req));
 });
-let stopping=false;
+let stopping=false,checkingWorker=false;
+// Heartbeat requires a responsive native worker, not merely a responsive Node loop.
+const heartbeat=setInterval(async()=>{
+ if(stopping||checkingWorker)return;
+ checkingWorker=true;
+ try{await worker.dump();if(!stopping&&process.connected)process.send({type:"media-heartbeat"});}
+ catch{shutdown(1);}
+ finally{checkingWorker=false;}
+},250);
+process.on("disconnect",()=>shutdown(1));
 function shutdown(code){
- if(stopping)return;stopping=true;
+ if(stopping)return;stopping=true;clearInterval(heartbeat);
  try{control.close();for(const ws of wss.clients)ws.terminate();wss.close();worker.close();server.close();}finally{process.exit(code);}
 }
 worker.on("died",()=>shutdown(1));
