@@ -363,3 +363,36 @@ class ConversationTests(TestCase):
             response = self.client.post(f"/api/chats/{chat.pk}/", {"texto": CHAT_PHRASES[0], "resposta_a": original.pk}, content_type="application/json")
         self.assertEqual(response.status_code, 403)
         self.assertEqual(MensagemMatch.objects.filter(conversa=chat).count(), 1)
+
+    def test_legacy_routes_reject_revoked_peer_including_media(self):
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        self.b.pedido.identidade_revogada = True
+        self.b.pedido.save(update_fields=["identidade_revogada"])
+        self.client.force_login(self.a.usuario)
+        root = f"/api/minha-conta/matches/{match.pk}/"
+        for suffix in ("conversa/", "audio/", "audio/1/media/", "live/", "call/", "calls/history/"):
+            self.assertEqual(self.client.get(root + suffix).status_code, 404, suffix)
+        self.assertEqual(self.client.get(f"/api/chats/{match.chat.pk}/").status_code, 404)
+
+    def test_legacy_routes_reject_block_even_if_match_remains_active(self):
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        AcaoPerfil.objects.create(usuario=self.b.usuario, perfil=self.a, tipo="BLOQUEIO")
+        for actor in (self.a, self.b):
+            self.client.force_login(actor.usuario)
+            for suffix in ("conversa/", "audio/", "live/", "call/", "calls/history/"):
+                self.assertEqual(self.client.get(f"/api/minha-conta/matches/{match.pk}/{suffix}").status_code, 404)
+
+    def test_legacy_presets_cannot_reply_without_text_plan(self):
+        from .plan_service import CHAT_PHRASES
+
+        match = historical_match(perfil_1=self.a, perfil_2=self.b)
+        message = MensagemMatch.objects.create(match=match, conversa=match.chat, remetente=self.a.usuario, texto="Olá")
+        self.client.force_login(self.a.usuario)
+        with patch("entradas.api_views.can_send_chat_text", return_value=True), patch(
+            "entradas.api_views.plan_for_user", return_value={"features": {"chat_text": False, "chat_presets": True}}
+        ):
+            response = self.client.post(f"/api/minha-conta/matches/{match.pk}/conversa/",
+                                        {"texto": CHAT_PHRASES[0], "resposta_a": message.pk},
+                                        content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(MensagemMatch.objects.count(), 1)

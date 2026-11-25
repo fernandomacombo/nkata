@@ -1,4 +1,4 @@
-from .chat_permissions import IDENTITY_REQUIRED_MESSAGE, chat_requires_identity
+from .chat_permissions import IDENTITY_REQUIRED_MESSAGE, chat_requires_identity, legacy_chat_allowed
 from .plan_service import can_send_chat_text
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -842,7 +842,7 @@ def conversa_match(request, match_id):
         status="ATIVO"
     )
 
-    if not usuario_tem_acesso_ao_match(request.user, match):
+    if not usuario_tem_acesso_ao_match(request.user, match) or not legacy_chat_allowed(request.user, match):
         return render(request, "entradas/perfil_acesso_negado.html", {
             "perfil": perfil
         })
@@ -853,6 +853,9 @@ def conversa_match(request, match_id):
         from .models import Conversa
         MatchPerfil.objects.select_for_update().get(pk=match.pk)
         if not Conversa.objects.select_for_update().filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).first():
+            return JsonResponse({"detail": "Conversa indisponível."}, status=404)
+        match.refresh_from_db()
+        if not legacy_chat_allowed(request.user, match):
             return JsonResponse({"detail": "Conversa indisponível."}, status=404)
         texto = request.POST.get("texto", "").strip()
 

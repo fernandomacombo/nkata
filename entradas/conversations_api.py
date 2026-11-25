@@ -12,7 +12,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .api_views import _bloqueio_entre_perfis
+from .chat_permissions import chat_pair_allowed
 from .identity_models import pedido_tem_identidade_verificada
 from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PedidoConversa, PerfilNKATA
 from .profile_media_api import profile_photo_url
@@ -33,10 +33,7 @@ def member(request):
 
 
 def available(me, other):
-    return (other.status == "ATIVO" and other.usuario_id and other.usuario.is_active
-            and not other.usuario.is_staff and not other.usuario.is_superuser
-            and pedido_tem_identidade_verificada(other.pedido)
-            and not _bloqueio_entre_perfis(me, other))
+    return chat_pair_allowed(me, other)
 
 
 def lock_pair(me, other_id):
@@ -47,7 +44,8 @@ def lock_pair(me, other_id):
     if len(profiles) != 2:
         raise NotFound("Perfil indisponível.")
     other = next(profile for profile in profiles if profile.pk != me.pk)
-    if not available(me, other):
+    current = next(profile for profile in profiles if profile.pk == me.pk)
+    if not available(current, other):
         raise NotFound("Perfil indisponível.")
     return other, {"perfil_1": profiles[0], "perfil_2": profiles[1]}
 
