@@ -94,3 +94,21 @@ test("missing watchdog acknowledgement prevents resume",async()=>{
   authorize:async()=>61000,watchdog:{arm:async()=>{throw Error("IPC");}}});
  await gate.tick();assert.equal(resumed,0);assert.equal(closed,1);
 });
+
+
+test("lost authorization reply reconciles only a minute not resumed",async()=>{
+ let reports=[],resumed=0;
+ const gate=new LeaseGate({sessionId:"s",userIds:[1,2],clock:()=>1000,schedule:()=>1,cancel:()=>{},
+  connected:()=>true,consumers:()=>[{pause:async()=>{},resume:async()=>resumed++}],
+  closeTransport:()=>{},authorize:async()=>{throw Error("response lost");},
+  reconcile:async report=>{reports.push(report);return true;}});
+ await gate.tick();await gate.stop();
+ assert.equal(resumed,0);assert.deepEqual(reports,[{sessionId:"s",userIds:[1,2],minute:1}]);
+});
+test("ambiguous failure during resume never triggers automatic refund",async()=>{
+ let reports=0;
+ const gate=new LeaseGate({sessionId:"s",userIds:[1,2],clock:()=>1000,schedule:()=>1,cancel:()=>{},
+  connected:()=>true,consumers:()=>[{pause:async()=>{},resume:async()=>{throw Error("partial resume");}}],
+  closeTransport:()=>{},authorize:async()=>61000,reconcile:async()=>{reports++;return true;}});
+ await gate.tick();assert.equal(gate.closed,true);assert.equal(reports,0);
+});
