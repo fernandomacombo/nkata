@@ -73,3 +73,16 @@ O agendamento Linux não oferece garantias de tempo real; medir a latência
 real de corte e testar falhas de IPC antes de publicar. Uma falha numa sala
 pode interromper todas as chamadas do grupo; ainda não existe isolamento
 por processo por chamada.
+
+
+## Reconciliação financeira experimental
+O gateway informa o Django, por pedido HMAC, somente se a tentativa de autorização
+terminou sem invocar resume nesse minuto. A sessão é encerrada sob o mesmo bloqueio
+transaccional da cobrança. Se houve débito, cria-se um movimento ESTORNO separado,
+com chave idempotente; se o pedido de débito ainda não chegou, o encerramento impede
+a cobrança tardia. O índice do minuto e o débito original não são modificados.
+Falhas durante/após resume, perda integral do processo e ausência de confirmação
+de entrega são casos ambíguos, não elegíveis para estorno automático por este fluxo.
+As três tentativas de envio não substituem uma fila persistente. Falhas de envio
+geram media_reconciliation_required; antes de produção é necessário registo
+durável de activação e fila de revisão financeira. Não foram usados créditos reais.
