@@ -18,3 +18,12 @@ Documentação: https://mediasoup.org/documentation/v3/communication-between-cli
 - O servidor WebRTC escuta UDP e TCP na porta 44444 (NKATA_MEDIA_PORT); abrir exclusivamente as portas necessárias no host de testes. TURN com credenciais temporárias e cliente de media ainda pendentes.
 - npm test; npm start. O teste unitário não substitui um ensaio de transmissão RTP real com dois dispositivos.
 - Apenas créditos simulados. O runtime exige RTP de cada produtor antes da primeira autorização, mas isso não comprova que o destinatário ouviu ou viu a chamada. Ainda falta watchdog fora do processo Node, revogação e reconciliação financeira em falhas.
+
+
+## Relay STUN/TURN experimental
+- Endpoint autenticado POST /api/chats/chamadas/<uuid>/ice/ (apenas chamada ACEITE, participantes autorizados, HTTPS, staging isolado). Devolve ice_servers e expires_at; não consome créditos.
+- Configurar NKATA_WEBRTC_TURN_SHARED_SECRET com segredo aleatório independente (mínimo 32 caracteres), igual ao static-auth-secret do coturn. Nunca partilhar com o gateway HMAC.
+- NKATA_WEBRTC_TURN_URLS deve incluir turns: com TLS, mais turn: UDP/TCP conforme a rede. O novo endpoint não aceita credenciais estáticas nem funciona sem TURN configurado.
+- O username inclui expiração, sessão e utilizador; a validade cobre o limite máximo acordado mais cinco minutos. TURN não interpreta a sessão NKATA nem revoga automaticamente alocações activas quando a chamada termina. O SFU deve fechar o transporte; o relay deve restringir destinos, quotas e tráfego.
+- O ficheiro coturn.staging.conf.example é um modelo não executável até substituir os marcadores e validar a versão instalada. Restringir egress exclusivamente ao IP/porta do SFU de staging, incluindo IPv6; não expor redes internas. TLS válido e sincronização NTP obrigatórios.
+- Testar UDP e TURN/TLS TCP, incluindo iceTransportPolicy=relay no cliente de testes. Verificar os pares ICE seleccionados, áudio/vídeo, desconexão e fim de saldo. Nenhum servidor TURN foi instalado nesta etapa.
