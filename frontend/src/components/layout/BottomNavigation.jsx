@@ -1,6 +1,6 @@
 import {
   CirclePlay,
-  HeartHandshake,
+  MessageCircle,
   Home,
   Search,
   UserRound,
@@ -10,14 +10,13 @@ const items = [
   { id: "home", label: { PT: "Início", EN: "Home" }, icon: Home },
   { id: "discover", label: { PT: "Perfis", EN: "Profiles" }, icon: Search },
   { id: "moments", label: { PT: "Momentos", EN: "Moments" }, icon: CirclePlay },
-  { id: "matches", label: { PT: "Matches", EN: "Matches" }, icon: HeartHandshake },
+  { id: "chats", label: { PT: "Chats", EN: "Chats" }, icon: MessageCircle },
   { id: "account", label: { PT: "Conta", EN: "Account" }, icon: UserRound },
 ];
 
 export default function BottomNavigation({
   activePage,
   onNavigate,
-  unreadMatches = 0,
   language = "PT",
 }) {
   const english = language === "EN";
@@ -26,7 +25,7 @@ export default function BottomNavigation({
       {items.map((item) => {
         const Icon = item.icon;
         const active = activePage === item.id;
-        const badgeCount = item.id === "matches" ? unreadMatches : 0;
+        const badgeCount = 0;
 
         return (
           <button

@@ -49,7 +49,7 @@ const MOBILE_BACK_DESTINATIONS = {
   notifications: "home",
   admin: "home",
 };
-const MOBILE_BACK_SAFE_ORIGINS = ["home", "discover", "moments", "matches", "account"];
+const MOBILE_BACK_SAFE_ORIGINS = ["home", "discover", "moments", "matches", "chats", "account"];
 
 export default function App() {
   const {
@@ -960,7 +960,6 @@ export default function App() {
         <BottomNavigation
           activePage={visiblePage}
           onNavigate={handleNavigate}
-          unreadMatches={totalUnread}
           language={preferences.idioma}
         />
       )}

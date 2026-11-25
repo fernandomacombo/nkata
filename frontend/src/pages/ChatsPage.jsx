@@ -37,6 +37,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   const [thread, setThread] = useState(null), [text, setText] = useState(""), [error, setError] = useState("");
   const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
   const [menu, setMenu] = useState(false);
+  const [messageMenu, setMessageMenu] = useState(null);
   const { label: presenceLabel } = usePresence(thread?.perfil?.id);
   function mergePage(result) {
     const merged = new Map(history.current.map(message => [message.id, message]));
@@ -185,24 +186,28 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
             {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem anterior ou indisponível"}</blockquote>}
             <p>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
             <div className="nk-chat-meta"><time dateTime={message.criado_em}>{stamp(message.criado_em)}</time>
-              {message.minha && (message.lida ? <CheckCheck size={15} aria-label="Lida" /> : <Check size={15} aria-label="Enviada" />)}</div>
-            {!message.apagada_em && <div className="nk-chat-message-actions">
-              {thread.texto_livre && <button type="button" onClick={() => setReply(message)}>Responder</button>}
-              {message.minha && <button type="button" onClick={() => remove(message.id)}>Apagar</button>}
-            </div>}
+              {message.minha && (message.lida ? <CheckCheck size={14} aria-label="Lida" /> : <Check size={14} aria-label="Enviada" />)}</div>
+            
           </div>
+          {!message.apagada_em && (thread.texto_livre || message.minha) && <div className="nk-chat-action-wrap">
+            <button type="button" className="nk-chat-message-trigger" aria-label="Opções da mensagem" aria-expanded={messageMenu === message.id} onClick={() => setMessageMenu(v => v === message.id ? null : message.id)}><MoreVertical size={17}/></button>
+            {messageMenu === message.id && <div className="nk-chat-message-menu">
+              {thread.texto_livre && <button type="button" onClick={() => { setReply(message); setMessageMenu(null); }}>Responder</button>}
+              {message.minha && <button type="button" onClick={() => { setMessageMenu(null); remove(message.id); }}>Apagar</button>}
+            </div>}
+          </div>}
         </li>)}
       </ol>
       {thread.a_escrever && <p className="nk-chat-typing" role="status">{thread.nome} está a escrever...</p>}
       <form className="nk-chat-compose" onSubmit={send}>
-        {reply && <div className="nk-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
+        {reply && <div className="nk-independent-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
         {thread.texto_livre || thread.frases.length ? <div className="nk-chat-compose-line">
-          {thread.texto_livre ? <textarea aria-label="Mensagem" placeholder="Escrever mensagem..." rows={2} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :
+          {thread.texto_livre ? <textarea aria-label="Mensagem" placeholder="Escrever mensagem..." rows={1} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :
             <select aria-label="Mensagem predefinida" value={text} onChange={e => setText(e.target.value)}><option value="">Escolher mensagem</option>{thread.frases.map(phrase => <option key={phrase}>{phrase}</option>)}</select>}
           <button type="submit" className="nk-chat-send" aria-label="Enviar mensagem" disabled={sending || !text.trim() || !safetyAccepted}><Send size={20} /></button>
         </div> : <p>Active um pacote com chat para responder. <a href="/conta/?section=plan">Ver pacotes</a></p>}
       </form>
-      {!safetyAccepted && <ChatSafetyNotice name={thread.nome} onAccept={onAcceptSafety} />}
+      {!safetyAccepted && <ChatSafetyNotice name={thread.nome} onAccept={onAcceptSafety} onExit={onBack} />}
     </>}
   </section>;
 }
@@ -248,7 +253,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   }, [requestId, selectedRequest?.id, selectedRequest?.recebido]);
   async function decide(id, decisao) {
     setBusy(true); setError("");
-    try { const result = await request(`/api/chats/pedidos/${id}/`, { method: "POST", body: { decisao } }); if (result.conversation_id) onSelect(result.conversation_id); }
+    try { const result = await request(`/api/chats/pedidos/${id}/`, { method: "POST", body: { decisao } }); if (result.conversation_id) { setTab("all"); setQuery(""); onSelect(result.conversation_id); } }
     catch (err) { setError(err.message); }
     finally { setBusy(false); setRevision(v => v + 1); }
   }
@@ -268,7 +273,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   const visibleRequests = (tab === "received" ? received : sent).filter(p => matches(p.nome));
   const visibleHistory = history.filter(p => p.recebido === (tab === "received") && matches(p.nome));
   const connections = (data?.conexoes || []).filter(c => matches(c.nome));
-  function chooseTab(key) { setTab(key); if (conversationId || requestId) onBack(); }
+  function chooseTab(key) { setTab(key); if (requestId || (conversationId && key !== "all" && key !== "unread")) onBack(); }
   const showChats = tab === "all" || tab === "unread";
   return <main className="nk-shell nk-chats-page">
     <div className={"nk-chats-layout" + (conversationId ? " has-thread" : "")}>
@@ -293,7 +298,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
         </div>
       </aside>
       {conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} onBack={onBack} onOpenProfile={onOpenProfile} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
-        <section className="nk-chat-welcome"><MessageCircle size={46} strokeWidth={1.4} /><h2>Uma boa conversa começa aqui</h2><p>Escolha uma conversa ou conheça alguém novo.</p><button className="nk-chat-primary" onClick={onDiscover}>Explorar perfis</button></section>}
+        <section className="nk-chat-empty-panel"><MessageCircle size={46} strokeWidth={1.4} /><h2>Uma boa conversa começa aqui</h2><p>Escolha uma conversa ou conheça alguém novo.</p><button className="nk-chat-primary" onClick={onDiscover}>Explorar perfis</button></section>}
     </div>
   </main>;
 }

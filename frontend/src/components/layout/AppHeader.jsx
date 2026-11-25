@@ -360,13 +360,14 @@ export default function AppHeader({
                   onClick={() => navigate("matches")}
                 >
                   <span><HeartHandshake size={19} /></span>
-                  <div><strong>Matches</strong><small>{tr("Conversas e ligações", "Chats and calls")}</small></div>
+                  <div><strong>Matches</strong><small>{tr("Interesses mútuos", "Mutual interests")}</small></div>
                   {unreadMatches > 0 && <em>{unreadMatches > 99 ? "99+" : unreadMatches}</em>}
                 </button>
               )}
-          {member && <button type="button" className={activePage === "chats" ? "is-active" : ""} onClick={() => navigate("chats")}>
-            <MessageCircle size={18} aria-hidden="true" /> Chats
-          </button>}
+              {member && <button type="button" className={activePage === "chats" ? "is-active" : ""} onClick={() => navigate("chats")}>
+                <span><MessageCircle size={19} /></span>
+                <div><strong>Chats</strong><small>{tr("Conversas e pedidos", "Chats and requests")}</small></div>
+              </button>}
 
               {member && (
                 <button

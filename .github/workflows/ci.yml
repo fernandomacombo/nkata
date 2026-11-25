@@ -98,3 +98,9 @@ jobs:
       - run: npm run test:nkata-id
       - run: npm run build
       - run: npm audit --audit-level=high
+      - name: Instalar navegadores de teste
+        run: |
+          npm install --no-save --package-lock=false playwright@1.58.2
+          npx playwright install --with-deps chromium webkit
+      - name: Validar usabilidade dos Chats em Chromium e WebKit
+        run: node scripts/test-chats-browser.mjs

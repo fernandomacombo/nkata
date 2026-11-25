@@ -209,15 +209,15 @@ function MessageBubble({ message, english, onDelete, onReply, original }) {
   );
 }
 
-export function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
+export function ChatSafetyNotice({ english, onAccept, name, helpOnly, onExit }) {
   const dialog = useRef(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const element = dialog.current;
-    element.showModal();
-    return () => element.close();
+    if (element && !element.open) element.showModal();
+    return () => { if (element?.open) element.close(); };
   }, []);
 
   async function confirm() {
@@ -233,7 +233,7 @@ export function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
 
   return (
     <dialog ref={dialog} className="nk-chat-welcome" aria-labelledby="chat-warning-title"
-      aria-describedby="chat-warning-text" onCancel={(event) => event.preventDefault()}>
+      aria-describedby="chat-warning-text" onCancel={(event) => { event.preventDefault(); onExit?.(); }}>
       <ShieldCheck size={34} aria-hidden="true" />
       {name && <p className="nk-chat-recipient">{english ? "Your conversation with" : "A sua conversa com"} <strong>{name}</strong></p>}
       <h2 id="chat-warning-title">{english ? "Before you say hello" : "Antes do primeiro olá"}</h2>
@@ -256,7 +256,10 @@ export function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
         ]).map(step => <li key={step}>{step}</li>)}</ol>
       </details>
       {failed && <p role="alert">{english ? "Could not save. Please try again." : "Não foi possível guardar. Tente novamente."}</p>}
-      <button autoFocus className="nk-button nk-button--wine" disabled={saving} onClick={confirm}>{saving ? "…" : "OK"}</button>
+      <div className="nk-chat-safety-actions">
+        <button autoFocus type="button" className="nk-button nk-button--wine" disabled={saving} onClick={confirm}>{saving ? "…" : "OK"}</button>
+        {onExit && <button type="button" className="nk-button" onClick={onExit}>{english ? "Leave conversation" : "Sair da conversa"}</button>}
+      </div>
     </dialog>
   );
 }
