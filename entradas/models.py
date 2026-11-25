@@ -576,3 +576,29 @@ class NotaVozConversaNKATA(models.Model):
     movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="nota_voz_conversa")
     audio = models.FileField(storage=private_content_storage, upload_to="chat-native/%Y/%m/%d/")
     duracao_segundos = models.PositiveSmallIntegerField()
+
+
+class ChamadaConversaCreditoNKATA(models.Model):
+    """Internal session for a future trusted media gateway; no browser billing."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversa = models.ForeignKey(Conversa, on_delete=models.PROTECT, related_name="chamadas_credito")
+    iniciador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="chamadas_credito_iniciadas")
+    destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="chamadas_credito_recebidas")
+    chave = models.UUIDField()
+    tipo = models.CharField(max_length=5, choices=[("AUDIO","Áudio"),("VIDEO","Vídeo")])
+    estado = models.CharField(max_length=12, default="CHAMANDO", choices=[(s,s) for s in ("CHAMANDO","ACEITE","ATIVA","TERMINADA","RECUSADA","EXPIRADA")])
+    custo_minuto = models.PositiveSmallIntegerField()
+    max_minutos = models.PositiveSmallIntegerField()
+    minutos_pagos = models.PositiveSmallIntegerField(default=0)
+    expira_em = models.DateTimeField()
+    pago_ate = models.DateTimeField(null=True, blank=True)
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["iniciador","chave"],name="nk_call_native_key"),
+            models.CheckConstraint(condition=~models.Q(iniciador=models.F("destinatario")),name="nk_call_native_distinct"),
+            models.CheckConstraint(condition=models.Q(max_minutos__gte=1,max_minutos__lte=120,minutos_pagos__lte=models.F("max_minutos")),name="nk_call_native_minutes"),
+            models.CheckConstraint(condition=models.Q(tipo="AUDIO",custo_minuto=3)|models.Q(tipo="VIDEO",custo_minuto=5),name="nk_call_native_rate"),
+            models.CheckConstraint(condition=models.Q(minutos_pagos=0,pago_ate__isnull=True)|models.Q(minutos_pagos__gt=0,pago_ate__isnull=False),name="nk_call_native_lease"),
+        ]

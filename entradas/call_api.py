@@ -14,6 +14,7 @@ from .call_models import ChamadaMatchNKATA, SinalChamadaNKATA
 from .profile_media_api import profile_photo_url
 from .models import MatchPerfil
 from .plan_service import plan_for_user
+from .legacy_commercial import credit_only_enabled
 from .webrtc_credentials import ice_servers_for_user
 from .user_roles import active_member_profile_for_user
 
@@ -201,6 +202,11 @@ def _call_setup_required_response():
 @permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 @transaction.atomic
 def api_chamada_match(request, match_id):
+    if credit_only_enabled():
+        # The legacy peer-to-peer signalling API must not bypass media leases.
+        if request.method == "GET":
+            return Response({"call":None,"signals":[],"ice_servers":[],"setup_required":False})
+        return Response({"detail":"Chamadas temporariamente indisponíveis.","code":"managed_media_required"},status=403)
     match = _match_do_utilizador(request.user, match_id)
     if not match:
         return Response({"detail": "Conversa não encontrada."}, status=404)
@@ -436,6 +442,8 @@ def api_chamada_match(request, match_id):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 def api_chamada_recebida(request):
+    if credit_only_enabled():
+        return Response({"call":None,"setup_required":False})
     perfil = _perfil_do_utilizador(request.user)
     if not perfil:
         return Response({"call": None, "setup_required": False})

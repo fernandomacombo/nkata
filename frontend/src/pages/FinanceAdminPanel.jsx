@@ -55,7 +55,7 @@ export default function FinanceAdminPanel() {
       <p>Vendas de créditos: {data.checkout_configured?"configuradas":"desativadas"} · Consumo: {data.spending_enabled?"ativo":"desativado"} · Chamadas por créditos: ainda não disponíveis.</p>
       <div className="nk-finance-metrics">{data.catalogue.packs.map(p=><article className="nk-admin-card" key={p.code}><small>{p.label}</small><strong>{fmt(p.credits)} créditos</strong><span>{money(p.price_mzn)}</span>{p.bonus>0 && <small>Inclui {p.bonus} de bónus</small>}</article>)}</div>
       <h3>Tarifário central</h3>
-      <div className="nk-finance-table"><table><thead><tr><th>Funcionalidade</th><th>Custo</th></tr></thead><tbody>{data.catalogue.actions.map(a=><tr key={a.code}><td>{a.label}</td><td>{a.credits===0?"Grátis, com limite":a.credits+" crédito"+(a.credits===1?"":"s")+(a.unit==="minute"?"/min":a.unit==="24h"?"/24 h":"")}</td></tr>)}</tbody></table></div>
+      <div className="nk-finance-table"><table><thead><tr><th>Funcionalidade</th><th>Custo</th></tr></thead><tbody>{data.catalogue.actions.map(a=><tr key={a.code}><td>{a.label}{a.available===false && <small> · Em breve</small>}</td><td>{a.credits===0?"Grátis, com limite":a.credits+" crédito"+(a.credits===1?"":"s")+(a.unit==="minute"?"/min":a.unit==="24h"?"/24 h":"")}</td></tr>)}</tbody></table></div>
       <p>Bónus de boas-vindas: {data.catalogue.welcome_credits} créditos, uma única vez após verificação. Catálogo de consulta, sem edição de preços.</p>
     </>}
     {!loading && !error && list && data && <>
