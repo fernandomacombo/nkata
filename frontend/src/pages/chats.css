@@ -98,3 +98,15 @@
 .nk-chat-load-older { align-self: center; }
 .nk-chat-load-older button { border: 1px solid var(--chat-line); border-radius: 18px; background: #fff; color: var(--chat-wine); padding: 8px 14px; cursor: pointer; }
 .nk-chat-load-older button:disabled { opacity: .6; }
+
+.nk-chat-extras-head { display:flex; justify-content:flex-start; margin-bottom:4px; }
+.nk-chat-extras-toggle { display:inline-flex; align-items:center; gap:5px; border:0; background:none; color:var(--chat-wine); cursor:pointer; padding:7px 4px; font-size:.82rem; }
+.nk-chat-extras { display:grid; gap:7px; max-height:min(36dvh,280px); overflow:auto; padding:10px; border:1px solid var(--chat-line); background:var(--chat-soft); border-radius:12px; margin-bottom:8px; }
+.nk-chat-extras small { color:var(--chat-muted); }
+.nk-chat-signal-buttons { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.nk-chat-signal-buttons button,.nk-chat-icebreaker { border:1px solid var(--chat-line); border-radius:9px; color:var(--chat-wine); background:white; padding:8px; font-size:.84rem; cursor:pointer; }
+.nk-chat-signal-buttons button { display:grid; justify-items:center; gap:4px; }
+.nk-chat-signal-buttons button span,.nk-chat-signal-art { font-size:1.6rem; }
+.nk-chat-icebreaker { display:flex; align-items:center; text-align:left; justify-content:space-between; gap:8px; }
+.nk-chat-extras button:disabled { opacity:.5; cursor:not-allowed; }
+.nk-chat-extra-label { display:flex; flex:0 0 100%; align-items:center; gap:5px; font-size:.74rem; opacity:.85; }

@@ -8,8 +8,9 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .models import AcaoPerfil, PerfilNKATA
-from .credit_catalog import SIGNAL_DEFINITIONS
+from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PerfilNKATA
+from .chat_permissions import chat_pair_allowed
+from .credit_catalog import SIGNAL_DEFINITIONS, SIGNAL_CHAT_TEXT
 from .plan_service import (
     PLAN_DEFINITIONS,
     PLAN_SIGNAL_PREFIX,
@@ -123,7 +124,11 @@ def api_sinais_perfil(request, perfil_id):
     if request.method == "GET":
         return Response(_availability_payload(request.user, perfil_alvo))
 
-    raw_type = str(request.data.get("tipo", "")).strip().upper()
+    return send_signal(request.user, perfil_atual, perfil_alvo, request.data.get("tipo", ""))
+
+
+def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None):
+    raw_type = str(raw_type).strip().upper()
     definition = SIGNAL_DEFINITIONS.get(raw_type)
     if not definition:
         return Response(
@@ -134,9 +139,25 @@ def api_sinais_perfil(request, perfil_id):
     with transaction.atomic():
         # Serializa envios concorrentes da mesma conta em bases que suportam
         # row locking. Em SQLite a escrita continua protegida pela transação.
-        User.objects.select_for_update().get(pk=request.user.pk)
+        profiles = list(PerfilNKATA.objects.select_for_update().filter(pk__in=[perfil_atual.pk, perfil_alvo.pk]).order_by("pk"))
+        if len(profiles) != 2:
+            return Response({"detail": "Perfil indisponível."}, status=404)
+        perfil_atual = next(p for p in profiles if p.pk == perfil_atual.pk)
+        perfil_alvo = next(p for p in profiles if p.pk != perfil_atual.pk)
+        if perfil_atual.status != "ATIVO" or perfil_alvo.status != "ATIVO" or not perfil_alvo.visivel or _bloqueio_entre_perfis(perfil_atual, perfil_alvo):
+            return Response({"detail": "Esta interação não está disponível."}, status=403)
+        User.objects.select_for_update().get(pk=user.pk)
+        chat = None
+        if chat_pair_allowed(perfil_atual, perfil_alvo):
+            candidate = Conversa.objects.filter(perfil_1=profiles[0], perfil_2=profiles[1], estado=Conversa.ESTADO_ATIVA).first()
+            if candidate:
+                if candidate.match_origem_id:
+                    MatchPerfil.objects.select_for_update().get(pk=candidate.match_origem_id)
+                chat = Conversa.objects.select_for_update().filter(pk=candidate.pk, estado=Conversa.ESTADO_ATIVA).first()
+        if conversation_id is not None and (not chat or chat.pk != conversation_id):
+            return Response({"detail": "Conversa indisponível."}, status=404)
 
-        today_qs = _signals_today(request.user)
+        today_qs = _signals_today(user)
         already_sent = today_qs.filter(
             perfil=perfil_alvo,
             tipo=definition["db_type"],
@@ -146,12 +167,12 @@ def api_sinais_perfil(request, perfil_id):
                 {
                     "detail": f"Já enviou {definition['label']} para este perfil hoje.",
                     "code": "signal_already_sent_today",
-                    **_availability_payload(request.user, perfil_alvo),
+                    **_availability_payload(user, perfil_alvo),
                 },
                 status=409,
             )
 
-        quota = signal_quota_for_user(request.user, sent_today=today_qs.count())
+        quota = signal_quota_for_user(user, sent_today=today_qs.count())
         source = quota.get("next_source")
         if not source:
             return Response(
@@ -167,17 +188,20 @@ def api_sinais_perfil(request, perfil_id):
             )
 
         prefix = PLAN_SIGNAL_PREFIX if source == "PLAN" else RECHARGE_SIGNAL_PREFIX
-        AcaoPerfil.objects.create(
+        action = AcaoPerfil.objects.create(
             perfil=perfil_alvo,
-            usuario=request.user,
+            usuario=user,
             tipo=definition["db_type"],
             session_key=(
-                f"{prefix}{request.user.pk}:{timezone.localdate():%Y%m%d}:"
+                f"{prefix}{user.pk}:{timezone.localdate():%Y%m%d}:"
                 f"{uuid.uuid4().hex[:16]}"
             ),
         )
+        if chat:
+            MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, remetente=user,
+                tipo="SINAL", sinal_origem=action, texto=SIGNAL_CHAT_TEXT[raw_type])
 
-    payload = _availability_payload(request.user, perfil_alvo)
+    payload = _availability_payload(user, perfil_alvo)
     return Response(
         {
             "ok": True,

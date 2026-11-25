@@ -300,6 +300,11 @@ class MinhaContaSerializer(serializers.ModelSerializer):
 
 
 class MensagemMatchSerializer(serializers.ModelSerializer):
+    sinal = serializers.SerializerMethodField()
+
+    def get_sinal(self, obj):
+        return obj.sinal_origem.tipo.removeprefix("SINAL_") if obj.sinal_origem_id and not obj.apagada_em else None
+
     remetente_id = serializers.IntegerField(source="remetente.id", read_only=True)
     remetente_nome = serializers.SerializerMethodField()
     minha = serializers.SerializerMethodField()
@@ -312,6 +317,8 @@ class MensagemMatchSerializer(serializers.ModelSerializer):
             "remetente_id",
             "remetente_nome",
             "texto",
+            "tipo",
+            "sinal",
             "apagada_em",
             "resposta_a",
             "lida",

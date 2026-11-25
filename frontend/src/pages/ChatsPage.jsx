@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Reply, Search, Send, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Clock, HeartHandshake, MessageCircle, MoreVertical, Reply, Search, Send, ShieldCheck, Sparkles, Trash2, UserRound, X, Plus } from "lucide-react";
 import { request, blockProfile, reportProfile } from "../services/api.js";
 import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import { usePresence } from "../components/profiles/Presence.jsx";
@@ -56,6 +56,14 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   const [reply, setReply] = useState(null), [sending, setSending] = useState(false), [revision, setRevision] = useState(0);
   const [menu, setMenu] = useState(false);
   const [messageMenu, setMessageMenu] = useState(null);
+  const [extrasOpen, setExtrasOpen] = useState(false), [extraBusy, setExtraBusy] = useState(false);
+  async function sendExtra(kind, body) {
+    if (extraBusy || !safetyAccepted) return;
+    setExtraBusy(true); setError("");
+    try { await request(`/api/chats/${id}/${kind}/`, {method:"POST", body}); setExtrasOpen(false); setRevision(v => v+1); }
+    catch(err) { setError(err.message); }
+    finally { setExtraBusy(false); }
+  }
   const messageMenuRef = useRef(null), composerRef = useRef(null);
   const messageAnchor = useRef(null), nearEnd = useRef(true);
   useEffect(() => {
@@ -242,6 +250,8 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           <li className={"nk-chat-bubble-row" + (message.minha ? " is-mine" : "") + (index > 0 && thread.mensagens[index-1].minha === message.minha && dayKey(thread.mensagens[index-1].criado_em) === dayKey(message.criado_em) ? " is-grouped" : "")}>
           <div className="nk-chat-bubble">
             {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem anterior ou indisponível"}</blockquote>}
+            {!message.apagada_em && message.tipo === "SINAL" && <span className="nk-chat-signal-art" aria-hidden="true">{{OLA:"👋",FLOR:"🌹",BEIJINHO:"😘"}[message.sinal] || "✨"}</span>}
+            {!message.apagada_em && message.tipo === "QUEBRA_GELO" && <span className="nk-chat-extra-label"><Sparkles size={13}/>Quebra-gelo</span>}
             <p className={message.apagada_em ? "nk-chat-deleted" : undefined}>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
             <div className="nk-chat-meta"><time dateTime={message.criado_em}>{messageTime(message.criado_em)}</time>
               {message.minha && (message.lida ? <CheckCheck size={14} aria-label="Lida" /> : <Check size={14} aria-label="Enviada" />)}</div>
@@ -258,6 +268,12 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
       </ol>
       {thread.a_escrever && <p className="nk-chat-typing" role="status">{thread.nome} está a escrever...</p>}
       <form className="nk-chat-compose" onSubmit={send}>
+        <div className="nk-chat-extras-head"><button type="button" className="nk-chat-extras-toggle" aria-expanded={extrasOpen} onClick={() => setExtrasOpen(v => !v)} disabled={!safetyAccepted}><Plus size={17}/> Sinais e quebra-gelo</button></div>
+        {extrasOpen && <section className="nk-chat-extras" aria-label="Sinais e quebra-gelo">
+          {!!thread.sinais?.signals?.length && <><strong>Sinais</strong><small>{thread.sinais.quota?.remaining_today ?? 0} disponíveis hoje · {thread.sinais.quota?.recharge_balance ?? 0} de recarga</small><div className="nk-chat-signal-buttons">{thread.sinais.signals.map(item => <button type="button" key={item.type} disabled={extraBusy || item.sent_to_profile_today || thread.sinais.quota?.limit_reached || !safetyAccepted} onClick={() => sendExtra("sinais", {tipo:item.type})}><span>{{OLA:"👋",FLOR:"🌹",BEIJINHO:"😘"}[item.type]}</span>{item.label}</button>)}</div></>}
+          <strong>Quebra-gelo · {thread.quebra_gelo?.restantes ?? 0} restantes</strong>
+          {thread.quebra_gelo?.perguntas?.map(item => <button className="nk-chat-icebreaker" type="button" key={item.codigo} disabled={extraBusy || !thread.quebra_gelo.restantes || !safetyAccepted} onClick={() => sendExtra("quebra-gelo", {codigo:item.codigo})}>{item.texto}<Send size={15}/></button>)}
+        </section>}
         {reply && <div className="nk-independent-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
         {thread.texto_livre || thread.frases.length ? <div className="nk-chat-compose-line">
           {thread.texto_livre ? <textarea ref={composerRef} aria-label="Mensagem" placeholder="Escrever mensagem..." rows={1} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :

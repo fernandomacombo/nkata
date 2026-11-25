@@ -13,6 +13,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .chat_permissions import chat_pair_allowed
+from .credit_catalog import ICEBREAKERS, ICEBREAKER_DAILY_LIMIT
+from .signal_views import _availability_payload, send_signal
+from django.contrib.auth import get_user_model
 from .identity_models import pedido_tem_identidade_verificada
 from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PedidoConversa, PerfilNKATA
 from .profile_media_api import profile_photo_url
@@ -387,6 +390,45 @@ def send_message(request, chat, me, other, thread):
     return Response({"id": message.pk}, status=201)
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def chat_signal(request, conversation_id):
+    chat, me, other = accessible_thread(request, conversation_id)
+    return send_signal(request.user, me, other, request.data.get("tipo", ""), conversation_id=chat.pk)
+
+
+def icebreaker_remaining(user):
+    used = MensagemMatch.objects.filter(remetente=user, tipo="QUEBRA_GELO",
+                                        criado_em__date=timezone.localdate()).count()
+    return max(0, ICEBREAKER_DAILY_LIMIT - used)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def icebreaker(request, conversation_id):
+    chat, me, other = accessible_thread(request, conversation_id)
+    other, _ = lock_pair(me, other.pk)
+    get_user_model().objects.select_for_update().get(pk=request.user.pk)
+    if chat.match_origem_id:
+        MatchPerfil.objects.select_for_update().get(pk=chat.match_origem_id)
+    chat = get_object_or_404(Conversa.objects.select_for_update(), pk=chat.pk, estado=Conversa.ESTADO_ATIVA)
+    code = request.data.get("codigo")
+    if not isinstance(code, str) or code not in ICEBREAKERS:
+        raise ValidationError({"detail": "Escolha uma pergunta disponível."})
+    if icebreaker_remaining(request.user) <= 0:
+        return Response({"detail": "Atingiu o limite diário de quebra-gelos."}, status=429)
+    if MensagemMatch.objects.filter(conversa=chat, remetente=request.user, tipo="QUEBRA_GELO",
+                                    texto=ICEBREAKERS[code], criado_em__date=timezone.localdate()).exists():
+        return Response({"detail": "Já enviou esta pergunta hoje nesta conversa."}, status=409)
+    message = MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, remetente=request.user,
+                                         tipo="QUEBRA_GELO", texto=ICEBREAKERS[code])
+    if not chat.match_origem_id:
+        notify(other, me, "MENSAGEM", f"chat-msg:{chat.pk}", "Quebra-gelo",
+               f"{me.nome_publico} enviou-lhe uma pergunta.")
+    return Response({"id": message.pk, "restantes": icebreaker_remaining(request.user)}, status=201)
+
+
 MESSAGE_PAGE_SIZE = 50
 
 
@@ -450,7 +492,7 @@ def messages(request, conversation_id):
     if chat.match_origem_id:
         keys.append(f"mensagem:{chat.match_origem_id}")
     NotificacaoNKATA.objects.filter(destinatario=request.user, chave__in=keys, lida=False).update(lida=True)
-    rows = thread.mensagens.select_related("remetente__perfil_nkata").order_by("criado_em", "pk")
+    rows = thread.mensagens.select_related("remetente__perfil_nkata", "sinal_origem").order_by("criado_em", "pk")
     page_info = {}
     if paginated:
         rows, page_info = message_page(request, rows)
@@ -459,5 +501,7 @@ def messages(request, conversation_id):
     return Response({"nome": other.nome_publico, "perfil": chat_profile(other), "match_id": legacy_match_id(chat),
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
                      "texto_livre": features["chat_text"], "frases": presets,
+                     "sinais": _availability_payload(request.user, other) if other.visivel else {"signals": [], "quota": {}},
+                     "quebra_gelo": {"restantes": icebreaker_remaining(request.user), "perguntas": [{"codigo": code, "texto": text} for code, text in ICEBREAKERS.items()]},
                      "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data,
                      **page_info})

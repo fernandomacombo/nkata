@@ -29,6 +29,15 @@ CREDIT_PACKS = (
 
 WELCOME_CREDITS = 5
 
+ICEBREAKER_DAILY_LIMIT = 3
+ICEBREAKERS = {
+    "VALORES": "O que mais valorizas numa relação?",
+    "ENCONTRO": "Como seria o teu encontro perfeito?",
+    "SORRISO": "O que te faz sorrir facilmente?",
+    "SONHO": "Qual é o teu maior sonho?",
+}
+SIGNAL_CHAT_TEXT = {"OLA": "Um olá para ti!", "FLOR": "Uma flor para ti!", "BEIJINHO": "Um beijinho para ti!"}
+
 
 def credit_catalog():
     return {

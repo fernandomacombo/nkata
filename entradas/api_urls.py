@@ -48,6 +48,8 @@ urlpatterns = [
     path("chats/", conversations_api.inbox),
     path("chats/<int:conversation_id>/", conversations_api.messages),
     path("chats/<int:conversation_id>/escrita/", conversations_api.typing),
+    path("chats/<int:conversation_id>/sinais/", conversations_api.chat_signal),
+    path("chats/<int:conversation_id>/quebra-gelo/", conversations_api.icebreaker),
     path("chats/<int:conversation_id>/encerrar/", conversations_api.close_conversation),
     path("chats/<int:conversation_id>/mensagens/<int:message_id>/", conversations_api.delete_message),
     path("chats/pedir/<int:profile_id>/", conversations_api.send_request),

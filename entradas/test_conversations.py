@@ -422,3 +422,44 @@ class ConversationTests(TestCase):
             self.assertEqual(self.client.post(root, {"texto": "Olá"}).status_code, 404)
             self.assertEqual(self.client.post(root + "escrita/").status_code, 404)
         self.assertEqual(self.decide(self.a, pending.pk, "ACEITE").status_code, 404)
+
+
+    def test_chat_signal_uses_existing_quota_and_history(self):
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        self.client.force_login(self.a.usuario)
+        root = f"/api/chats/{chat.pk}/"
+        with self.captureOnCommitCallbacks(execute=True):
+            result = self.client.post(root + "sinais/", {"tipo": "FLOR"})
+        self.assertEqual(result.status_code, 201, result.content)
+        self.assertEqual(AcaoPerfil.objects.filter(tipo="SINAL_FLOR").count(), 1)
+        self.assertEqual(self.client.post(root + "sinais/", {"tipo": "FLOR"}).status_code, 409)
+        self.client.force_login(self.b.usuario)
+        message = self.client.get(root).json()["mensagens"][0]
+        self.assertEqual((message["tipo"], message["sinal"]), ("SINAL", "FLOR"))
+        self.assertEqual(NotificacaoNKATA.objects.filter(destinatario=self.b.usuario, tipo="MENSAGEM").count(), 1)
+        self.client.force_login(self.c.usuario)
+        self.assertEqual(self.client.post(root + "sinais/", {"tipo": "OLA"}).status_code, 404)
+
+    def test_profile_signal_does_not_create_chat_but_joins_existing(self):
+        self.client.force_login(self.a.usuario)
+        url = f"/api/perfis/{self.b.pk}/sinais/"
+        self.assertEqual(self.client.post(url, {"tipo": "OLA"}).status_code, 201)
+        self.assertFalse(Conversa.objects.exists())
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        self.assertEqual(self.client.post(url, {"tipo": "FLOR"}).status_code, 201)
+        self.assertEqual(chat.mensagens.filter(tipo="SINAL").count(), 1)
+
+    def test_icebreaker_allowlist_and_daily_limit(self):
+        chat = Conversa.objects.create(perfil_1=self.a, perfil_2=self.b)
+        root = f"/api/chats/{chat.pk}/"
+        self.client.force_login(self.a.usuario)
+        url = root + "quebra-gelo/"
+        self.assertEqual(self.client.post(url, {"codigo": "texto arbitrário"}).status_code, 400)
+        self.assertEqual(self.client.post(url, {"codigo": "VALORES"}).status_code, 201)
+        self.assertEqual(self.client.post(url, {"codigo": "VALORES"}).status_code, 409)
+        for code in ("ENCONTRO", "SORRISO"):
+            self.assertEqual(self.client.post(url, {"codigo": code}).status_code, 201)
+        self.assertEqual(self.client.post(url, {"codigo": "SONHO"}).status_code, 429)
+        self.assertEqual(self.client.get(root).json()["quebra_gelo"]["restantes"], 0)
+        AcaoPerfil.objects.create(usuario=self.b.usuario, perfil=self.a, tipo="BLOQUEIO")
+        self.assertEqual(self.client.post(url, {"codigo": "SONHO"}).status_code, 404)
