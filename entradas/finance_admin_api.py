@@ -1,6 +1,6 @@
 """Read-only financial administration. Never return provider secrets or media."""
 from django.conf import settings
-from django.db.models import BigIntegerField, F, Q, Sum, Value, OuterRef, Subquery, CharField
+from django.db.models import BigIntegerField, F, Q, Sum, Value, OuterRef, Subquery, CharField, Exists
 from django.db.models.functions import Cast, Concat
 from django.utils import timezone
 from django.db.models.functions import Coalesce
@@ -9,7 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .credit_catalog import credit_catalog
-from .models import CarteiraNKATA, MovimentoCreditoNKATA, PedidoPagamentoNKATA, ChamadaConversaCreditoNKATA
+from .models import CarteiraNKATA, MovimentoCreditoNKATA, PedidoPagamentoNKATA, ChamadaConversaCreditoNKATA, RevisaoMinutoChamadaNKATA
 from .user_roles import has_admin_capability
 from .payment_service import payments_enabled
 from .wallet_service import credit_spending_enabled
@@ -88,7 +88,9 @@ def _call_rows():
             .annotate(total=Sum("quantidade")).values("total")[:1], output_field=BigIntegerField()),
             Value(0), output_field=BigIntegerField())
     return ChamadaConversaCreditoNKATA.objects.select_related("iniciador", "destinatario").annotate(
-        debit_total=-total("CONSUMO"), refund_total=total("ESTORNO")
+        debit_total=-total("CONSUMO"), refund_total=total("ESTORNO"),
+        pending_review=Exists(RevisaoMinutoChamadaNKATA.objects.filter(chamada_id=OuterRef("pk"),
+            estado__in=["AUTORIZADO", "RETOMA_INICIADA"], prazo__lte=timezone.now()))
     )
 
 
@@ -96,7 +98,7 @@ def _call_row(call):
     expected = call.minutos_pagos * call.custo_minuto
     expired = call.expira_em <= timezone.now() and call.estado in ("CHAMANDO", "ACEITE", "ATIVA")
     inconsistent = call.debit_total != expected or not 0 <= call.refund_total <= call.debit_total
-    review = "DIVERGENCIA" if inconsistent else "EXPIRADA_SEM_FECHO" if expired else (
+    review = "DIVERGENCIA" if inconsistent else "RETOMA_INCERTA" if call.pending_review else "EXPIRADA_SEM_FECHO" if expired else (
         "ESTORNO" if call.refund_total else "SEM_ALERTA")
     return {"id": str(call.pk), "name": call.iniciador.get_full_name() or call.iniciador.get_username(),
             "recipient": call.destinatario.get_full_name() or call.destinatario.get_username(),
@@ -153,7 +155,7 @@ def finance(request):
             rows = rows.filter(
                 ~Q(debit_total=F("minutos_pagos") * F("custo_minuto")) |
                 Q(refund_total__gt=F("debit_total")) |
-                Q(refund_total__lt=0) |
+                Q(refund_total__lt=0) | Q(pending_review=True) |
                 Q(estado__in=["CHAMANDO", "ACEITE", "ATIVA"], expira_em__lte=timezone.now()))
         elif status:
             if status not in {"CHAMANDO", "ACEITE", "ATIVA", "TERMINADA", "RECUSADA", "EXPIRADA"}:
