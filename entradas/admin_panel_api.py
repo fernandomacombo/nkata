@@ -29,6 +29,7 @@ from .posts_models import PublicacaoNKATA
 from .profile_media_api import profile_photo_url
 from .plan_service import PLAN_DEFINITIONS, assign_plan, plan_for_user
 from .user_roles import has_admin_capability
+from .credit_catalog import credit_catalog
 from .webrtc_credentials import turn_is_configured
 
 
@@ -158,6 +159,7 @@ def _summary_payload(request):
             "environment": "Desenvolvimento" if settings.DEBUG else "Produção",
         } if request.user.is_superuser else None,
         "activity": _daily_activity(),
+        "credit_catalog": credit_catalog() if request.user.is_superuser else None,
     }
 
 

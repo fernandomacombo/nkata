@@ -9,6 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import AcaoPerfil, PerfilNKATA
+from .credit_catalog import SIGNAL_DEFINITIONS
 from .plan_service import (
     PLAN_DEFINITIONS,
     PLAN_SIGNAL_PREFIX,
@@ -20,26 +21,6 @@ from .user_roles import active_member_profile_for_user
 
 User = get_user_model()
 FREE_DAILY_SIGNAL_LIMIT = PLAN_DEFINITIONS["LIVRE"]["daily_signal_limit"]
-SIGNAL_DEFINITIONS = {
-    "FLOR": {
-        "db_type": "SINAL_FLOR",
-        "label": "Flor",
-        "icon": "flower",
-        "message": "Uma flor para mostrar que este perfil chamou a sua atenção.",
-    },
-    "BEIJINHO": {
-        "db_type": "SINAL_BEIJINHO",
-        "label": "Beijinho",
-        "icon": "heart",
-        "message": "Um gesto carinhoso, sem abrir uma conversa privada.",
-    },
-    "OLA": {
-        "db_type": "SINAL_OLA",
-        "label": "Olá",
-        "icon": "hand",
-        "message": "Olá, gostei do seu perfil e gostaria de conhecer melhor.",
-    },
-}
 SIGNAL_DB_TYPES = [item["db_type"] for item in SIGNAL_DEFINITIONS.values()]
 
 

@@ -25,3 +25,15 @@ class SignalRulesTests(SimpleTestCase):
         self.assertEqual(quota["used_today"], 3)
         self.assertEqual(quota["remaining_today"], 0)
         self.assertTrue(quota["limit_reached"])
+
+
+class CreditCatalogueTests(SimpleTestCase):
+    def test_unified_order_and_prices(self):
+        from .credit_catalog import credit_catalog, SIGNAL_DEFINITIONS
+        self.assertEqual(list(SIGNAL_DEFINITIONS), ["OLA", "FLOR", "BEIJINHO"])
+        catalog = credit_catalog()
+        self.assertEqual([(item["code"], item["credits"]) for item in catalog["actions"][:3]], [("OLA", 1), ("FLOR", 2), ("BEIJINHO", 3)])
+        self.assertEqual(catalog["welcome_credits"], 5)
+        self.assertEqual([(p["price_mzn"], p["credits"]) for p in catalog["packs"]], [(50, 50), (100, 100), (250, 275), (500, 600)])
+        self.assertFalse(catalog["enabled"])
+        self.assertTrue(all(not p["purchase_enabled"] for p in catalog["packs"]))

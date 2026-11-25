@@ -852,6 +852,15 @@ function Overview({ summary, loading, error, onRetry, onOpenSection, onOpenMatch
           </footer>
         </section>
 
+        {summary.credit_catalog && <section className="nk-admin-card nk-admin-system-card">
+          <h2>Catálogo de créditos NKATA</h2>
+          <p>Preparação do novo modelo comercial — ainda não disponível para compra ou consumo.</p>
+          <p>Bónus de boas-vindas após verificação: {summary.credit_catalog.welcome_credits} créditos.</p>
+          <h3>Pacotes de recarga</h3>
+          {summary.credit_catalog.packs.map(pack => <p key={pack.code}><strong>{pack.label}</strong> · {pack.price_mzn} MT · {pack.credits} créditos{pack.bonus ? " (inclui " + pack.bonus + " de bónus)" : ""}</p>)}
+          <h3>Utilização</h3>
+          {summary.credit_catalog.actions.map(action => <p key={action.code}><strong>{action.label}</strong> · {action.credits === 0 ? "Grátis, com limite" : action.credits + (action.credits === 1 ? " crédito" : " créditos") + (action.unit === "minute" ? " / minuto" : action.unit === "24h" ? " / 24 horas" : "")}</p>)}
+        </section>}
         {summary.system && <section className="nk-admin-card nk-admin-system-card">
           <header className="nk-admin-card-title">
             <div><small>Infraestrutura</small><h2>Estado do sistema</h2></div>

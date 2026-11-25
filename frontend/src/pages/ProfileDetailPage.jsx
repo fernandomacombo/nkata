@@ -25,9 +25,9 @@ import { blockProfile, reportProfile } from "../services/api.js";
 import { fetchProfileSignals, sendProfileSignal } from "../services/signalApi.js";
 
 const DEFAULT_SIGNALS = [
+  { type: "OLA", label: "Olá", icon: "hand", message: "Olá, gostei do seu perfil e gostaria de conhecer melhor." },
   { type: "FLOR", label: "Flor", icon: "flower", message: "Uma flor para mostrar que este perfil chamou a sua atenção." },
   { type: "BEIJINHO", label: "Beijinho", icon: "heart", message: "Um gesto carinhoso, sem abrir uma conversa privada." },
-  { type: "OLA", label: "Olá", icon: "hand", message: "Olá, gostei do seu perfil e gostaria de conhecer melhor." },
 ];
 
 const SIGNAL_ICONS = {
