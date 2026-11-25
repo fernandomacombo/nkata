@@ -346,10 +346,10 @@ function RequestRow({ item, busy, decide, cancel, onSelect, onOpenProfile }) {
     {item.estado === "PENDENTE" ? <div className="nk-chat-request-actions">
       {item.recebido ? <><button className="nk-chat-primary" disabled={busy} onClick={() => decide(item.id, "ACEITE")}>Aceitar</button><button disabled={busy} onClick={() => decide(item.id, "RECUSADO")}>Recusar</button></> :
         <button disabled={busy} onClick={() => cancel(item.id)}>Cancelar pedido</button>}
-    </div> : item.conversation_id && <button type="button" onClick={() => onSelect(item.conversation_id)}>Abrir conversa</button>}
+    </div> : item.conversation_id && <button type="button" onClick={() => onSelect(item.conversation_id)}>{item.identity_pending ? "Ver estado" : "Abrir conversa"}</button>}
   </article>;
 }
-export default function ChatsPage({ conversationId, requestId, onSelect, onBack, onOpenProfile, onDiscover, nativeCallConfig, callController: suppliedCallController, ...threadProps }) {
+export default function ChatsPage({ conversationId, requestId, onSelect, onBack, onOpenProfile, onDiscover, identityRequired, onVerifyIdentity, nativeCallConfig, callController: suppliedCallController, ...threadProps }) {
   const [data, setData] = useState(null), [error, setError] = useState(""), [busy, setBusy] = useState(false), [revision, setRevision] = useState(0);
   const [tab, setTab] = useState("all"), [query, setQuery] = useState(""), [selectedRequest, setSelectedRequest] = useState(null);
   useEffect(() => {
@@ -403,6 +403,8 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   const connections = (data?.conexoes || []).filter(c => matches(c.nome));
   function chooseTab(key) { setTab(key); if (requestId || (conversationId && key !== "all" && key !== "unread")) onBack(); }
   const showChats = tab === "all" || tab === "unread";
+  const selectedChat = chats.find(c => String(c.id) === String(conversationId));
+  const lockedThread = identityRequired || selectedChat?.identity_pending;
   return <main className="nk-shell nk-chats-page">
     {callController?.enabled === true && callController.call && <CallPanel call={callController.call} onAccept={callController.accept} onDecline={callController.decline} onEnd={callController.end} onDismiss={callController.dismiss} onToggleMic={callController.toggleMic} onToggleCamera={callController.toggleCamera}/>}
 
@@ -415,7 +417,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
         <div className="nk-chat-list">
           {!data && !error && <p className="nk-chat-placeholder">A carregar...</p>}
           {data && showChats && <>{visibleChats.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.id} aria-current={conversationId === c.id ? "page" : undefined} onClick={() => onSelect(c.id)}>
-            <Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.ultima_mensagem ? (c.ultima_mensagem.minha ? "Eu: " : "") + c.ultima_mensagem.texto : "Conversa aceite"}</small></span>
+            <Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.ultima_mensagem ? (c.ultima_mensagem.minha ? "Eu: " : "") + c.ultima_mensagem.texto : c.identity_pending ? "A aguardar verificação de identidade" : "Conversa aceite"}</small></span>
             <span className="nk-chat-row-meta"><time>{stamp(c.atividade_em)}</time>{c.nao_lidas > 0 && <span className="nk-chat-unread">{c.nao_lidas > 99 ? "99+" : c.nao_lidas}</span>}</span>
           </button>)}{!visibleChats.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : tab === "unread" ? "Está em dia com as mensagens." : "Ainda não tem conversas. Explore os perfis para começar."}</p>}</>}
           {data && (tab === "received" || tab === "sent") && <>
@@ -427,7 +429,12 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
           {data && tab === "connections" && <>{connections.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.perfil.id} onClick={() => onOpenProfile(c.perfil)}><Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.tipos.join(" · ")}</small></span><HeartHandshake size={18} /></button>)}{!connections.length && <p className="nk-chat-placeholder">{query ? "Nenhum resultado." : "Os seus matches e sinais aparecem aqui."}</p>}</>}
         </div>
       </aside>
-      {conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} callController={callController} onBack={onBack} onOpenProfile={onOpenProfile} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
+      {conversationId && lockedThread ? <section className="nk-chat-empty-panel">
+        <ShieldCheck size={42} strokeWidth={1.5}/><h2>Pedido aceite</h2>
+        <p>{identityRequired ? "Verifique a sua identidade para trocar mensagens." : "A outra pessoa ainda precisa de verificar a identidade. A conversa ficará disponível quando ambos estiverem verificados."}</p>
+        {identityRequired && <button type="button" className="nk-chat-primary" onClick={onVerifyIdentity}>Verificar identidade</button>}
+        <button type="button" className="nk-chat-icon" onClick={onBack}>Voltar</button>
+      </section> : conversationId && !data ? <section className="nk-chat-empty-panel">A carregar conversa...</section> : conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} callController={callController} onBack={onBack} onOpenProfile={onOpenProfile} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
         <section className="nk-chat-empty-panel"><MessageCircle size={46} strokeWidth={1.4} /><h2>Uma boa conversa começa aqui</h2><p>Escolha uma conversa ou conheça alguém novo.</p><button className="nk-chat-primary" onClick={onDiscover}>Explorar perfis</button></section>}
     </div>
   </main>;
