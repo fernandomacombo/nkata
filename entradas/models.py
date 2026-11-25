@@ -3,7 +3,7 @@ from django.conf import settings
 from django.db import models
 
 from .profile_names import validate_profile_name
-from .storage_backends import identity_media_storage, profile_media_storage
+from .storage_backends import identity_media_storage, profile_media_storage, private_content_storage
 
 
 class PedidoEntrada(models.Model):
@@ -350,7 +350,7 @@ class MatchPerfil(models.Model):
 
 
 class MensagemMatch(models.Model):
-    tipo = models.CharField(max_length=16, default="TEXTO", choices=[("TEXTO", "Texto"), ("SINAL", "Sinal"), ("QUEBRA_GELO", "Quebra-gelo"), ("PREDEFINIDA", "Predefinida")])
+    tipo = models.CharField(max_length=16, default="TEXTO", choices=[("TEXTO", "Texto"), ("SINAL", "Sinal"), ("QUEBRA_GELO", "Quebra-gelo"), ("PREDEFINIDA", "Predefinida"), ("AUDIO", "Nota de voz")])
     sinal_origem = models.OneToOneField(AcaoPerfil, null=True, blank=True, on_delete=models.SET_NULL, related_name="mensagem_chat")
     resposta_a = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     match = models.ForeignKey(MatchPerfil, null=True, on_delete=models.CASCADE, related_name="mensagens")
@@ -569,3 +569,10 @@ class BonusIdentidadeCreditoNKATA(models.Model):
     documento_chave = models.CharField(max_length=64, unique=True, editable=False)
     movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="bonus_identidade")
     criado_em = models.DateTimeField(auto_now_add=True)
+
+
+class NotaVozConversaNKATA(models.Model):
+    mensagem = models.OneToOneField(MensagemMatch, on_delete=models.PROTECT, related_name="nota_voz")
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="nota_voz_conversa")
+    audio = models.FileField(storage=private_content_storage, upload_to="chat-native/%Y/%m/%d/")
+    duracao_segundos = models.PositiveSmallIntegerField()

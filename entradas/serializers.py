@@ -300,6 +300,22 @@ class MinhaContaSerializer(serializers.ModelSerializer):
 
 
 class MensagemMatchSerializer(serializers.ModelSerializer):
+    audio_url = serializers.SerializerMethodField()
+    duracao_segundos = serializers.SerializerMethodField()
+
+    def get_audio_url(self, obj):
+        if obj.tipo != "AUDIO" or obj.apagada_em or not obj.conversa_id:
+            return None
+        note = getattr(obj, "nota_voz", None)
+        request = self.context.get("request")
+        if note and request:
+            return request.build_absolute_uri(f"/api/chats/{obj.conversa_id}/audio/{obj.pk}/media/")
+        return None
+
+    def get_duracao_segundos(self, obj):
+        note = getattr(obj, "nota_voz", None) if obj.tipo == "AUDIO" and not obj.apagada_em else None
+        return note.duracao_segundos if note else None
+
     sinal = serializers.SerializerMethodField()
 
     def get_sinal(self, obj):
@@ -319,6 +335,8 @@ class MensagemMatchSerializer(serializers.ModelSerializer):
             "texto",
             "tipo",
             "sinal",
+            "audio_url",
+            "duracao_segundos",
             "apagada_em",
             "resposta_a",
             "lida",

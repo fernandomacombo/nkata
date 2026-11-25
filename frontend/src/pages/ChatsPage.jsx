@@ -6,6 +6,7 @@ import SafetyDialog from "../components/safety/SafetyDialog.jsx";
 import { usePresence } from "../components/profiles/Presence.jsx";
 import { ChatSafetyNotice } from "./ConversationPage.jsx";
 import "./chats.css";
+import VoiceRecorder from "../components/chat/VoiceRecorder.jsx";
 
 const SIGNAL_ICONS = {OLA:Hand,FLOR:Flower2,BEIJINHO:Heart};
 function SignalIcon({type,size=24}) { const Icon=SIGNAL_ICONS[type] || Sparkles; return <Icon size={size} strokeWidth={1.6} aria-hidden="true"/>; }
@@ -272,7 +273,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
             {message.resposta_a && <blockquote>{thread.mensagens.find(m => m.id === message.resposta_a)?.texto || "Mensagem anterior ou indisponível"}</blockquote>}
             {!message.apagada_em && message.tipo === "SINAL" && <span className="nk-chat-signal-art" aria-hidden="true"><SignalIcon type={message.sinal} size={28}/></span>}
             {!message.apagada_em && message.tipo === "QUEBRA_GELO" && <span className="nk-chat-extra-label"><Sparkles size={13}/>Quebra-gelo</span>}
-            <p className={message.apagada_em ? "nk-chat-deleted" : undefined}>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>
+            {!message.apagada_em && message.tipo === "AUDIO" && message.audio_url ? <audio className="nk-native-voice-player" controls preload="none" src={message.audio_url} aria-label="Nota de voz"/> : <p className={message.apagada_em ? "nk-chat-deleted" : undefined}>{message.apagada_em ? "Mensagem apagada" : message.texto}</p>}
             <div className="nk-chat-meta"><time dateTime={message.criado_em}>{messageTime(message.criado_em)}</time>
               {message.minha && (message.lida ? <CheckCheck size={14} aria-label="Lida" /> : <Check size={14} aria-label="Enviada" />)}</div>
             
@@ -299,6 +300,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           {thread.quebra_gelo?.perguntas?.map(item => <button className="nk-chat-icebreaker" type="button" key={item.codigo} disabled={extraBusy || !thread.quebra_gelo.restantes || !safetyAccepted} onClick={() => sendExtra("quebra-gelo", {codigo:item.codigo})}>{item.texto}<Send size={15}/></button>)}
         </section>}
         {reply && <div className="nk-independent-chat-reply"><span>A responder a: {reply.texto}</span><button className="nk-chat-icon" type="button" aria-label="Cancelar resposta" onClick={() => setReply(null)}><X size={18} /></button></div>}
+        {thread.credito_voz?.enabled && safetyAccepted && <VoiceRecorder key={id} conversationId={id} offer={thread.credito_voz} onSent={()=>setRevision(v=>v+1)}/>}
         <div className="nk-chat-compose-line">
           <button ref={extrasTrigger} className="nk-chat-icon nk-chat-plus" type="button" aria-label="Acções da conversa" aria-expanded={extrasOpen} aria-controls={extrasOpen ? "nk-chat-extras-panel" : undefined} onClick={() => setExtrasOpen(v => !v)} disabled={!safetyAccepted}>{extrasOpen?<X size={22}/>:<Plus size={22}/>}</button>
           {thread.texto_livre ? <textarea ref={composerRef} aria-label="Mensagem" placeholder="Escrever mensagem..." rows={1} value={text} maxLength={1200} onChange={e => write(e.target.value)} /> :

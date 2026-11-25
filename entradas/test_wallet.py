@@ -319,3 +319,40 @@ class WalletTests(TestCase):
             self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.a,tipo="CONSUMO").count(),0)
             self.assertEqual(send().status_code,201)
             self.assertEqual(wallet_snapshot(self.a)["saldo"],1)
+
+
+    def test_native_voice_private_timeline_and_exactly_once(self):
+        import tempfile
+        from uuid import uuid4
+        from django.test import override_settings
+        from .test_voice_note_validation import wav_note
+        from .models import Conversa, NotaVozConversaNKATA
+        c=profile(92)
+        chat=Conversa.objects.create(perfil_1=self.a.perfil_nkata,perfil_2=self.b.perfil_nkata)
+        self.move(amount=2)
+        self.client.force_login(self.a)
+        root=f"/api/chats/{chat.pk}/"
+        key=str(uuid4())
+        def send(key=key):
+            return self.client.post(root+"audio/",{"audio":wav_note(2),"duracao_segundos":"2","key":key,"expected_cost":"2"})
+        with tempfile.TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory,NKATA_CREDIT_SPENDING_ENABLED=True,NKATA_CREDIT_ONLY_ENABLED=True,NKATA_CREDIT_TRANSITION_ENABLED=True):
+            first=send()
+            self.assertEqual(first.status_code,201,first.content)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],0)
+            self.assertEqual(send().status_code,200)
+            self.assertEqual(send(str(uuid4())).status_code,409)
+            self.assertEqual(NotaVozConversaNKATA.objects.count(),1)
+            mid=first.json()["id"]
+            media=root+f"audio/{mid}/media/"
+            self.client.force_login(c.usuario)
+            self.assertEqual(self.client.get(media).status_code,404)
+            self.client.force_login(self.b)
+            self.assertEqual(self.client.get(root).json()["mensagens"][0]["tipo"],"AUDIO")
+            response=self.client.get(media)
+            self.assertEqual(response.status_code,200)
+            self.assertIn("no-store",response["Cache-Control"])
+            response.close()
+            self.client.force_login(self.a)
+            self.assertEqual(self.client.delete(root+f"mensagens/{mid}/").status_code,204)
+            self.assertEqual(self.client.get(media).status_code,404)
+            self.assertEqual(wallet_snapshot(self.a)["saldo"],0)

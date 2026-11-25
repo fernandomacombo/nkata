@@ -21,6 +21,7 @@ from .identity_models import pedido_tem_identidade_verificada
 from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PedidoConversa, PerfilNKATA
 from .profile_media_api import profile_photo_url
 from .chat_media_models import MensagemAudioMatchNKATA
+from .chat_media_api import voice_credit_offer
 from .call_models import ChamadaMatchNKATA
 from .call_history_api import serialize_call_message
 from .notification_models import NotificacaoNKATA
@@ -236,7 +237,7 @@ def inbox(request):
     for chat, other in eligible:
         latest = legacy_latest.get(chat.match_origem_id) if chat.match_origem_id else native_latest.get(chat.pk)
         preview = None if latest is None else {
-            "texto": "Mensagem apagada" if latest.apagada_em else latest.texto[:160],
+            "texto": "Mensagem apagada" if latest.apagada_em else ("Nota de voz" if latest.tipo == "AUDIO" else latest.texto[:160]),
             "minha": latest.remetente_id == request.user.pk,
             "criado_em": latest.criado_em,
         }
@@ -511,7 +512,7 @@ def messages(request, conversation_id):
     if chat.match_origem_id:
         keys.append(f"mensagem:{chat.match_origem_id}")
     NotificacaoNKATA.objects.filter(destinatario=request.user, chave__in=keys, lida=False).update(lida=True)
-    rows = thread.mensagens.select_related("remetente__perfil_nkata", "sinal_origem").order_by("criado_em", "pk")
+    rows = thread.mensagens.select_related("remetente__perfil_nkata", "sinal_origem", "nota_voz").order_by("criado_em", "pk")
     page_info = {}
     if paginated:
         rows, page_info = message_page(request, rows)
@@ -521,6 +522,7 @@ def messages(request, conversation_id):
                      "a_escrever": bool(cache.get(f"chat-digitando:{chat.pk}:{other.pk}")),
                      "texto_livre": features["chat_text"], "frases": preset["frases"], "predefinidas": preset,
                      "credito_chat": chat_credit_snapshot(request.user, features["chat_text"]),
+                     "credito_voz": voice_credit_offer(request.user, False),
                      "sinais": _availability_payload(request.user, other) if other.visivel else {"signals": [], "quota": {}},
                      "quebra_gelo": {"restantes": icebreaker_remaining(request.user), "perguntas": [{"codigo": code, "texto": text} for code, text in ICEBREAKERS.items()]},
                      "mensagens": MensagemMatchSerializer(rows, many=True, context={"request": request}).data,
