@@ -86,3 +86,13 @@ de entrega são casos ambíguos, não elegíveis para estorno automático por es
 As três tentativas de envio não substituem uma fila persistente. Falhas de envio
 geram media_reconciliation_required; antes de produção é necessário registo
 durável de activação e fila de revisão financeira. Não foram usados créditos reais.
+
+
+## Evidência persistente por minuto
+A migration 0057 cria um registo por minuto debitado, dentro da mesma transacção.
+O gateway regista intenção de retoma antes de chamar resume e confirmação após
+resposta do SFU. Após o prazo, autorizações ou intenções sem confirmação aparecem
+no filtro Requer revisão da área Chamadas. O registo sobrevive à perda do processo.
+Uma intenção incerta bloqueia estorno automático; a confirmação de resume não
+prova recepção efectiva por uma pessoa. A fila é de consulta, sem ajuste manual,
+sem gravação de chamadas e sem reprocessamento automático de casos ambíguos.
