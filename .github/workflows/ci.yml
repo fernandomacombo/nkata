@@ -82,7 +82,7 @@ jobs:
       - run: python manage.py test entradas.test_extra_photo_moderation entradas.test_admin_panel_api
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
