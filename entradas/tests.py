@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
-from .test_conversations import historical_match
+from .test_conversations import historical_match, accepted_match
 from .models import (
     AcaoPerfil,
     MatchPerfil,
@@ -295,7 +295,7 @@ class NkataApiTests(TestCase):
     def test_mensagem_pode_ser_enviada_e_marcada_como_lida(self):
         user_a, perfil_a = self.create_profile("msg-a@example.com", "Pessoa A")
         user_b, perfil_b = self.create_profile("msg-b@example.com", "Pessoa B")
-        match = historical_match(perfil_1=perfil_a, perfil_2=perfil_b)
+        match = accepted_match(perfil_1=perfil_a, perfil_2=perfil_b)
 
         self.client.force_login(user_a)
         enviar = self.client.post(
@@ -322,7 +322,7 @@ class NkataApiTests(TestCase):
     def test_mensagem_vazia_e_rejeitada(self):
         user_a, perfil_a = self.create_profile("vazia-a@example.com", "Pessoa A")
         _, perfil_b = self.create_profile("vazia-b@example.com", "Pessoa B")
-        match = historical_match(perfil_1=perfil_a, perfil_2=perfil_b)
+        match = accepted_match(perfil_1=perfil_a, perfil_2=perfil_b)
 
         self.client.force_login(user_a)
         response = self.client.post(
