@@ -2,16 +2,24 @@
 // Consumers MUST be created paused and must not be resumed elsewhere.
 // Tests use fakes. Production requires actual SFU and process-level watchdog.
 export class LeaseGate{
- constructor({sessionId,userIds,authorize,connected,consumers,closeTransport,watchdog=null,clock=Date.now,schedule=setTimeout,cancel=clearTimeout}){
+ constructor({sessionId,userIds,authorize,connected,consumers,closeTransport,watchdog=null,reconcile=null,onReconcileFailure=()=>{},clock=Date.now,schedule=setTimeout,cancel=clearTimeout}){
   if(userIds.length!==2||new Set(userIds).size!==2)throw Error("Two participants required");
-  Object.assign(this,{sessionId,userIds,authorize,connected,consumers,closeTransport,watchdog,clock,schedule,cancel});
-  this.minute=0;this.deadline=0;this.armedDeadline=0;this.pausedEarly=false;this.closed=false;this.busy=false;
+  Object.assign(this,{sessionId,userIds,authorize,connected,consumers,closeTransport,watchdog,reconcile,onReconcileFailure,clock,schedule,cancel});
+  this.pendingUnstarted=0;this.minute=0;this.deadline=0;this.armedDeadline=0;this.pausedEarly=false;this.closed=false;this.busy=false;
  }
  async stop(){
   if(this.closed)return;
   this.closed=true;this.cancel(this.timer);
   // Transport closure is the terminal gate, not a browser instruction.
-  await this.closeTransport();
+  const unstarted=this.pendingUnstarted;this.pendingUnstarted=0;
+  try{await this.closeTransport();}
+  finally{
+   if(unstarted&&this.reconcile){
+    const report={sessionId:this.sessionId,userIds:this.userIds,minute:unstarted};
+    try{if(!await this.reconcile(report))this.onReconcileFailure(report);}
+    catch{this.onReconcileFailure(report);}
+   }
+  }
  }
  arm(){
   this.cancel(this.timer);
@@ -45,6 +53,7 @@ export class LeaseGate{
    // At the deadline pause regardless of a slow in-flight permission check.
    const guard=!expired?this.schedule(()=>{void this.stop();},Math.max(0,this.deadline-this.clock())):null;
    let deadline;
+   if(expired)this.pendingUnstarted=index;
    try{deadline=await this.authorize({sessionId:this.sessionId,userIds:this.userIds,minute:index});}
    finally{if(guard!==null)this.cancel(guard);}
    if(this.closed)return;
@@ -62,6 +71,8 @@ export class LeaseGate{
     // Arm a deadline guard before enabling media; a slow resume cannot
     // extend the lease. Never attach an unpaused Consumer.
     this.timer=this.schedule(()=>{void this.stop();},Math.max(0,deadline-this.clock()));
+    // From this point partial forwarding is possible; never auto-refund.
+    this.pendingUnstarted=0;
     await Promise.all(this.consumers().map(c=>c.resume()));
    }
    if(!this.closed)this.arm();
