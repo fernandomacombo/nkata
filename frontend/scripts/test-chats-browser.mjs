@@ -16,7 +16,13 @@ import MemberHomePage from "/src/pages/MemberHomePage.jsx";
 import ProfileDetailPage from "/src/pages/ProfileDetailPage.jsx";
 import BottomNavigation from "/src/components/layout/BottomNavigation.jsx";
 import { PresenceProvider } from "/src/components/profiles/Presence.jsx";
+import useProfileLibrary from "/src/hooks/useProfileLibrary.js";
 ${css}
+function LibraryHarness(){
+ const {savedProfiles} = useProfileLibrary();
+ function session(id){window.dispatchEvent(new CustomEvent("nkata:session-changed",{detail:id?{authenticated:true,user:{id}}:{authenticated:false}}));}
+ return <main><h1>Biblioteca</h1><button onClick={()=>session(1)}>Conta A</button><button onClick={()=>session(2)}>Conta B</button><button onClick={()=>session(null)}>Sair</button><output aria-label="Guardados">{savedProfiles.map(p=>p.nome_publico).join(",")}</output></main>;
+}
 function Harness(){
  const [page,setPage] = useState(new URLSearchParams(window.location.search).has("profile") ? "profile-test" : new URLSearchParams(window.location.search).has("feed") ? "feed-test" : "chats"), [id,setId] = useState(null), [accepted,setAccepted] = useState(false);
  return <div className="nk-app"><header className="nk-header"><span className="nk-header__member">Member</span></header>
@@ -25,7 +31,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(<PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
+createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -34,6 +40,26 @@ try {
  for (const engine of [chromium, webkit]) {
   const browser = await engine.launch({headless:true});
   try {
+   const library=await browser.newPage();
+   let privateRequests=0, releaseFirst;
+   await library.route("**/api/minha-conta/guardados/",async route=>{
+     const number=++privateRequests;
+     if(number===1) await new Promise(resolve=>{releaseFirst=resolve;});
+     await route.fulfill({json:{results:[{id:number,nome_publico:number===1?"Perfil A":"Perfil B"}]}}).catch(()=>{});
+   });
+   await library.goto("http://127.0.0.1:5178/"+html+"?library=1");
+   await library.getByRole("heading",{name:"Biblioteca"}).waitFor();
+   assert.equal(privateRequests,0,"Guest must not fetch saved profiles");
+   await library.getByRole("button",{name:"Conta A"}).click();
+   for(let i=0;i<50&&!releaseFirst;i++)await library.waitForTimeout(50);
+   assert.equal(privateRequests,1);
+   await library.getByRole("button",{name:"Conta B"}).click();
+   await library.getByText("Perfil B",{exact:true}).waitFor();
+   releaseFirst();
+   await library.getByRole("button",{name:"Sair",exact:true}).click();
+   await library.waitForFunction(()=>document.querySelector("output").textContent==="");
+   assert.equal(privateRequests,2,"Logout must not query private endpoint");
+   await library.close();
    for (const width of [1366, 375]) {
     const page = await browser.newPage({viewport:{width,height:820},isMobile:width<820,hasTouch:width<820});
     const profile = {id:2,nome_publico:"Ana",foto_url:"/avatar-portrait-test.svg"};
