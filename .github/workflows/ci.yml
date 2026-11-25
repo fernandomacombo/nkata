@@ -4,6 +4,12 @@ on:
   push:
     branches: [main, opcao-a-base-react-django, integracao/nkata-completo, 'audit/**', 'fix/**']
   pull_request:
+  workflow_dispatch:
+    inputs:
+      experimental_media:
+        description: 'Executar ensaios opcionais de chamadas futuras'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -117,6 +123,7 @@ jobs:
 
 
   media-native:
+    if: github.event_name == 'workflow_dispatch' && inputs.experimental_media == true
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -146,6 +153,7 @@ jobs:
 
 
   media-staging-build:
+    if: github.event_name == 'workflow_dispatch' && inputs.experimental_media == true
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
