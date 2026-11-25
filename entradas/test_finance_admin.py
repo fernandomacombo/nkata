@@ -67,3 +67,34 @@ class FinanceAdminTests(TestCase):
         catalog = self.client.get(self.url, {"section":"catalogue"}).data["catalogue"]
         self.assertEqual([(a["code"],a["credits"]) for a in catalog["actions"][:3]], [("OLA",1),("FLOR",2),("BEIJINHO",3)])
         self.assertEqual([p["price_mzn"] for p in catalog["packs"]],[50,100,250,500])
+
+
+    def test_call_finance_audit_is_read_only_and_identifies_divergence(self):
+        from datetime import timedelta
+        from .models import Conversa, ChamadaConversaCreditoNKATA
+        peer = profile(99)
+        from .models import PerfilNKATA
+        member_profile = PerfilNKATA.objects.get(usuario=self.member)
+        chat = Conversa.objects.create(perfil_1=member_profile, perfil_2=peer)
+        call = ChamadaConversaCreditoNKATA.objects.create(conversa=chat, iniciador=self.member,
+            destinatario=peer.usuario, chave=uuid.uuid4(), tipo="AUDIO", estado="TERMINADA",
+            custo_minuto=3, max_minutos=3, minutos_pagos=1,
+            pago_ate=timezone.now(), expira_em=timezone.now()+timedelta(seconds=5))
+        key=f"call:native:{call.pk}:minute:1"
+        record_movement(self.member, key=key, kind="CONSUMO", amount=-3,
+            reference=f"call:{call.pk}", reason="Chamada")
+        record_movement(self.member, key=key+":refund", kind="ESTORNO", amount=3,
+            reference=f"call:{call.pk}", reason="Estorno")
+        self.login_finance()
+        response=self.client.get(self.url, {"section":"calls"})
+        self.assertEqual(response.status_code,200,response.data)
+        row=response.data["results"][0]
+        self.assertEqual((row["debited"],row["refunded"],row["net"],row["review"]),(3,3,0,"ESTORNO"))
+        self.assertEqual(self.client.get(self.url, {"section":"calls","status":"REVISAO"}).data["total"],0)
+        ChamadaConversaCreditoNKATA.objects.filter(pk=call.pk).update(minutos_pagos=2)
+        result=self.client.get(self.url, {"section":"calls","status":"REVISAO"}).data
+        self.assertEqual(result["total"],1)
+        self.assertEqual(result["results"][0]["review"],"DIVERGENCIA")
+        self.assertEqual(CarteiraNKATA.objects.get(usuario=self.member).saldo,278)
+        self.client.force_authenticate(self.member)
+        self.assertEqual(self.client.get(self.url, {"section":"calls"}).status_code,403)
