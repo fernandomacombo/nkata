@@ -28,7 +28,7 @@ export function PresenceProvider({ children, member, identity, page }) {
       } finally { busy = false; }
     }
     refresh();
-    const timer = window.setInterval(refresh, 10000);
+    const timer = window.setInterval(refresh, 20000);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       controller.abort();
