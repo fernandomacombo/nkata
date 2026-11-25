@@ -73,7 +73,9 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
       } catch (err) {
         if (!controller.signal.aborted) {
           if ([401, 403, 404].includes(err.status)) {
+            olderController.current?.abort(); setLoadingOlder(false);
             history.current = []; initialized.current = false; hasOlder.current = false;
+            restoreScroll.current = null; lastId.current = null; setReply(null); setText("");
             setThread(null);
           }
           setError(err.message);
@@ -94,7 +96,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   }, [id, revision]);
   useEffect(() => () => olderController.current?.abort(), [id]);
   async function loadOlder() {
-    if (loadingOlder || !history.current.length) return;
+    if (loadingOlder || !history.current.length || !hasOlder.current) return;
     const controller = new AbortController();
     olderController.current = controller;
     setLoadingOlder(true);
@@ -102,13 +104,20 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
       const first = history.current[0].id;
       const params = new URLSearchParams({ paginado: "1", antes: String(first), estado_desde: String(first) });
       const result = await request(`/api/chats/${id}/?${params}`, { signal: controller.signal });
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || !initialized.current) return;
       // Never allow an old page to overwrite state already received via polling.
       result.mensagens = result.mensagens.filter(message => !history.current.some(current => current.id === message.id));
       if (scroll.current) restoreScroll.current = { top: scroll.current.scrollTop, height: scroll.current.scrollHeight };
       mergePage(result);
     } catch (err) {
-      if (!controller.signal.aborted) setError(err.message);
+      if (!controller.signal.aborted) {
+        if ([401, 403, 404].includes(err.status)) {
+          history.current = []; initialized.current = false; hasOlder.current = false;
+          restoreScroll.current = null; lastId.current = null; setReply(null); setText(""); setThread(null);
+          setRevision(v => v + 1);
+        }
+        setError(err.message);
+      }
     } finally {
       if (!controller.signal.aborted) setLoadingOlder(false);
     }
