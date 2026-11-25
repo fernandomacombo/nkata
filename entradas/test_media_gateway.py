@@ -58,3 +58,42 @@ class MediaGatewayTests(TestCase):
             self.assertEqual(self.signed(index=1).status_code,409)
             self.assertEqual(self.signed(index=2).status_code,200)
         self.assertEqual(credit_balance(self.a.usuario),3)
+
+    def issue(self, user):
+        self.client.force_login(user)
+        return self.client.post(f"/api/chats/chamadas/{self.call.pk}/ticket/", secure=True)
+
+    def redeem(self, ticket, secret=SECRET):
+        from .media_gateway_api import JOIN_PATH
+        body=json.dumps({"ticket":ticket})
+        stamp=str(int(time.time()))
+        nonce=str(uuid4())
+        signature=hmac.new(secret.encode(),f"POST\n{JOIN_PATH}\n{stamp}\n{nonce}\n".encode()+body.encode(),hashlib.sha256).hexdigest()
+        return self.client.post(JOIN_PATH,body,content_type="application/json",secure=True,
+            HTTP_X_NKATA_MEDIA_TIME=stamp,HTTP_X_NKATA_MEDIA_NONCE=nonce,HTTP_X_NKATA_MEDIA_SIGNATURE=signature)
+
+    def test_join_only_authorized_participants_once_without_charge(self):
+        other=profile(82)
+        self.assertEqual(self.issue(other.usuario).status_code,404)
+        first=self.issue(self.a.usuario)
+        self.assertEqual(first.status_code,200,first.content)
+        token=first.json()["ticket"]
+        self.assertEqual(self.redeem(token,secret="wrong").status_code,403)
+        accepted=self.redeem(token)
+        self.assertEqual(accepted.status_code,200,accepted.content)
+        self.assertEqual(accepted.json()["user_id"],self.a.usuario_id)
+        self.assertEqual(self.redeem(token).status_code,409)
+        second=self.issue(self.a.usuario).json()["ticket"]
+        self.assertEqual(self.redeem(second).status_code,409)
+        peer=self.issue(self.b.usuario).json()["ticket"]
+        self.assertEqual(self.redeem(peer).json()["user_id"],self.b.usuario_id)
+        self.assertEqual(credit_balance(self.a.usuario),9)
+
+    def test_join_revoked_or_disabled_never_charges(self):
+        from .native_call_service import end_call
+        token=self.issue(self.a.usuario).json()["ticket"]
+        with self.settings(NKATA_MEDIA_GATEWAY_TEST_ENABLED=False):
+            self.assertEqual(self.redeem(token).status_code,404)
+        end_call(self.call.pk,actor_id=self.b.usuario_id)
+        self.assertEqual(self.redeem(token).status_code,403)
+        self.assertEqual(credit_balance(self.a.usuario),9)
