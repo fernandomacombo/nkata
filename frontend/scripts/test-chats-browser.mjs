@@ -20,7 +20,7 @@ ${css}
 function Harness(){
  const [page,setPage] = useState(new URLSearchParams(window.location.search).has("profile") ? "profile-test" : new URLSearchParams(window.location.search).has("feed") ? "feed-test" : "chats"), [id,setId] = useState(null), [accepted,setAccepted] = useState(false);
  return <div className="nk-app"><header className="nk-header"><span className="nk-header__member">Member</span></header>
- {page === "profile-test" ? <ProfileDetailPage authenticated profile={{id:2,nome_publico:"Ana",idade:27,cidade:"Maputo",objetivo_display:"Relacionamento sério",sobre_si:"Prefiro conhecer pessoalmente.",o_que_valoriza:"Respeito e carinho",o_que_nao_aceita:"Mentiras",preferencias:{ages:[25,35],height:165},foto_url:"/avatar-portrait-test.svg",gallery:[{id:"registo-1",mediaType:"IMAGEM",mediaUrl:"/avatar-extra-test.svg"},{id:22,mediaType:"IMAGEM",mediaUrl:"/avatar-post-test.svg"}],moments:[{id:7,mediaType:"TEXTO",text:"Um dia tranquilo por aqui.",expiresAt:new Date(Date.now()+3600000).toISOString()},{id:8,mediaType:"TEXTO",text:"Momento expirado",expiresAt:new Date(Date.now()-1000).toISOString()}]}} onAskChat={async()=>setPage("other")} onBack={()=>setPage("other")} onToggleInterest={()=>{}} onToggleSaved={()=>{}}/> : page === "feed-test" ? <MemberHomePage onNavigate={setPage} onOpenProfile={()=>setPage("profile")}/> : page === "chats" ? <ChatsPage conversationId={id} onSelect={setId} onBack={()=>setId(null)} onDiscover={()=>setPage("discover")} onOpenProfile={()=>setPage("profile")} safetyAccepted={accepted} onAcceptSafety={async()=>setAccepted(true)} /> : <main><h1>Other page</h1></main>}
+ {page === "profile-test" ? <ProfileDetailPage authenticated profile={{id:2,nome_publico:"Ana Maria de Sousa Fernandes",idade:27,cidade:"Maputo",objetivo_display:"Relacionamento sério",sobre_si:["Prefiro conhecer pessoalmente.","Gosto de ler e pesquisar.","Valorizo o diálogo.","Esta última frase deve ficar visível ao expandir."].join(String.fromCharCode(10)),o_que_valoriza:"Respeito e carinho",o_que_nao_aceita:"Mentiras",preferencias:{ages:[25,35],height:165},foto_url:"/avatar-portrait-test.svg",gallery:[{id:"registo-1",mediaType:"IMAGEM",mediaUrl:"/avatar-extra-test.svg"},{id:22,mediaType:"IMAGEM",mediaUrl:"/avatar-post-test.svg"}],moments:[{id:7,mediaType:"TEXTO",text:"Um dia tranquilo por aqui.",expiresAt:new Date(Date.now()+3600000).toISOString()},{id:8,mediaType:"TEXTO",text:"Momento expirado",expiresAt:new Date(Date.now()-1000).toISOString()}]}} onAskChat={async()=>setPage("other")} onBack={()=>setPage("other")} onToggleInterest={()=>{}} onToggleSaved={()=>{}}/> : page === "feed-test" ? <MemberHomePage onNavigate={setPage} onOpenProfile={()=>setPage("profile")}/> : page === "chats" ? <ChatsPage conversationId={id} onSelect={setId} onBack={()=>setId(null)} onDiscover={()=>setPage("discover")} onOpenProfile={()=>setPage("profile")} safetyAccepted={accepted} onAcceptSafety={async()=>setAccepted(true)} /> : <main><h1>Other page</h1></main>}
  <BottomNavigation activePage={page} onNavigate={p=>{setPage(p);setId(null)}}/>
  </div>;
 }
@@ -182,8 +182,18 @@ try {
     await detail.route("**/api/presenca/",route=>route.fulfill({json:{perfis:{"2":120}}}));
     await detail.route("**/api/perfis/2/sinais/",route=>route.fulfill({json:{signals:[],quota:{credit_mode:true,credit_balance:45}}}));
     await detail.goto("http://127.0.0.1:5178/"+html+"?profile=1");
-    await detail.getByRole("heading",{name:"Ana, 27",exact:true}).waitFor();
-    assert.equal(await detail.getByText("Prefiro conhecer pessoalmente.",{exact:true}).count(),1);
+    await detail.getByRole("heading",{name:"Ana Maria de Sousa Fernandes, 27",exact:true}).waitFor();
+    assert.equal(await detail.getByText("Prefiro conhecer pessoalmente.",{exact:false}).count(),1);
+    assert.equal(await detail.getByText("Esta última frase deve ficar visível ao expandir.",{exact:false}).count(),0);
+    await detail.getByRole("button",{name:"Ler mais",exact:true}).click();
+    await detail.getByText("Esta última frase deve ficar visível ao expandir.",{exact:false}).waitFor();
+    await detail.getByRole("button",{name:"Ver menos",exact:true}).click();
+    assert.equal(await detail.getByText("Esta última frase deve ficar visível ao expandir.",{exact:false}).count(),0);
+    const hero=await detail.locator(".nk-profile-detail__layout").boundingBox(), facts=await detail.locator(".nk-profile-essentials--wide").boundingBox();
+    assert.ok(facts.y>=hero.y+hero.height-2 && Math.abs(facts.width-hero.width)<4,"Details must occupy full width below the hero");
+    const signals=await detail.locator(".nk-profile-signals__grid > button").first().boundingBox();
+    assert.ok(signals.height<100,"Signal actions must remain compact");
+    assert.equal(await detail.getByText("25–35 anos",{exact:true}).count(),1);
     assert.equal(await detail.getByText("Relacionamento sério",{exact:true}).count(),1);
     assert.equal(await detail.getByText("Momento expirado",{exact:true}).count(),0);
     await detail.getByRole("button",{name:"Fotografia 2",exact:true}).click();
