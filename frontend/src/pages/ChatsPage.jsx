@@ -54,7 +54,7 @@ function Avatar({ profile }) {
       role={label ? "img" : undefined} aria-label={label || undefined} title={label || undefined} />}
   </span>;
 }
-function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack, onOpenProfile, callController }) {
+function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack, onOpenProfile, onVerifyIdentity, callController }) {
   const lastTyping = useRef(0), scroll = useRef(null), lastId = useRef(null);
   const history = useRef([]), initialized = useRef(false), hasOlder = useRef(false), olderController = useRef(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -249,7 +249,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
   }
   async function send(event) {
     event.preventDefault();
-    if (sending || voiceActive || !text.trim() || !safetyAccepted) return;
+    if (sending || voiceActive || thread?.read_only || !text.trim() || !safetyAccepted) return;
     setSending(true); setError("");
     try {
       const submittedText = text, submittedReply = reply;
@@ -306,7 +306,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           </div>}
         </li></Fragment>)}
       </ol>
-      <form className="nk-chat-compose" onSubmit={send}>
+      {thread.read_only ? <div className="nk-chat-compose"><p><LockKeyhole size={16}/> Pode ler as mensagens. Verifique a sua identidade para responder.</p><button type="button" className="nk-chat-primary" onClick={onVerifyIdentity}>Verificar identidade</button></div> : <form className="nk-chat-compose" onSubmit={send}>
         {extrasOpen && <section ref={extrasRef} id="nk-chat-extras-panel" className="nk-chat-extras nk-chat-extras--popover" aria-label="Acções da conversa">
           <div className="nk-chat-extras-title"><strong>Acções da conversa</strong><button className="nk-chat-icon" type="button" aria-label="Fechar acções" onClick={() => {setExtrasOpen(false);extrasTrigger.current?.focus();}}><X size={18}/></button></div>
           {thread.sinais?.quota?.credit_mode && <a className="nk-chat-wallet-link" href="/conta/?section=plan"><WalletCards size={17}/><span>Carteira · {thread.sinais.quota.credit_balance} créditos</span></a>}
@@ -330,7 +330,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
           </>}
           {thread.credito_voz?.enabled && safetyAccepted && <VoiceRecorder key={id} conversationId={id} offer={thread.credito_voz} onActive={setVoiceActive} onSent={()=>setRevision(v=>v+1)}/>}
         </div>
-      </form>
+      </form>}
       {(!safetyAccepted || safetyMode === "help") && <ChatSafetyNotice name={thread.nome} helpOnly={safetyMode === "help"} onAccept={safetyMode === "help" ? async () => setSafetyMode("") : onAcceptSafety} onExit={safetyMode === "help" ? () => setSafetyMode("") : onBack} />}
       <SafetyDialog open={["report", "block"].includes(safetyMode)} mode={safetyMode} personName={thread.nome} loading={safetyBusy} error={safetyError} onClose={() => setSafetyMode("")} onConfirm={confirmSafety} />
     </>}
@@ -346,7 +346,7 @@ function RequestRow({ item, busy, decide, cancel, onSelect, onOpenProfile }) {
     {item.estado === "PENDENTE" ? <div className="nk-chat-request-actions">
       {item.recebido ? <><button className="nk-chat-primary" disabled={busy} onClick={() => decide(item.id, "ACEITE")}>Aceitar</button><button disabled={busy} onClick={() => decide(item.id, "RECUSADO")}>Recusar</button></> :
         <button disabled={busy} onClick={() => cancel(item.id)}>Cancelar pedido</button>}
-    </div> : item.conversation_id && <button type="button" onClick={() => onSelect(item.conversation_id)}>{item.identity_pending ? "Ver estado" : "Abrir conversa"}</button>}
+    </div> : item.conversation_id && <button type="button" onClick={() => onSelect(item.conversation_id)}>Abrir conversa</button>}
   </article>;
 }
 export default function ChatsPage({ conversationId, requestId, onSelect, onBack, onOpenProfile, onDiscover, identityRequired, onVerifyIdentity, nativeCallConfig, callController: suppliedCallController, ...threadProps }) {
@@ -404,7 +404,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
   function chooseTab(key) { setTab(key); if (requestId || (conversationId && key !== "all" && key !== "unread")) onBack(); }
   const showChats = tab === "all" || tab === "unread";
   const selectedChat = chats.find(c => String(c.id) === String(conversationId));
-  const lockedThread = identityRequired || selectedChat?.identity_pending;
+  const lockedThread = Boolean(selectedChat?.identity_pending && selectedChat?.read_only === undefined);
   return <main className="nk-shell nk-chats-page">
     {callController?.enabled === true && callController.call && <CallPanel call={callController.call} onAccept={callController.accept} onDecline={callController.decline} onEnd={callController.end} onDismiss={callController.dismiss} onToggleMic={callController.toggleMic} onToggleCamera={callController.toggleCamera}/>}
 
@@ -434,7 +434,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
         <p>{identityRequired ? "Verifique a sua identidade para trocar mensagens." : "A outra pessoa ainda precisa de verificar a identidade. A conversa ficará disponível quando ambos estiverem verificados."}</p>
         {identityRequired && <button type="button" className="nk-chat-primary" onClick={onVerifyIdentity}>Verificar identidade</button>}
         <button type="button" className="nk-chat-icon" onClick={onBack}>Voltar</button>
-      </section> : conversationId && !data ? <section className="nk-chat-empty-panel">A carregar conversa...</section> : conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} callController={callController} onBack={onBack} onOpenProfile={onOpenProfile} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
+      </section> : conversationId && !data ? <section className="nk-chat-empty-panel">A carregar conversa...</section> : conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} callController={callController} onBack={onBack} onOpenProfile={onOpenProfile} onVerifyIdentity={onVerifyIdentity} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
         <section className="nk-chat-empty-panel"><MessageCircle size={46} strokeWidth={1.4} /><h2>Uma boa conversa começa aqui</h2><p>Escolha uma conversa ou conheça alguém novo.</p><button className="nk-chat-primary" onClick={onDiscover}>Explorar perfis</button></section>}
     </div>
   </main>;
