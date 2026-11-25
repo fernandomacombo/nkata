@@ -41,6 +41,7 @@ export default function useProfileLibrary() {
     } catch (error) {
       if (controller.signal.aborted || activeUser.current !== userId) return false;
       if (error.status === 401 || error.status === 403) {
+        activeUser.current = null;
         setSavedProfiles([]);
         setRecentProfiles([]);
         setCurrentUserId(null);
