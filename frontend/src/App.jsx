@@ -1,5 +1,4 @@
 import { PresenceProvider } from "./components/profiles/Presence.jsx";
-import IncomingCallWatcher from "./components/chat/IncomingCallWatcher.jsx";
 import { playNotificationSound } from "./services/callAttention.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AppHeader from "./components/layout/AppHeader.jsx";
@@ -954,7 +953,6 @@ export default function App() {
         <AdminPanelPage session={session} />
       )}
 
-      {memberAuthenticated && !chatIdentityRequired && <IncomingCallWatcher key={sessionIdentity} />}
 
       {activePage !== "admin" && !operator && (
         <BottomNavigation
