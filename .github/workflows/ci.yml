@@ -114,3 +114,22 @@ jobs:
         run: node scripts/test-call-panel-browser.mjs
       - name: Validar carteira pessoal em Chromium e WebKit
         run: node scripts/test-wallet-browser.mjs
+
+
+  media-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: media-gateway
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Instalar dependências de media e worker nativo
+        run: npm install --no-audit --no-fund
+      - name: Auditar dependências de media
+        run: npm audit --audit-level=high
+      - name: Validar media RTP real no worker isolado
+        run: npm run test:rtp
