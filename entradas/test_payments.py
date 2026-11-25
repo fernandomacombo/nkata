@@ -48,6 +48,42 @@ class PaymentTests(TestCase):
         with patch("entradas.payment_service.provider_request", return_value=data or self.paid_data(order)):
             return reconcile(order)
 
+    def test_creation_response_cannot_overwrite_terminal_state(self):
+        def late(method, payment_id=None, payload=None):
+            PedidoPagamentoNKATA.objects.filter(referencia=payload["reference"]).update(estado="FALHOU")
+            return self.create_response(method, payment_id, payload)
+        with patch("entradas.payment_service.provider_request", side_effect=late):
+            order = start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
+        self.assertEqual(order.estado, "FALHOU")
+        self.assertFalse(order.checkout_url)
+
+    def test_missing_provider_id_is_not_serialized_as_none(self):
+        def invalid(method, payment_id=None, payload=None):
+            return {**self.create_response(method, payment_id, payload), "id": None}
+        with patch("entradas.payment_service.provider_request", side_effect=invalid):
+            with self.assertRaises(PaymentError):
+                start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
+        order = PedidoPagamentoNKATA.objects.get(usuario=self.user)
+        self.assertIsNone(order.provedor_id)
+        self.assertEqual(order.estado, "INCERTO")
+
+    def test_duplicate_provider_id_does_not_attach_to_another_order(self):
+        first = self.order()
+        PedidoPagamentoNKATA.objects.filter(pk=first.pk).update(estado="FALHOU")
+        with patch("entradas.payment_service.provider_request", side_effect=self.create_response):
+            with self.assertRaises(PaymentError):
+                start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
+        second = PedidoPagamentoNKATA.objects.exclude(pk=first.pk).get(usuario=self.user)
+        self.assertIsNone(second.provedor_id)
+        self.assertEqual(second.estado, "INCERTO")
+
+    def test_non_ascii_webhook_signature_is_rejected(self):
+        with patch("entradas.payment_service.provider_request") as provider:
+            response = self.client.post("/api/pagamentos/paysuite/webhook/", {}, format="json",
+                HTTP_X_WEBHOOK_SIGNATURE="é"*64)
+        self.assertEqual(response.status_code,403)
+        provider.assert_not_called()
+
     def test_checkout_sets_server_amount_nkata_brand_and_does_not_grant_plan(self):
         with patch("entradas.payment_service.provider_request", side_effect=self.create_response) as provider:
             order = start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
