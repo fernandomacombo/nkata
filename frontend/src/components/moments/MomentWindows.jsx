@@ -20,7 +20,7 @@ const inspirations = [
 function WindowCard({ group, index, seen, english, onOpen }) {
   const moment = group.moments.find(item => !seen.has(Number(item.id))) || group.moments[0];
   const Accent = accents[index % accents.length];
-  const allSeen = group.mine || group.moments.every(item => seen.has(Number(item.id)));
+  const allSeen = !group.mine && group.moments.every(item => seen.has(Number(item.id)));
   const tall = index % 4 === 0 || index % 4 === 3;
   return <button type="button" className={"nk-janelas__window " + (tall ? "is-tall" : "is-short") + (allSeen ? " is-seen" : "")}
     aria-label={(english ? "Open Moment by " : "Abrir momento de ") + group.profile.nome_publico} onClick={() => onOpen(group, moment.id)}>
@@ -32,7 +32,7 @@ function WindowCard({ group, index, seen, english, onOpen }) {
     <span className="nk-janelas__details">
       <Accent size={17} aria-hidden="true"/>
       <strong>{group.mine ? (english ? "Your Moment" : "O teu momento") : group.profile.nome_publico}</strong>
-      <span className="nk-janelas__meta"><span>{group.moments.length} {group.moments.length === 1 ? (english ? "moment" : "momento") : (english ? "moments" : "momentos")} · {allSeen ? (english ? "Seen" : "Visto") : (english ? "New" : "Novo")}</span><ArrowUpRight size={15}/></span>
+      <span className="nk-janelas__meta"><span>{group.moments.length} {group.moments.length === 1 ? (english ? "moment" : "momento") : (english ? "moments" : "momentos")}{!group.mine && ` · ${allSeen ? (english ? "Seen" : "Visto") : (english ? "New" : "Novo")}`}</span><ArrowUpRight size={15}/></span>
     </span>
   </button>;
 }
@@ -52,11 +52,10 @@ export default function MomentWindows({groups, english, composerOpen, onCreate, 
       <button className="nk-janelas__add" type="button" onClick={onCreate} aria-expanded={Boolean(composerOpen)} aria-label={english ? "New Moment" : "Novo Momento"}><Plus size={26}/></button>
     </header>
     <div className="nk-janelas__toolbar"><h3>{english ? "Today's windows" : "Janelas de hoje"}</h3><span>{unseen.length} {english ? "to discover" : "por descobrir"}</span></div>
-    <div className="nk-janelas__filters" aria-label={english ? "Filter Moments" : "Filtrar Momentos"}>{[["all","Todos","All"],["new","Por ver","Unseen"],["seen","Já vistos","Seen"]].map(([value,pt,en]) => <button type="button" key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{english?en:pt}</button>)}</div>
+    <div className="nk-janelas__filters" aria-label={english ? "Filter Moments" : "Filtrar Momentos"}>{[["all","Todos","All"],["new","Por ver","Unseen"],["seen","Já vistos","Seen"]].map(([value,pt,en]) => <button type="button" key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{english?en:pt}</button>)}{unseen.length>0 && <button type="button" className="nk-janelas__surprise-compact" onClick={surprise}><Shuffle size={14}/>{english?"Surprise me!":"Surpreende-me!"}</button>}</div>
     <div className="nk-janelas__grid">
       <div className="nk-janelas__column">
         {left.slice(0,1).map(group=><WindowCard key={group.profile.id} group={group} index={0} seen={seen} english={english} onOpen={onOpen}/>)}
-        <button type="button" className="nk-janelas__surprise" disabled={!unseen.length} onClick={surprise}><span className="nk-janelas__cards" aria-hidden="true"><span><Heart size={26}/></span><span><Sparkles size={27}/></span></span><strong>{english ? "Surprise me!" : "Surpreende-me!"}</strong><small>{english ? "Open an unseen Moment" : "Abre um momento por descobrir"}</small><Shuffle size={17}/></button>
         {left.slice(1).map((group,i)=><WindowCard key={group.profile.id} group={group} index={(i+1)*2} seen={seen} english={english} onOpen={onOpen}/>)}
       </div>
       <div className="nk-janelas__column">

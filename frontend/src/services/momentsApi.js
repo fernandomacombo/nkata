@@ -69,13 +69,15 @@ export async function fetchMoments({ signal } = {}) {
   return payload;
 }
 
-export async function createMoment({ caption, visibility, media, theme = "wine", font = "serif" }) {
+export async function createMoment({ caption, visibility, media, theme = "wine", font = "serif", key, expectedCost }) {
   const form = new FormData();
   form.append("caption", caption || "SEM_LEGENDA");
   form.append("visibilidade", visibility || "TODOS");
   form.append("theme", theme);
   form.append("font", font);
   if (media) form.append("media", media);
+  if (key) form.append("key", key);
+  if (expectedCost !== undefined) form.append("expected_cost", String(expectedCost));
 
   const response = await fetch(`${API_BASE_URL}/api/momentos/`, {
     method: "POST",

@@ -36,3 +36,5 @@ test('Moment viewing memory is isolated, expires, and stores no content',()=>{
  assert.deepEqual(seenApi.writeSeenMoments(null,a,{"10":now+1000},now),{"10":now+1000});
  assert.equal(Object.keys(seenApi.pruneSeenMoments(Object.fromEntries(Array.from({length:600},(_,i)=>[i,now+1000+i])),now)).length,500);
 });
+
+test('credit Moment sends a stable idempotency key and explicit zero price',async()=>{const oldFetch=globalThis.fetch,oldDocument=globalThis.document;globalThis.document={cookie:""};globalThis.fetch=async(url,options)=>{assert.equal(options.body.get("expected_cost"),"0");assert.equal(options.body.get("key"),"11111111-1111-4111-8111-111111111111");return new Response(JSON.stringify({moment:{id:1},charged:0}),{status:202,headers:{"content-type":"application/json"}});};try{const result=await api.createMoment({media:new Blob(["image"],{type:"image/png"}),key:"11111111-1111-4111-8111-111111111111",expectedCost:0});assert.equal(result.charged,0);}finally{globalThis.fetch=oldFetch;globalThis.document=oldDocument;}});

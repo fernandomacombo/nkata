@@ -17,7 +17,7 @@ class StatementTooLarge(ValueError):
     pass
 CATEGORIES = (
     ("signals", "Sinais"), ("text", "Texto livre"), ("voice", "Notas de voz"),
-    ("audio", "Chamadas de áudio"), ("video", "Videochamadas"), ("other", "Outros consumos"),
+    ("audio", "Chamadas de áudio"), ("video", "Videochamadas"), ("moments", "Momentos"), ("other", "Outros consumos"),
 )
 
 
@@ -59,6 +59,7 @@ def member_statement(user, *, period="30", kind="ALL", before=0, export=False):
         When(chave__startswith="signal:", then=Value("signals")),
         When(chave__startswith="chat24:", then=Value("text")),
         When(chave__startswith="voice:", then=Value("voice")),
+        When(chave__startswith="moment:", then=Value("moments")),
         When(chave__startswith="call:", motivo__startswith="Chamada AUDIO", then=Value("audio")),
         When(chave__startswith="call:", motivo__startswith="Chamada VIDEO", then=Value("video")),
         default=Value("other"), output_field=CharField(),
