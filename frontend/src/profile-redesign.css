@@ -380,3 +380,11 @@
 @keyframes nk-heart-loader-beat{0%,100%{transform:scale(1)}15%{transform:scale(1.17)}30%{transform:scale(.96)}45%{transform:scale(1.07)}65%{transform:scale(1)}}
 @keyframes nk-heart-loader-burst{0%,12%{transform:translate(-50%,-50%) scale(.3);opacity:0}24%{opacity:.85}65%,100%{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r)) scale(.6);opacity:0}}
 @media(prefers-reduced-motion:reduce){.nk-heart-loader *{animation:none!important}}
+
+/* Same approved animation, fitted inside chat panels and other narrow areas. */
+.nk-heart-loader {width:100%;min-width:0;}
+.nk-heart-loader--compact {min-height:300px;padding:16px 12px;}
+.nk-heart-loader--compact .nk-heart-loader__brand {top:15px;font-size:18px;}
+.nk-heart-loader--compact .nk-heart-loader__animation {width:150px;height:150px;}
+.nk-heart-loader--compact .nk-heart-loader__heading {font-size:18px;}
+.nk-heart-loader--compact .nk-heart-loader__progress {margin-top:18px;}
