@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import AutoplayMomentViewer from "../components/moments/AutoplayMomentViewer.jsx";
-import MomentCarousel from "../components/moments/MomentCarousel.jsx";
+import MomentWindows, { activeMomentGroups } from "../components/moments/MomentWindows.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import { createMoment, deleteMoment, fetchMoments, groupMomentsByProfile, MOMENTS_REFRESH_MS } from "../services/momentsApi.js";
@@ -225,6 +225,8 @@ export default function MomentsPage({ onOpenProfile }) {
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState("");
   const [viewerGroup, setViewerGroup] = useState(null);
+  const [seenMoments, setSeenMoments] = useState(() => new Set());
+  const markSeen = useCallback(id => setSeenMoments(old => old.has(id) ? old : new Set([...old, id])), []);
   const fileRef = useRef(null);
   const activeRequest = useRef(null);
   const changingMoment = useRef(false);
@@ -376,13 +378,17 @@ export default function MomentsPage({ onOpenProfile }) {
       </CompactPageHeader>
 
       <section className="nk-shell nk-moments-page__content">
-        {loading && !data ? <HeartLoader page="moments"/> : <MomentCarousel
+        {loading && !data ? <HeartLoader page="moments"/> : <MomentWindows
           groups={groups}
-          loading={loading && !data}
           english={english}
+          seen={seenMoments}
           composerOpen={composerOpen}
           onCreate={() => setComposerOpen((value) => !value)}
-          onOpen={(group) => setViewerGroup({ groups, index: groups.indexOf(group) })}
+          onOpen={(group, momentId) => {
+            const active = activeMomentGroups(groups);
+            const index = active.findIndex(item => item.profile.id === group.profile.id);
+            if (index >= 0) setViewerGroup({ groups: active, index, momentIndex: Math.max(0, active[index].moments.findIndex(item => item.id === momentId)) });
+          }}
         />}
         {composerOpen && <form id="nk-moment-composer"
           className={`nk-moment-composer ${composerOpen ? "is-open" : "is-collapsed"}`}
@@ -403,6 +409,7 @@ export default function MomentsPage({ onOpenProfile }) {
 
           {composerOpen && (
             <div className="nk-moment-composer__body">
+              <p className="nk-janelas-composer-intro"><Clock3 size={17}/>{english ? "Your Moment lasts 24 hours after approval." : "O teu momento vive 24 horas após aprovação."}</p>
               {!mediaPreview && <div className={`nk-moment-draft nk-moment-theme-${theme} nk-moment-font-${font}`} aria-label={english ? "Moment preview" : "Pré-visualização do Momento"}>
                 <p>{caption === "SEM_LEGENDA" ? (english ? "Choose a phrase" : "Escolha uma frase") : (english ? EN_CAPTIONS[caption] : captionOptions.find((item) => item.value === caption)?.label)}</p>
               </div>}
@@ -485,6 +492,9 @@ export default function MomentsPage({ onOpenProfile }) {
         <AutoplayMomentViewer
           groups={viewerGroup.groups}
           initialGroupIndex={viewerGroup.index}
+          initialMomentIndex={viewerGroup.momentIndex}
+          windowsMode
+          onViewed={markSeen}
           onClose={() => setViewerGroup(null)}
           onDelete={handleDelete}
           onOpenProfile={(profile) => {

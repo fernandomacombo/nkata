@@ -13,6 +13,7 @@ import React, {useState} from "react";
 import {createRoot} from "react-dom/client";
 import ChatsPage from "/src/pages/ChatsPage.jsx";
 import MemberHomePage from "/src/pages/MemberHomePage.jsx";
+import MomentWindows from "/src/components/moments/MomentWindows.jsx";
 import DiscoverPage from "/src/pages/DiscoverPage.jsx";
 import ProfileDetailPage from "/src/pages/ProfileDetailPage.jsx";
 import HeartLoader from "/src/components/HeartLoader.jsx";
@@ -29,6 +30,11 @@ function DiscoveryHarness(){
  const [loading,setLoading]=useState(true),[saved,setSaved]=useState([]),[opened,setOpened]=useState("");
  const profiles=Array.from({length:7},(_,i)=>({id:i+11,nome_publico:"Pessoa "+(i+1),idade:25+i,cidade:i%2?"Beira":"Maputo",verificado:i!==1,objetivo_display:"Relacionamento sério",foto_url:"/discovery-test.svg",criado_em:new Date(Date.now()-i*86400000).toISOString()})).reverse();
  return <PresenceProvider member={true} identity="discovery" page={loading?"loading":"discover"}><div className="nk-app"><button onClick={()=>setLoading(false)}>Carregar descoberta</button><output aria-label="Perfil aberto">{opened}</output><DiscoverPage authenticated profiles={profiles} loading={loading} onReload={()=>{}} onOpenProfile={p=>setOpened(p.nome_publico)} isSaved={p=>saved.includes(p.id)} onToggleSaved={p=>setSaved(old=>old.includes(p.id)?old.filter(id=>id!==p.id):[...old,p.id])}/></div></PresenceProvider>;
+}
+function WindowsHarness(){
+ const [seen,setSeen]=useState(new Set()),[opened,setOpened]=useState(""),[composer,setComposer]=useState(false);
+ const groups=Array.from({length:4},(_,i)=>({profile:{id:i+1,nome_publico:"Janela "+(i+1)},moments:[{id:i+20,moderation_status:i===3?"PENDENTE":"APROVADO",expires_at:new Date(Date.now()+(i===2?-1000:3600000)).toISOString(),media_type:"TEXTO",text:"Frase "+i}]}));
+ return <main><output aria-label="Janela aberta">{opened}</output><MomentWindows groups={groups} english={false} seen={seen} composerOpen={composer} onCreate={()=>setComposer(x=>!x)} onOpen={(group,id)=>{setSeen(s=>new Set([...s,id]));setOpened(group.profile.nome_publico)}}/></main>;
 }
 function LoaderHarness(){
  const [context,setContext]=useState("profile");
@@ -49,7 +55,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
+createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("windows") ? <WindowsHarness/> : new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -101,6 +107,24 @@ try {
    assert.equal(await status.locator(".nk-heart-loader__particles svg").count(),7);
    assert.equal(loaderErrors.length,0,loaderErrors.join("\n"));
    await loader.close();
+   const windows = await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   const windowErrors=[];windows.on("pageerror",e=>windowErrors.push(e.message));
+   await windows.goto("http://127.0.0.1:5178/"+html+"?windows=1");
+   await windows.getByRole("heading",{name:"Janelas de hoje"}).waitFor();
+   assert.equal(await windows.locator(".nk-janelas__window").count(),2,"Only approved, nonexpired Moments");
+   await windows.getByRole("button",{name:"Abrir momento de Janela 1"}).click();
+   await windows.getByRole("button",{name:"Por ver",exact:true}).click();
+   assert.equal(await windows.locator(".nk-janelas__window").count(),1);
+   await windows.getByRole("button",{name:/Surpreende-me/}).click();
+   assert.equal(await windows.getByLabel("Janela aberta").textContent(),"Janela 2");
+   assert.equal(await windows.getByRole("button",{name:/Surpreende-me/}).isDisabled(),true);
+   await windows.getByRole("button",{name:"Já vistos",exact:true}).click();
+   assert.equal(await windows.locator(".nk-janelas__window").count(),2);
+   await windows.getByRole("button",{name:"Novo Momento"}).click();
+   assert.equal(await windows.getByRole("button",{name:"Novo Momento"}).getAttribute("aria-expanded"),"true");
+   for(const width of [375,1366]){await windows.setViewportSize({width,height:812});assert.ok(await windows.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"Windows must fit viewport");}
+   assert.equal(windowErrors.length,0,windowErrors.join("; "));
+   await windows.close();
    for (const width of [375,1366]) {
      const discovery=await browser.newPage({viewport:{width,height:820},reducedMotion:"reduce"});
      const discoveryErrors=[];

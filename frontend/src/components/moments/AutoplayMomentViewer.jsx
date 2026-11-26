@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -129,6 +130,9 @@ function ReactionTray({ moment, reactions, loading, busy, error, onReact, englis
 export default function AutoplayMomentViewer({
   groups,
   initialGroupIndex = 0,
+  initialMomentIndex = 0,
+  windowsMode = false,
+  onViewed,
   onClose,
   onDelete,
   onOpenProfile,
@@ -136,7 +140,7 @@ export default function AutoplayMomentViewer({
   const english = useInterfaceLanguage() === "EN";
   const safeInitialGroup = Math.max(0, Math.min(initialGroupIndex, Math.max(0, groups.length - 1)));
   const [groupIndex, setGroupIndex] = useState(safeInitialGroup);
-  const [momentIndex, setMomentIndex] = useState(0);
+  const [momentIndex, setMomentIndex] = useState(initialMomentIndex);
   const [progress, setProgress] = useState(0);
   const [reactions, setReactions] = useState(null);
   const [reactionsLoading, setReactionsLoading] = useState(false);
@@ -193,8 +197,18 @@ export default function AutoplayMomentViewer({
 
   useEffect(() => {
     setGroupIndex(safeInitialGroup);
-    setMomentIndex(0);
-  }, [safeInitialGroup]);
+    setMomentIndex(initialMomentIndex);
+  }, [safeInitialGroup, initialMomentIndex]);
+
+  useEffect(() => { if (moment?.id) onViewed?.(moment.id); }, [moment?.id, onViewed]);
+
+  useEffect(() => {
+    if (!windowsMode || !moment?.expires_at) return undefined;
+    const remaining = Date.parse(moment.expires_at) - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) { onClose(); return undefined; }
+    const timer = window.setTimeout(onClose, remaining);
+    return () => window.clearTimeout(timer);
+  }, [windowsMode, moment?.id, moment?.expires_at, onClose]);
 
   useEffect(() => {
     setProgress(0);
@@ -282,7 +296,7 @@ export default function AutoplayMomentViewer({
 
   return createPortal(
     <div
-      className="nk-moment-viewer nk-moment-viewer--autoplay"
+      className={"nk-moment-viewer nk-moment-viewer--autoplay" + (windowsMode ? " nk-janelas-viewer" : "")}
       role="dialog"
       aria-modal="true"
       aria-label={`${english ? "Moment by" : "Momento de"} ${moment.profile.nome_publico}`}
@@ -334,7 +348,7 @@ export default function AutoplayMomentViewer({
           </div>
         </header>
 
-        <div className={`nk-moment-viewer__content is-${moment.media_type.toLowerCase()} nk-moment-theme-${moment.theme || "wine"} nk-moment-font-${moment.font || "serif"}`}>
+        <div key={windowsMode ? moment.id : undefined} className={`nk-moment-viewer__content is-${moment.media_type.toLowerCase()} nk-moment-theme-${moment.theme || "wine"} nk-moment-font-${moment.font || "serif"}`}>
           <MomentMedia
             moment={moment}
             onVideoProgress={setProgress}
@@ -358,6 +372,8 @@ export default function AutoplayMomentViewer({
             {english ? (moment.visibility === "MATCHES" ? "Matches only" : "All members") : moment.visibility_label}
           </span>
         </div>
+
+        {windowsMode && !moment.mine && onOpenProfile && <button type="button" className="nk-janelas__know" onClick={() => onOpenProfile(moment.profile)}>{english ? "Meet" : "Conhecer"} {moment.profile.nome_publico}<ArrowUpRight size={16}/></button>}
 
         {(groupIndex > 0 || momentIndex > 0) && (
           <button
