@@ -306,6 +306,7 @@ class QuestionarioEntradaAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = (
+        "aceita_regras", "regras_versao", "regras_aceites_em",
         "criado_em",
         "atualizado_em",
     )
@@ -333,6 +334,8 @@ class QuestionarioEntradaAdmin(admin.ModelAdmin):
                 "o_que_valoriza",
                 "o_que_nao_aceita",
                 "aceita_regras",
+                "regras_versao",
+                "regras_aceites_em",
             )
         }),
 

@@ -13,6 +13,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import PerfilNKATA
+from .notification_models import NotificacaoNKATA
 from .profile_photo_inspection import CONTACT_WARNING, profile_photo_has_contact
 from .profile_media_api import _stream, profile_photo_is_approved
 from .user_roles import has_admin_capability
@@ -118,22 +119,32 @@ def api_review_photo(request, profile_id, slot):
             return Response({"detail": CONTACT_WARNING}, status=400)
     new_state = "APROVADO" if action == "approve" else "REJEITADO"
     if slot == 0:
+        profile.foto_destaque_publico_motivo = reason if action == "reject" else ""
         profile.foto_destaque_publico_estado = new_state
         profile.foto_destaque_publico_aprovada = action == "approve"
         if action == "reject":
             profile.destaque_publico = False
         profile.save(update_fields=[
-            "foto_destaque_publico_estado", "foto_destaque_publico_aprovada",
+            "foto_destaque_publico_motivo", "foto_destaque_publico_estado", "foto_destaque_publico_aprovada",
             "destaque_publico", "atualizado_em"
         ])
     else:
         pedido = profile.pedido
         flag = f"foto_extra_{slot}_visivel"
         state = f"foto_extra_{slot}_estado"
+        reason_field = f"foto_extra_{slot}_motivo"
+        setattr(pedido, reason_field, reason if action == "reject" else "")
         setattr(pedido, state, new_state)
         if action == "reject":
             setattr(pedido, flag, False)
-        pedido.save(update_fields=[state, flag, "atualizado_em"])
+        pedido.save(update_fields=[state, flag, reason_field, "atualizado_em"])
+    if action == "reject" and profile.usuario_id:
+        label = "Fotografia principal" if slot == 0 else f"Fotografia {slot + 1}"
+        NotificacaoNKATA.objects.update_or_create(
+            destinatario_id=profile.usuario_id, chave=f"foto-rejeitada:{slot}:{current_version}",
+            defaults={"tipo": "EQUIPA", "titulo": f"{label} rejeitada", "lida": False,
+                      "texto": "Abra a sua conta para consultar o motivo e enviar outra fotografia."},
+        )
     LogEntry.objects.create(
         user=request.user,
         content_type=ContentType.objects.get_for_model(profile),

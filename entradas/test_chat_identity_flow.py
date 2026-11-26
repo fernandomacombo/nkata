@@ -52,7 +52,7 @@ class ChatIdentityFlowTests(TestCase):
             "sobre_si": "Gosto de ler e caminhar ao fim da tarde.",
             "o_que_valoriza": "Respeito e boa comunicação.",
             "o_que_nao_aceita": "Falta de respeito.",
-            "aceita_regras": "on",
+            "aceita_regras": "on", "regras_versao": "2026-11-26",
         })
         self.assertEqual(response.status_code, 200, response.json())
         password = "Test!ChatIdentity#47"
