@@ -13,6 +13,10 @@ import React, {useState} from "react";
 import {createRoot} from "react-dom/client";
 import ChatsPage from "/src/pages/ChatsPage.jsx";
 import MemberHomePage from "/src/pages/MemberHomePage.jsx";
+import MomentWindows from "/src/components/moments/MomentWindows.jsx";
+import AutoplayMomentViewer from "/src/components/moments/AutoplayMomentViewer.jsx";
+import MomentsPage from "/src/pages/MomentsPage.jsx";
+import useSeenMoments from "/src/hooks/useSeenMoments.js";
 import DiscoverPage from "/src/pages/DiscoverPage.jsx";
 import ProfileDetailPage from "/src/pages/ProfileDetailPage.jsx";
 import HeartLoader from "/src/components/HeartLoader.jsx";
@@ -29,6 +33,21 @@ function DiscoveryHarness(){
  const [loading,setLoading]=useState(true),[saved,setSaved]=useState([]),[opened,setOpened]=useState("");
  const profiles=Array.from({length:7},(_,i)=>({id:i+11,nome_publico:"Pessoa "+(i+1),idade:25+i,cidade:i%2?"Beira":"Maputo",verificado:i!==1,objetivo_display:"Relacionamento sério",foto_url:"/discovery-test.svg",criado_em:new Date(Date.now()-i*86400000).toISOString()})).reverse();
  return <PresenceProvider member={true} identity="discovery" page={loading?"loading":"discover"}><div className="nk-app"><button onClick={()=>setLoading(false)}>Carregar descoberta</button><output aria-label="Perfil aberto">{opened}</output><DiscoverPage authenticated profiles={profiles} loading={loading} onReload={()=>{}} onOpenProfile={p=>setOpened(p.nome_publico)} isSaved={p=>saved.includes(p.id)} onToggleSaved={p=>setSaved(old=>old.includes(p.id)?old.filter(id=>id!==p.id):[...old,p.id])}/></div></PresenceProvider>;
+}
+function WindowsHarness(){
+ const [seen,setSeen]=useState(new Set()),[opened,setOpened]=useState(""),[composer,setComposer]=useState(false);
+ const groups=Array.from({length:4},(_,i)=>({profile:{id:i+1,nome_publico:"Janela "+(i+1)},moments:[{id:i+20,moderation_status:i===3?"PENDENTE":"APROVADO",expires_at:new Date(Date.now()+(i===2?-1000:3600000)).toISOString(),media_type:"TEXTO",text:"Frase "+i}]}));
+ return <main><output aria-label="Janela aberta">{opened}</output><MomentWindows groups={groups} english={false} seen={seen} composerOpen={composer} onCreate={()=>setComposer(x=>!x)} onOpen={(group,id)=>{setSeen(s=>new Set([...s,id]));setOpened(group.profile.nome_publico)}}/></main>;
+}
+function SeenMemoryHarness(){
+ const [user,setUser]=useState(101);
+ const {seen,markSeen}=useSeenMoments(user);
+ return <main><button onClick={()=>setUser(101)}>Membro A</button><button onClick={()=>setUser(102)}>Membro B</button><button onClick={()=>markSeen({id:70,moderation_status:"APROVADO",expires_at:new Date(Date.now()+3600000).toISOString()})}>Ver 70</button><output aria-label="Vistos">{Array.from(seen).join(",")}</output></main>;
+}
+function WindowViewerHarness(){
+ const [opened,setOpened]=useState(true),[profile,setProfile]=useState("");
+ const [groups]=useState(()=>Array.from({length:2},(_,i)=>{const profile={id:i+1,nome_publico:"Pessoa "+(i+1)};return {profile,moments:[{id:50+i,profile,moderation_status:"APROVADO",expires_at:new Date(Date.now()+3600000).toISOString(),media_type:"TEXTO",text:"Frase "+i,visibility:"TODOS",visibility_label:"Todos os membros"}]};}));
+ return <main><output aria-label="Perfil do momento">{profile}</output>{opened&&<AutoplayMomentViewer groups={groups} windowsMode onClose={()=>setOpened(false)} onOpenProfile={p=>{setProfile(p.nome_publico);setOpened(false)}}/>}</main>;
 }
 function LoaderHarness(){
  const [context,setContext]=useState("profile");
@@ -49,7 +68,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
+createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("seenmemory") ? <SeenMemoryHarness/> : new URLSearchParams(window.location.search).has("momentstudio") ? <MomentsPage/> : new URLSearchParams(window.location.search).has("windowviewer") ? <WindowViewerHarness/> : new URLSearchParams(window.location.search).has("windows") ? <WindowsHarness/> : new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -101,6 +120,79 @@ try {
    assert.equal(await status.locator(".nk-heart-loader__particles svg").count(),7);
    assert.equal(loaderErrors.length,0,loaderErrors.join("\n"));
    await loader.close();
+   const windows = await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   const windowErrors=[];windows.on("pageerror",e=>windowErrors.push(e.message));
+   await windows.goto("http://127.0.0.1:5178/"+html+"?windows=1");
+   await windows.getByRole("heading",{name:"Janelas de hoje"}).waitFor();
+   assert.equal(await windows.locator(".nk-janelas__window").count(),2,"Only approved, nonexpired Moments");
+   await windows.getByRole("button",{name:"Abrir momento de Janela 1"}).click();
+   await windows.getByRole("button",{name:"Por ver",exact:true}).click();
+   assert.equal(await windows.locator(".nk-janelas__window").count(),1);
+   await windows.getByRole("button",{name:/Surpreende-me/}).click();
+   assert.equal(await windows.getByLabel("Janela aberta").textContent(),"Janela 2");
+   assert.equal(await windows.getByRole("button",{name:/Surpreende-me/}).isDisabled(),true);
+   await windows.getByRole("button",{name:"Já vistos",exact:true}).click();
+   assert.equal(await windows.locator(".nk-janelas__window").count(),2);
+   await windows.getByRole("button",{name:"Novo Momento"}).click();
+   assert.equal(await windows.getByRole("button",{name:"Novo Momento"}).getAttribute("aria-expanded"),"true");
+   for(const width of [375,1366]){await windows.setViewportSize({width,height:812});assert.ok(await windows.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"Windows must fit viewport");}
+   assert.equal(windowErrors.length,0,windowErrors.join("; "));
+   await windows.close();
+   const wviewer=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   const viewerErrors=[];wviewer.on("pageerror",e=>viewerErrors.push(e.message));
+   await wviewer.route("**/api/momentos/*/reacoes/",route=>route.fulfill({json:{reactions:{enabled:true,options:[],counts:{}}}}));
+   await wviewer.goto("http://127.0.0.1:5178/"+html+"?windowviewer=1");
+   await wviewer.getByRole("dialog",{name:"Momento de Pessoa 1"}).waitFor();
+   assert.equal(await wviewer.locator(".nk-janelas__reveal").evaluate(el=>getComputedStyle(el).display),"none");
+   const cta=wviewer.getByRole("button",{name:"Conhecer Pessoa 1"});
+   assert.ok(await cta.evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.height>=40;}),"CTA must fit viewport");
+   await wviewer.keyboard.press("ArrowRight");
+   await wviewer.getByRole("dialog",{name:"Momento de Pessoa 2"}).waitFor();
+   await wviewer.getByRole("button",{name:"Conhecer Pessoa 2"}).click();
+   assert.equal(await wviewer.getByLabel("Perfil do momento").textContent(),"Pessoa 2");
+   assert.equal(viewerErrors.length,0,viewerErrors.join("; "));
+   await wviewer.close();
+   const denied=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   await denied.route("**/api/momentos/*/reacoes/",route=>route.fulfill({status:403,json:{detail:"Acesso revogado"}}));
+   const deniedResponse=denied.waitForResponse(response=>response.url().includes("/api/momentos/50/reacoes/")&&response.status()===403);
+   await denied.goto("http://127.0.0.1:5178/"+html+"?windowviewer=1");
+   await deniedResponse;
+   await denied.getByLabel("Perfil do momento").waitFor({state:"attached"});
+   await denied.getByRole("dialog",{name:/Momento de Pessoa/}).waitFor({state:"detached"});
+   await denied.close();
+   const studio=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   const studioErrors=[];studio.on("pageerror",e=>studioErrors.push(e.message));
+   let submitted=null;
+   await studio.route("**/api/momentos/",async route=>{
+     if(route.request().method()==="POST"){submitted=route.request().postData();return route.fulfill({json:{moment:{id:90,moderation_status:"PENDENTE",media_type:"TEXTO"},message:"Enviado"}});}
+     return route.fulfill({json:{results:[],review_items:[],capabilities:{media_enabled:false}}});
+   });
+   await studio.goto("http://127.0.0.1:5178/"+html+"?momentstudio=1");
+   await studio.getByRole("button",{name:"Novo Momento",exact:true}).click();
+   await studio.getByRole("button",{name:"Romântico",exact:true}).click();
+   assert.equal(await studio.getByLabel("Frase do Momento").inputValue(),"CONHECER_COM_CALMA");
+   await studio.getByRole("button",{name:"Noite",exact:true}).click();
+   await studio.getByRole("button",{name:/Itálica/}).click();
+   await studio.getByRole("button",{name:"Apenas matches",exact:true}).click();
+   assert.equal(await studio.getByRole("button",{name:/Adicionar foto ou vídeo/}).isDisabled(),true);
+   assert.ok(await studio.locator(".nk-janelas-studio__canvas").evaluate(el=>el.classList.contains("nk-moment-theme-midnight")&&el.classList.contains("nk-moment-font-italic")));
+   assert.ok(await studio.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
+   await studio.getByRole("button",{name:"Publicar",exact:true}).click();
+   await studio.getByText("Enviado",{exact:true}).waitFor();
+   assert.match(submitted,/CONHECER_COM_CALMA/);assert.match(submitted,/MATCHES/);assert.match(submitted,/midnight/);assert.match(submitted,/italic/);
+   assert.equal(studioErrors.length,0,studioErrors.join("; "));
+   await studio.close();
+   const memory=await browser.newPage({viewport:{width:375,height:812}});
+   await memory.goto("http://127.0.0.1:5178/"+html+"?seenmemory=1");
+   await memory.getByRole("button",{name:"Ver 70"}).click();
+   await memory.waitForFunction(()=>document.querySelector('[aria-label="Vistos"]').textContent==="70");
+   await memory.reload();
+   await memory.waitForFunction(()=>document.querySelector('[aria-label="Vistos"]')?.textContent==="70");
+   await memory.getByRole("button",{name:"Membro B"}).click();
+   await memory.waitForFunction(()=>document.querySelector('[aria-label="Vistos"]').textContent==="");
+   await memory.getByRole("button",{name:"Membro A"}).click();
+   await memory.waitForFunction(()=>document.querySelector('[aria-label="Vistos"]').textContent==="70");
+   await memory.close();
    for (const width of [375,1366]) {
      const discovery=await browser.newPage({viewport:{width,height:820},reducedMotion:"reduce"});
      const discoveryErrors=[];
@@ -287,14 +379,19 @@ try {
       results:[],review_items:[],capabilities:{publish_media_enabled:true,credit_mode:true,
       publication_offer:{free_photo_remaining:1,photo_cost:0,video_cost:5,balance:55,spending_enabled:true}}
     }}));
+    let momentRequestsOnHome=0;
+    await feed.route("**/api/momentos/**",route=>{momentRequestsOnHome++;return route.fulfill({json:{results:[]}});});
     await feed.route("**/api/presenca/", route=>route.fulfill({json:{perfis:{}}}));
     await feed.goto("http://127.0.0.1:5178/"+html+"?feed=1");
     await feed.getByRole("heading",{name:"Pergunta de teste"}).waitFor();
+    assert.equal(await feed.locator(".nk-living-windows").count(),0,"Home must not contain Moment Windows");
+    assert.equal(await feed.getByRole("heading",{name:"Janelas de hoje"}).count(),0);
     assert.equal(await feed.locator(".nk-poll-share").count(),0);
     assert.equal(await feed.locator("#nk-feed-composer").isVisible(),false,"Composer must not appear until plus is pressed");
     await feed.getByRole("button",{name:"Nova publicação",exact:true}).click();
     await feed.locator("#nk-feed-composer").waitFor({state:"visible"});
     await feed.getByText("Saldo: 55",{exact:false}).waitFor();
+    assert.equal(momentRequestsOnHome,0,"Home must not request Moments");
     assert.equal(errors.length,0,errors.join("\n"));
     await feed.close();
     const detail = await browser.newPage({viewport:{width,height:820},isMobile:width<820,hasTouch:width<820});

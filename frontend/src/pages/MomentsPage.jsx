@@ -19,7 +19,9 @@ import {
   X,
 } from "lucide-react";
 import AutoplayMomentViewer from "../components/moments/AutoplayMomentViewer.jsx";
-import MomentCarousel from "../components/moments/MomentCarousel.jsx";
+import MomentWindows, { activeMomentGroups } from "../components/moments/MomentWindows.jsx";
+import MomentStudio from "../components/moments/MomentStudio.jsx";
+import useSeenMoments from "../hooks/useSeenMoments.js";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import { createMoment, deleteMoment, fetchMoments, groupMomentsByProfile, MOMENTS_REFRESH_MS } from "../services/momentsApi.js";
@@ -211,7 +213,7 @@ function ReviewItem({ moment, onDelete, english }) {
   );
 }
 
-export default function MomentsPage({ onOpenProfile }) {
+export default function MomentsPage({ onOpenProfile, userId }) {
   const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -219,12 +221,19 @@ export default function MomentsPage({ onOpenProfile }) {
   const [caption, setCaption] = useState("DIA_TRANQUILO");
   const [theme, setTheme] = useState("wine");
   const [font, setFont] = useState("serif");
+  const [visibility, setVisibility] = useState("TODOS");
+  const composerRef = useRef(null);
   const [media, setMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState("");
   const [composerOpen, setComposerOpen] = useState(false);
+  useEffect(() => {
+    if (composerOpen) composerRef.current?.scrollIntoView({block:"start",behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+  }, [composerOpen]);
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState("");
   const [viewerGroup, setViewerGroup] = useState(null);
+  const {seen:seenMoments,markSeen}=useSeenMoments(userId);
+  const closeViewer = useCallback(() => setViewerGroup(null), []);
   const fileRef = useRef(null);
   const activeRequest = useRef(null);
   const changingMoment = useRef(false);
@@ -242,8 +251,10 @@ export default function MomentsPage({ onOpenProfile }) {
       const result = await fetchMoments({ signal: controller.signal });
       if (!controller.signal.aborted) setData(result);
     } catch (requestError) {
-      if (!silent && !controller.signal.aborted) {
-        setError(requestError.message || (english ? "Unable to load Moments." : "Não foi possível carregar os Momentos."));
+      if (!controller.signal.aborted) {
+        setViewerGroup(null);
+        if ([401,403,404].includes(requestError.status)) setData(null);
+        if (!silent || [401,403,404].includes(requestError.status)) setError(requestError.message || (english ? "Unable to load Moments." : "Não foi possível carregar os Momentos."));
       }
     } finally {
       if (activeRequest.current === controller) {
@@ -273,11 +284,18 @@ export default function MomentsPage({ onOpenProfile }) {
   }, [mediaPreview]);
 
   const moments = data?.results || [];
+  useEffect(()=>{
+    if(!viewerGroup || !data)return;
+    const authorised=new Set((data.results||[]).filter(m=>m.moderation_status==="APROVADO" && Date.parse(m.expires_at)>Date.now()).map(m=>m.id));
+    if(viewerGroup.groups.some(group=>group.moments.some(m=>!authorised.has(m.id))))closeViewer();
+  },[data,viewerGroup,closeViewer]);
   const reviewItems = data?.review_items || [];
   const groups = useMemo(() => groupMomentsByProfile(moments), [moments]);
   const capabilities = data?.capabilities || null;
   const mediaEnabled = Boolean(capabilities?.media_enabled);
   const captionOptions = capabilities?.caption_options || FALLBACK_CAPTIONS;
+  const visibilityOptions = (capabilities?.visibility_options || [{value:"TODOS",label:"Todos os membros"},{value:"MATCHES",label:"Apenas matches"}]).filter(option => ["TODOS","MATCHES"].includes(option.value));
+  const captionLabel = option => option ? (english ? EN_CAPTIONS[option.value] || option.label : option.label) : "";
   const canPublish = Boolean(media || caption !== "SEM_LEGENDA");
   const clearMedia = () => {
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
@@ -313,7 +331,7 @@ export default function MomentsPage({ onOpenProfile }) {
     setStatus("");
 
     try {
-      const result = await createMoment({ caption, visibility: "TODOS", media, theme, font });
+      const result = await createMoment({ caption, visibility, media, theme, font });
       const publishedMoment = result.moment || result;
       setData((current) => {
         const base = current || {};
@@ -376,15 +394,22 @@ export default function MomentsPage({ onOpenProfile }) {
       </CompactPageHeader>
 
       <section className="nk-shell nk-moments-page__content">
-        {loading && !data ? <HeartLoader page="moments"/> : <MomentCarousel
+        {loading && !data ? <HeartLoader page="moments"/> : <MomentWindows
           groups={groups}
-          loading={loading && !data}
           english={english}
+          seen={seenMoments}
           composerOpen={composerOpen}
           onCreate={() => setComposerOpen((value) => !value)}
-          onOpen={(group) => setViewerGroup({ groups, index: groups.indexOf(group) })}
+          onOpen={(group, momentId) => {
+            const active = activeMomentGroups(groups);
+            const index = active.findIndex(item => item.profile.id === group.profile.id);
+            if (index >= 0) {
+              const momentIndex=active[index].moments.findIndex(item=>item.id===momentId);
+              if(momentIndex>=0)setViewerGroup({groups:active,index,momentIndex});
+            }
+          }}
         />}
-        {composerOpen && <form id="nk-moment-composer"
+        {composerOpen && <form id="nk-moment-composer" ref={composerRef}
           className={`nk-moment-composer ${composerOpen ? "is-open" : "is-collapsed"}`}
           onSubmit={handlePublish}
         >
@@ -403,57 +428,15 @@ export default function MomentsPage({ onOpenProfile }) {
 
           {composerOpen && (
             <div className="nk-moment-composer__body">
-              {!mediaPreview && <div className={`nk-moment-draft nk-moment-theme-${theme} nk-moment-font-${font}`} aria-label={english ? "Moment preview" : "Pré-visualização do Momento"}>
-                <p>{caption === "SEM_LEGENDA" ? (english ? "Choose a phrase" : "Escolha uma frase") : (english ? EN_CAPTIONS[caption] : captionOptions.find((item) => item.value === caption)?.label)}</p>
-              </div>}
-              <div className="nk-moment-style-tools">
-                <div role="group" aria-label={english ? "Background colour" : "Cor do fundo"}>
-                  {[["wine", "Vinho"], ["forest", "Floresta"], ["midnight", "Noite"], ["sand", "Areia"]].map(([value, label]) => <button key={value} type="button" className={`nk-moment-swatch nk-moment-theme-${value}`} aria-label={label} aria-pressed={theme === value} onClick={() => setTheme(value)} />)}
-                </div>
-                <button type="button" className="nk-moment-font-toggle" onClick={() => setFont((current) => ({ serif: "sans", sans: "italic", italic: "serif" })[current])} aria-label={english ? "Change font" : "Mudar fonte"}>Aa <span>{font === "serif" ? (english ? "Classic" : "Clássica") : font === "sans" ? (english ? "Simple" : "Simples") : (english ? "Italic" : "Itálica")}</span></button>
-              </div>
-              <label className="nk-moment-composer__caption">
-                <span className="sr-only">{english ? "Caption" : "Frase"}</span>
-                <select
-                  value={caption}
-                  onChange={(event) => setCaption(event.target.value)}
-                  aria-label={english ? "Moment caption" : "Frase do Momento"}
-                >
-                  {captionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{english ? (EN_CAPTIONS[option.value] || option.label) : option.label}</option>
-                  ))}
-                </select>
-              </label>
-
-              {mediaPreview && (
-                <div className="nk-moment-composer__preview">
-                  {media?.type?.startsWith("video/")
-                    ? <video src={mediaPreview} controls playsInline />
-                    : <img src={mediaPreview} alt={english ? "Preview" : "Pré-visualização"} />}
-                  <button type="button" onClick={clearMedia} aria-label={english ? "Remove file" : "Remover ficheiro"}><X size={17} /></button>
-                </div>
-              )}
-
-              {!mediaEnabled && <small className="nk-moment-plan-note">{english ? "Phrases are free. Photos and videos: Fortnightly, Essential or Premium." : "Frases gratuitas. Fotos e vídeos: Quinzenal, Essencial ou Premium."}</small>}
-              <div className="nk-moment-composer__controls">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-                  onChange={handleFile}
-                  hidden
-                />
-                <button
-                  type="button"
-                  className="nk-moment-composer__media"
-                  onClick={() => mediaEnabled
-                    ? fileRef.current?.click()
-                    : setError(english ? "Photos and videos require NKATA Fortnightly, Essential or Premium." : "Fotografias e vídeos exigem NKATA Quinzenal, Essencial ou Premium.")}
-                >
-                  {mediaEnabled ? <ImagePlus size={18} /> : <LockKeyhole size={17} />}
-                  {english ? "Photo or video" : "Foto ou vídeo"}
-                </button>
-
+              <p className="nk-janelas-composer-intro"><Clock3 size={17}/>{english ? "Your Moment lasts 24 hours after approval." : "O teu momento vive 24 horas após aprovação."}</p>
+              <MomentStudio english={english} captionOptions={captionOptions} captionLabel={captionLabel} caption={caption} theme={theme} font={font}
+                visibility={visibility} visibilityOptions={visibilityOptions} mediaEnabled={mediaEnabled} mediaPreview={mediaPreview}
+                isVideo={Boolean(media?.type?.startsWith("video/") || /\.(mp4|webm|mov)$/i.test(media?.name || ""))}
+                publishing={publishing} onCaption={setCaption} onTheme={setTheme} onFont={setFont} onVisibility={setVisibility}
+                onPreset={preset=>{setTheme(preset.theme);setFont(preset.font);setCaption(preset.caption);}}
+                onPickMedia={()=>fileRef.current?.click()} onRemoveMedia={clearMedia}/>
+              <div className="nk-moment-composer__controls nk-janelas-studio__submit">
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" onChange={handleFile} hidden disabled={publishing || !mediaEnabled}/>
                 <button type="submit" className="nk-button nk-button--wine" disabled={publishing || !canPublish}>
                   <Send size={17} /> {publishing ? (english ? "Posting…" : "A publicar…") : (english ? "Post" : "Publicar")}
                 </button>
@@ -485,7 +468,10 @@ export default function MomentsPage({ onOpenProfile }) {
         <AutoplayMomentViewer
           groups={viewerGroup.groups}
           initialGroupIndex={viewerGroup.index}
-          onClose={() => setViewerGroup(null)}
+          initialMomentIndex={viewerGroup.momentIndex}
+          windowsMode
+          onViewed={markSeen}
+          onClose={closeViewer}
           onDelete={handleDelete}
           onOpenProfile={(profile) => {
             setViewerGroup(null);
