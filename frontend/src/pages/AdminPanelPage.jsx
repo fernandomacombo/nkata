@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import MemberDossier from "./MemberDossier.jsx";
@@ -729,11 +730,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
 function EmptyState({ loading, error, onRetry }) {
   if (loading) {
     return (
-      <div className="nk-admin-empty">
-        <Loader2 className="nk-spin" size={25} />
-        <strong>A atualizar o painel</strong>
-        <span>A reunir informação da comunidade.</span>
-      </div>
+      <HeartLoader page="admin"/>
     );
   }
   return (
