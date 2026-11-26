@@ -358,3 +358,33 @@
   .nk-profile-registration-gallery__grid {gap:6px;}
   .nk-profile-registration-gallery__grid > button {border-radius:9px;}
 }
+
+
+/* Approved NKATA profile loader. Scoped to the empty loading state only. */
+.nk-heart-loader{position:relative;min-height:390px;background:radial-gradient(ellipse at 50% 43%,#f7e8e8 0%,#fcf8f4 53%,#fffdf9 100%);border:1px solid #e9dfd8;border-radius:20px;display:flex;align-items:center;flex-direction:column;justify-content:center;padding:24px;font-family:system-ui,sans-serif;overflow:hidden;box-sizing:border-box}
+.nk-heart-loader__brand{position:absolute;top:25px;color:#842442;font:700 23px Georgia,serif;letter-spacing:5px}
+.nk-heart-loader__animation{width:180px;height:180px;display:grid;place-items:center;position:relative;margin-bottom:8px}
+.nk-heart-loader__halo{position:absolute;width:112px;height:112px;border-radius:50%;background:#fff9f6;border:1px solid #ead6d1;box-shadow:0 8px 40px #84244213}
+.nk-heart-loader__ring{position:absolute;width:128px;height:128px;border-radius:50%;border:1px solid #d5b88c55;animation:nk-heart-loader-pulse 2.4s ease-out infinite}
+.nk-heart-loader__heart{width:49px;height:49px;position:relative;filter:drop-shadow(0 3px 6px #84244224);animation:nk-heart-loader-beat 2.4s ease-in-out infinite}
+.nk-heart-loader__particles{position:absolute;inset:0;pointer-events:none}
+.nk-heart-loader__particles svg{position:absolute;top:50%;left:50%;width:16px;height:16px;color:#ad5268;opacity:0;animation:nk-heart-loader-burst 2.4s ease-out infinite;animation-delay:var(--d)}
+.nk-heart-loader__particles svg:nth-child(2n){color:#c9a46f;width:12px;height:12px}
+.nk-heart-loader__particles svg:nth-child(3n){color:#dba3ad;width:19px;height:19px}
+.nk-heart-loader__heading{font:normal 21px Georgia,serif;color:#42252d;text-align:center}
+.nk-heart-loader__sub{font-size:12px;color:#897670;margin-top:10px;text-align:center}
+.nk-heart-loader__progress{margin-top:26px;width:74px;height:2px;border-radius:4px;overflow:hidden;background:#eadbd6}
+.nk-heart-loader__progress i{display:block;width:35%;height:100%;background:#842442;border-radius:4px;animation:nk-heart-loader-progress 1.8s ease-in-out infinite}
+@keyframes nk-heart-loader-progress{0%{transform:translateX(-110%)}100%{transform:translateX(300%)}}
+@keyframes nk-heart-loader-pulse{0%{transform:scale(.85);opacity:.9}60%,100%{transform:scale(1.45);opacity:0}}
+@keyframes nk-heart-loader-beat{0%,100%{transform:scale(1)}15%{transform:scale(1.17)}30%{transform:scale(.96)}45%{transform:scale(1.07)}65%{transform:scale(1)}}
+@keyframes nk-heart-loader-burst{0%,12%{transform:translate(-50%,-50%) scale(.3);opacity:0}24%{opacity:.85}65%,100%{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r)) scale(.6);opacity:0}}
+@media(prefers-reduced-motion:reduce){.nk-heart-loader *{animation:none!important}}
+
+/* Same approved animation, fitted inside chat panels and other narrow areas. */
+.nk-heart-loader {width:100%;min-width:0;}
+.nk-heart-loader--compact {min-height:300px;padding:16px 12px;}
+.nk-heart-loader--compact .nk-heart-loader__brand {top:15px;font-size:18px;}
+.nk-heart-loader--compact .nk-heart-loader__animation {width:150px;height:150px;}
+.nk-heart-loader--compact .nk-heart-loader__heading {font-size:18px;}
+.nk-heart-loader--compact .nk-heart-loader__progress {margin-top:18px;}

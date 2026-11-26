@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import Presence from "../components/profiles/Presence.jsx";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -270,15 +271,7 @@ export default function DiscoverPage({
         </div>
 
         {loading ? (
-          <div className="nk-profile-grid" aria-label={english ? "Loading profiles" : "A carregar perfis"}>
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="nk-profile-skeleton">
-                <div />
-                <span />
-                <span />
-              </div>
-            ))}
-          </div>
+          <HeartLoader page="discover"/>
         ) : filteredProfiles.length ? (
           <div className="nk-profile-grid">
             {filteredProfiles.map((profile) => (

@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { usePresence } from "../components/profiles/Presence.jsx";
 import { ProfilePreferences } from "../components/MatchPreferences";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -411,9 +412,8 @@ export default function ProfileDetailPage({
   if (!profile && loading) {
     return (
       <main className="nk-profile-detail nk-profile-detail--loading">
-        <div className="nk-shell nk-profile-detail__skeleton">
-          <div />
-          <section><span /><span /><span /></section>
+        <div className="nk-shell">
+          <HeartLoader page="profile"/>
         </div>
       </main>
     );

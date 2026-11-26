@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, Check, CheckCheck, Clock, Flower2, Hand, Heart, HeartHandshake, MessageCircle, MoreVertical, Reply, Search, Send, ShieldCheck, Sparkles, Trash2, UserRound, X, Plus, WalletCards, LockKeyhole } from "lucide-react";
@@ -280,7 +281,7 @@ function Thread({ id, onLegacy, safetyAccepted, onAcceptSafety, onClosed, onBack
     {loadError && <p className="nk-chat-error" role="alert">{loadError}</p>}
     {error && <p className="nk-chat-error" role="alert">{error} <button type="button" aria-label="Fechar aviso" onClick={()=>setError("")}>×</button></p>}
     {safetyStatus && <p className="nk-chat-placeholder" role="status">{safetyStatus}</p>}
-    {!thread && !loadError && !error && <p className="nk-chat-placeholder">A carregar conversa...</p>}
+    {!thread && !loadError && !error && <HeartLoader page="conversation" compact/>}
     {thread && <>
       <ol className="nk-chat-lines" ref={scroll} onScroll={e => { const el=e.currentTarget; nearEnd.current=el.scrollHeight-el.scrollTop-el.clientHeight<150; }}>
         {thread.mais_antigas && <li className="nk-chat-load-older"><button type="button" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "A carregar..." : "Carregar mensagens anteriores"}</button></li>}
@@ -426,7 +427,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
         <nav className="nk-chat-tabs" aria-label="Filtrar chats">{TABS.map(([key,label]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => chooseTab(key)}>{label}{counts[key] > 0 && <span>{counts[key]}</span>}</button>)}</nav>
         {error && <p role="alert" className="nk-chat-error">{error}</p>}
         <div className="nk-chat-list">
-          {!data && !error && <p className="nk-chat-placeholder">A carregar...</p>}
+          {!data && !error && <HeartLoader page="chats" compact/>}
           {data && showChats && <>{visibleChats.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.id} aria-current={conversationId === c.id ? "page" : undefined} onClick={() => onSelect(c.id)}>
             <Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.ultima_mensagem ? (c.ultima_mensagem.minha ? "Eu: " : "") + c.ultima_mensagem.texto : c.identity_pending ? "A aguardar verificação de identidade" : c.consent_state === "ACEITE" ? "Conversa aceite" : "Conversa anterior"}</small></span>
             <span className="nk-chat-row-meta"><time>{stamp(c.atividade_em)}</time>{c.nao_lidas > 0 && <span className="nk-chat-unread">{c.nao_lidas > 99 ? "99+" : c.nao_lidas}</span>}</span>
@@ -445,7 +446,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
         <p>{identityRequired ? "Verifique a sua identidade para trocar mensagens." : "A outra pessoa ainda precisa de verificar a identidade. A conversa ficará disponível quando ambos estiverem verificados."}</p>
         {identityRequired && <button type="button" className="nk-chat-primary" onClick={onVerifyIdentity}>Verificar identidade</button>}
         <button type="button" className="nk-chat-icon" onClick={onBack}>Voltar</button>
-      </section> : conversationId && !data ? <section className="nk-chat-empty-panel">A carregar conversa...</section> : conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} callController={callController} onBack={onBack} onOpenProfile={onOpenProfile} onVerifyIdentity={onVerifyIdentity} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
+      </section> : conversationId && !data ? <section className="nk-chat-empty-panel"><HeartLoader page="conversation" compact/></section> : conversationId ? <Thread key={conversationId} id={conversationId} {...threadProps} callController={callController} onBack={onBack} onOpenProfile={onOpenProfile} onVerifyIdentity={onVerifyIdentity} onClosed={() => { onBack(); setRevision(v => v + 1); }} /> :
         <section className="nk-chat-empty-panel"><MessageCircle size={46} strokeWidth={1.4} /><h2>Uma boa conversa começa aqui</h2><p>Escolha uma conversa ou conheça alguém novo.</p><button className="nk-chat-primary" onClick={onDiscover}>Explorar perfis</button></section>}
     </div>
   </main>;

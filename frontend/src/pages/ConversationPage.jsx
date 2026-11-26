@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import Presence from "../components/profiles/Presence.jsx";
 import { deleteMatchMessage } from "../services/api.js";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -797,11 +798,7 @@ export default function ConversationPage({
           )}
 
           {loading ? (
-            <div className="nk-conversation__loading">
-              <span />
-              <span />
-              <span />
-            </div>
+            <HeartLoader page="conversation" compact/>
           ) : timeline.length ? (
             <div className="nk-message-list">
               {timeline.map((message) => (

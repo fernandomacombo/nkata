@@ -1,3 +1,4 @@
+import HeartLoader from "./components/HeartLoader.jsx";
 import { PresenceProvider } from "./components/profiles/Presence.jsx";
 import { playNotificationSound } from "./services/callAttention.js";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -801,6 +802,9 @@ export default function App() {
         language={preferences.idioma}
       />
 
+      {sessionLoading && ["home","discover","profile","moments","saved","identity","chats","matches","conversation","notifications","account","admin"].includes(activePage) ? (
+        <main className="nk-shell"><HeartLoader page={activePage}/></main>
+      ) : <>
       {activePage === "home" && (
         memberAuthenticated ? (
           <MemberHomePage
@@ -984,6 +988,8 @@ export default function App() {
       )}
 
 
+      </>}
+      
       {activePage !== "admin" && !operator && (
         <BottomNavigation
           activePage={visiblePage}

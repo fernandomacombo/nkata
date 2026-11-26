@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { useMemo, useState } from "react";
 import {
   Bell,
@@ -198,11 +199,7 @@ export default function NotificationsPage({
         )}
 
         {loading && !notifications.length ? (
-          <div className="nk-notifications-page__loading" aria-label={english ? "Loading notifications" : "A carregar notificações"}>
-            <span />
-            <span />
-            <span />
-          </div>
+          <HeartLoader page="notifications"/>
         ) : visibleNotifications.length ? (
           <div className="nk-notifications-list" aria-live="polite">
             {visibleNotifications.map((notification, index) => (
