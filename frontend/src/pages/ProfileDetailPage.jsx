@@ -1,4 +1,4 @@
-import Presence from "../components/profiles/Presence.jsx";
+import { usePresence } from "../components/profiles/Presence.jsx";
 import { ProfilePreferences } from "../components/MatchPreferences";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -15,7 +15,6 @@ import {
   MapPin,
   MessageCircle,
   MoreHorizontal,
-  Maximize2,
   ChevronLeft,
   ChevronRight,
   Play,
@@ -198,6 +197,7 @@ export default function ProfileDetailPage({
     finally { setAskingChat(false); }
   }
   const english = useInterfaceLanguage() === "EN";
+  const presence = usePresence(profile?.id, english);
   const [imageFailed, setImageFailed] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [photoOpen, setPhotoOpen] = useState(false);
@@ -436,15 +436,22 @@ export default function ProfileDetailPage({
             <div className="nk-profile-detail__media">
               {hasImage ? <img src={activePortrait} alt={english ? "Profile photograph" : "Fotografia de perfil"} decoding="async" onError={() => setImageFailed(true)} /> :
                 <div className="nk-profile-detail__fallback"><UserRound size={64} strokeWidth={1.15}/><span>{english ? "No photo" : "Sem fotografia"}</span></div>}
-              <Presence profile={profile} english={english} />
-              {hasImage && <button type="button" className="nk-profile-portrait__expand" aria-label={english ? "Enlarge photo" : "Ampliar fotografia"} onClick={() => setPhotoOpen(true)}><Maximize2 size={18}/></button>}
-              {portraits.length > 1 && <div className="nk-profile-portrait__controls">
-                <button type="button" aria-label={english ? "Previous photo" : "Fotografia anterior"} onClick={() => changePhoto(photoIndex - 1)}><ChevronLeft size={20}/></button>
-                <span>{photoIndex + 1} / {portraits.length}</span>
-                <button type="button" aria-label={english ? "Next photo" : "Fotografia seguinte"} onClick={() => changePhoto(photoIndex + 1)}><ChevronRight size={20}/></button>
-              </div>}
+              {hasImage && <button type="button" className="nk-profile-editorial__photo-open" aria-label={english ? "Enlarge photo" : "Ampliar fotografia"} onClick={() => setPhotoOpen(true)} />}
             </div>
-            {portraits.length > 1 && <div className="nk-profile-portrait__thumbs">{portraits.map((url, index) => <button type="button" key={url} aria-label={english ? `Photo ${index+1}` : `Fotografia ${index+1}`} aria-pressed={index === photoIndex} onClick={() => changePhoto(index)}><img src={url} alt="" loading="lazy"/></button>)}</div>}
+            <div className="nk-profile-editorial__photo-meta">
+              <span className="nk-profile-editorial__presence" data-presence-id={profile.id}>
+                {presence.label && <>
+                  <span className={presence.online ? "is-online" : ""} aria-hidden="true" />
+                  {presence.online ? (english ? "Online now" : "Online agora") : presence.label}
+                </>}
+              </span>
+              {portraits.length > 0 && <button type="button" className="nk-profile-editorial__photo-count"
+                onClick={() => portraits.length > 1 ? changePhoto(photoIndex + 1) : hasImage && setPhotoOpen(true)}
+                disabled={portraits.length === 1 && !hasImage}
+                aria-label={portraits.length > 1 ? (english ? "Next photo" : "Fotografia seguinte") : (english ? "Enlarge photo" : "Ampliar fotografia")}>
+                <Images size={16} aria-hidden="true"/> {Math.min(photoIndex + 1, portraits.length)} / {portraits.length}
+              </button>}
+            </div>
           </aside>
 
           <section className="nk-profile-detail__content">
