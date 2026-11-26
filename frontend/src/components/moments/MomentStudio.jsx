@@ -1,4 +1,4 @@
-import { Camera, Clock3, Globe, Heart, ImagePlus, LockKeyhole, Moon, Sparkles, Sun, X } from "lucide-react";
+import { Camera, Clock3, Globe, Heart, ImagePlus, LockKeyhole, Moon, Sparkles, Sun, Wallet, X } from "lucide-react";
 
 const presets = [
   {id:"sun",icon:Sun,pt:"Boas energias",en:"Good energy",theme:"sand",font:"sans",caption:"BOAS_ENERGIAS"},
@@ -9,7 +9,7 @@ const presets = [
 const palettes = [["wine","Vinho","Wine"],["forest","Floresta","Forest"],["midnight","Noite","Night"],["sand","Areia","Sand"]];
 const fonts = [["serif","Clássica","Classic"],["sans","Simples","Simple"],["italic","Itálica","Italic"]];
 
-export default function MomentStudio({english,captionOptions,captionLabel,caption,theme,font,visibility,visibilityOptions,mediaEnabled,mediaPreview,isVideo,publishing,onCaption,onTheme,onFont,onVisibility,onPreset,onPickMedia,onRemoveMedia}) {
+export default function MomentStudio({english,captionOptions,captionLabel,caption,theme,font,visibility,visibilityOptions,mediaEnabled,mediaPreview,identityRequired,offer,cost,insufficient,retrying,isVideo,publishing,onCaption,onTheme,onFont,onVisibility,onPreset,onPickMedia,onRemoveMedia}) {
   const phrase = caption === "SEM_LEGENDA" ? "" : captionLabel(captionOptions.find(option=>option.value===caption));
   return <div className="nk-janelas-studio">
     <header className="nk-janelas-studio__intro"><Sparkles size={21}/><div><h3>{english?"Make it yours":"Dá-lhe a tua personalidade"}</h3><p>{english?"A little of your world, for 24 hours.":"Um pouco do teu mundo, durante 24 horas."}</p></div></header>
@@ -30,7 +30,13 @@ export default function MomentStudio({english,captionOptions,captionLabel,captio
     <fieldset disabled={publishing}><legend>{english?"Colour":"Cor do fundo"}</legend><div className="nk-janelas-studio__palette">{palettes.map(([value,pt,en])=><button key={value} type="button" aria-pressed={theme===value} onClick={()=>onTheme(value)}><span className={`nk-moment-swatch nk-moment-theme-${value}`} aria-hidden="true"/><small>{english?en:pt}</small></button>)}</div></fieldset>
     <fieldset disabled={publishing}><legend>{english?"Lettering":"Estilo da letra"}</legend><div className="nk-janelas-studio__fonts">{fonts.map(([value,pt,en])=><button key={value} type="button" aria-pressed={font===value} onClick={()=>onFont(value)} className={`nk-moment-font-${value}`}><b>Aa</b><small>{english?en:pt}</small></button>)}</div></fieldset>
     <label className="nk-janelas-studio__label"><span>{english?"Phrase":"Frase"}</span><select disabled={publishing} value={caption} onChange={e=>onCaption(e.target.value)} aria-label={english?"Moment caption":"Frase do Momento"}>{captionOptions.map(option=><option key={option.value} value={option.value}>{captionLabel(option)}</option>)}</select></label>
-    <button type="button" className="nk-janelas-studio__pick" disabled={publishing || !mediaEnabled} onClick={onPickMedia}>{mediaEnabled?<ImagePlus size={22}/>:<LockKeyhole size={22}/>}<span><strong>{english?(mediaPreview?"Change photo or video":"Add photo or video"):(mediaPreview?"Trocar foto ou vídeo":"Adicionar foto ou vídeo")}</strong><small>{mediaEnabled?(english?"Choose from your device":"Escolhe no teu dispositivo"):(english?"Media not included in your current plan":"O teu plano actual não inclui fotografias e vídeos")}</small></span></button>
+    <button type="button" className="nk-janelas-studio__pick" disabled={publishing || !mediaEnabled} onClick={onPickMedia}>{mediaEnabled?<ImagePlus size={22}/>:<LockKeyhole size={22}/>}<span><strong>{english?(mediaPreview?"Change photo or video":"Add photo or video"):(mediaPreview?"Trocar foto ou vídeo":"Adicionar foto ou vídeo")}</strong><small>{mediaEnabled?(english?"Choose from your device":"Escolhe no teu dispositivo"):(identityRequired?(english?"Verify your identity to publish":"Verifica a tua identidade para publicar"):(english?"Media publication unavailable":"Publicação de fotografias e vídeos indisponível"))}</small></span></button>
+    {offer && <section className="nk-janelas-studio__wallet" aria-label={english?"Moment credits":"Créditos do Momento"}>
+      <header><Wallet size={18}/><span>{english?"NKATA wallet":"Carteira NKATA"}</span><strong>{offer.balance} {english?"credits":"créditos"}</strong></header>
+      <div className="nk-janelas-studio__prices"><span>{english?"Photo":"Fotografia"} <b>{offer.photo_cost===0?(english?"Free today":"Grátis hoje"):`${offer.photo_cost} cr.`}</b></span><span>{english?"Video":"Vídeo"} <b>{offer.video_cost} cr.</b></span></div>
+      <p role="status">{!mediaPreview?(english?"Text Moments are free.":"Os Momentos de texto são gratuitos."):retrying?(english?`Retrying the same submission · original cost ${cost} credits.`:`Reenvio do mesmo Momento · custo original: ${cost} créditos.`):insufficient?(english?"Insufficient balance or spending unavailable.":"Saldo insuficiente ou consumo indisponível."):cost===0?(english?"No credits will be charged.":"Nenhum crédito será debitado."):(english?`${cost} credits charged on submission. Balance after: ${offer.balance-cost}.`:`Serão debitados ${cost} créditos. Saldo após publicação: ${offer.balance-cost}.`)}</p>
+      {mediaPreview && cost>0 && <small>{english?"Credits are returned if moderation rejects the Moment.":"Os créditos são devolvidos se o Momento for rejeitado."}</small>}
+    </section>}
     <fieldset disabled={publishing}><legend>{english?"Who can see?":"Quem pode ver?"}</legend><div className="nk-janelas-studio__audience">{visibilityOptions.map(option=><button key={option.value} type="button" aria-pressed={visibility===option.value} onClick={()=>onVisibility(option.value)}>{option.value==="MATCHES"?<LockKeyhole size={16}/>:<Globe size={16}/>}<span>{english?(option.value==="MATCHES"?"Matches only":"All members"):option.label}</span></button>)}</div></fieldset>
   </div>;
 }

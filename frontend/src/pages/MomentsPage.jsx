@@ -205,6 +205,7 @@ function ReviewItem({ moment, onDelete, english }) {
             ? (english ? "Visible only to you. The 24 hours begin after approval." : "Visível apenas para si. As 24 horas começam após aprovação.")
             : (moment.moderation_note || (english ? "This content was not approved." : "Este conteúdo não foi aprovado para publicação."))}
         </p>
+        {!pending && moment.refunded_credits>0 && <small className="nk-janelas-studio__refund">{english?`${moment.refunded_credits} credits returned`:`${moment.refunded_credits} créditos devolvidos`}</small>}
       </div>
       <button type="button" onClick={() => onDelete(moment)} aria-label={english ? "Delete submission" : "Remover envio"}>
         <Trash2 size={17} />
@@ -237,6 +238,7 @@ export default function MomentsPage({ onOpenProfile, userId }) {
   const fileRef = useRef(null);
   const activeRequest = useRef(null);
   const changingMoment = useRef(false);
+  const operation = useRef(null);
 
   const load = useCallback(async ({ silent = false } = {}) => {
     if (changingMoment.current || (silent && activeRequest.current)) return;
@@ -296,8 +298,16 @@ export default function MomentsPage({ onOpenProfile, userId }) {
   const captionOptions = capabilities?.caption_options || FALLBACK_CAPTIONS;
   const visibilityOptions = (capabilities?.visibility_options || [{value:"TODOS",label:"Todos os membros"},{value:"MATCHES",label:"Apenas matches"}]).filter(option => ["TODOS","MATCHES"].includes(option.value));
   const captionLabel = option => option ? (english ? EN_CAPTIONS[option.value] || option.label : option.label) : "";
-  const canPublish = Boolean(media || caption !== "SEM_LEGENDA");
+  const offer = capabilities?.moment_offer;
+  const isVideo = Boolean(media?.type?.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(media?.name || ""));
+  const cost = media && offer ? (isVideo ? offer.video_cost : offer.photo_cost) : 0;
+  const signature = JSON.stringify([caption, theme, font, visibility]);
+  const prior = operation.current?.media === media && operation.current?.signature === signature ? operation.current : null;
+  const expectedCost = prior?.cost ?? cost;
+  const insufficient = Boolean(media && offer && !prior && (expectedCost > offer.balance || (expectedCost > 0 && !offer.spending_enabled)));
+  const canPublish = Boolean(media || caption !== "SEM_LEGENDA") && (!media || mediaEnabled) && !insufficient;
   const clearMedia = () => {
+    operation.current = null;
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
     setMedia(null);
     setMediaPreview("");
@@ -310,11 +320,12 @@ export default function MomentsPage({ onOpenProfile, userId }) {
     if (!file) return;
 
     if (!mediaEnabled) {
-      setError(english ? "Photos and videos in Moments require NKATA Fortnightly, Essential or Premium." : "Fotografias e vídeos nos Momentos exigem NKATA Quinzenal, Essencial ou Premium.");
+      setError(capabilities?.identity_required ? (english ? "Verify your identity to publish media." : "Verifica a tua identidade para publicar fotografias e vídeos.") : (english ? "Media publication is unavailable." : "A publicação de fotografias e vídeos está indisponível."));
       event.target.value = "";
       return;
     }
 
+    operation.current = null;
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
     setMedia(file);
     setMediaPreview(URL.createObjectURL(file));
@@ -322,7 +333,10 @@ export default function MomentsPage({ onOpenProfile, userId }) {
 
   const handlePublish = async (event) => {
     event.preventDefault();
-    if (publishing || !canPublish) return;
+    if (publishing || changingMoment.current || !canPublish) return;
+    if (media && offer && !prior) {
+      operation.current = {media, signature, cost:expectedCost, key:crypto.randomUUID()};
+    }
 
     changingMoment.current = true;
     activeRequest.current?.abort();
@@ -331,21 +345,22 @@ export default function MomentsPage({ onOpenProfile, userId }) {
     setStatus("");
 
     try {
-      const result = await createMoment({ caption, visibility, media, theme, font });
+      const result = await createMoment({ caption, visibility, media, theme, font, key:media && offer ? operation.current?.key : undefined, expectedCost:media && offer ? operation.current?.cost : undefined });
       const publishedMoment = result.moment || result;
       setData((current) => {
         const base = current || {};
         if (publishedMoment.moderation_status === "PENDENTE") {
           return {
             ...base,
-            review_items: [publishedMoment, ...(base.review_items || [])],
+            review_items: [publishedMoment, ...(base.review_items || []).filter(item=>item.id!==publishedMoment.id)],
             capabilities: result.capabilities || base.capabilities,
           };
         }
         return {
           ...base,
-          results: [publishedMoment, ...(base.results || [])],
-          mine: [publishedMoment, ...(base.mine || [])],
+          results: [publishedMoment, ...(base.results || []).filter(item=>item.id!==publishedMoment.id)],
+          mine: [publishedMoment, ...(base.mine || []).filter(item=>item.id!==publishedMoment.id)],
+          review_items: (base.review_items||[]).filter(item=>item.id!==publishedMoment.id),
           capabilities: result.capabilities || base.capabilities,
         };
       });
@@ -355,6 +370,8 @@ export default function MomentsPage({ onOpenProfile, userId }) {
       setStatus(result.message || (english ? "Moment posted." : "Momento enviado."));
       window.setTimeout(() => setStatus(""), 4200);
     } catch (requestError) {
+      if (requestError.payload?.capabilities) setData(current=>({...current,capabilities:requestError.payload.capabilities}));
+      if (requestError.status>=400 && requestError.status<500) operation.current=null;
       setError(requestError.message || (english ? "Unable to post the Moment." : "Não foi possível enviar o Momento."));
     } finally {
       changingMoment.current = false;
@@ -430,15 +447,15 @@ export default function MomentsPage({ onOpenProfile, userId }) {
             <div className="nk-moment-composer__body">
               <p className="nk-janelas-composer-intro"><Clock3 size={17}/>{english ? "Your Moment lasts 24 hours after approval." : "O teu momento vive 24 horas após aprovação."}</p>
               <MomentStudio english={english} captionOptions={captionOptions} captionLabel={captionLabel} caption={caption} theme={theme} font={font}
-                visibility={visibility} visibilityOptions={visibilityOptions} mediaEnabled={mediaEnabled} mediaPreview={mediaPreview}
-                isVideo={Boolean(media?.type?.startsWith("video/") || /\.(mp4|webm|mov)$/i.test(media?.name || ""))}
+                visibility={visibility} visibilityOptions={visibilityOptions} mediaEnabled={mediaEnabled} mediaPreview={mediaPreview} identityRequired={capabilities?.identity_required} offer={offer} cost={expectedCost} insufficient={insufficient} retrying={Boolean(prior)}
+                isVideo={isVideo}
                 publishing={publishing} onCaption={setCaption} onTheme={setTheme} onFont={setFont} onVisibility={setVisibility}
                 onPreset={preset=>{setTheme(preset.theme);setFont(preset.font);setCaption(preset.caption);}}
                 onPickMedia={()=>fileRef.current?.click()} onRemoveMedia={clearMedia}/>
               <div className="nk-moment-composer__controls nk-janelas-studio__submit">
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" onChange={handleFile} hidden disabled={publishing || !mediaEnabled}/>
                 <button type="submit" className="nk-button nk-button--wine" disabled={publishing || !canPublish}>
-                  <Send size={17} /> {publishing ? (english ? "Posting…" : "A publicar…") : (english ? "Post" : "Publicar")}
+                  <Send size={17} /> {publishing ? (english ? "Posting…" : "A publicar…") : (media && offer && expectedCost>0 ? (english ? `Post · ${expectedCost} credits` : `Publicar · ${expectedCost} créditos`) : (english ? "Post" : "Publicar"))}
                 </button>
               </div>
             </div>

@@ -130,7 +130,7 @@ try {
    assert.equal(await windows.locator(".nk-janelas__window").count(),1);
    await windows.getByRole("button",{name:/Surpreende-me/}).click();
    assert.equal(await windows.getByLabel("Janela aberta").textContent(),"Janela 2");
-   assert.equal(await windows.getByRole("button",{name:/Surpreende-me/}).isDisabled(),true);
+   assert.equal(await windows.getByRole("button",{name:/Surpreende-me/}).count(),0);
    await windows.getByRole("button",{name:"Já vistos",exact:true}).click();
    assert.equal(await windows.locator(".nk-janelas__window").count(),2);
    await windows.getByRole("button",{name:"Novo Momento"}).click();
@@ -182,6 +182,23 @@ try {
    assert.match(submitted,/CONHECER_COM_CALMA/);assert.match(submitted,/MATCHES/);assert.match(submitted,/midnight/);assert.match(submitted,/italic/);
    assert.equal(studioErrors.length,0,studioErrors.join("; "));
    await studio.close();
+   const paidStudio=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   let paidBody=null;
+   await paidStudio.route("**/api/momentos/",route=>{
+     const capabilities={media_enabled:true,credit_mode:true,moment_offer:{photo_cost:0,video_cost:5,balance:45,spending_enabled:true}};
+     if(route.request().method()==="POST"){paidBody=route.request().postData();return route.fulfill({status:202,json:{moment:{id:91,moderation_status:"PENDENTE",media_type:"VIDEO"},capabilities:{...capabilities,moment_offer:{...capabilities.moment_offer,balance:40}},message:"Vídeo enviado"}});}
+     return route.fulfill({json:{results:[],review_items:[],capabilities}});
+   });
+   await paidStudio.goto("http://127.0.0.1:5178/"+html+"?momentstudio=1");
+   await paidStudio.getByRole("button",{name:"Novo Momento",exact:true}).click();
+   await paidStudio.getByText("45 créditos",{exact:true}).waitFor();
+   await paidStudio.locator("#nk-moment-composer input[type=file]").setInputFiles({name:"test.mp4",mimeType:"video/mp4",buffer:Buffer.from("test video")});
+   await paidStudio.getByText("Serão debitados 5 créditos. Saldo após publicação: 40.",{exact:true}).waitFor();
+   await paidStudio.getByRole("button",{name:"Publicar · 5 créditos"}).click();
+   await paidStudio.getByText("Vídeo enviado",{exact:true}).waitFor();
+   assert.match(paidBody,/name="expected_cost"\r?\n\r?\n5/);
+   assert.match(paidBody,/name="key"\r?\n\r?\n[0-9a-f-]{36}/);
+   await paidStudio.close();
    const memory=await browser.newPage({viewport:{width:375,height:812}});
    await memory.goto("http://127.0.0.1:5178/"+html+"?seenmemory=1");
    await memory.getByRole("button",{name:"Ver 70"}).click();
