@@ -1,3 +1,4 @@
+import CommunityRules from "../components/CommunityRules.jsx";
 import { MatchPreferences, legacyAges } from "../components/MatchPreferences";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -97,6 +98,7 @@ function SafetyNotice({ onAccept, onBack }) {
             <li>Proteja os seus dados. Evite partilhar números de telefone, emails, documentos, palavras-passe ou dados bancários em conversas, fotos ou publicações.</li>
             <li>Se alguém pedir dinheiro, dados pessoais ou imagens íntimas, pode bloquear e denunciar o perfil no NKATA.</li>
           </ul>
+          <CommunityRules />
           <p className="nk-questionnaire-safety__privacy">
             <LockKeyhole size={19} aria-hidden="true" />
             <span><strong>O NKATA protege os seus dados sensíveis.</strong> Os documentos enviados para verificação são confidenciais e ficam fora do seu perfil público. Pedimos que proteja também os seus dados e os de outras pessoas.</span>
