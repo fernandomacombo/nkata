@@ -150,6 +150,7 @@
   position:absolute;inset:0;
 }
 .nk-profile-redesign .nk-profile-portrait__expand {left:auto;right:12px;top:12px;}
+.nk-profile-redesign .nk-profile-detail__media > .nk-presence {left:14px;right:auto;top:14px;}
 .nk-profile-redesign .nk-profile-portrait__thumbs {gap:8px;margin-top:12px;}
 .nk-profile-redesign .nk-profile-detail__heading h1.nk-profile-intro__name {
   display:flex;align-items:baseline;flex-wrap:wrap;gap:5px 9px;
