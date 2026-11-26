@@ -59,9 +59,9 @@ export function fetchProfileSignals(profileId, { signal } = {}) {
   return request(profileId, { signal });
 }
 
-export function sendProfileSignal(profileId, type) {
+export function sendProfileSignal(profileId, type, expectedCost) {
   return request(profileId, {
     method: "POST",
-    body: { tipo: type },
+    body: { tipo: type, ...(Number.isInteger(expectedCost) ? {expected_cost:expectedCost} : {}) },
   });
 }

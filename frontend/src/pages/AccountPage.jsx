@@ -704,7 +704,7 @@ export default function AccountPage({
             {[
               ["summary", english ? "Summary" : "Resumo"],
               ["profile", english ? "Profile" : "Perfil"],
-              ["plan", english ? "Plan" : "Plano"],
+              ["plan", english ? "Wallet" : "Carteira"],
               ["interests", english ? "Interests" : "Interesses"],
               ["preferences", english ? "Appearance" : "Aparência"],
               ["security", english ? "Security" : "Segurança"],
@@ -722,7 +722,7 @@ export default function AccountPage({
           </nav>
 
           {accountSection === "summary" && (
-            <AccountSummaryPanel language={language} onOpenSection={setAccountSection} />
+            <><AccountSummaryPanel language={language} onOpenSection={setAccountSection} /><div data-nkata-following-target /></>
           )}
 
           {accountSection === "profile" && (

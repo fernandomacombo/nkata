@@ -4,6 +4,12 @@ on:
   push:
     branches: [main, opcao-a-base-react-django, integracao/nkata-completo, 'audit/**', 'fix/**']
   pull_request:
+  workflow_dispatch:
+    inputs:
+      experimental_media:
+        description: 'Executar ensaios opcionais de chamadas futuras'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -40,7 +46,7 @@ jobs:
       - name: Validar concorrência em PostgreSQL
         env:
           DATABASE_URL: postgresql://nkata_ci:nkata_ci@127.0.0.1:5432/nkata_ci
-        run: python manage.py test entradas.test_call_lifecycle entradas.test_account_limits entradas.test_payments entradas.test_concurrent_operations
+        run: python manage.py test entradas.test_call_lifecycle entradas.test_account_limits entradas.test_payments entradas.test_concurrent_operations entradas.test_conversations entradas.test_wallet entradas.test_finance_admin entradas.test_credit_transition entradas.test_native_call_service entradas.test_media_gateway
       - name: Validar instalação numa base nova
         env:
           DATABASE_URL: sqlite:////tmp/nkata-ci-install.sqlite3
@@ -82,7 +88,7 @@ jobs:
       - run: python manage.py test entradas.test_extra_photo_moderation entradas.test_admin_panel_api
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -94,7 +100,88 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Validar controlador de media
+        run: node --test ../media-gateway/*.test.mjs
+      - name: Validar controlador WebRTC do navegador
+        run: node --test scripts/test-native-call-media.mjs scripts/test-native-call-controller.mjs scripts/test-native-call-config.mjs
+      - name: Validar sintaxe do serviço de media
+        run: node --check ../media-gateway/server.mjs
       - run: npm run test:api-runtime
       - run: npm run test:nkata-id
       - run: npm run build
       - run: npm audit --audit-level=high
+      - name: Instalar navegadores de teste
+        run: |
+          npm install --no-save --package-lock=false playwright@1.58.2
+          npx playwright install --with-deps chromium webkit
+      - name: Validar usabilidade dos Chats em Chromium e WebKit
+        run: node scripts/test-chats-browser.mjs
+      - name: Validar painel de chamadas em Chromium e WebKit
+        run: node scripts/test-call-panel-browser.mjs
+      - name: Validar carteira pessoal em Chromium e WebKit
+        run: node scripts/test-wallet-browser.mjs
+
+
+  media-native:
+    if: github.event_name == 'workflow_dispatch' && inputs.experimental_media == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: media-gateway
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Instalar dependências de media e worker nativo
+        run: npm install --no-audit --no-fund
+      - name: Auditar dependências de media
+        run: npm audit --audit-level=high
+      - name: Validar media RTP real no worker isolado
+        run: npm run test:rtp
+      - name: Instalar relay e navegador para ensaio isolado
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y coturn openssl
+          npm install --no-save --package-lock=false playwright@1.58.2 esbuild
+          npx playwright install --with-deps chromium
+      - name: Testar dois navegadores com media e relay reais
+        env:
+          NKATA_MEDIA_BROWSER_TEST: isolated-ci
+        run: node tests/browser-relay.mjs
+
+
+  media-staging-build:
+    if: github.event_name == 'workflow_dispatch' && inputs.experimental_media == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Gerar lockfile candidato do gateway
+        working-directory: media-gateway
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Gerar lockfile candidato do frontend de staging
+        working-directory: frontend
+        run: |
+          npm install --save-exact --package-lock-only --ignore-scripts --no-audit --no-fund mediasoup-client@3.26.0
+          npm ci
+          npm audit --audit-level=high
+      - name: Compilar exclusivamente para ensaio
+        working-directory: frontend
+        env:
+          VITE_NKATA_MEDIA_STAGING_ORIGIN: https://staging.example.test
+          VITE_NKATA_MEDIA_SIGNAL_URL: wss://media-staging.example.test/signal
+        run: npm run check:ui && npx vite build --mode media-staging
+      - name: Guardar manifestos candidatos para revisão
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-staging-dependency-locks
+          path: |
+            frontend/package.json
+            frontend/package-lock.json
+            media-gateway/package-lock.json
+          retention-days: 7

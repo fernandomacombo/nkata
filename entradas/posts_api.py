@@ -1,8 +1,12 @@
 import mimetypes
+import hashlib
+import uuid
 import os
 
 from PIL import Image, UnidentifiedImageError
-from django.db import DatabaseError
+from django.contrib.auth import get_user_model
+from django.db import DatabaseError, transaction
+from django.utils import timezone
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import FileResponse
 from rest_framework import permissions
@@ -12,8 +16,10 @@ from rest_framework.response import Response
 from .content_moderation_queue import queue_content_media_analysis
 from .identity_models import pedido_tem_identidade_verificada
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
-from .models import AcaoPerfil, MatchPerfil, PerfilNKATA
+from .models import AcaoPerfil, MatchPerfil, PerfilNKATA, EnvioPublicacaoCreditoNKATA
 from .plan_service import plan_for_user
+from .legacy_commercial import credit_only_enabled
+from .wallet_service import WalletError, credit_balance, credit_spending_enabled, record_movement
 from .post_reaction_service import reaction_payload, toggle_reaction
 from .post_safety_models import OcultacaoPublicacaoNKATA
 from .posts_models import PublicacaoNKATA
@@ -232,13 +238,28 @@ def _validate_media(file_obj):
     return None, "Use uma imagem JPG/PNG/WEBP ou um vídeo MP4/WEBM/MOV."
 
 
+def _publication_offer(user):
+    free = not EnvioPublicacaoCreditoNKATA.objects.filter(
+        usuario=user, dia=timezone.localdate(), tipo_media="IMAGEM", custo=0
+    ).exists()
+    return {"free_photo_remaining": int(free), "photo_cost": 0 if free else 2,
+            "video_cost": 5, "balance": credit_balance(user),
+            "spending_enabled": credit_spending_enabled()}
+
+
 def _capabilities(user):
     plan = plan_for_user(user)
+    credit_mode = credit_only_enabled()
+    profile = _perfil_do_utilizador(user) if credit_mode else None
+    verified = bool(profile and pedido_tem_identidade_verificada(profile.pedido))
     return {
+        "credit_mode": credit_mode,
+        "identity_required": credit_mode and not verified,
+        "publication_offer": _publication_offer(user) if credit_mode else None,
         "plan": plan["code"],
         "plan_label": plan["label"],
         "view_enabled": bool(plan["features"].get("feed_view", True)),
-        "publish_media_enabled": bool(plan["features"].get("feed_media_publish", False)),
+        "publish_media_enabled": verified if credit_mode else bool(plan["features"].get("feed_media_publish", False)),
         "media_requires_moderation": True,
         "free_text_enabled": False,
         "caption_options": [
@@ -250,6 +271,62 @@ def _capabilities(user):
             {"value": "MATCHES", "label": "Apenas matches"},
         ],
     }
+
+
+def _submit_credit_publication(request, perfil, media, tipo_media, caption, visibility, fingerprint):
+    try:
+        key = uuid.UUID(str(request.data.get("key")))
+        expected = request.data.get("expected_cost")
+        if str(expected) not in ("0", "2", "5"):
+            raise ValueError()
+        expected = int(expected)
+    except (ValueError, TypeError, AttributeError):
+        return Response({"detail": "Confirme o preço e a chave da publicação."}, status=400)
+
+    publication = None
+    try:
+        with transaction.atomic():
+            user = get_user_model().objects.select_for_update().get(pk=request.user.pk)
+            current = _perfil_do_utilizador(user)
+            if not current or not pedido_tem_identidade_verificada(current.pedido):
+                return Response({"detail": "Verifique a sua identidade para publicar."}, status=403)
+            prior = EnvioPublicacaoCreditoNKATA.objects.filter(usuario=user, chave=key).first()
+            if prior:
+                if prior.fingerprint != fingerprint or prior.custo != expected:
+                    return Response({"detail": "Chave de publicação já utilizada."}, status=409)
+                previous = PublicacaoNKATA.objects.filter(pk=prior.publicacao_id, usuario=user).first()
+                if not previous:
+                    return Response({"detail": "Esta publicação já foi removida."}, status=409)
+                return Response({"ok": True, "publication": _publication_payload(request, previous),
+                                 "capabilities": _capabilities(user), "charged": prior.custo,
+                                 "message": "Publicação já registada."})
+            offer = _publication_offer(user)
+            cost = offer["photo_cost"] if tipo_media == "IMAGEM" else offer["video_cost"]
+            if expected != cost:
+                return Response({"detail": "O preço mudou. Confirme o valor actualizado.",
+                                 "capabilities": _capabilities(user)}, status=409)
+            if cost and not credit_spending_enabled():
+                return Response({"detail": "O consumo de créditos ainda não está disponível."}, status=409)
+            if offer["balance"] < cost:
+                return Response({"detail": "Saldo insuficiente.", "capabilities": _capabilities(user)}, status=409)
+            movement = record_movement(user, key=f"post:{key}", kind="CONSUMO",
+                amount=-cost, reference=f"PUBLICACAO:{key}", reason="Publicação de fotografia" if tipo_media == "IMAGEM" else "Publicação de vídeo") if cost else None
+            publication = PublicacaoNKATA(perfil=current, usuario=user, media=media, tipo_media=tipo_media,
+                legenda=caption["text"], visibilidade=visibility, moderacao_status="PENDENTE")
+            publication.save()
+            EnvioPublicacaoCreditoNKATA.objects.create(usuario=user, chave=key, publicacao_id=publication.pk,
+                tipo_media=tipo_media, dia=timezone.localdate(), custo=cost, fingerprint=fingerprint, movimento=movement)
+    except (WalletError, DatabaseError, OSError) as error:
+        if publication and publication.media and publication.media._committed:
+            try:
+                publication.media.storage.delete(publication.media.name)
+            except OSError:
+                pass
+        return Response({"detail": str(error) if isinstance(error, WalletError) else "Não foi possível registar a publicação. Nenhum crédito foi debitado."}, status=409 if isinstance(error, WalletError) else 503)
+    queued = queue_content_media_analysis(content_type="PUBLICACAO", content_id=publication.pk, media_type=tipo_media)
+    return Response({"ok": True, "pending_review": True, "analysis_queued": queued, "charged": cost,
+        "message": "Publicação enviada para análise. Só aparece no feed depois da aprovação.",
+        "publication": _publication_payload(request, publication), "capabilities": _capabilities(request.user)}, status=202)
 
 
 @api_view(["GET", "POST"])
@@ -303,8 +380,8 @@ def api_publicacoes(request):
     if not capabilities["publish_media_enabled"]:
         return Response(
             {
-                "detail": "Publicar fotografias e vídeos exige NKATA Quinzenal, Essencial ou Premium.",
-                "code": "paid_plan_required_for_publication",
+                "detail": "Verifique a sua identidade para publicar." if credit_only_enabled() else "Publicar fotografias e vídeos exige NKATA Quinzenal, Essencial ou Premium.",
+                "code": "identity_required_for_publication" if credit_only_enabled() else "paid_plan_required_for_publication",
                 "capabilities": capabilities,
             },
             status=403,
@@ -340,11 +417,22 @@ def api_publicacoes(request):
     tipo_media, media_error = _validate_media(media)
     if media_error:
         return Response({"media": [media_error]}, status=400)
+    fingerprint = None
+    if credit_only_enabled():
+        digest = hashlib.sha256()
+        for chunk in media.chunks():
+            digest.update(chunk)
+        digest.update(f"|{tipo_media}|{caption_code}|{visibilidade}".encode())
+        fingerprint = digest.hexdigest()
+        media.seek(0)
     if tipo_media == "IMAGEM":
         try:
             media = sanitized_image_upload(media)
         except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
             return Response({"media": ["Não foi possível preparar esta imagem."]}, status=400)
+
+    if credit_only_enabled():
+        return _submit_credit_publication(request, perfil, media, tipo_media, caption, visibilidade, fingerprint)
 
     try:
         publicacao = PublicacaoNKATA.objects.create(

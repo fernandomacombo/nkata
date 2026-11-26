@@ -324,6 +324,8 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
   const [media, setMedia] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [caption, setCaption] = useState("SEM_LEGENDA");
+  const [visibility, setVisibility] = useState("TODOS");
+  const operation = useRef(null);
   const [publishing, setPublishing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const fileRef = useRef(null);
@@ -333,6 +335,10 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
   const reviewItems = data?.review_items || [];
   const captionOptions = capabilities?.caption_options || FALLBACK_CAPTIONS;
   const canPublish = Boolean(capabilities?.publish_media_enabled);
+  const offer = capabilities?.publication_offer;
+  const isVideo = media?.type?.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(media?.name || "");
+  const cost = offer ? (isVideo ? offer.video_cost : offer.photo_cost) : 0;
+  const insufficient = Boolean(offer && (cost > offer.balance || (cost > 0 && !offer.spending_enabled)));
 
   const load = async ({ signal, silent = false } = {}) => {
     if (!silent) setLoading(true);
@@ -363,43 +369,51 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl("");
     setMedia(null);
+    operation.current = null;
     if (fileRef.current) fileRef.current.value = "";
   };
 
   const selectMedia = (event) => {
     const file = event.target.files?.[0] || null;
     setError("");
-    if (!file) return;
+    if (!file || publishing) return;
     if (!canPublish) {
-      setError(english ? "Posting photos and videos requires NKATA Fortnightly, Essential or Premium." : "Publicar fotografias e vídeos exige NKATA Quinzenal, Essencial ou Premium.");
+      setError(english ? "Posting is currently unavailable for your account." : "A publicação ainda não está disponível para a sua conta.");
       event.target.value = "";
       return;
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setMedia(file);
+    operation.current = null;
     setPreviewUrl(URL.createObjectURL(file));
   };
 
   const publish = async (event) => {
     event.preventDefault();
-    if (!media || publishing || !canPublish) return;
+    if (!media || publishing || !canPublish || insufficient) return;
+    const signature = JSON.stringify([caption, visibility, cost]);
+    if (operation.current?.signature !== signature) {
+      operation.current = { signature, key: crypto.randomUUID() };
+    }
 
     setPublishing(true);
     setError("");
     setStatus("");
     try {
-      const result = await createPublication({ media, caption, visibility: "TODOS" });
+      const result = await createPublication({ media, caption, visibility, key: operation.current.key, expectedCost: offer ? cost : undefined });
       setData((current) => ({
         ...(current || {}),
-        review_items: [result.publication, ...(current?.review_items || [])],
+        review_items: result.publication.moderation_status === "APROVADO" ? (current?.review_items || []) : [result.publication, ...(current?.review_items || []).filter(item => item.id !== result.publication.id)],
         capabilities: result.capabilities || current?.capabilities,
       }));
       clearMedia();
       setCaption("SEM_LEGENDA");
+      setVisibility("TODOS");
       setComposerOpen(false);
       setStatus(result.message || (english ? "Post submitted for review." : "Publicação enviada para análise."));
       window.setTimeout(() => setStatus(""), 4200);
     } catch (requestError) {
+      if (requestError.payload?.capabilities) setData(current => ({...current, capabilities: requestError.payload.capabilities}));
       setError(requestError.message || (english ? "Unable to submit the post." : "Não foi possível enviar a publicação."));
     } finally {
       setPublishing(false);
@@ -430,10 +444,10 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           onExplore={() => onNavigate("discover")}
           canPublish={canPublish}
           composerOpen={composerOpen}
-          onCreate={() => setComposerOpen((value) => !value)}
+          onCreate={() => !publishing && setComposerOpen((value) => !value)}
         />
         <div className="nk-member-home__feed-column">
-          <form id="nk-feed-composer" hidden={!composerOpen && canPublish}
+          <form id="nk-feed-composer" hidden={!composerOpen}
             className={`nk-feed-composer ${canPublish ? "" : "is-locked"} ${composerOpen ? "is-open" : "is-collapsed"}`}
             onSubmit={publish}
           >
@@ -465,7 +479,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                     ) : (
                       <img src={previewUrl} alt={english ? "Preview" : "Pré-visualização"} />
                     )}
-                    <button type="button" onClick={clearMedia} aria-label={english ? "Remove file" : "Remover ficheiro"}>
+                    <button type="button" onClick={clearMedia} disabled={publishing} aria-label={english ? "Remove file" : "Remover ficheiro"}>
                       <X size={18} />
                     </button>
                   </div>
@@ -473,7 +487,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   <button
                     type="button"
                     className="nk-feed-composer__pick"
-                    onClick={() => fileRef.current?.click()}
+                    disabled={publishing} onClick={() => fileRef.current?.click()}
                   >
                     <ImagePlus size={22} />
                     <span>
@@ -490,10 +504,11 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   onChange={selectMedia}
                 />
 
+                {offer && <div className="nk-feed-composer__options"><span>{english ? "Balance" : "Saldo"}: {offer.balance} · {english ? "Photo" : "Fotografia"}: {offer.photo_cost === 0 ? (english ? "Free today" : "Grátis hoje") : `${offer.photo_cost} créditos`} · {english ? "Video" : "Vídeo"}: {offer.video_cost} créditos</span></div>}
                 <div className="nk-feed-composer__options">
                   <label>
                     <span className="sr-only">{english ? "Caption" : "Frase"}</span>
-                    <select value={caption} onChange={(event) => setCaption(event.target.value)}>
+                    <select value={caption} disabled={publishing} onChange={(event) => setCaption(event.target.value)}>
                       {captionOptions.map((option) => (
                         <option key={option.value} value={option.value}>{english ? (EN_CAPTIONS[option.value] || option.label) : option.label}</option>
                       ))}
@@ -501,22 +516,31 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
                   </label>
                 </div>
 
+                <label className="nk-feed-composer__options">
+                  <span>{english ? "Who can see this post?" : "Quem pode ver?"}</span>
+                  <select value={visibility} disabled={publishing} onChange={event => setVisibility(event.target.value)}>
+                    <option value="TODOS">{english ? "All members" : "Todos os membros"}</option>
+                    <option value="MATCHES">{english ? "Only matches" : "Apenas matches"}</option>
+                  </select>
+                </label>
+                {offer && media && <p role="status">{cost ? (english ? `${cost} credits charged on submission, subject to moderation.` : `Serão debitados ${cost} créditos ao enviar para moderação.`) : (english ? "Free publication" : "Publicação gratuita")}</p>}
+                {insufficient && media && <p role="alert">{english ? "Insufficient balance or spending unavailable." : "Saldo insuficiente ou consumo indisponível."}</p>}
                 <button
                   type="submit"
                   className="nk-feed-composer__submit"
-                  disabled={!media || publishing}
+                  disabled={!media || publishing || insufficient}
                 >
                   {publishing ? <LoaderCircle size={18} className="is-spinning" /> : <Send size={18} />}
-                  {publishing ? (english ? "Posting" : "A publicar") : (english ? "Post" : "Publicar")}
+                  {publishing ? (english ? "Posting" : "A publicar") : (cost > 0 ? (english ? `Post · ${cost} credits` : `Publicar · ${cost} créditos`) : (english ? "Post" : "Publicar"))}
                 </button>
               </div>
             ) : (
               <div className="nk-feed-composer__locked-copy">
                 <div>
                   <strong>{english ? "Share a photo or video." : "Partilhe uma foto ou vídeo."}</strong>
-                  <p>{english ? "Fortnightly, Essential and Premium include photos and videos." : "Quinzenal, Essencial e Premium permitem fotos e vídeos."}</p>
+                  <p>{capabilities?.identity_required ? (english ? "Verify your identity to publish." : "Verifique a sua identidade para publicar.") : (english ? "Posting is currently unavailable for your account." : "A publicação ainda não está disponível para a sua conta.")}</p>
                 </div>
-                <button type="button" onClick={() => onNavigate("account")}>{english ? "View plans" : "Ver planos"}</button>
+                <button type="button" onClick={() => setComposerOpen(false)}>{english ? "Close" : "Fechar"}</button>
               </div>
             )}
           </form>

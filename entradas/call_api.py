@@ -9,11 +9,12 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .chat_permissions import ChatIdentityPermission, chat_requires_identity
+from .chat_permissions import ChatIdentityPermission, chat_requires_identity, legacy_chat_allowed
 from .call_models import ChamadaMatchNKATA, SinalChamadaNKATA
 from .profile_media_api import profile_photo_url
 from .models import MatchPerfil
 from .plan_service import plan_for_user
+from .legacy_commercial import credit_only_enabled
 from .webrtc_credentials import ice_servers_for_user
 from .user_roles import active_member_profile_for_user
 
@@ -42,6 +43,7 @@ def _match_do_utilizador(user, match_id, *, for_update=False):
         Q(perfil_1=perfil) | Q(perfil_2=perfil),
         id=match_id,
         status="ATIVO",
+        chat__estado="ATIVA",
     ).select_related(
         "perfil_1",
         "perfil_1__usuario",
@@ -50,7 +52,8 @@ def _match_do_utilizador(user, match_id, *, for_update=False):
     )
     if for_update:
         qs = qs.select_for_update(of=("self",))
-    return qs.first()
+    match = qs.first()
+    return match if legacy_chat_allowed(user, match) else None
 
 
 def _outro_utilizador(match, current_user):
@@ -199,6 +202,11 @@ def _call_setup_required_response():
 @permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 @transaction.atomic
 def api_chamada_match(request, match_id):
+    if credit_only_enabled():
+        # The legacy peer-to-peer signalling API must not bypass media leases.
+        if request.method == "GET":
+            return Response({"call":None,"signals":[],"ice_servers":[],"setup_required":False})
+        return Response({"detail":"Chamadas temporariamente indisponíveis.","code":"managed_media_required"},status=403)
     match = _match_do_utilizador(request.user, match_id)
     if not match:
         return Response({"detail": "Conversa não encontrada."}, status=404)
@@ -272,6 +280,8 @@ def api_chamada_match(request, match_id):
                     pk__in=[request.user.pk, other_user.pk]
                 ).order_by("pk").values_list("pk", flat=True))
                 locked_match = _match_do_utilizador(request.user, match_id, for_update=True)
+                if not locked_match:
+                    return Response({"detail": "Conversa indisponível."}, status=404)
                 existing_match_call = _active_call_for_match(locked_match)
                 existing_user_call = _active_call_for_user(request.user)
                 existing_other_call = _active_call_for_user(other_user)
@@ -432,6 +442,8 @@ def api_chamada_match(request, match_id):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
 def api_chamada_recebida(request):
+    if credit_only_enabled():
+        return Response({"call":None,"setup_required":False})
     perfil = _perfil_do_utilizador(request.user)
     if not perfil:
         return Response({"call": None, "setup_required": False})
@@ -442,6 +454,8 @@ def api_chamada_recebida(request):
             .filter(
                 Q(match__perfil_1=perfil) | Q(match__perfil_2=perfil),
                 estado=ChamadaMatchNKATA.ESTADO_CHAMANDO,
+                match__chat__estado="ATIVA",
+                match__status="ATIVO",
             )
             .exclude(iniciador=request.user)
             .select_related(
@@ -454,7 +468,7 @@ def api_chamada_recebida(request):
             )
             .order_by("-criada_em")
         )
-        call = calls.first()
+        call = next((candidate for candidate in calls if legacy_chat_allowed(request.user, candidate.match)), None)
         call = _expire_ringing_call(call)
         if not call or call.estado != ChamadaMatchNKATA.ESTADO_CHAMANDO:
             return Response({"call": None, "setup_required": False})
@@ -464,7 +478,7 @@ def api_chamada_recebida(request):
             if call.match.perfil_1.usuario_id == call.iniciador_id
             else call.match.perfil_2
         )
-        foto_url = profile_photo_url(caller_profile)
+        foto_url = profile_photo_url(caller_profile) if caller_profile.visivel else None
         return Response({
             "call": {
                 **_serialize_call(call, request),

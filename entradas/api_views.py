@@ -1,8 +1,8 @@
 from pathlib import PurePath
 from uuid import uuid4
 
-from .chat_permissions import ChatIdentityPermission, chat_requires_identity
-from .plan_service import can_send_chat_text
+from .chat_permissions import ChatIdentityPermission, chat_requires_identity, legacy_chat_allowed
+from .plan_service import can_send_chat_text, plan_for_user, chat_message_type
 from PIL import Image, UnidentifiedImageError
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -617,6 +617,7 @@ def api_denunciar_perfil(request, perfil_id):
 
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
+@transaction.atomic
 def api_bloquear_perfil(request, perfil_id):
     perfil_atual = _perfil_do_utilizador(request.user)
 
@@ -637,6 +638,9 @@ def api_bloquear_perfil(request, perfil_id):
             status=403,
         )
 
+    # Serialise blocking with new requests and decisions for this pair.
+    list(PerfilNKATA.objects.select_for_update().filter(
+        pk__in=[perfil_atual.pk, perfil_alvo.pk]).order_by("pk"))
     if not request.session.session_key:
         request.session.create()
 
@@ -656,6 +660,18 @@ def api_bloquear_perfil(request, perfil_id):
 
     _remover_interesses_entre(perfil_atual, perfil_alvo)
     _encerrar_matches_entre(perfil_atual, perfil_alvo)
+    from .models import PedidoConversa
+    from .notification_models import NotificacaoNKATA
+    # Two indexed lookups avoid the SQLite multi-index OR planner issue.
+    pending_ids = []
+    for sender, recipient in ((perfil_atual, perfil_alvo), (perfil_alvo, perfil_atual)):
+        pending_ids.extend(PedidoConversa.objects.filter(
+            remetente=sender, destinatario=recipient, estado="PENDENTE"
+        ).order_by().values_list("pk", flat=True))
+    if pending_ids:
+        PedidoConversa.objects.filter(pk__in=pending_ids, estado="PENDENTE").update(
+            estado="CANCELADO", decidido_em=timezone.now())
+        NotificacaoNKATA.objects.filter(chave__in=[f"pedido-chat:{pk}" for pk in pending_ids]).update(lida=True)
 
     return Response({
         "ok": True,
@@ -745,7 +761,7 @@ def api_encerrar_match(request, match_id):
 
     return Response({
         "ok": True,
-        "message": "A ligação foi encerrada. A conversa deixou de estar disponível.",
+        "message": "O match foi encerrado. A conversa tem gestão independente.",
     })
 
 
@@ -778,6 +794,7 @@ def api_apagar_mensagem(request, match_id, message_id):
 
 @api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated, ChatIdentityPermission])
+@transaction.atomic
 def api_conversa_match(request, match_id):
     match = _match_do_utilizador(request, match_id)
 
@@ -785,6 +802,14 @@ def api_conversa_match(request, match_id):
         return Response({"detail": "Conversa não encontrada."}, status=404)
 
     if request.method == "POST":
+        from .models import Conversa
+        list(PerfilNKATA.objects.select_for_update().filter(pk__in=[match.perfil_1_id, match.perfil_2_id]).order_by("pk"))
+        User.objects.select_for_update().get(pk=request.user.pk)
+        MatchPerfil.objects.select_for_update().get(pk=match.pk)
+        chat = Conversa.objects.select_for_update().filter(match_origem=match, estado=Conversa.ESTADO_ATIVA).first()
+        match.refresh_from_db()
+        if not chat or not legacy_chat_allowed(request.user, match):
+            return Response({"detail": "Conversa indisponível."}, status=404)
         texto = str(request.data.get("texto", "")).strip()
 
         if not texto:
@@ -800,6 +825,8 @@ def api_conversa_match(request, match_id):
             return Response({"detail": "Ative um pacote com chat para escrever ou responder a mensagens.", "code": "paid_plan_required_for_chat_text"}, status=403)
 
         reply_id = request.data.get("resposta_a")
+        if reply_id is not None and not plan_for_user(request.user)["features"]["chat_text"]:
+            return Response({"detail": "Active um pacote com chat para responder."}, status=403)
         if reply_id is not None and (
             type(reply_id) is not int or not 0 < reply_id < 2**63
             or not match.mensagens.filter(pk=reply_id, apagada_em__isnull=True).exists()
@@ -812,6 +839,7 @@ def api_conversa_match(request, match_id):
             conversa=match.chat,
             remetente=request.user,
             texto=texto,
+            tipo=chat_message_type(request.user, texto),
         )
         match.save(update_fields=["atualizado_em"])
 

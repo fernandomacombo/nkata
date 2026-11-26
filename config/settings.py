@@ -488,6 +488,26 @@ LOGGING = {
 
 # Disabled until the company account, branding and sandbox flow are verified.
 NKATA_PAYMENTS_ENABLED = env_bool("NKATA_PAYMENTS_ENABLED", False)
+# Keep credit sales off until consumption and legacy migration are validated.
+NKATA_CREDIT_CHECKOUT_ENABLED = env_bool("NKATA_CREDIT_CHECKOUT_ENABLED", False)
+NKATA_CREDIT_SPENDING_ENABLED = env_bool("NKATA_CREDIT_SPENDING_ENABLED", False)
+# Cutover retires new legacy sales, not existing entitlements or settlements.
+NKATA_CREDIT_TRANSITION_ENABLED = env_bool("NKATA_CREDIT_TRANSITION_ENABLED", False)
+NKATA_CREDIT_ONLY_ENABLED = env_bool("NKATA_CREDIT_ONLY_ENABLED", False)
+# Explicitly reviewed historical owner test orders; not simulated payments.
+NKATA_LEGACY_TEST_ORDER_REFERENCES = env_list("NKATA_LEGACY_TEST_ORDER_REFERENCES")
+if NKATA_CREDIT_ONLY_ENABLED and not NKATA_CREDIT_TRANSITION_ENABLED:
+    raise ImproperlyConfigured("O modo exclusivo de créditos exige a transição ativa.")
+NKATA_PAYMENT_SIMULATION_ENABLED = env_bool("NKATA_PAYMENT_SIMULATION_ENABLED", False)
+NKATA_RAILWAY_ENVIRONMENT_ID = os.getenv("RAILWAY_ENVIRONMENT_ID", "")
+# Experimental gateway: disabled by default and restricted to isolated staging.
+NKATA_MEDIA_GATEWAY_TEST_ENABLED = env_bool("NKATA_MEDIA_GATEWAY_TEST_ENABLED", False)
+NKATA_MEDIA_BROWSER_TEST_ENABLED = env_bool("NKATA_MEDIA_BROWSER_TEST_ENABLED", False)
+NKATA_MEDIA_STAGING_SIGNAL_URL = os.getenv("NKATA_MEDIA_STAGING_SIGNAL_URL", "").strip()
+NKATA_MEDIA_GATEWAY_SECRET = os.getenv("NKATA_MEDIA_GATEWAY_SECRET", "").strip()
+# Never permit simulated money in production, even if a flag is accidentally enabled.
+if NKATA_PAYMENT_SIMULATION_ENABLED and (NKATA_RAILWAY_ENVIRONMENT_ID != "36306a53-86bc-4a07-9b09-7c42c58f2e43" or NKATA_PAYMENTS_ENABLED or not NKATA_CREDIT_TRANSITION_ENABLED or EMAIL_BACKEND != "django.core.mail.backends.dummy.EmailBackend"):
+    raise ImproperlyConfigured("Simulação de pagamentos reservada ao staging isolado, sem pagamentos ou email reais.")
 NKATA_PAYSUITE_TOKEN = os.getenv("NKATA_PAYSUITE_TOKEN", "").strip()
 NKATA_PAYSUITE_WEBHOOK_SECRET = os.getenv("NKATA_PAYSUITE_WEBHOOK_SECRET", "").strip()
 NKATA_PAYMENT_ORIGIN = os.getenv("NKATA_PAYMENT_ORIGIN", "").strip().rstrip("/")

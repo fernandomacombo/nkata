@@ -19,6 +19,14 @@ fi
 
 python manage.py migrate --noinput
 python manage.py check_nkata_runtime
+# Credit cutover: reconcile existing eligible members before serving requests.
+# Both operations are idempotent and preserve the unique identity boundary.
+if [ "${NKATA_CREDIT_ONLY_ENABLED:-False}" = "True" ] || [ "${NKATA_CREDIT_ONLY_ENABLED:-false}" = "true" ] || [ "${NKATA_CREDIT_ONLY_ENABLED:-0}" = "1" ]; then
+  python manage.py reconciliar_bonus_creditos --apply
+  if [ "${RAILWAY_ENVIRONMENT_ID:-}" = "36306a53-86bc-4a07-9b09-7c42c58f2e43" ] && { [ "${NKATA_PAYMENT_SIMULATION_ENABLED:-False}" = "True" ] || [ "${NKATA_PAYMENT_SIMULATION_ENABLED:-false}" = "true" ] || [ "${NKATA_PAYMENT_SIMULATION_ENABLED:-0}" = "1" ]; }; then
+    python manage.py regularizar_bonus_lancamento --apply
+  fi
+fi
 python manage.py collectstatic --noinput
 
 # Run with the web service's existing database and email configuration.
@@ -30,6 +38,16 @@ if [ "${RAILWAY_ENVIRONMENT_NAME:-}" = "production" ]; then
       sleep 3600
     done
   ) &
+  # Recover independently of webhook delivery. No new hosting service.
+  if [ "${NKATA_PAYMENT_RECONCILIATION_ENABLED:-false}" = "true" ] || [ "${NKATA_PAYMENT_RECONCILIATION_ENABLED:-False}" = "True" ] || [ "${NKATA_PAYMENT_RECONCILIATION_ENABLED:-0}" = "1" ]; then
+    (
+      while :; do
+        python manage.py reconcile_nkata_payments ||
+          echo "Falha na reconciliação PaySuite; nova tentativa em 60 segundos." >&2
+        sleep 60
+      done
+    ) &
+  fi
 fi
 
 exec gunicorn config.wsgi:application \

@@ -48,7 +48,6 @@ export default function SuggestionStrip({ profiles, english, canPublish, compose
         <button
           type="button"
           className="nk-suggestion-strip__create"
-          disabled={!canPublish}
           aria-controls="nk-feed-composer"
           aria-expanded={composerOpen}
           onClick={onCreate}

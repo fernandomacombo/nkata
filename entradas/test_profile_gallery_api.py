@@ -198,3 +198,27 @@ class ProfileGalleryApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.owner_profile.refresh_from_db()
         self.assertIsNone(self.owner_profile.capa_publicacao_id)
+
+
+    def test_profile_moments_respect_visibility_moderation_and_expiry(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .moments_models import MomentoNKATA
+        def moment(**kwargs):
+            return MomentoNKATA.objects.create(perfil=self.owner_profile, usuario=self.owner,
+                texto="Um dia tranquilo por aqui.", **kwargs)
+        visible = moment(moderacao_status="APROVADO", visibilidade="TODOS")
+        matched = moment(moderacao_status="APROVADO", visibilidade="MATCHES")
+        moment(moderacao_status="PENDENTE", visibilidade="TODOS")
+        moment(moderacao_status="REJEITADO", visibilidade="TODOS")
+        moment(moderacao_status="APROVADO", visibilidade="TODOS", expira_em=timezone.now()-timedelta(seconds=1))
+        self.client.force_login(self.viewer)
+        url = f"/api/perfis/{self.owner_profile.pk}/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({item["id"] for item in response.json()["moments"]}, {visible.pk})
+        MatchPerfil.objects.create(perfil_1=self.owner_profile, perfil_2=self.viewer_profile, status="ATIVO")
+        self.assertEqual({item["id"] for item in self.client.get(url).json()["moments"]}, {visible.pk, matched.pk})
+        from .models import AcaoPerfil
+        AcaoPerfil.objects.create(usuario=self.owner, perfil=self.viewer_profile, tipo="BLOQUEIO")
+        self.assertEqual(self.client.get(url).status_code, 404)

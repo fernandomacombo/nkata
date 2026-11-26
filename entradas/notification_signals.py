@@ -4,7 +4,7 @@ from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from .models import AcaoPerfil, MatchPerfil, MensagemMatch
+from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch
 from .identity_models import pedido_tem_identidade_verificada
 from .notification_models import NotificacaoNKATA
 from .user_roles import member_profile_for_user
@@ -110,6 +110,16 @@ def notificar_novo_sinal(sender, instance, created, **kwargs):
     action_id = instance.pk
 
     def criar():
+        message = MensagemMatch.objects.filter(sinal_origem_id=action_id).select_related("conversa").first()
+        if message and message.conversa_id:
+            if message.conversa.estado != Conversa.ESTADO_ATIVA:
+                return
+            NotificacaoNKATA.objects.update_or_create(
+                destinatario_id=destinatario_id, chave=f"chat-msg:{message.conversa_id}",
+                defaults={"ator_id": ator_id, "perfil_id": perfil_ator_id, "match": None,
+                          "tipo": "MENSAGEM", "titulo": content["title"],
+                          "texto": content["text"].format(name=nome), "lida": False})
+            return
         NotificacaoNKATA.objects.update_or_create(
             destinatario_id=destinatario_id,
             chave=f"sinal:{action_id}",
@@ -144,7 +154,7 @@ def notificar_match(sender, instance, created, update_fields=None, **kwargs):
 
     if instance.status != "ATIVO":
         _depois_do_commit(
-            lambda: NotificacaoNKATA.objects.filter(match_id=match_id).update(lida=True)
+            lambda: NotificacaoNKATA.objects.filter(match_id=match_id, tipo="MATCH").update(lida=True)
         )
         return
 
@@ -194,7 +204,12 @@ def notificar_match(sender, instance, created, update_fields=None, **kwargs):
 
 @receiver(post_save, sender=MensagemMatch)
 def notificar_nova_mensagem(sender, instance, created, **kwargs):
-    if not created or not instance.match_id or not instance.remetente_id or instance.match.status != "ATIVO":
+    if not created or not instance.match_id or not instance.remetente_id or instance.tipo == "SINAL":
+        return
+    if instance.conversa_id:
+        if instance.conversa.estado != Conversa.ESTADO_ATIVA:
+            return
+    elif instance.match.status != "ATIVO":
         return
 
     perfil_remetente = _perfil_do_utilizador(instance.remetente)

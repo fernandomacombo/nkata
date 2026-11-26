@@ -24,6 +24,8 @@ const iconByType = {
   MOMENTO: CirclePlay,
   PUBLICACAO: Images,
   MATCH: Sparkles,
+  PEDIDO_CHAT: MessageCircle,
+  CHAT_ACEITE: CheckCheck,
   MENSAGEM: MessageCircle,
   EQUIPA: ShieldCheck,
 };
@@ -34,6 +36,8 @@ const typeLabels = {
   MOMENTO: "Moment reaction",
   PUBLICACAO: "Post reaction",
   MATCH: "New match",
+  PEDIDO_CHAT: "Chat request",
+  CHAT_ACEITE: "Chat accepted",
   MENSAGEM: "New message",
   EQUIPA: "Team notice",
 };

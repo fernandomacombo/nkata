@@ -1,0 +1,29 @@
+# Reference template, not installed. Use dedicated non-root account.
+[Unit]
+Description=NKATA isolated staging media gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nkata-media
+Group=nkata-media
+WorkingDirectory=/opt/nkata-media
+EnvironmentFile=/etc/nkata-media/staging.env
+ExecStart=/usr/bin/node /opt/nkata-media/supervisor.mjs
+Restart=no
+KillMode=control-group
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

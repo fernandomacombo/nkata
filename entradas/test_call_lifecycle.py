@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from .test_conversations import historical_match
+from .test_conversations import accepted_match
 from .call_api import _heartbeat_key
 from .call_models import ChamadaMatchNKATA, SinalChamadaNKATA
 from .models import PedidoEntrada, PerfilNKATA, MatchPerfil, QuestionarioEntrada
@@ -49,7 +49,7 @@ class CallLifecycleTests(TestCase):
                 nome_publico="Test", idade=30, status="ATIVO"))
             assign_plan(user, "ESSENCIAL")
             self.users.append(user)
-        self.match = historical_match(perfil_1=profiles[0], perfil_2=profiles[1])
+        self.match = accepted_match(perfil_1=profiles[0], perfil_2=profiles[1])
         self.client = APIClient()
         self.url = f"/api/minha-conta/matches/{self.match.pk}/call/"
 
@@ -112,3 +112,51 @@ class CallLifecycleTests(TestCase):
             self.assertEqual(self.client.get(self.url).data["call"]["estado"], "ATIVA")
         self.assertEqual(self.post(self.users[1], action="end", call_id=call.pk).status_code, 200)
         self.start()
+
+
+    def test_credit_tariff_only_caller_is_charged_per_confirmed_minute(self):
+        from .call_credit_service import prepare_tariff, authorize_media_minute
+        from .wallet_service import record_movement, credit_balance
+        from .models import TarifacaoChamadaNKATA, MovimentoCreditoNKATA
+        call = self.start()
+        caller, recipient = self.users
+        assign_plan(caller, "LIVRE")
+        record_movement(caller, key="test:fund", kind="RECARGA", amount=6, reference="test", reason="Teste")
+        tariff = prepare_tariff(call.pk, payer_id=caller.pk, expected_rate=3, max_minutes=2)
+        self.assertEqual(credit_balance(caller), 6)
+        self.assertIsNone(authorize_media_minute(call.pk))
+        ChamadaMatchNKATA.objects.filter(pk=call.pk).update(estado="CONECTANDO")
+        self.assertIsNone(authorize_media_minute(call.pk))
+        self.assertEqual(credit_balance(caller), 6)
+        ChamadaMatchNKATA.objects.filter(pk=call.pk).update(estado="ATIVA", atendida_em=timezone.now())
+        first = authorize_media_minute(call.pk)
+        self.assertIsNotNone(first)
+        self.assertEqual(authorize_media_minute(call.pk), first)
+        self.assertEqual(credit_balance(caller), 3)
+        self.assertEqual(credit_balance(recipient), 0)
+        with patch("entradas.call_credit_service.timezone.now", return_value=first):
+            second = authorize_media_minute(call.pk)
+        self.assertEqual(second, first + timedelta(minutes=1))
+        self.assertEqual(credit_balance(caller), 0)
+        with patch("entradas.call_credit_service.timezone.now", return_value=second):
+            self.assertIsNone(authorize_media_minute(call.pk))
+        tariff.refresh_from_db()
+        self.assertEqual(tariff.minutos_pagos, 2)
+        self.assertIsNotNone(tariff.encerrada_em)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(tipo="CONSUMO").count(), 2)
+
+    def test_credit_tariff_declined_or_abandoned_has_no_debit(self):
+        from .call_credit_service import prepare_tariff, authorize_media_minute
+        from .wallet_service import record_movement, credit_balance, WalletError
+        call = self.start()
+        caller, recipient = self.users
+        assign_plan(caller, "LIVRE")
+        record_movement(caller, key="test:fund", kind="RECARGA", amount=10, reference="test", reason="Teste")
+        with self.assertRaises(WalletError):
+            prepare_tariff(call.pk, payer_id=recipient.pk, expected_rate=3, max_minutes=2)
+        with self.assertRaises(WalletError):
+            prepare_tariff(call.pk, payer_id=caller.pk, expected_rate=1, max_minutes=2)
+        prepare_tariff(call.pk, payer_id=caller.pk, expected_rate=3, max_minutes=2)
+        ChamadaMatchNKATA.objects.filter(pk=call.pk).update(estado="RECUSADA", terminada_em=timezone.now())
+        self.assertIsNone(authorize_media_minute(call.pk))
+        self.assertEqual(credit_balance(caller), 10)

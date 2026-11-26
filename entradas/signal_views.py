@@ -8,38 +8,24 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .models import AcaoPerfil, PerfilNKATA
+from .models import AcaoPerfil, Conversa, MatchPerfil, MensagemMatch, PerfilNKATA
+from .chat_permissions import chat_pair_allowed, conversation_has_access, request_pair_allowed
+from .legacy_commercial import credit_only_enabled
+from .identity_models import pedido_tem_identidade_verificada
+from .credit_catalog import SIGNAL_DEFINITIONS, SIGNAL_CHAT_TEXT, SIGNAL_SAFETY_LIMIT
+from .wallet_service import credit_spending_enabled, credit_balance, record_movement, WalletError
 from .plan_service import (
     PLAN_DEFINITIONS,
     PLAN_SIGNAL_PREFIX,
     RECHARGE_SIGNAL_PREFIX,
     signal_quota_for_user,
+    active_plan_access,
 )
 from .user_roles import active_member_profile_for_user
 
 
 User = get_user_model()
 FREE_DAILY_SIGNAL_LIMIT = PLAN_DEFINITIONS["LIVRE"]["daily_signal_limit"]
-SIGNAL_DEFINITIONS = {
-    "FLOR": {
-        "db_type": "SINAL_FLOR",
-        "label": "Flor",
-        "icon": "flower",
-        "message": "Uma flor para mostrar que este perfil chamou a sua atenção.",
-    },
-    "BEIJINHO": {
-        "db_type": "SINAL_BEIJINHO",
-        "label": "Beijinho",
-        "icon": "heart",
-        "message": "Um gesto carinhoso, sem abrir uma conversa privada.",
-    },
-    "OLA": {
-        "db_type": "SINAL_OLA",
-        "label": "Olá",
-        "icon": "hand",
-        "message": "Olá, gostei do seu perfil e gostaria de conhecer melhor.",
-    },
-}
 SIGNAL_DB_TYPES = [item["db_type"] for item in SIGNAL_DEFINITIONS.values()]
 
 
@@ -95,19 +81,43 @@ def _signal_payload(item):
     }
 
 
+def _commercial_quota(user, sent_today):
+    quota = signal_quota_for_user(user, sent_today=sent_today)
+    if quota.get("credit_mode"):
+        return quota
+    if not credit_spending_enabled():
+        return {**quota, "credit_mode": False}
+    source = "PLAN" if active_plan_access(user) and quota["remaining_today"] else "RECHARGE" if quota["recharge_balance"] else "WALLET"
+    balance = credit_balance(user)
+    return {**quota, "credit_mode": True, "credit_balance": balance, "next_source": source,
+            "limit_reached": sent_today >= SIGNAL_SAFETY_LIMIT or (source == "WALLET" and balance < 1)}
+
+
+def _signal_sender_allowed(sender, recipient):
+    if credit_only_enabled():
+        return request_pair_allowed(sender, recipient) and pedido_tem_identidade_verificada(sender.pedido)
+    return chat_pair_allowed(sender, recipient)
+
+
 def _availability_payload(user, perfil_alvo):
     today_qs = _signals_today(user)
     sent_types = set(
         today_qs.filter(perfil=perfil_alvo).values_list("tipo", flat=True)
     )
+    quota = _commercial_quota(user, today_qs.count())
+    sender = _perfil_do_utilizador(user) if credit_spending_enabled() else None
+    identity_blocked = credit_spending_enabled() and (not sender or not _signal_sender_allowed(sender, perfil_alvo))
     signals = []
     for item in SIGNAL_DEFINITIONS.values():
         payload = _signal_payload(item)
         payload["sent_to_profile_today"] = item["db_type"] in sent_types
+        payload["cost"] = item["credits"] if quota.get("credit_mode") and quota["next_source"] == "WALLET" else 0
+        payload["available"] = not identity_blocked and not quota["limit_reached"] and not payload["sent_to_profile_today"] and (payload["cost"] <= quota.get("credit_balance", 0))
         signals.append(payload)
     return {
-        "quota": signal_quota_for_user(user, sent_today=today_qs.count()),
+        "quota": quota,
         "signals": signals,
+        "identity_blocked": identity_blocked,
     }
 
 
@@ -142,7 +152,11 @@ def api_sinais_perfil(request, perfil_id):
     if request.method == "GET":
         return Response(_availability_payload(request.user, perfil_alvo))
 
-    raw_type = str(request.data.get("tipo", "")).strip().upper()
+    return send_signal(request.user, perfil_atual, perfil_alvo, request.data.get("tipo", ""), expected_cost=request.data.get("expected_cost"))
+
+
+def send_signal(user, perfil_atual, perfil_alvo, raw_type, conversation_id=None, expected_cost=None):
+    raw_type = str(raw_type).strip().upper()
     definition = SIGNAL_DEFINITIONS.get(raw_type)
     if not definition:
         return Response(
@@ -153,9 +167,27 @@ def api_sinais_perfil(request, perfil_id):
     with transaction.atomic():
         # Serializa envios concorrentes da mesma conta em bases que suportam
         # row locking. Em SQLite a escrita continua protegida pela transação.
-        User.objects.select_for_update().get(pk=request.user.pk)
+        profiles = list(PerfilNKATA.objects.select_for_update().filter(pk__in=[perfil_atual.pk, perfil_alvo.pk]).order_by("pk"))
+        if len(profiles) != 2:
+            return Response({"detail": "Perfil indisponível."}, status=404)
+        perfil_atual = next(p for p in profiles if p.pk == perfil_atual.pk)
+        perfil_alvo = next(p for p in profiles if p.pk != perfil_atual.pk)
+        if perfil_atual.status != "ATIVO" or perfil_alvo.status != "ATIVO" or not perfil_alvo.visivel or _bloqueio_entre_perfis(perfil_atual, perfil_alvo):
+            return Response({"detail": "Esta interação não está disponível."}, status=403)
+        user = User.objects.select_for_update().get(pk=user.pk)
+        if credit_spending_enabled() and not _signal_sender_allowed(perfil_atual, perfil_alvo):
+            return Response({"detail": "Identidade verificada obrigatória para enviar sinais."}, status=403)
+        chat = None
+        if _signal_sender_allowed(perfil_atual, perfil_alvo):
+            candidate = Conversa.objects.filter(perfil_1=profiles[0], perfil_2=profiles[1], estado=Conversa.ESTADO_ATIVA).first()
+            if candidate and conversation_has_access(candidate):
+                if candidate.match_origem_id:
+                    MatchPerfil.objects.select_for_update().get(pk=candidate.match_origem_id)
+                chat = Conversa.objects.select_for_update().filter(pk=candidate.pk, estado=Conversa.ESTADO_ATIVA).first()
+        if conversation_id is not None and (not chat or chat.pk != conversation_id):
+            return Response({"detail": "Conversa indisponível."}, status=404)
 
-        today_qs = _signals_today(request.user)
+        today_qs = _signals_today(user)
         already_sent = today_qs.filter(
             perfil=perfil_alvo,
             tipo=definition["db_type"],
@@ -165,19 +197,19 @@ def api_sinais_perfil(request, perfil_id):
                 {
                     "detail": f"Já enviou {definition['label']} para este perfil hoje.",
                     "code": "signal_already_sent_today",
-                    **_availability_payload(request.user, perfil_alvo),
+                    **_availability_payload(user, perfil_alvo),
                 },
                 status=409,
             )
 
-        quota = signal_quota_for_user(request.user, sent_today=today_qs.count())
+        quota = _commercial_quota(user, today_qs.count())
         source = quota.get("next_source")
-        if not source:
+        if not source or quota["limit_reached"]:
             return Response(
                 {
                     "detail": (
-                        f"Usou os {quota['daily_limit']} sinais disponíveis hoje no "
-                        f"{quota['plan_label']} e não tem saldo de recarga."
+                        ("Limite de segurança atingido." if today_qs.count() >= SIGNAL_SAFETY_LIMIT else "Saldo insuficiente ou consumo de créditos indisponível.") if quota.get("credit_mode") else
+                        f"Usou os {quota['daily_limit']} sinais disponíveis hoje no {quota['plan_label']} e não tem saldo de recarga."
                     ),
                     "code": "signal_allowance_exhausted",
                     "quota": quota,
@@ -185,18 +217,31 @@ def api_sinais_perfil(request, perfil_id):
                 status=429,
             )
 
-        prefix = PLAN_SIGNAL_PREFIX if source == "PLAN" else RECHARGE_SIGNAL_PREFIX
-        AcaoPerfil.objects.create(
+        cost = definition["credits"] if source == "WALLET" else 0
+        if quota.get("credit_mode") and (type(expected_cost) is not int or expected_cost != cost):
+            return Response({"detail": "Confirme o custo atual do sinal.", **_availability_payload(user, perfil_alvo)}, status=409)
+        if source == "WALLET":
+            key = f"signal:{perfil_alvo.pk}:{raw_type}:{timezone.localdate():%Y%m%d}"
+            try:
+                record_movement(user, key=key, kind="CONSUMO", amount=-cost,
+                    reference=key, reason=f"Sinal — {definition['label']}")
+            except WalletError as error:
+                return Response({"detail": str(error), **_availability_payload(user, perfil_alvo)}, status=409)
+        prefix = PLAN_SIGNAL_PREFIX if source == "PLAN" else RECHARGE_SIGNAL_PREFIX if source == "RECHARGE" else "sinal:carteira:"
+        action = AcaoPerfil.objects.create(
             perfil=perfil_alvo,
-            usuario=request.user,
+            usuario=user,
             tipo=definition["db_type"],
             session_key=(
-                f"{prefix}{request.user.pk}:{timezone.localdate():%Y%m%d}:"
+                f"{prefix}{user.pk}:{timezone.localdate():%Y%m%d}:"
                 f"{uuid.uuid4().hex[:16]}"
             ),
         )
+        if chat:
+            MensagemMatch.objects.create(conversa=chat, match=chat.match_origem, remetente=user,
+                tipo="SINAL", sinal_origem=action, texto=SIGNAL_CHAT_TEXT[raw_type])
 
-    payload = _availability_payload(request.user, perfil_alvo)
+    payload = _availability_payload(user, perfil_alvo)
     return Response(
         {
             "ok": True,

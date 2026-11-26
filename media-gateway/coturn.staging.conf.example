@@ -1,0 +1,25 @@
+# Experimental template. Replace placeholders before use; never commit secrets.
+# Dedicated isolated host with public IPv4. Also enforce egress firewall:
+# ONLY the staging SFU IP and media port for relay traffic; deny other destinations.
+listening-ip=TURN_PUBLIC_IPV4
+relay-ip=TURN_PUBLIC_IPV4
+listening-port=3478
+tls-listening-port=5349
+min-port=49160
+max-port=49200
+realm=TURN_STAGING_HOSTNAME
+fingerprint
+use-auth-secret
+static-auth-secret=REPLACE_WITH_INDEPENDENT_RANDOM_SECRET
+cert=/etc/letsencrypt/live/TURN_STAGING_HOSTNAME/fullchain.pem
+pkey=/etc/letsencrypt/live/TURN_STAGING_HOSTNAME/privkey.pem
+no-tlsv1
+no-tlsv1_1
+no-cli
+no-multicast-peers
+no-tcp-relay
+denied-peer-ip=0.0.0.0-255.255.255.255
+denied-peer-ip=::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+allowed-peer-ip=STAGING_SFU_PUBLIC_IPV4
+user-quota=4
+total-quota=40

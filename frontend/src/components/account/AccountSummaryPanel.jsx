@@ -124,14 +124,15 @@ export default function AccountSummaryPanel({ language = "PT", onOpenSection }) 
           <div>
             <span><Sparkles size={18} /></span>
             <div>
-              <small>{english ? "Today's signals" : "Sinais de hoje"}</small>
-              <strong>{quota.used_today} {english ? "of" : "de"} {quota.daily_limit}</strong>
+              <small>{plan.credit_only ? (english ? "Available credits" : "Créditos disponíveis") : (english ? "Today's signals" : "Sinais de hoje")}</small>
+              <strong>{plan.credit_only ? quota.credit_balance : `${quota.used_today} ${english ? "of" : "de"} ${quota.daily_limit}`}</strong>
             </div>
           </div>
-          <div className="nk-account-summary__bar" aria-hidden="true">
+          {!plan.credit_only && <><div className="nk-account-summary__bar" aria-hidden="true">
             <span style={{ width: `${signalProgress}%` }} />
           </div>
-          <small>{quota.remaining_today} {english ? "available" : "disponíveis"} · {english ? "top-up" : "recarga"} {quota.recharge_balance}</small>
+          <small>{quota.remaining_today} {english ? "available" : "disponíveis"} · {english ? "top-up" : "recarga"} {quota.recharge_balance}</small></>}
+          {plan.credit_only && <small>{english ? "Manage your wallet to track spending." : "Consulte a carteira para acompanhar o consumo."}</small>}
         </article>
       </div>
 
@@ -151,7 +152,7 @@ export default function AccountSummaryPanel({ language = "PT", onOpenSection }) 
 
       <footer className="nk-account-summary__actions">
         <button type="button" onClick={() => onOpenSection("profile")}>{english ? "Edit profile" : "Editar perfil"}</button>
-        <button type="button" onClick={() => onOpenSection("plan")}>{english ? "View plan" : "Ver plano"}</button>
+        <button type="button" onClick={() => onOpenSection("plan")}>{english ? "View wallet" : "Ver carteira"}</button>
       </footer>
     </section>
   );

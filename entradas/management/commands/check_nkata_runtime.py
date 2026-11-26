@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
 from entradas.payment_service import payments_enabled
+from entradas.legacy_commercial import credit_only_enabled, legacy_audit
 from entradas.webrtc_credentials import turn_is_configured
 
 
@@ -36,6 +37,11 @@ class Command(BaseCommand):
             raise CommandError("TURN ainda não está configurado para chamadas em redes diferentes.")
         if options["require_payments"] and not payments_enabled():
             raise CommandError("Os pagamentos ainda não estão habilitados e configurados.")
+        if credit_only_enabled():
+            audit = legacy_audit()
+            self.stdout.write("Auditoria comercial: " + "; ".join(f"{k}={v}" for k,v in audit.items()))
+            if any(audit[key] for key in ("legacy_payment_blockers","paid_entitlements","unknown_entitlements")):
+                raise CommandError("Existem pagamentos ou benefícios antigos que exigem revisão antes do corte comercial.")
         self.stdout.write(self.style.SUCCESS(f"Runtime NKATA: {len(models)} tabelas e descodificador de áudio verificados."))
         if not turn_is_configured():
             self.stdout.write(self.style.WARNING("TURN: configuração pendente; chamadas em redes diferentes não estão homologadas."))
