@@ -245,6 +245,9 @@ try {
     await flower.click();
     await confirmSignal.waitFor();
     await confirmSignal.getByText("2 créditos",{exact:true}).waitFor();
+    const modalBounds=await confirmSignal.boundingBox();
+    const viewport=detail.viewportSize();
+    assert.ok(modalBounds && Math.abs(modalBounds.x+modalBounds.width/2-viewport.width/2)<=2 && Math.abs(modalBounds.y+modalBounds.height/2-viewport.height/2)<=2,"Signal dialog must be centered in the viewport, even on a scrolled profile");
     assert.equal(await confirmSignal.getByText("45 créditos",{exact:true}).count(),0,"Keep modal concise: balance is already shown outside");
     assert.equal(await confirmSignal.getByText("43 créditos",{exact:true}).count(),0);
     assert.equal(signalPosts,0,"Opening the modal must not send a signal");
