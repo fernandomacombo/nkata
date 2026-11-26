@@ -191,3 +191,40 @@ class ExtraPhotoModerationTests(TestCase):
         self.pedido.refresh_from_db()
         self.assertEqual(self.pedido.foto_extra_1_estado, "PENDENTE")
         self.assertFalse(self.pedido.foto_extra_1_visivel)
+
+    def test_authorized_replacement_is_published_only_after_moderation(self):
+        self.client.force_login(self.owner)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                "/api/minha-conta/fotografias/1/",
+                {"foto": valid_photo("autorizada.jpg"), "publicar_fotos_perfil": "on"},
+            )
+        self.assertEqual(response.status_code, 200)
+        card = response.json()["results"][0]
+        self.assertTrue(card["publication_authorized"])
+        self.assertFalse(card["visible"])
+        self.assertEqual(card["review_status"], "PENDENTE")
+        self.client.force_login(self.viewer)
+        self.assertEqual(self.client.get(self.url()).status_code, 404)
+
+        self.client.force_login(self.moderator)
+        rows = self.client.get("/api/painel/fotografias/").json()["results"]
+        reviewed = next(row for row in rows if row["profile_id"] == self.profile.pk and row["slot"] == 1)
+        result = self.client.post(self.moderation_url(), {"action": "approve", "version": reviewed["version"]}, content_type="application/json")
+        self.assertEqual(result.status_code, 200)
+        PerfilNKATA.objects.filter(pk__in=[self.profile.pk, self.viewer_profile.pk]).update(status="ATIVO", visivel=True)
+        self.client.force_login(self.viewer)
+        image = self.client.get(self.url())
+        self.assertEqual(image.status_code, 200)
+        image.close()
+
+    def test_legacy_approval_does_not_override_private_choice(self):
+        self.client.force_login(self.moderator)
+        rows = self.client.get("/api/painel/fotografias/").json()["results"]
+        reviewed = next(row for row in rows if row["profile_id"] == self.profile.pk and row["slot"] == 1)
+        result = self.client.post(self.moderation_url(), {"action": "approve", "version": reviewed["version"]}, content_type="application/json")
+        self.assertEqual(result.status_code, 200)
+        self.pedido.refresh_from_db()
+        self.assertFalse(self.pedido.foto_extra_1_visivel)
+        self.client.force_login(self.viewer)
+        self.assertEqual(self.client.get(self.url()).status_code, 404)
