@@ -126,7 +126,6 @@ class PerfilDetalheSerializer(PerfilResumoSerializer):
         fields = PerfilResumoSerializer.Meta.fields + [
             "o_que_valoriza",
             "o_que_nao_aceita",
-            "criado_em",
             "preferencias",
         ]
 

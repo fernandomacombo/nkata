@@ -1,6 +1,5 @@
 import { useState, useRef, useMemo } from "react";
 import { ArrowUpRight, Bookmark, ChevronLeft, ChevronRight, Clock, HeartHandshake, MapPin, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, UserRound } from "lucide-react";
-import CompactPageHeader from "../layout/CompactPageHeader.jsx";
 import { usePresence, usePresenceSnapshot } from "../profiles/Presence.jsx";
 import "./discovery-flow.css";
 
@@ -16,7 +15,8 @@ export function recentMembers(profiles) {
 }
 function dateLabel(p, english) {
   const date = new Date(p.criado_em);
-  const days = Math.max(0, Math.floor((Date.now()-date.getTime())/86400000));
+  const calendarDay = d => Date.UTC(d.getFullYear(),d.getMonth(),d.getDate());
+  const days = Math.max(0, Math.round((calendarDay(new Date())-calendarDay(date))/86400000));
   if (days === 0) return english ? "Profile created today" : "Perfil criado hoje";
   if (days === 1) return english ? "Profile created yesterday" : "Perfil criado ontem";
   return english ? `Profile created ${days} days ago` : `Perfil criado há ${days} dias`;
@@ -53,7 +53,7 @@ function RecentCarousel({profiles,english,onOpenProfile,isSaved,onToggleSaved}) 
   function go(delta){if(count>1)setActiveId(profiles[(activeIndex+delta+count)%count].id);}
   if(!active)return null;
   return <section className="nk-flow__recent" aria-label={english?"Recent members":"Membros recentes"}>
-    <header className="nk-flow__recent-head"><div><span><Sparkles size={15}/>{english?"NEW MEMBERS":"RECÉM-CHEGADOS"}</span><h1>{english?"New faces":"Novos rostos"}</h1><p>{english?"New stories start here.":"Novas histórias começam aqui."}</p></div><span className="nk-flow__counter">{String(activeIndex+1).padStart(2,"0")} / {String(count).padStart(2,"0")}</span></header>
+    <header className="nk-flow__recent-head"><div><span><Sparkles size={15}/>{english?"NEW MEMBERS":"RECÉM-CHEGADOS"}</span><h2>{english?"New faces":"Novos rostos"}</h2><p>{english?"New stories start here.":"Novas histórias começam aqui."}</p></div><span className="nk-flow__counter">{String(activeIndex+1).padStart(2,"0")} / {String(count).padStart(2,"0")}</span></header>
     <div className="nk-flow__stage" aria-label={english?"Recent profiles carousel":"Carrossel de perfis recentes"} onPointerDown={e=>{pointer.current={x:e.clientX,y:e.clientY};dragged.current=false;}} onPointerCancel={()=>{pointer.current=null;dragged.current=false;}} onPointerUp={e=>{const p=pointer.current;pointer.current=null;if(p&&Math.abs(e.clientX-p.x)>35&&Math.abs(e.clientX-p.x)>Math.abs(e.clientY-p.y)){dragged.current=true;go(e.clientX<p.x?1:-1);}}} onKeyDown={e=>{if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();go(e.key==="ArrowLeft"?-1:1);}}}>
       {profiles.map((profile,i)=>{
         let position=(i-activeIndex+count)%count;if(position>count/2)position-=count;
@@ -84,9 +84,8 @@ export default function DiscoveryFlow({english,profiles,filteredProfiles,loadErr
   const goals=[...new Set(profiles.map(p=>p.objetivo_display).filter(Boolean))];
   const clear=()=>{clearFilters();setFilter("all");};
   return <main className="nk-discover nk-flow">
-    <CompactPageHeader title={english?"Profiles":"Perfis"}/>
     <section className="nk-shell nk-discover__content nk-flow__shell">
-      <header className="nk-flow__top"><div><h2>{english?"Profiles":"Perfis"}</h2><p>{english?"Discover. Meet. Connect.":"Descobre. Conhece. Conecta."}</p></div><button type="button" aria-expanded={search} aria-label={english?"Search profiles":"Pesquisar perfis"} onClick={()=>setSearch(v=>!v)}><Search size={21}/></button><button type="button" aria-pressed={filter==="saved"} aria-label={english?"Saved profiles":"Perfis guardados"} onClick={()=>setFilter(f=>f==="saved"?"all":"saved")}><Bookmark size={21} fill={filter==="saved"?"currentColor":"none"}/></button></header>
+      <header className="nk-flow__top"><div><h1>{english?"Profiles":"Perfis"}</h1><p>{english?"Discover. Meet. Connect.":"Descobre. Conhece. Conecta."}</p></div><button type="button" aria-expanded={search} aria-label={english?"Search profiles":"Pesquisar perfis"} onClick={()=>setSearch(v=>!v)}><Search size={21}/></button><button type="button" aria-pressed={filter==="saved"} aria-label={english?"Saved profiles":"Perfis guardados"} onClick={()=>setFilter(f=>f==="saved"?"all":"saved")}><Bookmark size={21} fill={filter==="saved"?"currentColor":"none"}/></button></header>
       {search&&<label className="nk-flow__search"><Search size={18}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={english?"Name or city":"Nome ou cidade"} aria-label={english?"Search":"Pesquisar"}/></label>}
       {loadError&&<div className="nk-api-notice" role="status">{english?"Unable to refresh profiles":"Não foi possível atualizar os perfis"}</div>}
       <div hidden aria-hidden="true">{profiles.filter(p=>!isDemo(p)).map(p=><span key={p.id} data-presence-id={p.id}/>)}</div>
