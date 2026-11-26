@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import CommunityRules from "../components/CommunityRules.jsx";
 import { MatchPreferences } from "../components/MatchPreferences";
 import { useEffect, useRef, useState } from "react";
@@ -479,10 +480,7 @@ export default function AccountPage({
   if (loading && !account) {
     return (
       <main className="nk-account">
-        <div className="nk-shell nk-account__loading">
-          <span />
-          <div><em /><em /><em /></div>
-        </div>
+        <div className="nk-shell"><HeartLoader page="account"/></div>
       </main>
     );
   }
