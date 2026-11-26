@@ -461,7 +461,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const [momentComposerRequested, setMomentComposerRequested] = useState(false);
   const handleNavigate = (page) => {
     if (page === "login") {
       openLogin(activePage);
@@ -809,9 +808,6 @@ export default function App() {
       {activePage === "home" && (
         memberAuthenticated ? (
           <MemberHomePage
-            key={sessionIdentity}
-            userId={session?.user?.id}
-            onCreateMoment={()=>{setMomentComposerRequested(true);handleNavigate("moments");}}
             onNavigate={handleNavigate}
             onOpenProfile={handleOpenProfile}
           />
@@ -842,7 +838,7 @@ export default function App() {
       )}
 
       {activePage === "moments" && memberAuthenticated && (
-        <MomentsPage key={sessionIdentity} userId={session?.user?.id} openComposerInitially={momentComposerRequested} onComposerRequestHandled={()=>setMomentComposerRequested(false)} onOpenProfile={handleOpenProfile} />
+        <MomentsPage key={sessionIdentity} userId={session?.user?.id} onOpenProfile={handleOpenProfile} />
       )}
 
       {activePage === "saved" && (

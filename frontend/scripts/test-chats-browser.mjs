@@ -379,22 +379,19 @@ try {
       results:[],review_items:[],capabilities:{publish_media_enabled:true,credit_mode:true,
       publication_offer:{free_photo_remaining:1,photo_cost:0,video_cost:5,balance:55,spending_enabled:true}}
     }}));
-    await feed.route("**/api/momentos/",route=>route.fulfill({json:{results:[{id:301,profile:{id:44,nome_publico:"Janela de teste"},moderation_status:"APROVADO",expires_at:new Date(Date.now()+3600000).toISOString(),media_type:"TEXTO",text:"Momento do Início",visibility:"TODOS",visibility_label:"Todos os membros"},{id:302,profile:{id:45,nome_publico:"Janela expirada"},moderation_status:"APROVADO",expires_at:new Date(Date.now()-1000).toISOString(),media_type:"TEXTO",text:"Expirado"}]}}));
-    await feed.route("**/api/momentos/*/reacoes/",route=>route.fulfill({json:{reactions:{enabled:true,options:[],counts:{}}}}));
+    let momentRequestsOnHome=0;
+    await feed.route("**/api/momentos/**",route=>{momentRequestsOnHome++;return route.fulfill({json:{results:[]}});});
     await feed.route("**/api/presenca/", route=>route.fulfill({json:{perfis:{}}}));
     await feed.goto("http://127.0.0.1:5178/"+html+"?feed=1");
     await feed.getByRole("heading",{name:"Pergunta de teste"}).waitFor();
-    await feed.getByRole("button",{name:"Abrir momento de Janela de teste"}).waitFor();
-    assert.equal(await feed.getByRole("button",{name:"Abrir momento de Janela expirada"}).count(),0);
-    await feed.getByRole("button",{name:"Abrir momento de Janela de teste"}).click();
-    await feed.getByRole("dialog",{name:"Momento de Janela de teste"}).waitFor();
-    await feed.getByRole("button",{name:"Fechar Momento"}).click();
-    assert.ok(await feed.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"Home Windows must fit viewport");
+    assert.equal(await feed.locator(".nk-living-windows").count(),0,"Home must not contain Moment Windows");
+    assert.equal(await feed.getByRole("heading",{name:"Janelas de hoje"}).count(),0);
     assert.equal(await feed.locator(".nk-poll-share").count(),0);
     assert.equal(await feed.locator("#nk-feed-composer").isVisible(),false,"Composer must not appear until plus is pressed");
     await feed.getByRole("button",{name:"Nova publicação",exact:true}).click();
     await feed.locator("#nk-feed-composer").waitFor({state:"visible"});
     await feed.getByText("Saldo: 55",{exact:false}).waitFor();
+    assert.equal(momentRequestsOnHome,0,"Home must not request Moments");
     assert.equal(errors.length,0,errors.join("\n"));
     await feed.close();
     const detail = await browser.newPage({viewport:{width,height:820},isMobile:width<820,hasTouch:width<820});

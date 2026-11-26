@@ -21,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 import DiscoveryPanel from "../components/discovery/DiscoveryPanel.jsx";
-import HomeWindows from "../components/moments/HomeWindows.jsx";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import {
@@ -317,7 +316,7 @@ function ReviewPublication({ publication, onDeleted, english }) {
   );
 }
 
-export default function MemberHomePage({ onNavigate, onOpenProfile, userId, onCreateMoment }) {
+export default function MemberHomePage({ onNavigate, onOpenProfile }) {
   const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -439,8 +438,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile, userId, onCr
         </button>
       </CompactPageHeader>
 
-      <section className={"nk-shell nk-member-home__layout nk-member-home__layout--discovery"+(!loading||data?" nk-living-layout":"")}>
-        {(!loading||data) && <HomeWindows english={english} userId={userId} onOpenProfile={onOpenProfile} onExplore={()=>onNavigate("moments")} onCreate={onCreateMoment || (()=>onNavigate("moments"))}/>}
+      <section className="nk-shell nk-member-home__layout nk-member-home__layout--discovery">
         <DiscoveryPanel
           english={english}
           onOpenProfile={onOpenProfile}
@@ -572,7 +570,6 @@ export default function MemberHomePage({ onNavigate, onOpenProfile, userId, onCr
           <div className="nk-member-home__feed-heading">
             <div>
               <h2>{english ? "Posts" : "Publicações"}</h2>
-              <p>{english ? "Stories that stay, connections that grow." : "Histórias que ficam, ligações que crescem."}</p>
             </div>
           </div>
 
