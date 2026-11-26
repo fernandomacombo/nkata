@@ -61,18 +61,36 @@ try {
    assert.equal(await status.locator(".nk-heart-loader__particles svg").count(),7);
    assert.equal(await status.locator(".nk-heart-loader__heart").evaluate(el=>getComputedStyle(el).animationName),"none","Reduced-motion setting must disable animation");
    assert.ok(await loader.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2),"Loader must fit mobile viewport");
-   await loader.getByRole("button",{name:"Simular perfil carregado"}).click();
+   for(const viewport of [{width:375,height:812},{width:1366,height:820}]){
+     await loader.setViewportSize(viewport);
+     await loader.waitForFunction(({width,height}) => {
+       const el=document.querySelector(".nk-heart-loader--fullscreen");
+       if(!el || innerWidth!==width || innerHeight!==height) return false;
+       const r=el.getBoundingClientRect();
+       return Math.abs(r.x)<=1 && Math.abs(r.y)<=1 && Math.abs(r.width-width)<=1 && Math.abs(r.height-height)<=1;
+     },viewport,{timeout:5000});
+     const geometry=await status.evaluate(el=>{
+       const rect=el.getBoundingClientRect(),brand=el.querySelector(".nk-heart-loader__brand").getBoundingClientRect(),bar=el.querySelector(".nk-heart-loader__progress").getBoundingClientRect(),heart=el.querySelector(".nk-heart-loader__heart").getBoundingClientRect();
+       return {x:rect.x,y:rect.y,width:rect.width,height:rect.height,groupCenter:(brand.top+bar.bottom)/2,heartCenter:(heart.left+heart.right)/2,viewportWidth:innerWidth,viewportHeight:innerHeight,topmost:el.contains(document.elementFromPoint(1,1)),bodyOverflow:getComputedStyle(document.body).overflow};
+     });
+     assert.ok(Math.abs(geometry.x)<=1&&Math.abs(geometry.y)<=1&&Math.abs(geometry.width-geometry.viewportWidth)<=1&&Math.abs(geometry.height-geometry.viewportHeight)<=1,"Page loader must cover the entire viewport: "+JSON.stringify(geometry));
+     assert.ok(Math.abs(geometry.groupCenter-geometry.viewportHeight/2)<=3&&Math.abs(geometry.heartCenter-geometry.viewportWidth/2)<=3,"Brand, animation and messages must form a centered group: "+JSON.stringify(geometry));
+     assert.equal(geometry.topmost,true,"Header and other content must be covered");
+     assert.equal(geometry.bodyOverflow,"hidden","Prevent scrolling the underlying page");
+   }
+   await loader.getByRole("button",{name:"Simular perfil carregado"}).evaluate(button=>button.click());
    await status.waitFor({state:"detached"});
+   assert.notEqual(await loader.evaluate(()=>getComputedStyle(document.body).overflow),"hidden","Restore normal scrolling after loading");
    await loader.getByRole("heading",{name:/Perfil de teste/}).waitFor();
    await loader.reload();
    await status.waitFor();
-   await loader.getByRole("button",{name:"Simular falha"}).click();
+   await loader.getByRole("button",{name:"Simular falha"}).evaluate(button=>button.click());
    await status.waitFor({state:"detached"});
    await loader.getByRole("heading",{name:"Perfil não disponível"}).waitFor();
    assert.equal(loaderErrors.length,0,loaderErrors.join("\n"));
    await loader.getByRole("button",{name:"Simular carregamento chats"}).click();
    await status.getByText("A preparar as suas conversas",{exact:true}).waitFor();
-   await loader.getByRole("button",{name:"Simular carregamento explorar"}).click();
+   await loader.getByRole("button",{name:"Simular carregamento explorar"}).evaluate(button=>button.click());
    await status.getByText("A descobrir novas pessoas",{exact:true}).waitFor();
    assert.equal(await status.locator(".nk-heart-loader__particles svg").count(),7);
    assert.equal(loaderErrors.length,0,loaderErrors.join("\n"));

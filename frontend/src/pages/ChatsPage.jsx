@@ -427,7 +427,7 @@ export default function ChatsPage({ conversationId, requestId, onSelect, onBack,
         <nav className="nk-chat-tabs" aria-label="Filtrar chats">{TABS.map(([key,label]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => chooseTab(key)}>{label}{counts[key] > 0 && <span>{counts[key]}</span>}</button>)}</nav>
         {error && <p role="alert" className="nk-chat-error">{error}</p>}
         <div className="nk-chat-list">
-          {!data && !error && <HeartLoader page="chats" compact/>}
+          {!data && !error && <HeartLoader page="chats"/>}
           {data && showChats && <>{visibleChats.map(c => <button type="button" className="nk-chat-row nk-chat-conversation" key={c.id} aria-current={conversationId === c.id ? "page" : undefined} onClick={() => onSelect(c.id)}>
             <Avatar profile={c.perfil} /><span className="nk-chat-title"><strong>{c.nome}</strong><small>{c.ultima_mensagem ? (c.ultima_mensagem.minha ? "Eu: " : "") + c.ultima_mensagem.texto : c.identity_pending ? "A aguardar verificação de identidade" : c.consent_state === "ACEITE" ? "Conversa aceite" : "Conversa anterior"}</small></span>
             <span className="nk-chat-row-meta"><time>{stamp(c.atividade_em)}</time>{c.nao_lidas > 0 && <span className="nk-chat-unread">{c.nao_lidas > 99 ? "99+" : c.nao_lidas}</span>}</span>

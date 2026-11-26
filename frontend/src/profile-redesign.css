@@ -388,3 +388,17 @@
 .nk-heart-loader--compact .nk-heart-loader__animation {width:150px;height:150px;}
 .nk-heart-loader--compact .nk-heart-loader__heading {font-size:18px;}
 .nk-heart-loader--compact .nk-heart-loader__progress {margin-top:18px;}
+
+/* Full-page loading: preserve the approved visual treatment, remove the card and center the complete group. */
+.nk-heart-loader.nk-heart-loader--fullscreen {
+  position:fixed;inset:0;z-index:10000;width:auto;height:auto;
+  min-height:0;max-width:none;margin:0;border:0;border-radius:0;
+  padding:24px;box-sizing:border-box;overflow:auto;
+  justify-content:center;justify-content:safe center;
+  background:radial-gradient(ellipse at 50% 43%,#f7e8e8 0%,#fcf8f4 53%,#fffdf9 100%);
+}
+.nk-heart-loader--fullscreen .nk-heart-loader__brand {position:static;margin:0 0 14px;flex-shrink:0;}
+.nk-heart-loader--fullscreen .nk-heart-loader__animation,
+.nk-heart-loader--fullscreen .nk-heart-loader__progress {flex-shrink:0;}
+body:has(> .nk-heart-loader--fullscreen) {overflow:hidden;}
+@media(max-width:420px){.nk-heart-loader.nk-heart-loader--fullscreen {padding:20px;}}
