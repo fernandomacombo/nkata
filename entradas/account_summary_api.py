@@ -9,6 +9,7 @@ from .call_models import ChamadaMatchNKATA
 from .chat_media_models import MensagemAudioMatchNKATA
 from .models import AcaoPerfil, MatchPerfil, MensagemMatch
 from .plan_service import plan_for_user, signal_quota_for_user
+from .legacy_commercial import credit_only_enabled
 from .posts_models import PublicacaoNKATA
 from .user_roles import member_profile_for_user
 
@@ -108,6 +109,7 @@ def api_resumo_da_conta(request):
             "label": plan["label"],
             "paid": plan["paid"],
             "signal_quota": quota,
+            "credit_only": credit_only_enabled(),
         },
         "performance": {
             "active_matches": len(match_ids),

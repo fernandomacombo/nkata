@@ -6,7 +6,8 @@ from django.contrib.auth.models import Group
 from django.db import transaction
 from django.utils import timezone
 
-from .models import AcaoPerfil, AcessoPlanoNKATA
+from .models import AcaoPerfil, AcessoPlanoNKATA, MensagemMatch
+from .legacy_commercial import credit_only_enabled
 
 
 PLAN_GROUP_ESSENCIAL = "NKATA_PLANO_ESSENCIAL"
@@ -72,16 +73,45 @@ PLAN_DEFINITIONS["QUINZENAL"] = {
     "features": dict(PLAN_DEFINITIONS["ESSENCIAL"]["features"]),
 }
 PLAN_DURATIONS = {"LIVRE": 0, "QUINZENAL": 14, "ESSENCIAL": 30, "PREMIUM": 30}
-CHAT_PHRASES = (
+PRESET_DAILY_LIMIT = 5
+CHAT_PHRASES_PT = (
     "Olá, tudo bem?",
     "Olá, gostei de conhecer o seu perfil. Como está?",
     "Gostaria de conhecer melhor os seus interesses.",
     "Obrigado pelo seu interesse!",
+    "Gostei de conhecer o teu perfil.",
+    "Gostaria de continuar esta conversa.",
+    "Neste momento não posso conversar.",
+)
+CHAT_PHRASES_EN = (
     "Hello, how are you?",
     "Hello, I enjoyed reading your profile. How are you?",
     "I would like to learn more about your interests.",
     "Thank you for your interest!",
+    "I enjoyed getting to know your profile.",
+    "I would like to continue this conversation.",
+    "I cannot chat right now.",
 )
+CHAT_PHRASES = CHAT_PHRASES_PT + CHAT_PHRASES_EN
+
+
+def preset_remaining(user):
+    # Deleted messages retain their type and timestamp; deleting is not a refund.
+    used = MensagemMatch.objects.filter(remetente=user, tipo="PREDEFINIDA",
+                                       criado_em__date=timezone.localdate()).count()
+    return max(0, PRESET_DAILY_LIMIT - used)
+
+
+def preset_snapshot(user):
+    features = plan_for_user(user)["features"]
+    remaining = preset_remaining(user) if features.get("chat_presets") and not features["chat_text"] else 0
+    return {"limite": PRESET_DAILY_LIMIT, "restantes": remaining,
+            "frases": list(CHAT_PHRASES_PT) if remaining else [],
+            "phrases_en": list(CHAT_PHRASES_EN) if remaining else []}
+
+
+def chat_message_type(user, text):
+    return "PREDEFINIDA" if text in CHAT_PHRASES and not plan_for_user(user)["features"]["chat_text"] else "TEXTO"
 
 
 def can_send_chat_text(user, text, match):
@@ -91,7 +121,7 @@ def can_send_chat_text(user, text, match):
     return (
         features.get("chat_presets", False)
         and text in CHAT_PHRASES
-        and not match.mensagens.exclude(remetente=user).exists()
+        and preset_remaining(user) > 0
     )
 
 
@@ -127,20 +157,25 @@ def plan_code_for_user(user):
 
 
 def active_plan_access(user):
+    if credit_only_enabled():
+        return None
     if not user or not getattr(user, "is_authenticated", False):
         return None
     now = timezone.now()
     return AcessoPlanoNKATA.objects.filter(
         usuario=user, inicio__lte=now, fim__gt=now,
         plano__in=["ESSENCIAL", "PREMIUM", "QUINZENAL"],
-    ).first()
+    ).exclude(origem="PROMO_CONVERTIDA").first()
 
 
 def plan_for_user(user):
+    if credit_only_enabled():
+        definition = PLAN_DEFINITIONS["LIVRE"]
+        return _with_credit_chat(user, {**definition, "label": "Carteira NKATA", "daily_signal_limit": 0})
     access = active_plan_access(user)
     if access and access.origem == "PROMO_LANCAMENTO":
         bonus = PLAN_DEFINITIONS["QUINZENAL"]
-        return {
+        return _with_credit_chat(user, {
             **bonus,
             "label": "Bónus de lançamento",
             "paid": False,
@@ -151,8 +186,16 @@ def plan_for_user(user):
                 "chat_video": False,
                 "chat_presets": True,
             },
-        }
-    return PLAN_DEFINITIONS[access.plano if access else "LIVRE"]
+        })
+    definition = PLAN_DEFINITIONS[access.plano if access else "LIVRE"]
+    return _with_credit_chat(user, definition)
+
+
+def _with_credit_chat(user, definition):
+    from .wallet_service import active_chat_credit_access
+    if getattr(user, "is_authenticated", False) and not definition["features"]["chat_text"] and active_chat_credit_access(user):
+        return {**definition, "features": {**definition["features"], "chat_text": True}}
+    return definition
 
 
 def signal_actions_for_user(user):
@@ -212,6 +255,15 @@ def build_quota_snapshot(plan_code, sent_today=0, recharge_balance=0):
 def signal_quota_for_user(user, sent_today=None):
     if sent_today is None:
         sent_today = signals_sent_today(user)
+    if credit_only_enabled():
+        from .credit_catalog import SIGNAL_SAFETY_LIMIT
+        from .wallet_service import credit_balance, credit_spending_enabled
+        balance = credit_balance(user)
+        enabled = credit_spending_enabled()
+        return {"plan":"LIVRE","plan_label":"Carteira NKATA","daily_limit":0,"used_today":0,
+                "sent_today":sent_today,"remaining_today":0,"recharge_balance":0,
+                "credit_mode":True,"credit_balance":balance,"next_source":"WALLET" if enabled else None,
+                "limit_reached":not enabled or balance < 1 or sent_today >= SIGNAL_SAFETY_LIMIT}
     return build_quota_snapshot(
         plan_code_for_user(user),
         sent_today=sent_today,
@@ -251,6 +303,8 @@ def public_recharge_catalog():
 @transaction.atomic
 def assign_plan(user, plan_code):
     """Administrative grant only. A future payment service must verify settlement."""
+    if credit_only_enabled():
+        raise ValueError("Os planos antigos foram descontinuados.")
     plan_code = str(plan_code or "").strip().upper()
     if plan_code not in PLAN_DEFINITIONS:
         raise ValueError("Plano NKATA inválido.")
@@ -279,6 +333,8 @@ def assign_plan(user, plan_code):
 
 
 def grant_recharge(user, credits):
+    if credit_only_enabled():
+        raise ValueError("As recargas antigas foram descontinuadas.")
     credits = int(credits)
     pack = RECHARGE_PACKS.get(credits)
     if not pack:

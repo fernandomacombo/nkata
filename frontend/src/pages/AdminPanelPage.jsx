@@ -1,8 +1,10 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import MemberDossier from "./MemberDossier.jsx";
 import SupportAdminPanel from "./SupportAdminPanel.jsx";
 import PhotoReviewPanel from "./PhotoReviewPanel.jsx";
+import FinanceAdminPanel from "./FinanceAdminPanel.jsx";
 import "../support-admin.css";
 import {
   Activity,
@@ -37,6 +39,7 @@ import {
   Users,
   UserCog,
   Video,
+  WalletCards,
   X,
 } from "lucide-react";
 import {
@@ -60,6 +63,7 @@ const SECTIONS = [
   { id: "content", label: "Moderação", description: "Fotos e momentos", search: "Autor, email ou conteúdo", columns: ["Conteúdo", "Moderação", "Ação"], icon: ShieldCheck },
   { id: "reports", label: "Denúncias", description: "Casos reportados", search: "Alvo, denunciante ou motivo", columns: ["Denúncia", "Estado", "Ação"], icon: ShieldAlert },
   { id: "operations", label: "Operações", description: "Matches e chamadas", search: "Participante ou estado", columns: ["Operação", "Estado", "Ação"], icon: Activity },
+  { id: "finance", label: "Créditos e finanças", description: "Carteiras, recargas e auditoria financeira", icon: WalletCards },
   { id: "audit", label: "Auditoria", description: "Ações dos operadores", search: "Objeto, operador ou descrição", columns: ["Registo", "Operador", "Ação"], icon: History },
   { id: "team", label: "Equipa", description: "Staff e permissões", icon: UserCog },
   { id: "support", label: "Suporte", description: "Pedidos de ajuda", icon: Headset },
@@ -222,7 +226,7 @@ function detailRowsFor(section, item) {
       ["Género", item.gender_label], ["Objetivo", item.objective_label],
       ["Perfil visível", yesNo(item.visible)], ["Identidade verificada", yesNo(item.verified)],
       ["Conta ativa", yesNo(item.account_active)], ["Denúncias pendentes", item.pending_reports || "Nenhuma"],
-      ["Plano ativo", item.plan_label || "NKATA Livre"],
+      [item.credit_only ? "Modelo comercial" : "Plano ativo", item.plan_label || "NKATA Livre"],
       ["Suspensa até", formatDate(item.paused_until)],
       ["Motivo da suspensão", item.pause_reason || "—", true],
       ["Eliminação solicitada", formatDate(item.closure_requested_at)],
@@ -726,11 +730,7 @@ function AccessReviewDialog({ selection, detail, loading, error, onClose, onRetr
 function EmptyState({ loading, error, onRetry }) {
   if (loading) {
     return (
-      <div className="nk-admin-empty">
-        <Loader2 className="nk-spin" size={25} />
-        <strong>A atualizar o painel</strong>
-        <span>A reunir informação da comunidade.</span>
-      </div>
+      <HeartLoader page="admin"/>
     );
   }
   return (
@@ -932,10 +932,10 @@ function actionsFor(section, item) {
       item.status !== "ATIVO" && { action: "activate", label: "Ativar", description: `Ativar ${item.name} e tornar o perfil visível.`, icon: PlayCircle },
       item.status === "ATIVO" && { action: "pause", label: "Pausar", description: `Retirar temporariamente ${item.name} da descoberta.`, icon: PauseCircle },
       item.status !== "BLOQUEADO" && { action: "block", label: "Bloquear", description: `Bloquear ${item.name} e desativar o acesso à conta.`, danger: true, icon: Ban },
-      item.plan_code !== "LIVRE" && { action: "plan_livre", label: "Plano Livre", description: `Alterar o plano de ${item.name} para NKATA Livre.`, icon: CheckCircle2 },
-      item.plan_code !== "QUINZENAL" && { action: "plan_quinzenal", label: "Plano Quinzenal", description: `Ativar 14 dias de NKATA Quinzenal para ${item.name}.`, icon: CheckCircle2 },
-      item.plan_code !== "ESSENCIAL" && { action: "plan_essencial", label: "Plano Essencial", description: `Alterar o plano de ${item.name} para NKATA Essencial.`, icon: CheckCircle2 },
-      item.plan_code !== "PREMIUM" && { action: "plan_premium", label: "Plano Premium", description: `Alterar o plano de ${item.name} para NKATA Premium.`, icon: CheckCircle2 },
+      !item.credit_only && item.plan_code !== "LIVRE" && { action: "plan_livre", label: "Plano Livre", description: `Alterar o plano de ${item.name} para NKATA Livre.`, icon: CheckCircle2 },
+      !item.credit_only && item.plan_code !== "QUINZENAL" && { action: "plan_quinzenal", label: "Plano Quinzenal", description: `Ativar 14 dias de NKATA Quinzenal para ${item.name}.`, icon: CheckCircle2 },
+      !item.credit_only && item.plan_code !== "ESSENCIAL" && { action: "plan_essencial", label: "Plano Essencial", description: `Alterar o plano de ${item.name} para NKATA Essencial.`, icon: CheckCircle2 },
+      !item.credit_only && item.plan_code !== "PREMIUM" && { action: "plan_premium", label: "Plano Premium", description: `Alterar o plano de ${item.name} para NKATA Premium.`, icon: CheckCircle2 },
     ].filter(Boolean);
   }
   if (section === "content") {
@@ -1086,7 +1086,7 @@ export default function AdminPanelPage({ session }) {
   }, []);
 
   const loadList = useCallback(async ({ signal } = {}) => {
-    if (["overview", "team", "support", "photos"].includes(activeSection)) return;
+    if (["overview", "team", "support", "photos", "finance"].includes(activeSection)) return;
     setListLoading(true);
     setListError("");
     try {
@@ -1322,7 +1322,7 @@ export default function AdminPanelPage({ session }) {
                 onOpenSection={setActiveSection}
                 onOpenMatches={allowedCodes.has("operations") ? () => setActiveSection("operations") : undefined}
               />
-            ) : activeSection === "team" ? <TeamPanel /> : activeSection === "support" ? <SupportAdminPanel /> : activeSection === "photos" ? <PhotoReviewPanel /> : (
+            ) : activeSection === "team" ? <TeamPanel /> : activeSection === "support" ? <SupportAdminPanel /> : activeSection === "photos" ? <PhotoReviewPanel /> : activeSection === "finance" ? (allowedCodes.has("finance") && <FinanceAdminPanel />) : (
               <>
                 <section className="nk-admin-workspace-toolbar">
                   <header className="nk-admin-section-header">

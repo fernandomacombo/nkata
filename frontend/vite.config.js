@@ -13,6 +13,7 @@ const keyPath = path.join(certDir, "nkata-dev-key.pem");
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, frontendDir, "");
   const httpsMode = mode === "https";
+  const mediaStaging = mode === "media-staging";
   const apiTarget = env.NKATA_DEV_API_TARGET || "http://127.0.0.1:8000";
 
   if (httpsMode && (!fs.existsSync(certPath) || !fs.existsSync(keyPath))) {
@@ -37,6 +38,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: { alias: { "#nkata-native-device": path.join(frontendDir, "src/services", mediaStaging ? "nativeDeviceStaging.js" : "nativeDeviceDisabled.js") } },
     server: {
       host: "0.0.0.0",
       port: 5173,

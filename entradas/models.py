@@ -3,7 +3,7 @@ from django.conf import settings
 from django.db import models
 
 from .profile_names import validate_profile_name
-from .storage_backends import identity_media_storage, profile_media_storage
+from .storage_backends import identity_media_storage, profile_media_storage, private_content_storage
 
 
 class PedidoEntrada(models.Model):
@@ -356,6 +356,8 @@ class MatchPerfil(models.Model):
 
 
 class MensagemMatch(models.Model):
+    tipo = models.CharField(max_length=16, default="TEXTO", choices=[("TEXTO", "Texto"), ("SINAL", "Sinal"), ("QUEBRA_GELO", "Quebra-gelo"), ("PREDEFINIDA", "Predefinida"), ("AUDIO", "Nota de voz")])
+    sinal_origem = models.OneToOneField(AcaoPerfil, null=True, blank=True, on_delete=models.SET_NULL, related_name="mensagem_chat")
     resposta_a = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     match = models.ForeignKey(MatchPerfil, null=True, on_delete=models.CASCADE, related_name="mensagens")
     conversa = models.ForeignKey("Conversa", null=True, on_delete=models.CASCADE, related_name="mensagens")
@@ -369,6 +371,10 @@ class MensagemMatch(models.Model):
         ordering = ["criado_em"]
         verbose_name = "Mensagem de match"
         verbose_name_plural = "Mensagens de matches"
+        indexes = [
+            models.Index(fields=["conversa", "id"], name="nk_chat_conversa_id_idx"),
+            models.Index(fields=["match", "id"], name="nk_chat_match_id_idx"),
+        ]
 
     def __str__(self):
         return f"Mensagem em {self.match} - {self.criado_em:%d/%m/%Y %H:%M}"
@@ -414,6 +420,7 @@ class PedidoPagamentoNKATA(models.Model):
     chave = models.UUIDField()
     referencia = models.CharField(max_length=50, unique=True)
     produto = models.CharField(max_length=24)
+    simulado = models.BooleanField(default=False, editable=False, db_index=True)
     valor = models.DecimalField(max_digits=8, decimal_places=2)
     moeda = models.CharField(max_length=3, default="MZN")
     dias = models.PositiveSmallIntegerField(default=0)
@@ -449,7 +456,12 @@ class VotoPerguntaDiaria(models.Model):
 
 
 class Conversa(models.Model):
-    match_origem = models.OneToOneField(MatchPerfil, null=True, on_delete=models.CASCADE, related_name="chat")
+    ESTADO_ATIVA = "ATIVA"
+    ESTADO_ENCERRADA = "ENCERRADA"
+    estado = models.CharField(max_length=10, default=ESTADO_ATIVA, choices=[(ESTADO_ATIVA, "Ativa"), (ESTADO_ENCERRADA, "Encerrada")])
+    # Legacy audio, calls and messages still depend on this match.
+    # Do not allow a standalone match deletion to destroy chat history.
+    match_origem = models.OneToOneField(MatchPerfil, null=True, on_delete=models.RESTRICT, related_name="chat")
     perfil_1 = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="+")
     perfil_2 = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="+")
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -458,13 +470,15 @@ class Conversa(models.Model):
         constraints = [
             models.CheckConstraint(condition=models.Q(perfil_1__lt=models.F("perfil_2")), name="conversa_par_ordenado"),
             models.UniqueConstraint(fields=["perfil_1", "perfil_2"], name="conversa_unica_por_par"),
+            models.CheckConstraint(condition=models.Q(estado__in=["ATIVA", "ENCERRADA"]), name="conversa_estado_valido"),
         ]
 
 
 class PedidoConversa(models.Model):
     remetente = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="pedidos_chat_enviados")
     destinatario = models.ForeignKey(PerfilNKATA, on_delete=models.CASCADE, related_name="pedidos_chat_recebidos")
-    estado = models.CharField(max_length=10, default="PENDENTE")
+    ESTADOS = [(s, label) for s, label in (("PENDENTE", "Pendente"), ("ACEITE", "Aceite"), ("RECUSADO", "Recusado"), ("EXPIRADO", "Expirado"), ("CANCELADO", "Cancelado"))]
+    estado = models.CharField(max_length=10, default="PENDENTE", choices=ESTADOS)
     expira_em = models.DateTimeField()
     decidido_em = models.DateTimeField(null=True)
     conversa = models.ForeignKey(Conversa, null=True, on_delete=models.SET_NULL)
@@ -474,4 +488,161 @@ class PedidoConversa(models.Model):
         constraints = [
             models.CheckConstraint(condition=~models.Q(remetente=models.F("destinatario")), name="pedido_chat_perfis_distintos"),
             models.UniqueConstraint(fields=["remetente", "destinatario"], condition=models.Q(estado="PENDENTE"), name="pedido_chat_pendente_unico"),
+            models.CheckConstraint(condition=models.Q(estado__in=["PENDENTE", "ACEITE", "RECUSADO", "EXPIRADO", "CANCELADO"]), name="pedido_chat_estado_valido"),
+        ]
+
+
+
+# Financial records are separate from subscriptions and historical signal grants.
+class CarteiraNKATA(models.Model):
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="carteira_nkata")
+    saldo = models.PositiveBigIntegerField(default=0, editable=False)
+    criada_em = models.DateTimeField(auto_now_add=True)
+    atualizada_em = models.DateTimeField(auto_now=True)
+
+
+class MovimentoCreditoNKATA(models.Model):
+    carteira = models.ForeignKey(CarteiraNKATA, on_delete=models.PROTECT, related_name="movimentos")
+    chave = models.CharField(max_length=120)
+    tipo = models.CharField(max_length=20, choices=[("BONUS", "Bónus"), ("RECARGA", "Recarga"), ("CONSUMO", "Consumo"), ("ESTORNO", "Estorno"), ("AJUSTE", "Ajuste")])
+    quantidade = models.BigIntegerField()
+    saldo_apos = models.PositiveBigIntegerField()
+    referencia = models.CharField(max_length=120)
+    motivo = models.CharField(max_length=240)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["carteira", "chave"], name="nk_credito_chave_unica"),
+            models.CheckConstraint(condition=(
+                models.Q(tipo__in=["BONUS", "RECARGA", "ESTORNO"], quantidade__gt=0)
+                | models.Q(tipo="CONSUMO", quantidade__lt=0)
+                | (models.Q(tipo="AJUSTE") & ~models.Q(quantidade=0))
+            ), name="nk_credito_movimento_valido"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValueError("Movimentos financeiros não podem ser alterados.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Movimentos financeiros não podem ser apagados.")
+
+
+
+class AcessoChatCreditoNKATA(models.Model):
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="acesso_chat")
+    inicio = models.DateTimeField()
+    fim = models.DateTimeField(db_index=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(fim__gt=models.F("inicio")), name="nk_credito_chat_validade")]
+
+
+
+class EnvioAudioCreditoNKATA(models.Model):
+    """Receipt linking one paid upload to its original private audio record."""
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="envio_audio")
+    audio_id = models.PositiveBigIntegerField(unique=True)
+    match_id = models.PositiveBigIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+
+class TarifacaoChamadaNKATA(models.Model):
+    """Commercial authorization for a historical call; not a media transport."""
+    chamada_id = models.PositiveBigIntegerField(unique=True)
+    match_id = models.PositiveBigIntegerField()
+    pagador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="tarifacoes_chamada_nkata")
+    tipo = models.CharField(max_length=12, choices=[("AUDIO", "Áudio"), ("VIDEO", "Vídeo")])
+    custo_minuto = models.PositiveSmallIntegerField()
+    max_minutos = models.PositiveSmallIntegerField()
+    minutos_pagos = models.PositiveSmallIntegerField(default=0)
+    pago_ate = models.DateTimeField(null=True, blank=True)
+    encerrada_em = models.DateTimeField(null=True, blank=True)
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(custo_minuto__gt=0, max_minutos__gt=0, minutos_pagos__lte=models.F("max_minutos")), name="nk_tarifa_chamada_limites"),
+            models.CheckConstraint(condition=(models.Q(minutos_pagos=0, pago_ate__isnull=True) | models.Q(minutos_pagos__gt=0, pago_ate__isnull=False)), name="nk_tarifa_chamada_validade"),
+        ]
+
+
+class BonusIdentidadeCreditoNKATA(models.Model):
+    """One welcome award per confirmed document, even across account changes."""
+    documento_chave = models.CharField(max_length=64, unique=True, editable=False)
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="bonus_identidade")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+
+class NotaVozConversaNKATA(models.Model):
+    mensagem = models.OneToOneField(MensagemMatch, on_delete=models.PROTECT, related_name="nota_voz")
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, related_name="nota_voz_conversa")
+    audio = models.FileField(storage=private_content_storage, upload_to="chat-native/%Y/%m/%d/")
+    duracao_segundos = models.PositiveSmallIntegerField()
+
+
+class ChamadaConversaCreditoNKATA(models.Model):
+    """Internal session for a future trusted media gateway; no browser billing."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversa = models.ForeignKey(Conversa, on_delete=models.PROTECT, related_name="chamadas_credito")
+    iniciador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="chamadas_credito_iniciadas")
+    destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="chamadas_credito_recebidas")
+    chave = models.UUIDField()
+    tipo = models.CharField(max_length=5, choices=[("AUDIO","Áudio"),("VIDEO","Vídeo")])
+    estado = models.CharField(max_length=12, default="CHAMANDO", choices=[(s,s) for s in ("CHAMANDO","ACEITE","ATIVA","TERMINADA","RECUSADA","EXPIRADA")])
+    custo_minuto = models.PositiveSmallIntegerField()
+    max_minutos = models.PositiveSmallIntegerField()
+    minutos_pagos = models.PositiveSmallIntegerField(default=0)
+    expira_em = models.DateTimeField()
+    pago_ate = models.DateTimeField(null=True, blank=True)
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["iniciador","chave"],name="nk_call_native_key"),
+            models.CheckConstraint(condition=~models.Q(iniciador=models.F("destinatario")),name="nk_call_native_distinct"),
+            models.CheckConstraint(condition=models.Q(max_minutos__gte=1,max_minutos__lte=120,minutos_pagos__lte=models.F("max_minutos")),name="nk_call_native_minutes"),
+            models.CheckConstraint(condition=models.Q(tipo="AUDIO",custo_minuto=3)|models.Q(tipo="VIDEO",custo_minuto=5),name="nk_call_native_rate"),
+            models.CheckConstraint(condition=models.Q(minutos_pagos=0,pago_ate__isnull=True)|models.Q(minutos_pagos__gt=0,pago_ate__isnull=False),name="nk_call_native_lease"),
+        ]
+
+
+class RevisaoMinutoChamadaNKATA(models.Model):
+    """Durable financial evidence, never a recording of a call."""
+    chamada = models.ForeignKey(ChamadaConversaCreditoNKATA, on_delete=models.PROTECT, related_name="revisoes_minutos")
+    minuto = models.PositiveSmallIntegerField()
+    estado = models.CharField(max_length=16, default="AUTORIZADO", choices=[
+        ("AUTORIZADO", "Autorizado"), ("RETOMA_INICIADA", "Retoma iniciada"),
+        ("CONFIRMADO", "Retoma confirmada"), ("ESTORNADO", "Estornado")])
+    prazo = models.DateTimeField()
+    criada_em = models.DateTimeField(auto_now_add=True)
+    atualizada_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["chamada", "minuto"], name="nk_call_review_minute"),
+            models.CheckConstraint(condition=models.Q(minuto__gte=1, minuto__lte=120), name="nk_call_review_range"),
+        ]
+        indexes = [models.Index(fields=["estado", "prazo"], name="nk_call_review_due_idx")]
+
+class EnvioPublicacaoCreditoNKATA(models.Model):
+    """Durable submission receipt, including the free daily photo and deleted posts."""
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="envios_publicacao_credito")
+    chave = models.UUIDField()
+    publicacao_id = models.PositiveBigIntegerField(unique=True)
+    tipo_media = models.CharField(max_length=12)
+    dia = models.DateField()
+    custo = models.PositiveSmallIntegerField()
+    fingerprint = models.CharField(max_length=64)
+    movimento = models.OneToOneField(MovimentoCreditoNKATA, on_delete=models.PROTECT, null=True, blank=True, related_name="envio_publicacao")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["usuario", "chave"], name="nk_post_credit_key"),
+            models.UniqueConstraint(fields=["usuario", "dia"], condition=models.Q(tipo_media="IMAGEM", custo=0), name="nk_post_daily_free"),
+            models.CheckConstraint(condition=models.Q(tipo_media="IMAGEM", custo=0, movimento__isnull=True) | models.Q(tipo_media="IMAGEM", custo=2, movimento__isnull=False) | models.Q(tipo_media="VIDEO", custo=5, movimento__isnull=False), name="nk_post_credit_cost"),
         ]

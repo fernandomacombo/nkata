@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import Presence from "../components/profiles/Presence.jsx";
 import { deleteMatchMessage } from "../services/api.js";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -109,7 +110,10 @@ function VoiceNote({ message, english }) {
       <audio
         ref={audioRef}
         src={message.audioUrl}
-        preload="metadata"
+        preload="none"
+        controlsList="nodownload noremoteplayback"
+        disableRemotePlayback
+        onContextMenu={event=>event.preventDefault()}
         crossOrigin="use-credentials"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
@@ -209,15 +213,15 @@ function MessageBubble({ message, english, onDelete, onReply, original }) {
   );
 }
 
-export function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
+export function ChatSafetyNotice({ english, onAccept, name, helpOnly, onExit }) {
   const dialog = useRef(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const element = dialog.current;
-    element.showModal();
-    return () => element.close();
+    if (element && !element.open) element.showModal();
+    return () => { if (element?.open) element.close(); };
   }, []);
 
   async function confirm() {
@@ -233,7 +237,7 @@ export function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
 
   return (
     <dialog ref={dialog} className="nk-chat-welcome" aria-labelledby="chat-warning-title"
-      aria-describedby="chat-warning-text" onCancel={(event) => event.preventDefault()}>
+      aria-describedby="chat-warning-text" onCancel={(event) => { event.preventDefault(); onExit?.(); }}>
       <ShieldCheck size={34} aria-hidden="true" />
       {name && <p className="nk-chat-recipient">{english ? "Your conversation with" : "A sua conversa com"} <strong>{name}</strong></p>}
       <h2 id="chat-warning-title">{english ? "Before you say hello" : "Antes do primeiro olá"}</h2>
@@ -256,7 +260,10 @@ export function ChatSafetyNotice({ english, onAccept, name, helpOnly }) {
         ]).map(step => <li key={step}>{step}</li>)}</ol>
       </details>
       {failed && <p role="alert">{english ? "Could not save. Please try again." : "Não foi possível guardar. Tente novamente."}</p>}
-      <button autoFocus className="nk-button nk-button--wine" disabled={saving} onClick={confirm}>{saving ? "…" : "OK"}</button>
+      <div className="nk-chat-safety-actions">
+        <button autoFocus type="button" className="nk-button nk-button--wine" disabled={saving} onClick={confirm}>{saving ? "…" : "OK"}</button>
+        {onExit && <button type="button" className="nk-button" onClick={onExit}>{english ? "Leave conversation" : "Sair da conversa"}</button>}
+      </div>
     </dialog>
   );
 }
@@ -283,7 +290,11 @@ export default function ConversationPage({
   const [safetyStatus, setSafetyStatus] = useState("");
   const [textEnabled, setTextEnabled] = useState(false);
   const [presetsEnabled, setPresetsEnabled] = useState(false);
+  const [presetData, setPresetData] = useState({restantes:0,frases:[],phrases_en:[]});
   const [audioEnabled, setAudioEnabled] = useState(false);
+  const [voiceOffer,setVoiceOffer] = useState(null);
+  const voiceKey = useRef(null);
+  const canRecordVoice = audioEnabled || Boolean(voiceOffer?.enabled && voiceOffer.balance >= voiceOffer.cost);
   const [audioPlanLabel, setAudioPlanLabel] = useState("NKATA Livre");
   const [audioNotice, setAudioNotice] = useState("");
   const [recording, setRecording] = useState(false);
@@ -347,7 +358,8 @@ export default function ConversationPage({
     }
   }
 
-  const canUsePreset = presetsEnabled && !timeline.some((message) => !message.mine && !message.callDirection);
+  const canUsePreset = presetsEnabled && presetData.restantes > 0;
+  const presetChoices = english ? presetData.phrases_en : presetData.frases;
 
   const releaseRecordingResources = () => {
     if (timerRef.current) {
@@ -364,6 +376,7 @@ export default function ConversationPage({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl("");
     setRecordedBlob(null);
+    voiceKey.current = null;
     setRecordedDuration(0);
     setPreviewPlaying(false);
   };
@@ -392,8 +405,10 @@ export default function ConversationPage({
       .then((payload) => {
         const currentPlan = payload?.current_plan || {};
         setAudioEnabled(Boolean(currentPlan?.features?.chat_audio));
+        setVoiceOffer(payload?.voice_credit || null);
         setTextEnabled(Boolean(currentPlan?.features?.chat_text));
         setPresetsEnabled(Boolean(currentPlan?.features?.chat_presets));
+        setPresetData(payload?.chat_presets || {restantes:0,frases:[],phrases_en:[]});
         setAudioPlanLabel(currentPlan?.label || "NKATA Livre");
       })
       .catch(() => {
@@ -508,10 +523,11 @@ export default function ConversationPage({
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text || sending || recording || recordedBlob) return;
+    if (!text || sending || recording || recordedBlob || (!textEnabled && (!canUsePreset || !presetChoices.includes(text)))) return;
 
     const sent = await onSend(text, reply?.id);
     if (sent) {
+      if (!textEnabled) setPresetData(current => ({...current, restantes:Math.max(0,current.restantes-1)}));
       setReply(null);
       setDraft("");
       updateMatchTyping(match.id, false).catch(() => {});
@@ -532,8 +548,8 @@ export default function ConversationPage({
   const startRecording = async () => {
     setAudioNotice("");
 
-    if (!audioEnabled) {
-      setAudioNotice(english ? "Voice notes are available on NKATA Essential and Premium." : "Notas de voz estão disponíveis no NKATA Essencial e Premium.");
+    if (!canRecordVoice) {
+      setAudioNotice(english ? "Voice notes require an active plan or sufficient credits." : "Notas de voz exigem um plano activo ou saldo suficiente de créditos.");
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
@@ -572,6 +588,7 @@ export default function ConversationPage({
 
         const blob = new Blob(chunks, { type });
         const url = URL.createObjectURL(blob);
+        voiceKey.current = crypto.randomUUID();
         setRecordedBlob(blob);
         setRecordedDuration(Math.min(180, duration));
         setPreviewUrl(url);
@@ -613,12 +630,15 @@ export default function ConversationPage({
   const sendRecordedAudio = async () => {
     if (!match?.id || !recordedBlob || sendingAudio) return;
 
+    const cost = audioEnabled ? 0 : voiceOffer?.cost;
+    if (!canRecordVoice) return;
     setSendingAudio(true);
     setAudioNotice("");
     try {
-      const message = await sendMatchAudio(match.id, recordedBlob, recordedDuration);
+      const message = await sendMatchAudio(match.id, recordedBlob, recordedDuration, {key:voiceKey.current, expectedCost:cost});
       setLocalAudioMessages((current) => [...current, message]);
       clearRecordedAudio();
+      fetchMyPlan().then(payload => { setVoiceOffer(payload?.voice_credit || null); setAudioEnabled(Boolean(payload?.current_plan?.features?.chat_audio)); }).catch(() => {});
     } catch (requestError) {
       setAudioNotice(requestError.message || (english ? "Unable to send the voice note." : "Não foi possível enviar a nota de voz."));
     } finally {
@@ -701,7 +721,7 @@ export default function ConversationPage({
         <header className="nk-conversation__header">
           <button type="button" className="nk-conversation__back" onClick={onBack}>
             <ArrowLeft size={19} />
-            <span>Matches</span>
+            <span>{english ? "Chats" : "Chats"}</span>
           </button>
 
           <div className="nk-conversation__person">
@@ -757,13 +777,13 @@ export default function ConversationPage({
         </header>
 
         <section className="nk-conversation__body" aria-live="polite">
-          <div className="nk-conversation__opening">
+          {!timeline.length && <div className="nk-conversation__opening">
             <span><LockKeyhole size={17} /></span>
             <div>
               <strong>{english ? "It's a match" : "É um match"}</strong>
               <p>{english ? "Talk with respect. Personal contact details do not need to be shared straight away." : "Conversem com respeito. Os contactos pessoais não precisam de ser partilhados logo no início."}</p>
             </div>
-          </div>
+          </div>}
 
           {safetyStatus && (
             <div className="nk-interest-message is-active" role="status">
@@ -778,11 +798,7 @@ export default function ConversationPage({
           )}
 
           {loading ? (
-            <div className="nk-conversation__loading">
-              <span />
-              <span />
-              <span />
-            </div>
+            <HeartLoader page="conversation" compact/>
           ) : timeline.length ? (
             <div className="nk-message-list">
               {timeline.map((message) => (
@@ -839,11 +855,13 @@ export default function ConversationPage({
             </div>
           )}
 
-          {!textEnabled && !canUsePreset ? (
+          {!textEnabled && canUsePreset && <div className="nk-chat-dock__notice" role="status">{presetData.restantes} {english ? "free messages left" : "mensagens gratuitas restantes"}</div>}
+          {!textEnabled && !canUsePreset && !recording && !recordedBlob ? (
             <div className="nk-chat-dock__notice" role="status">
               <LockKeyhole size={14} />
-              <span>{english ? "Activate a chat plan to send or reply to messages." : "Ative um pacote com chat para enviar ou responder a mensagens."}</span>
-              <a href="/conta/?section=plan">{english ? "See plans" : "Ver pacotes"}</a>
+              <span>{english ? "Text chat access required." : "Texto livre bloqueado."}</span>
+              <a href="/conta/?section=plan">{english ? "Wallet" : "Carteira"}</a>
+              {canRecordVoice && <button type="button" onClick={startRecording}><Mic size={18}/> {english ? "Voice note" : "Nota de voz"}</button>}
             </div>
           ) : recording ? (
             <div className="nk-recorder-bar">
@@ -864,6 +882,9 @@ export default function ConversationPage({
               <audio
                 ref={previewAudioRef}
                 src={previewUrl}
+                controlsList="nodownload noremoteplayback"
+                disableRemotePlayback
+                onContextMenu={event=>event.preventDefault()}
                 onPlay={() => setPreviewPlaying(true)}
                 onPause={() => setPreviewPlaying(false)}
                 onEnded={() => setPreviewPlaying(false)}
@@ -876,7 +897,7 @@ export default function ConversationPage({
               </button>
               <div className="nk-recorder-preview__meta">
                 <strong>{english ? "Voice note" : "Nota de voz"}</strong>
-                <small>{formatDuration(recordedDuration)}</small>
+                <small>{formatDuration(recordedDuration)}{!audioEnabled && voiceOffer?.enabled ? ` · ${voiceOffer.cost} créditos` : ""}</small>
               </div>
               <button
                 type="button"
@@ -892,20 +913,20 @@ export default function ConversationPage({
             <form className="nk-composer" onSubmit={handleSubmit}>
               <button
                 type="button"
-                className={`nk-composer__mic ${audioEnabled ? "" : "is-locked"}`}
+                className={`nk-composer__mic ${canRecordVoice ? "" : "is-locked"}`}
                 onClick={startRecording}
-                aria-label={audioEnabled ? (english ? "Record voice note" : "Gravar nota de voz") : (english ? "Voice notes require a paid plan" : "Notas de voz exigem plano pago")}
-                title={audioEnabled ? (english ? "Record voice note" : "Gravar nota de voz") : "NKATA Fortnightly, Essential or Premium"}
+                aria-label={canRecordVoice ? (english ? "Record voice note" : "Gravar nota de voz") : (english ? "Voice notes require a paid plan" : "Notas de voz exigem plano pago")}
+                title={canRecordVoice ? (english ? "Record voice note" : "Gravar nota de voz") : "NKATA Fortnightly, Essential or Premium"}
               >
                 <Mic size={20} />
-                {!audioEnabled && <LockKeyhole className="nk-composer__mic-lock" size={10} />}
+                {!canRecordVoice && <LockKeyhole className="nk-composer__mic-lock" size={10} />}
               </button>
 
               <label>
                 <span className="sr-only">{english ? "Message" : "Mensagem"}</span>
                 {!textEnabled ? <select value={draft} onChange={(event) => setDraft(event.target.value)} aria-label={english ? "Preset message" : "Mensagem predefinida"} disabled={sending}>
                   <option value="">{english ? "Choose a message" : "Escolha uma mensagem"}</option>
-                  {(english ? ["Hello, how are you?", "Hello, I enjoyed reading your profile. How are you?", "I would like to learn more about your interests.", "Thank you for your interest!"] : ["Olá, tudo bem?", "Olá, gostei de conhecer o seu perfil. Como está?", "Gostaria de conhecer melhor os seus interesses.", "Obrigado pelo seu interesse!"]).map((phrase) => <option key={phrase} value={phrase}>{phrase}</option>)}
+                  {presetChoices.map((phrase) => <option key={phrase} value={phrase}>{phrase}</option>)}
                 </select> : <textarea
                   ref={composerTextareaRef}
                   value={draft}

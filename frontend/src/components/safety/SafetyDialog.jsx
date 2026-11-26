@@ -23,7 +23,7 @@ const modeContent = {
     eyebrow: "Bloquear perfil",
     title: "Bloquear esta pessoa?",
     description:
-      "O perfil deixará de aparecer para si. Interesses, match e conversa existentes serão removidos.",
+      "O perfil deixará de aparecer para si. A comunicação será impedida e o histórico será preservado.",
     action: "Bloquear perfil",
   },
   close: {
@@ -31,7 +31,7 @@ const modeContent = {
     eyebrow: "Encerrar ligação",
     title: "Encerrar esta ligação?",
     description:
-      "A conversa ficará indisponível para os dois. Esta ação não envia uma denúncia.",
+      "O match será encerrado. Uma conversa independente mantém o seu próprio estado. Esta ação não envia uma denúncia.",
     action: "Encerrar ligação",
   },
 };
@@ -51,8 +51,8 @@ export default function SafetyDialog({
   const content = modeContent[mode] || modeContent.report;
   const translatedContent = english ? ({
     report: ["Send report", "Tell us what happened.", "The other person will not be told who reported them.", "Send report"],
-    block: ["Block profile", "Block this person?", "This profile will no longer appear to you. Existing interests, match and conversation will be removed.", "Block profile"],
-    close: ["End connection", "End this connection?", "The conversation will become unavailable to both people. This does not send a report.", "End connection"],
+    block: ["Block profile", "Block this person?", "This profile will no longer appear to you. Communication will be blocked and history preserved.", "Block profile"],
+    close: ["End connection", "End this connection?", "The match will end. An independent chat keeps its own state. This does not send a report.", "End connection"],
   })[mode] || [content.eyebrow, content.title, content.description, content.action] : null;
   const Icon = content.icon;
 

@@ -28,6 +28,7 @@ from .post_safety_models import DenunciaPublicacaoNKATA
 from .posts_models import PublicacaoNKATA
 from .profile_media_api import profile_photo_url
 from .plan_service import PLAN_DEFINITIONS, assign_plan, plan_for_user
+from .legacy_commercial import credit_only_enabled
 from .user_roles import has_admin_capability
 from .webrtc_credentials import turn_is_configured
 
@@ -231,6 +232,7 @@ def _member_rows(request, limit):
             "visible": profile.visivel,
             "verified": profile.pedido.status == "APROVADO",
             "account_active": bool(profile.usuario and profile.usuario.is_active),
+            "credit_only": credit_only_enabled(),
             "plan_code": plan_definition["code"],
             "plan_label": plan_definition["label"],
             "paused_until": profile.pausado_ate,
@@ -863,6 +865,9 @@ def _action_member(request, object_id, action):
         plan_code = action.removeprefix("plan_").upper()
         if plan_code not in PLAN_DEFINITIONS:
             return None, "Plano inválido.", 400
+        from django.conf import settings
+        if settings.NKATA_CREDIT_TRANSITION_ENABLED:
+            return None, "Os planos antigos estão em transição e não podem ser alterados neste painel.", 409
         assign_plan(profile.usuario, plan_code)
         message = f"Plano alterado para {PLAN_DEFINITIONS[plan_code]['label']}."
     elif action == "pause":

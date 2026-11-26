@@ -12,7 +12,7 @@ from django.db import connection, connections, close_old_connections
 from django.test import TransactionTestCase
 from rest_framework.test import APIClient
 
-from .test_conversations import historical_match
+from .test_conversations import historical_match, accepted_match
 from .account_limits import save_limited_request
 from .models import PedidoEntrada, PerfilNKATA, MatchPerfil, AcessoPlanoNKATA, PedidoPagamentoNKATA, QuestionarioEntrada
 from .plan_service import assign_plan
@@ -61,7 +61,7 @@ class ConcurrentOperationsTests(TransactionTestCase):
             sobre_si="Test", o_que_valoriza="Test", o_que_nao_aceita="Test", aceita_regras=True)
         profile = PerfilNKATA.objects.create(pedido=pedido, usuario=third, nome_publico="Third", idade=30)
         assign_plan(third, "ESSENCIAL")
-        second = historical_match(perfil_1=self.users[0].perfil_nkata, perfil_2=profile)
+        second = accepted_match(perfil_1=self.users[0].perfil_nkata, perfil_2=profile)
         match_ids = [self.match.pk, second.pk]
 
         def start(index):
@@ -99,3 +99,49 @@ class ConcurrentOperationsTests(TransactionTestCase):
         self.assertEqual(sorted(self.race(ask)), [200, 201])
         self.assertEqual(Conversa.objects.count(), 1)
         self.assertEqual(PedidoConversa.objects.get().estado, "ACEITE")
+
+
+    def test_concurrent_credit_debits_cannot_overspend(self):
+        from .test_conversations import profile
+        from .wallet_service import record_movement, credit_balance, WalletError
+        from .models import MovimentoCreditoNKATA
+        user = profile(92).usuario
+        record_movement(user, key="test:fund", kind="RECARGA", amount=3, reference="test", reason="Test")
+        def debit(index):
+            try:
+                record_movement(user, key=f"test:debit:{index}", kind="CONSUMO", amount=-2, reference="test", reason="Test")
+                return 201
+            except WalletError:
+                return 409
+        self.assertEqual(sorted(self.race(debit)), [201, 409])
+        self.assertEqual(credit_balance(user), 1)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(tipo="CONSUMO").count(), 1)
+
+    def test_concurrent_wallet_payment_credits_once(self):
+        from .test_conversations import profile
+        from .wallet_service import credit_balance
+        from .models import MovimentoCreditoNKATA
+        user = profile(93).usuario
+        order = PedidoPagamentoNKATA.objects.create(usuario=user, chave=uuid.uuid4(), referencia="NKATACREDITSRACE",
+            produto="CREDITOS_POPULAR", valor=250, creditos=275, provedor_id="CREDITSRACE", estado="PENDENTE")
+        data = {"id":order.provedor_id, "reference":order.referencia, "amount":"250.00",
+            "status":"completed", "transaction":{"status":"completed", "transaction_id":"TXCREDITSRACE"}}
+        with patch("entradas.payment_service.provider_request", return_value=data):
+            self.assertEqual(self.race(lambda index: reconcile(order).estado), ["PAGO", "PAGO"])
+        self.assertEqual(credit_balance(user), 275)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(tipo="RECARGA").count(), 1)
+
+
+    def test_concurrent_chat_unlocks_charge_once_even_with_different_keys(self):
+        from django.test import override_settings
+        from .test_conversations import profile
+        from .wallet_service import record_movement, credit_balance, unlock_chat
+        from .models import AcessoChatCreditoNKATA, MovimentoCreditoNKATA
+        user=profile(94).usuario
+        record_movement(user,key="fund",kind="RECARGA",amount=10,reference="fund",reason="Test")
+        with override_settings(NKATA_CREDIT_ONLY_ENABLED=True,NKATA_CREDIT_TRANSITION_ENABLED=True,NKATA_CREDIT_SPENDING_ENABLED=True):
+            results=self.race(lambda index: unlock_chat(user,key=uuid.uuid4(),expected_cost=10)[1])
+        self.assertEqual(sorted(results),[False,True])
+        self.assertEqual(credit_balance(user),0)
+        self.assertEqual(AcessoChatCreditoNKATA.objects.count(),1)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(tipo="CONSUMO").count(),1)

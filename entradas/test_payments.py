@@ -48,6 +48,59 @@ class PaymentTests(TestCase):
         with patch("entradas.payment_service.provider_request", return_value=data or self.paid_data(order)):
             return reconcile(order)
 
+    def test_retired_checkout_is_read_only_and_reviewed_test_does_not_block(self):
+        from .payment_service import serialize_order
+        order = self.order("ESSENCIAL")
+        self.assertTrue(serialize_order(order)["checkout_url"])
+        with self.settings(NKATA_CREDIT_TRANSITION_ENABLED=True, NKATA_CREDIT_ONLY_ENABLED=True,
+                           NKATA_LEGACY_TEST_ORDER_REFERENCES=[order.referencia]):
+            serialized = serialize_order(order)
+            self.assertTrue(serialized["retired_product"])
+            self.assertIsNone(serialized["checkout_url"])
+            self.assertFalse(serialized["blocks_checkout"])
+            order.confirmado_em = timezone.now()
+            self.assertTrue(serialize_order(order)["blocks_checkout"])
+        with self.settings(NKATA_CREDIT_TRANSITION_ENABLED=True, NKATA_CREDIT_ONLY_ENABLED=True,
+                           NKATA_LEGACY_TEST_ORDER_REFERENCES=[]):
+            self.assertTrue(serialize_order(order)["blocks_checkout"])
+            self.assertIsNone(serialize_order(order)["checkout_url"])
+
+    def test_creation_response_cannot_overwrite_terminal_state(self):
+        def late(method, payment_id=None, payload=None):
+            PedidoPagamentoNKATA.objects.filter(referencia=payload["reference"]).update(estado="FALHOU")
+            return self.create_response(method, payment_id, payload)
+        with patch("entradas.payment_service.provider_request", side_effect=late):
+            order = start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
+        self.assertEqual(order.estado, "FALHOU")
+        self.assertFalse(order.checkout_url)
+
+    def test_missing_provider_id_is_not_serialized_as_none(self):
+        def invalid(method, payment_id=None, payload=None):
+            return {**self.create_response(method, payment_id, payload), "id": None}
+        with patch("entradas.payment_service.provider_request", side_effect=invalid):
+            with self.assertRaises(PaymentError):
+                start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
+        order = PedidoPagamentoNKATA.objects.get(usuario=self.user)
+        self.assertIsNone(order.provedor_id)
+        self.assertEqual(order.estado, "INCERTO")
+
+    def test_duplicate_provider_id_does_not_attach_to_another_order(self):
+        first = self.order()
+        PedidoPagamentoNKATA.objects.filter(pk=first.pk).update(estado="FALHOU")
+        with patch("entradas.payment_service.provider_request", side_effect=self.create_response):
+            with self.assertRaises(PaymentError):
+                start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
+        second = PedidoPagamentoNKATA.objects.exclude(pk=first.pk).get(usuario=self.user)
+        self.assertIsNone(second.provedor_id)
+        self.assertEqual(second.estado, "INCERTO")
+
+    def test_non_ascii_webhook_signature_is_rejected(self):
+        with patch("entradas.payment_service.provider_request") as provider:
+            response = self.client.post("/api/pagamentos/paysuite/webhook/", {}, format="json",
+                HTTP_X_WEBHOOK_SIGNATURE="é"*64)
+        self.assertEqual(response.status_code,403)
+        provider.assert_not_called()
+
     def test_checkout_sets_server_amount_nkata_brand_and_does_not_grant_plan(self):
         with patch("entradas.payment_service.provider_request", side_effect=self.create_response) as provider:
             order = start_checkout(self.user, "ESSENCIAL", uuid.uuid4())
@@ -323,3 +376,210 @@ class PaymentTests(TestCase):
         self.assertEqual(recharge_balance_for_user(self.user), 0)
         self.settle(order)
         self.assertEqual(recharge_balance_for_user(self.user), 10)
+
+
+
+@override_settings(NKATA_CREDIT_CHECKOUT_ENABLED=True)
+class WalletPaymentTests(TestCase):
+    def setUp(self):
+        from .test_conversations import profile
+        self.user = profile(93).usuario
+
+    @override_settings(NKATA_PAYSUITE_TOKEN="test-token", NKATA_PAYMENT_SIMULATION_ENABLED=False)
+    def test_automatic_reconciliation_recovers_confirmed_payment_once(self):
+        from django.core.management import call_command
+        from io import StringIO
+        from .models import MovimentoCreditoNKATA
+        from .wallet_service import credit_balance
+        order = PedidoPagamentoNKATA.objects.create(
+            usuario=self.user, chave=uuid.uuid4(), referencia="AUTO50",
+            produto="CREDITOS_INICIAL", valor=50, creditos=50,
+            estado="PENDENTE", provedor_id="AUTO50ID",
+        )
+        data = {"id": order.provedor_id, "amount": "50", "reference": order.referencia,
+                "status": "completed", "transaction": {"status": "completed"}}
+        with patch("entradas.payment_service.provider_request", return_value=data) as provider:
+            for _ in range(2):
+                call_command("reconcile_nkata_payments", stdout=StringIO())
+            provider.assert_called_once_with("GET", payment_id="AUTO50ID")
+        order.refresh_from_db()
+        self.assertEqual(order.estado, "PAGO")
+        self.assertEqual(credit_balance(self.user), 50)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.user, tipo="RECARGA").count(), 1)
+
+    @override_settings(NKATA_PAYSUITE_TOKEN="test-token", NKATA_PAYMENT_SIMULATION_ENABLED=False)
+    def test_reconciliation_rotates_failed_requests_and_excludes_simulation(self):
+        from django.core.management import call_command
+        from io import StringIO
+        def order(ref, **kwargs):
+            return PedidoPagamentoNKATA.objects.create(
+                usuario=self.user, chave=uuid.uuid4(), referencia=ref,
+                produto="CREDITOS_INICIAL", valor=50, creditos=50,
+                estado="PENDENTE", provedor_id=ref, **kwargs)
+        first = order("UNREACHABLE")
+        second = order("NEXT")
+        order("SIMULATED", simulado=True)
+        with patch("entradas.payment_service.provider_request", side_effect=PaymentError("offline",503)) as provider:
+            for _ in range(2):
+                call_command("reconcile_nkata_payments", limit=1, stdout=StringIO(), stderr=StringIO())
+            self.assertEqual([call.kwargs["payment_id"] for call in provider.call_args_list], ["UNREACHABLE","NEXT"])
+        for item in (first, second):
+            item.refresh_from_db()
+            self.assertEqual(item.estado,"PENDENTE")
+            self.assertIsNone(item.confirmado_em)
+            self.assertIsNotNone(item.ultima_verificacao)
+
+    @override_settings(NKATA_PAYSUITE_TOKEN="test-token", NKATA_PAYMENT_SIMULATION_ENABLED=False)
+    def test_reconciliation_backoff_preserves_late_settlement(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from django.core.management import call_command
+        from io import StringIO
+        from .wallet_service import credit_balance
+        now = timezone.now()
+
+        def order(ref, state, age, last):
+            item = PedidoPagamentoNKATA.objects.create(
+                usuario=self.user, chave=uuid.uuid4(), referencia=ref,
+                produto="CREDITOS_INICIAL", valor=50, creditos=50,
+                estado=state, provedor_id=ref)
+            PedidoPagamentoNKATA.objects.filter(pk=item.pk).update(
+                criado_em=now-age, ultima_verificacao=now-last)
+            return item
+
+        due = [
+            order("NEW", "PENDENTE", timedelta(minutes=8), timedelta(minutes=2)),
+            order("MID", "PENDENTE", timedelta(hours=1), timedelta(minutes=6)),
+            order("OLDER", "INCERTO", timedelta(hours=3), timedelta(minutes=31)),
+            order("LATE", "PENDENTE", timedelta(days=3), timedelta(hours=7)),
+            order("FAILED", "FALHOU", timedelta(days=3), timedelta(hours=25)),
+            order("REVIEW", "REVISAO", timedelta(days=3), timedelta(minutes=16)),
+        ]
+        not_due = [
+            order("NEW_WAIT", "PENDENTE", timedelta(minutes=8), timedelta(seconds=15)),
+            order("MID_WAIT", "PENDENTE", timedelta(hours=1), timedelta(minutes=2)),
+            order("OLDER_WAIT", "PENDENTE", timedelta(hours=3), timedelta(minutes=2)),
+            order("LATE_WAIT", "PENDENTE", timedelta(days=3), timedelta(hours=1)),
+            order("FAILED_WAIT", "FALHOU", timedelta(days=3), timedelta(hours=2)),
+            order("FAILED_RECENT", "FALHOU", timedelta(hours=1), timedelta(minutes=20)),
+        ]
+        def provider(method, payment_id=None, payload=None):
+            item = PedidoPagamentoNKATA.objects.get(provedor_id=payment_id)
+            state = "completed" if payment_id == "FAILED" else "pending"
+            return {"id": payment_id, "amount": "50", "reference": item.referencia,
+                    "status": state, "transaction": {"status": state}}
+        with patch("entradas.payment_service.provider_request", side_effect=provider) as remote:
+            call_command("reconcile_nkata_payments", stdout=StringIO())
+            self.assertEqual({call.kwargs["payment_id"] for call in remote.call_args_list},
+                             {item.provedor_id for item in due})
+            self.assertEqual(remote.call_count, len(due))
+            call_command("reconcile_nkata_payments", stdout=StringIO())
+            self.assertEqual(remote.call_count, len(due))
+        due[4].refresh_from_db()
+        self.assertEqual(due[4].estado, "PAGO")
+        self.assertEqual(credit_balance(self.user), 50)
+        for item in not_due:
+            original = item.estado
+            item.refresh_from_db()
+            self.assertEqual(item.estado, original)
+            self.assertIsNone(item.aplicado_em)
+
+    def test_catalog_amounts_are_server_owned(self):
+        from .payment_service import snapshot
+        for product, amount, credits in (("CREDITOS_INICIAL", 50, 50), ("CREDITOS_ESSENCIAL", 100, 100),
+                                         ("CREDITOS_POPULAR", 250, 275), ("CREDITOS_PREMIUM", 500, 600)):
+            self.assertEqual(snapshot(product), (Decimal(amount), 0, credits))
+
+    @override_settings(NKATA_PAYMENTS_ENABLED=True, NKATA_PAYSUITE_TOKEN="test-token",
+        NKATA_PAYSUITE_WEBHOOK_SECRET="test-secret", NKATA_PAYMENT_ORIGIN="https://nkata.example",
+        NKATA_CHECKOUT_HOSTS=["paysuite.tech"])
+    def test_confirmed_wallet_topup_is_exactly_once_even_after_checkout_disabled(self):
+        from .wallet_service import wallet_snapshot
+        from .models import MovimentoCreditoNKATA
+        def create(method, payment_id=None, payload=None):
+            return {"id": "WALLETPAY01", "amount": payload["amount"], "reference": payload["reference"],
+                    "status": "pending", "checkout_url": "https://paysuite.tech/checkout/WALLETPAY01"}
+        with patch("entradas.payment_service.provider_request", side_effect=create):
+            order = start_checkout(self.user, "CREDITOS_POPULAR", uuid.uuid4())
+        self.assertEqual(order.valor, Decimal("250"))
+        self.assertEqual(order.creditos, 275)
+        self.assertEqual(wallet_snapshot(self.user)["saldo"], 0)
+        data = {"id": order.provedor_id, "amount": "250", "reference": order.referencia,
+                "status": "completed", "transaction": {"status": "completed", "transaction_id": "WALLET-TX"}}
+        with self.settings(NKATA_CREDIT_CHECKOUT_ENABLED=False):
+            with patch("entradas.payment_service.provider_request", return_value={**data, "amount": "50"}):
+                with self.assertRaises(PaymentError):
+                    reconcile(order)
+            self.assertEqual(wallet_snapshot(self.user)["saldo"], 0)
+            with patch("entradas.payment_service.provider_request", return_value=data):
+                self.assertEqual(reconcile(order).estado, "PAGO")
+                self.assertEqual(reconcile(order).estado, "PAGO")
+        self.assertEqual(wallet_snapshot(self.user)["saldo"], 275)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(carteira__usuario=self.user, tipo="RECARGA").count(), 1)
+        self.assertEqual(plan_code_for_user(self.user), "LIVRE")
+        self.assertEqual(recharge_balance_for_user(self.user), 0)
+
+    @override_settings(NKATA_CREDIT_CHECKOUT_ENABLED=False, NKATA_PAYMENTS_ENABLED=True,
+        NKATA_PAYSUITE_TOKEN="test-token", NKATA_PAYSUITE_WEBHOOK_SECRET="test-secret",
+        NKATA_PAYMENT_ORIGIN="https://nkata.example")
+    def test_checkout_disabled_does_not_create_order(self):
+        with patch("entradas.payment_service.provider_request") as provider:
+            with self.assertRaises(PaymentError):
+                start_checkout(self.user, "CREDITOS_POPULAR", uuid.uuid4())
+        provider.assert_not_called()
+        self.assertFalse(PedidoPagamentoNKATA.objects.filter(usuario=self.user).exists())
+
+
+@override_settings(NKATA_PAYMENT_SIMULATION_ENABLED=True,
+    NKATA_RAILWAY_ENVIRONMENT_ID="36306a53-86bc-4a07-9b09-7c42c58f2e43",
+    NKATA_PAYMENTS_ENABLED=False, NKATA_CREDIT_TRANSITION_ENABLED=True,
+    EMAIL_BACKEND="django.core.mail.backends.dummy.EmailBackend")
+class SimulatedPaymentTests(TestCase):
+    def setUp(self):
+        from .test_conversations import profile
+        self.user = profile(93).usuario
+        self.other = profile(94).usuario
+
+    def test_simulation_credits_once_no_provider_and_no_real_revenue(self):
+        from .payment_service import resolve_simulated_checkout
+        from .wallet_service import credit_balance
+        from .finance_admin_api import _overview
+        from .models import MovimentoCreditoNKATA
+        with patch("entradas.payment_service.provider_request") as provider:
+            order = start_checkout(self.user, "CREDITOS_POPULAR", uuid.uuid4())
+            self.assertTrue(order.simulado)
+            self.assertEqual(credit_balance(self.user), 0)
+            with self.assertRaises(PaymentError):
+                resolve_simulated_checkout(self.other, order.pk, "completed")
+            with self.assertRaises(PaymentError):
+                reconcile(order)
+            for _ in range(2):
+                self.assertEqual(resolve_simulated_checkout(self.user, order.pk, "completed").estado, "PAGO")
+            provider.assert_not_called()
+        self.assertEqual(credit_balance(self.user), 275)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(chave__startswith="simulated:").count(), 1)
+        self.assertEqual(_overview()["settled_revenue_mzn"], "0.00")
+        self.assertEqual(_overview()["simulated_count"], 1)
+
+    def test_failed_simulation_and_wrong_environment_never_credit(self):
+        from .payment_service import resolve_simulated_checkout, simulation_enabled
+        from .wallet_service import credit_balance
+        order = start_checkout(self.user, "CREDITOS_INICIAL", uuid.uuid4())
+        self.assertEqual(resolve_simulated_checkout(self.user, order.pk, "failed").estado, "FALHOU")
+        self.assertEqual(resolve_simulated_checkout(self.user, order.pk, "completed").estado, "FALHOU")
+        self.assertEqual(credit_balance(self.user), 0)
+        with self.settings(NKATA_RAILWAY_ENVIRONMENT_ID="production"):
+            self.assertFalse(simulation_enabled())
+            with self.assertRaises(PaymentError):
+                start_checkout(self.user, "CREDITOS_INICIAL", uuid.uuid4())
+            with self.assertRaises(PaymentError):
+                resolve_simulated_checkout(self.user, order.pk, "completed")
+
+    def test_simulation_api_requires_own_order_and_rejects_amount(self):
+        order = start_checkout(self.user, "CREDITOS_INICIAL", uuid.uuid4())
+        url = f"/api/minha-conta/pagamentos/{order.pk}/simular/"
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.post(url, {"outcome":"completed"}, content_type="application/json").status_code, 404)
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.post(url, {"outcome":"completed","credits":999}, content_type="application/json").status_code, 400)
+        self.assertEqual(self.client.post(url, {"outcome":"completed"}, content_type="application/json").status_code, 200)

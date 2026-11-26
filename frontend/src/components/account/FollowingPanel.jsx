@@ -17,11 +17,11 @@ import { fetchFollowingProfiles, toggleFollowProfile } from "../../services/foll
 import useInterfaceLanguage from "../../hooks/useInterfaceLanguage.js";
 
 function useAccountTarget() {
-  const [target, setTarget] = useState(() => document.querySelector(".nk-account__main"));
+  const [target, setTarget] = useState(() => document.querySelector("[data-nkata-following-target]"));
 
   useEffect(() => {
     const refresh = () => {
-      const next = document.querySelector(".nk-account__main");
+      const next = document.querySelector("[data-nkata-following-target]");
       setTarget((current) => current === next ? current : next);
     };
 

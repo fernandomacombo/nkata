@@ -1,7 +1,9 @@
 from datetime import timedelta
 
 from django.utils import timezone
+from django.db import DatabaseError
 from django.db.models import Q
+from .moments_api import _feed_queryset as visible_moments, _moment_payload
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -131,6 +133,11 @@ def api_perfil_detalhe(request, perfil_id):
     serializer = PerfilDetalheSerializer(perfil, context={"request": request})
     data = dict(serializer.data)
     data.update(gallery_for_profile_viewer(request, perfil))
+    # Use the same visibility, moderation, block and expiry rules as the feed.
+    try:
+        data["moments"] = [_moment_payload(request, item) for item in visible_moments(request.user, perfil_atual).filter(perfil_id=perfil.pk)[:12]]
+    except DatabaseError:
+        data["moments"] = []
 
     if request.user.is_authenticated:
         data["interesse_ativo"] = AcaoPerfil.objects.filter(

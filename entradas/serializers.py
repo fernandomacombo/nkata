@@ -85,6 +85,7 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
             "status",
             "visivel",
             "tema_perfil",
+            "criado_em",
         ]
 
     def get_foto_principal(self, obj):
@@ -125,7 +126,6 @@ class PerfilDetalheSerializer(PerfilResumoSerializer):
         fields = PerfilResumoSerializer.Meta.fields + [
             "o_que_valoriza",
             "o_que_nao_aceita",
-            "criado_em",
             "preferencias",
         ]
 
@@ -304,6 +304,27 @@ class MinhaContaSerializer(serializers.ModelSerializer):
 
 
 class MensagemMatchSerializer(serializers.ModelSerializer):
+    audio_url = serializers.SerializerMethodField()
+    duracao_segundos = serializers.SerializerMethodField()
+
+    def get_audio_url(self, obj):
+        if obj.tipo != "AUDIO" or obj.apagada_em or not obj.conversa_id:
+            return None
+        note = getattr(obj, "nota_voz", None)
+        request = self.context.get("request")
+        if note and request:
+            return request.build_absolute_uri(f"/api/chats/{obj.conversa_id}/audio/{obj.pk}/media/")
+        return None
+
+    def get_duracao_segundos(self, obj):
+        note = getattr(obj, "nota_voz", None) if obj.tipo == "AUDIO" and not obj.apagada_em else None
+        return note.duracao_segundos if note else None
+
+    sinal = serializers.SerializerMethodField()
+
+    def get_sinal(self, obj):
+        return obj.sinal_origem.tipo.removeprefix("SINAL_") if obj.sinal_origem_id and not obj.apagada_em else None
+
     remetente_id = serializers.IntegerField(source="remetente.id", read_only=True)
     remetente_nome = serializers.SerializerMethodField()
     minha = serializers.SerializerMethodField()
@@ -316,6 +337,10 @@ class MensagemMatchSerializer(serializers.ModelSerializer):
             "remetente_id",
             "remetente_nome",
             "texto",
+            "tipo",
+            "sinal",
+            "audio_url",
+            "duracao_segundos",
             "apagada_em",
             "resposta_a",
             "lida",

@@ -64,7 +64,7 @@ class VoiceNoteValidationTests(SimpleTestCase):
         for value in ("Infinity", "-Infinity", "NaN", "1e999", "invalid"):
             request = APIRequestFactory().post("/api/", {"duracao_segundos":value}, format="json")
             force_authenticate(request, user=SimpleNamespace(is_authenticated=True, pk=1))
-            with patch("entradas.chat_media_api._match_do_utilizador", return_value=object()), patch("entradas.chat_media_api.chat_capabilities", return_value={"audio_enabled":True}):
+            with patch("entradas.chat_permissions.ChatIdentityPermission.has_permission", return_value=True), patch("entradas.chat_media_api._match_do_utilizador", return_value=object()), patch("entradas.chat_media_api.chat_capabilities", return_value={"audio_enabled":True}):
                 response = api_audios_match(request, 1)
             self.assertEqual(response.status_code, 400)
 
@@ -74,7 +74,7 @@ class VoiceNoteValidationTests(SimpleTestCase):
             "duracao_segundos":"10",
         }, format="multipart")
         force_authenticate(request, user=SimpleNamespace(is_authenticated=True, pk=1))
-        with patch("entradas.chat_media_api._match_do_utilizador", return_value=object()), patch("entradas.chat_media_api.chat_capabilities", return_value={"audio_enabled":True}), patch("entradas.chat_media_api.MensagemAudioMatchNKATA.objects.create") as save:
+        with patch("entradas.chat_permissions.ChatIdentityPermission.has_permission", return_value=True), patch("entradas.chat_media_api._match_do_utilizador", return_value=object()), patch("entradas.chat_media_api.chat_capabilities", return_value={"audio_enabled":True}), patch("entradas.chat_media_api.MensagemAudioMatchNKATA.objects.create") as save:
             response = api_audios_match(request, 1)
         self.assertEqual(response.status_code, 400)
         save.assert_not_called()

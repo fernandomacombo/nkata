@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { useMemo, useState } from "react";
 import {
   Bell,
@@ -24,6 +25,8 @@ const iconByType = {
   MOMENTO: CirclePlay,
   PUBLICACAO: Images,
   MATCH: Sparkles,
+  PEDIDO_CHAT: MessageCircle,
+  CHAT_ACEITE: CheckCheck,
   MENSAGEM: MessageCircle,
   EQUIPA: ShieldCheck,
 };
@@ -34,6 +37,8 @@ const typeLabels = {
   MOMENTO: "Moment reaction",
   PUBLICACAO: "Post reaction",
   MATCH: "New match",
+  PEDIDO_CHAT: "Chat request",
+  CHAT_ACEITE: "Chat accepted",
   MENSAGEM: "New message",
   EQUIPA: "Team notice",
 };
@@ -194,11 +199,7 @@ export default function NotificationsPage({
         )}
 
         {loading && !notifications.length ? (
-          <div className="nk-notifications-page__loading" aria-label={english ? "Loading notifications" : "A carregar notificações"}>
-            <span />
-            <span />
-            <span />
-          </div>
+          <HeartLoader page="notifications"/>
         ) : visibleNotifications.length ? (
           <div className="nk-notifications-list" aria-live="polite">
             {visibleNotifications.map((notification, index) => (

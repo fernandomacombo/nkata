@@ -4,7 +4,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .chat_permissions import chat_requires_identity
+from .legacy_commercial import credit_only_enabled
 from .notification_models import NotificacaoNKATA
+from .models import PedidoConversa
+from django.utils import timezone
 from .notification_serializers import NotificacaoSerializer
 
 
@@ -23,8 +26,14 @@ def _notification_setup_response():
 def api_notificacoes(request):
     try:
         notificacoes = NotificacaoNKATA.objects.filter(destinatario=request.user)
-        if chat_requires_identity(request.user):
-            notificacoes = notificacoes.exclude(tipo="MENSAGEM")
+        if chat_requires_identity(request.user) and not credit_only_enabled():
+            notificacoes = notificacoes.exclude(tipo__in=["MENSAGEM", "PEDIDO_CHAT", "CHAT_ACEITE"])
+        else:
+            # Clear the unread indicator of requests that elapsed without a decision.
+            expired = PedidoConversa.objects.filter(destinatario__usuario=request.user, estado="PENDENTE", expira_em__lte=timezone.now())
+            keys = [f"pedido-chat:{pk}" for pk in expired.values_list("pk", flat=True)]
+            if keys:
+                notificacoes.filter(chave__in=keys, lida=False).update(lida=True)
         notificacoes = (
             notificacoes.select_related(
                 "ator",

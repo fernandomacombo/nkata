@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import Presence from "../components/profiles/Presence.jsx";
 import { useEffect, useState } from "react";
 import {
@@ -79,7 +80,7 @@ function LastMessagePreview({ message, english }) {
 
 function MatchCard({ match, onOpen, english, identityRequired }) {
   const profile = match.otherProfile;
-  const lastMessage = identityRequired ? null : match.lastMessage;
+
 
   return (
     <button type="button" className="nk-match-card" onClick={() => onOpen(match)}>
@@ -94,7 +95,7 @@ function MatchCard({ match, onOpen, english, identityRequired }) {
             {profile?.nome_publico || (english ? "NKATA member" : "Membro NKATA")}
             {profile?.idade ? `, ${profile.idade}` : ""}
           </strong>
-          <small>{formatDate(lastMessage?.createdAt || match.updatedAt, english)}</small>
+          <small>{formatDate(match.updatedAt, english)}</small>
         </span>
 
         <span className="nk-match-card__location">
@@ -103,19 +104,10 @@ function MatchCard({ match, onOpen, english, identityRequired }) {
           {profile?.cidade || "Moçambique"}
         </span>
 
-        <span className={`nk-match-card__preview ${match.unreadCount ? "is-unread" : ""}`}>
-          {identityRequired
-            ? (english ? "Verify your identity to open the chat." : "Verifique a identidade para abrir a conversa.")
-            : <LastMessagePreview message={lastMessage} english={english} />}
-        </span>
+        <span className="nk-match-card__preview">{english ? "Mutual interest · View profile" : "Interesse mútuo · Ver perfil"}</span>
       </span>
 
       <span className="nk-match-card__side">
-        {!identityRequired && match.unreadCount > 0 && (
-          <em className="nk-match-card__unread">
-            {match.unreadCount > 9 ? "9+" : match.unreadCount}
-          </em>
-        )}
         <ArrowRight size={18} />
       </span>
     </button>
@@ -150,14 +142,7 @@ export default function MatchesPage({
         )}
 
         {loading ? (
-          <div className="nk-match-list" aria-label={english ? "Loading matches" : "A carregar matches"}>
-            {[1, 2, 3].map((item) => (
-              <div className="nk-match-skeleton" key={item}>
-                <span />
-                <div><em /><em /><em /></div>
-              </div>
-            ))}
-          </div>
+          <HeartLoader page="matches"/>
         ) : matches.length ? (
           <div className="nk-match-list">
             {matches.map((match) => (

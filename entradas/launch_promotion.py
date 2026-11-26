@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
@@ -18,6 +19,8 @@ def complete_registration_password(user, password):
     user.set_password(password)
     user.save(update_fields=["password"])
     now = timezone.now()
+    if settings.NKATA_CREDIT_TRANSITION_ENABLED:
+        return True, False
     if not user.is_active or AcessoPlanoNKATA.objects.filter(usuario=user, fim__gt=now).exists():
         return True, False
 

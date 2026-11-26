@@ -28,7 +28,7 @@ export function PresenceProvider({ children, member, identity, page }) {
       } finally { busy = false; }
     }
     refresh();
-    const timer = window.setInterval(refresh, 10000);
+    const timer = window.setInterval(refresh, 20000);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       controller.abort();
@@ -39,9 +39,12 @@ export function PresenceProvider({ children, member, identity, page }) {
   return <PresenceContext.Provider value={snapshot}>{children}</PresenceContext.Provider>;
 }
 
-export default function Presence({ profile, english }) {
-  const age = useContext(PresenceContext)[profile?.id];
-  if (!profile?.id) return null;
+export function usePresenceSnapshot() {
+  return useContext(PresenceContext);
+}
+
+export function usePresence(profileId, english = false) {
+  const age = useContext(PresenceContext)[profileId];
   let label = "";
   const online = typeof age === "number" && age < 35;
   if (online) label = "Online";
@@ -53,6 +56,12 @@ export default function Presence({ profile, english }) {
       .format(-Math.max(1, Math.floor(age / divisor)), unit);
     label = "Offline · " + ago;
   }
+  return { online, label };
+}
+
+export default function Presence({ profile, english }) {
+  const { online, label } = usePresence(profile?.id, english);
+  if (!profile?.id) return null;
   return <span data-presence-id={profile.id} role={label ? "img" : undefined}
     aria-label={label || undefined} title={label || undefined}
     className={online ? "nk-presence is-online" : "nk-presence"} />;

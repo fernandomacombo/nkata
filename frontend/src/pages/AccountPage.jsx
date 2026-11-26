@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import CommunityRules from "../components/CommunityRules.jsx";
 import { MatchPreferences } from "../components/MatchPreferences";
 import { useEffect, useRef, useState } from "react";
@@ -387,7 +388,8 @@ export default function AccountPage({
   const [form, setForm] = useState(emptyForm);
   const [accountSection, setAccountSection] = useState(() => {
     const section = new URLSearchParams(window.location.search).get("section");
-    return ["plan", "profile"].includes(section) ? section : "summary";
+    if (/^#fotografia-[1-3]$/.test(window.location.hash)) return "photos";
+    return ["plan", "profile", "photos"].includes(section) ? section : "summary";
   });
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(null);
@@ -478,10 +480,7 @@ export default function AccountPage({
   if (loading && !account) {
     return (
       <main className="nk-account">
-        <div className="nk-shell nk-account__loading">
-          <span />
-          <div><em /><em /><em /></div>
-        </div>
+        <div className="nk-shell"><HeartLoader page="account"/></div>
       </main>
     );
   }
@@ -704,7 +703,8 @@ export default function AccountPage({
             {[
               ["summary", english ? "Summary" : "Resumo"],
               ["profile", english ? "Profile" : "Perfil"],
-              ["plan", english ? "Plan" : "Plano"],
+              ["photos", english ? "Photos" : "Fotografias"],
+              ["plan", english ? "Wallet" : "Carteira"],
               ["interests", english ? "Interests" : "Interesses"],
               ["preferences", english ? "Appearance" : "Aparência"],
               ["security", english ? "Security" : "Segurança"],
@@ -722,7 +722,7 @@ export default function AccountPage({
           </nav>
 
           {accountSection === "summary" && (
-            <AccountSummaryPanel language={language} onOpenSection={setAccountSection} />
+            <><AccountSummaryPanel language={language} onOpenSection={setAccountSection} /><div data-nkata-following-target /></>
           )}
 
           {accountSection === "profile" && (
@@ -833,10 +833,10 @@ export default function AccountPage({
               </fieldset>
             </form>
             <CommunityRules english={english} />
-            <RegistrationPhotosManager language={language} />
-            <ProfileGalleryManager language={language} />
             </>
           )}
+
+          {accountSection === "photos" && <><RegistrationPhotosManager language={language} /><ProfileGalleryManager language={language} /></>}
 
           {accountSection === "plan" && <PlanPanel language={language} />}
 

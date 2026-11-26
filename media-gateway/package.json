@@ -1,0 +1,19 @@
+{
+  "name": "nkata-media-gateway",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node supervisor.mjs",
+    "test": "node --test *.test.mjs",
+    "test:rtp": "node --test tests/real-rtp.mjs"
+  },
+  "dependencies": {
+    "mediasoup": "3.32.0",
+    "ws": "8.23.0",
+    "mediasoup-client": "3.26.0"
+  }
+}

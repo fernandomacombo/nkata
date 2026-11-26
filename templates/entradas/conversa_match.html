@@ -270,6 +270,7 @@
                 Escrever mensagem
               </label>
 
+              {% if texto_livre %}
               <textarea
                 name="texto"
                 id="texto"
@@ -278,11 +279,20 @@
                 placeholder="Escreva uma mensagem respeitosa..."
                 required
               ></textarea>
+              {% elif predefinidas.restantes %}
+                <small>{{ predefinidas.restantes }} mensagens gratuitas restantes hoje</small>
+                <select name="texto" id="texto" required>
+                  <option value="">Escolha uma mensagem</option>
+                  {% for frase in predefinidas.frases %}<option value="{{ frase }}">{{ frase }}</option>{% endfor %}
+                </select>
+              {% else %}
+                <p>Limite diário de mensagens gratuitas atingido. <a href="/conta/?section=plan">Ver pacotes</a></p>
+              {% endif %}
 
               <div class="chat-form-footer">
                 <small>Evite enviar telefone, documentos ou dados sensíveis logo no início.</small>
 
-                <button type="submit" class="nk-btn nk-btn-primary">
+                <button type="submit" class="nk-btn nk-btn-primary" {% if not texto_livre and not predefinidas.restantes %}disabled{% endif %}>
                   Enviar →
                 </button>
               </div>

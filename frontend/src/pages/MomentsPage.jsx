@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -375,14 +376,14 @@ export default function MomentsPage({ onOpenProfile }) {
       </CompactPageHeader>
 
       <section className="nk-shell nk-moments-page__content">
-        <MomentCarousel
+        {loading && !data ? <HeartLoader page="moments"/> : <MomentCarousel
           groups={groups}
           loading={loading && !data}
           english={english}
           composerOpen={composerOpen}
           onCreate={() => setComposerOpen((value) => !value)}
           onOpen={(group) => setViewerGroup({ groups, index: groups.indexOf(group) })}
-        />
+        />}
         {composerOpen && <form id="nk-moment-composer"
           className={`nk-moment-composer ${composerOpen ? "is-open" : "is-collapsed"}`}
           onSubmit={handlePublish}

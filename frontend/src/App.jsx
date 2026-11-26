@@ -1,5 +1,5 @@
+import HeartLoader from "./components/HeartLoader.jsx";
 import { PresenceProvider } from "./components/profiles/Presence.jsx";
-import IncomingCallWatcher from "./components/chat/IncomingCallWatcher.jsx";
 import { playNotificationSound } from "./services/callAttention.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AppHeader from "./components/layout/AppHeader.jsx";
@@ -49,7 +49,7 @@ const MOBILE_BACK_DESTINATIONS = {
   notifications: "home",
   admin: "home",
 };
-const MOBILE_BACK_SAFE_ORIGINS = ["home", "discover", "moments", "matches", "account"];
+const MOBILE_BACK_SAFE_ORIGINS = ["home", "discover", "moments", "matches", "chats", "account"];
 
 export default function App() {
   const {
@@ -135,11 +135,13 @@ export default function App() {
   } = useAppPreferences({ authenticated: memberAuthenticated, identity: sessionIdentity });
 
   const loadProfiles = useCallback(async ({ signal } = {}) => {
+    if (!memberAuthenticated) return;
     setLoading(true);
     setLoadError("");
 
     try {
       const apiProfiles = await fetchProfiles({ signal });
+      if (signal?.aborted) return;
       if (apiProfiles.length) {
         setProfiles(apiProfiles);
         setUsingDemoData(false);
@@ -156,7 +158,7 @@ export default function App() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [memberAuthenticated]);
 
   const loadMatches = useCallback(async ({ signal } = {}) => {
     if (!memberAuthenticated) return;
@@ -225,6 +227,13 @@ export default function App() {
 
   useEffect(() => {
     if (sessionLoading) return undefined;
+    if (!memberAuthenticated) {
+      setProfiles(demoProfiles);
+      setUsingDemoData(demoProfiles.length > 0);
+      setLoadError("");
+      setLoading(false);
+      return undefined;
+    }
 
     if (authenticated && session?.profile?.id) {
       setProfiles((current) => current.filter(
@@ -237,6 +246,7 @@ export default function App() {
     return () => controller.abort();
   }, [
     authenticated,
+    memberAuthenticated,
     loadProfiles,
     session?.profile?.id,
     sessionIdentity,
@@ -270,27 +280,42 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    loadNotifications({ signal: controller.signal });
-
-    const refresh = () => {
-      if (document.visibilityState === "visible") {
-        loadNotifications({ signal: controller.signal, silent: true });
+    let timer, busy = false, queued = false;
+    notificationVersions.current = null;
+    setNotifications([]);
+    async function refresh(initial = false) {
+      if (controller.signal.aborted || document.hidden) return;
+      if (busy) { queued = true; return; }
+      window.clearTimeout(timer);
+      busy = true;
+      try {
+        await loadNotifications({ signal: controller.signal, silent: !initial });
+      } finally {
+        busy = false;
+        if (!controller.signal.aborted && !document.hidden) {
+          if (queued) { queued = false; refresh(); }
+          else timer = window.setTimeout(refresh, 10000);
+        }
       }
+    }
+    const onVisibility = () => {
+      window.clearTimeout(timer);
+      if (!document.hidden) refresh();
     };
     const onPush = (event) => {
       if (event.data?.type === "nkata:notification") refresh();
     };
-    const intervalId = window.setInterval(refresh, 4000);
-    document.addEventListener("visibilitychange", refresh);
+    refresh(true);
+    document.addEventListener("visibilitychange", onVisibility);
     navigator.serviceWorker?.addEventListener("message", onPush);
 
     return () => {
       controller.abort();
-      window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", refresh);
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
       navigator.serviceWorker?.removeEventListener("message", onPush);
     };
-  }, [memberAuthenticated, loadNotifications]);
+  }, [memberAuthenticated, sessionIdentity, loadNotifications]);
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -442,7 +467,7 @@ export default function App() {
       return;
     }
 
-    if (["moments", "matches", "notifications", "account", "admin"].includes(page) && !authenticated) {
+    if (["moments", "chats", "matches", "notifications", "account", "admin"].includes(page) && !authenticated) {
       openLogin(page);
       return;
     }
@@ -777,6 +802,9 @@ export default function App() {
         language={preferences.idioma}
       />
 
+      {sessionLoading && ["home","discover","profile","moments","saved","identity","chats","matches","conversation","notifications","account","admin"].includes(activePage) ? (
+        <main className="nk-shell"><HeartLoader page={activePage}/></main>
+      ) : <>
       {activePage === "home" && (
         memberAuthenticated ? (
           <MemberHomePage
@@ -858,9 +886,8 @@ export default function App() {
           interestMessage={interestState.message}
           onToggleSaved={toggleSaved}
           onAskChat={memberAuthenticated && String(selectedProfile?.id) !== String(session?.profile?.id) ? async () => {
-            if (chatIdentityRequired) return setActivePage("identity");
             const result = await request(`/api/chats/pedir/${selectedProfile.id}/`, { method: "POST" });
-            setActivePage("chats", { conversationId: result.conversation_id });
+            setActivePage("chats", { conversationId: result.conversation_id, requestId: result.conversation_id ? undefined : result.id });
           } : null}
           onToggleInterest={handleToggleInterest}
           onRequireLogin={() => openLogin("profile")}
@@ -868,7 +895,7 @@ export default function App() {
         />
       )}
 
-      {(["identity", "conversation", "chats"].includes(activePage)) && memberAuthenticated && chatIdentityRequired && (
+      {(["identity", "conversation"].includes(activePage)) && memberAuthenticated && chatIdentityRequired && (
         <ChatIdentityPage
           key={sessionIdentity}
           onBack={() => handleNavigate(activePage === "identity" ? "account" : "matches")}
@@ -883,9 +910,14 @@ export default function App() {
         </main>
       )}
 
-      {activePage === "chats" && memberAuthenticated && !chatIdentityRequired && (
+      {activePage === "chats" && memberAuthenticated && (
         <ChatsPage key={`chats-${sessionIdentity}`} conversationId={conversationId} requestId={requestId}
           onSelect={(id) => setActivePage("chats", { conversationId: id })}
+          onBack={() => setActivePage("chats")}
+          onOpenProfile={handleOpenProfile}
+          onDiscover={() => handleNavigate("discover")}
+          identityRequired={chatIdentityRequired}
+          onVerifyIdentity={() => setActivePage("identity")}
           onLegacy={(id) => setActivePage("conversation", { matchId: id })}
           safetyAccepted={preferences.aviso_chat_aceite === true}
           onAcceptSafety={() => savePreferences({ aviso_chat_aceite: true })} />
@@ -897,7 +929,7 @@ export default function App() {
           loading={matchesLoading}
           error={matchesError}
           onReload={() => loadMatches()}
-          onOpenConversation={handleOpenConversation}
+          onOpenConversation={(match) => handleOpenProfile(match.otherProfile)}
           onDiscover={() => handleNavigate("discover")}
         />
       )}
@@ -955,13 +987,13 @@ export default function App() {
         <AdminPanelPage session={session} />
       )}
 
-      {memberAuthenticated && !chatIdentityRequired && <IncomingCallWatcher key={sessionIdentity} />}
 
+      </>}
+      
       {activePage !== "admin" && !operator && (
         <BottomNavigation
           activePage={visiblePage}
           onNavigate={handleNavigate}
-          unreadMatches={totalUnread}
           language={preferences.idioma}
         />
       )}

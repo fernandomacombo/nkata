@@ -51,11 +51,12 @@ export function fetchPublications(options = {}) {
   return request("/api/publicacoes/", options);
 }
 
-export function createPublication({ media, caption, visibility }) {
+export function createPublication({ media, caption, visibility, key, expectedCost }) {
   const form = new FormData();
   form.append("media", media);
   form.append("legenda", caption || "SEM_LEGENDA");
   form.append("visibilidade", visibility || "TODOS");
+  if (expectedCost !== undefined) { form.append("key", key); form.append("expected_cost", String(expectedCost)); }
   return request("/api/publicacoes/", { method: "POST", body: form });
 }
 

@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import HeartLoader from "../components/HeartLoader.jsx";
+import { useEffect, useState } from "react";
 import { Bookmark, Trash2 } from "lucide-react";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import ProfileCard from "../components/profiles/ProfileCard.jsx";
@@ -42,13 +43,17 @@ export default function SavedProfilesPage({
   onDiscover,
 }) {
   const english = useInterfaceLanguage() === "EN";
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
+    let active = true;
     fetchSavedProfiles().catch((error) => {
+      if (!active) return;
       if (error.status === 401 || error.status === 403) {
         window.history.replaceState({}, "", "/entrar/");
         window.dispatchEvent(new PopStateEvent("popstate"));
       }
-    });
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   return (
@@ -56,7 +61,7 @@ export default function SavedProfilesPage({
       <CompactPageHeader title={english ? "Saved" : "Guardados"} />
 
       <div className="nk-shell nk-library__content">
-        {savedProfiles.length ? (
+        {loading && !savedProfiles.length ? <HeartLoader page="saved"/> : savedProfiles.length ? (
           <ProfileSection
             title={`${savedProfiles.length} ${english ? (savedProfiles.length === 1 ? "profile" : "profiles") : (savedProfiles.length === 1 ? "perfil" : "perfis")}`}
             profiles={savedProfiles}

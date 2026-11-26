@@ -1,6 +1,6 @@
 """Owner-controlled extra photographs from registration.
 
-These are profile photos, never identity documents. Private by default.
+These are profile photos, never identity documents. Publication requires owner authorization and moderation.
 """
 from pathlib import PurePath
 from uuid import uuid4
@@ -39,7 +39,8 @@ def _owner_payload(profile):
             "rejection_reason": getattr(pedido, f"foto_extra_{slot}_motivo"),
             "review_status": getattr(pedido, f"foto_extra_{slot}_estado"),
             "exists": bool(image),
-            "visible": bool(image and getattr(pedido, flag_field)),
+            "visible": bool(image and getattr(pedido, flag_field) and getattr(pedido, f"foto_extra_{slot}_estado") == "APROVADO"),
+            "publication_authorized": bool(image and getattr(pedido, flag_field)),
             "media_url": (
                 f"/api/perfis/{profile.pk}/fotografias/{slot}/" if image else None
             ),
@@ -99,7 +100,7 @@ def api_manage_extra_photo(request, slot):
         image.name = f"{uuid4().hex}{PurePath(image.name).suffix}"
         old_file = current
         setattr(pedido, image_field, image)
-        setattr(pedido, flag_field, False)
+        setattr(pedido, flag_field, request.data.get("publicar_fotos_perfil") == "on")
         setattr(pedido, f"foto_extra_{slot}_estado", "PENDENTE")
         setattr(pedido, f"foto_extra_{slot}_motivo", "")
         pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", f"foto_extra_{slot}_motivo", "atualizado_em"])

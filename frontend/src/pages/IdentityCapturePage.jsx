@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -416,8 +417,7 @@ export default function IdentityCapturePage({ token, onExit }) {
   if (loading) {
     return (
       <main className="nk-id-mobile nk-id-mobile--center">
-        <LoaderCircle className="is-spinning" size={32} />
-        <strong>A abrir o NKATA ID…</strong>
+        <HeartLoader page="identity"/>
       </main>
     );
   }
