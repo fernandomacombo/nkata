@@ -198,7 +198,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
     setRequestError("");
 
     try {
-      const result = await submitAccessRequest(values, files);
+      const result = await submitAccessRequest({ ...values, publicar_fotos_perfil: true }, files);
       setReceipt({
         codigo: result?.codigo || "",
         email: result?.email || values.email,
@@ -359,7 +359,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
                 <header>
                   <small>Passo 2 de 3</small>
                   <h2>Duas fotos para se apresentar.</h2>
-                  <p>Escolha fotos recentes e bem iluminadas. Pode revê-las antes de enviar o pedido.</p>
+                  <p>Escolha fotos recentes e bem iluminadas. As duas serão apresentadas no seu perfil aos membros do NKATA após aprovação.</p>
                 </header>
                 <div className="nk-access-photo-grid">
                   {photoFields.map((field) => (
@@ -387,6 +387,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
                 </div>
 
                 <CommunityRules />
+                <p>Ao enviar o pedido, autoriza a apresentação das fotografias de perfil aos membros do NKATA após aprovação.</p>
                 <label className={`nk-access-consent ${fieldError(errors, "aceita_verificacao") ? "has-error" : ""}`}>
                   <input type="checkbox" checked={values.aceita_verificacao} onChange={(event) => updateValue("aceita_verificacao", event.target.checked)} />
                   <span>

@@ -387,7 +387,8 @@ export default function AccountPage({
   const [form, setForm] = useState(emptyForm);
   const [accountSection, setAccountSection] = useState(() => {
     const section = new URLSearchParams(window.location.search).get("section");
-    return ["plan", "profile"].includes(section) ? section : "summary";
+    if (/^#fotografia-[1-3]$/.test(window.location.hash)) return "photos";
+    return ["plan", "profile", "photos"].includes(section) ? section : "summary";
   });
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(null);
@@ -704,6 +705,7 @@ export default function AccountPage({
             {[
               ["summary", english ? "Summary" : "Resumo"],
               ["profile", english ? "Profile" : "Perfil"],
+              ["photos", english ? "Photos" : "Fotografias"],
               ["plan", english ? "Wallet" : "Carteira"],
               ["interests", english ? "Interests" : "Interesses"],
               ["preferences", english ? "Appearance" : "Aparência"],
@@ -833,10 +835,10 @@ export default function AccountPage({
               </fieldset>
             </form>
             <CommunityRules english={english} />
-            <RegistrationPhotosManager language={language} />
-            <ProfileGalleryManager language={language} />
             </>
           )}
+
+          {accountSection === "photos" && <><RegistrationPhotosManager language={language} /><ProfileGalleryManager language={language} /></>}
 
           {accountSection === "plan" && <PlanPanel language={language} />}
 
