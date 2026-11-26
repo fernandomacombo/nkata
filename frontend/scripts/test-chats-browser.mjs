@@ -23,6 +23,14 @@ function LibraryHarness(){
  function session(id){window.dispatchEvent(new CustomEvent("nkata:session-changed",{detail:id?{authenticated:true,user:{id}}:{authenticated:false}}));}
  return <main><h1>Biblioteca</h1><button onClick={()=>session(1)}>Conta A</button><button onClick={()=>session(2)}>Conta B</button><button onClick={()=>session(null)}>Sair</button><output aria-label="Guardados">{savedProfiles.map(p=>p.nome_publico).join(",")}</output></main>;
 }
+function LoaderHarness(){
+ const [state,setState]=useState("loading");
+ return <div>
+   <button onClick={()=>setState("loaded")}>Simular perfil carregado</button>
+   <button onClick={()=>setState("error")}>Simular falha</button>
+   <ProfileDetailPage loading={state==="loading"} profile={state==="loaded"?{id:"demo-loader",nome_publico:"Perfil de teste",idade:29}:null} error={state==="error"?"Falha de teste":""} onBack={()=>{}}/>
+ </div>;
+}
 function Harness(){
  const [page,setPage] = useState(new URLSearchParams(window.location.search).has("profile") ? "profile-test" : new URLSearchParams(window.location.search).has("feed") ? "feed-test" : "chats"), [id,setId] = useState(null), [accepted,setAccepted] = useState(false);
  return <div className="nk-app"><header className="nk-header"><span className="nk-header__member">Member</span></header>
@@ -31,7 +39,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
+createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -40,6 +48,25 @@ try {
  for (const engine of [chromium, webkit]) {
   const browser = await engine.launch({headless:true});
   try {
+   const loader=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   const loaderErrors=[];
+   loader.on("pageerror",error=>loaderErrors.push(error.message));
+   await loader.goto("http://127.0.0.1:5178/"+html+"?loader=1");
+   const status=loader.locator(".nk-heart-loader[role='status']");
+   await status.getByText("A preparar este perfil para si",{exact:true}).waitFor();
+   assert.equal(await status.locator(".nk-heart-loader__particles svg").count(),7);
+   assert.equal(await status.locator(".nk-heart-loader__heart").evaluate(el=>getComputedStyle(el).animationName),"none","Reduced-motion setting must disable animation");
+   assert.ok(await loader.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2),"Loader must fit mobile viewport");
+   await loader.getByRole("button",{name:"Simular perfil carregado"}).click();
+   await status.waitFor({state:"detached"});
+   await loader.getByRole("heading",{name:/Perfil de teste/}).waitFor();
+   await loader.reload();
+   await status.waitFor();
+   await loader.getByRole("button",{name:"Simular falha"}).click();
+   await status.waitFor({state:"detached"});
+   await loader.getByRole("heading",{name:"Perfil não disponível"}).waitFor();
+   assert.equal(loaderErrors.length,0,loaderErrors.join("\n"));
+   await loader.close();
    const library=await browser.newPage();
    let privateRequests=0, releaseFirst;
    await library.route("**/api/minha-conta/guardados/",async route=>{
