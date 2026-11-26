@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
@@ -573,11 +574,7 @@ export default function MemberHomePage({ onNavigate, onOpenProfile }) {
           </div>
 
           {loading && !publications.length ? (
-            <div className="nk-feed-loading" aria-label={english ? "Loading feed" : "A carregar feed"}>
-              <span />
-              <span />
-              <span />
-            </div>
+            <HeartLoader page="home"/>
           ) : publications.length ? (
             <div className="nk-feed-list">
               {publications.map((publication) => (
