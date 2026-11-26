@@ -79,7 +79,7 @@ function ProfileGallery({ items, personName, english }) {
       <header>
         <span><Images size={17} /></span>
         <div>
-          <h2>{english ? "Gallery" : "Galeria"}</h2>
+          <h2>{english ? "Publications" : "Publicações"}</h2>
           <p>{items.length} {english ? (items.length === 1 ? "post" : "posts") : (items.length === 1 ? "publicação" : "publicações")}</p>
         </div>
       </header>
@@ -155,7 +155,7 @@ function ProfileMoments({ items = [], english, showEmpty = false }) {
     return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
   }
   return <section className="nk-profile-moments" aria-label={english ? "Moments" : "Momentos"}>
-    <header><h2>{english ? "Moments" : "Momentos"}</h2><span>{english ? "Available for 24 hours" : "Disponíveis durante 24 horas"}</span></header>
+    <header><h2>{english ? "Recent moments" : "Momentos recentes"}</h2><span>{english ? "Available for 24 hours" : "Disponíveis durante 24 horas"}</span></header>
     <div className="nk-profile-moments__strip">
       {current.map((item,index) => <button key={item.id} type="button" className="nk-profile-moment" onClick={() => setSelectedId(item.id)} aria-label={english ? `Open moment ${index+1}` : `Abrir momento ${index+1}`}>
         {item.mediaType === "VIDEO" && item.mediaUrl ? <><video src={item.mediaUrl} muted playsInline preload="metadata"/><span className="nk-profile-moment__play"><Play size={20}/></span></> : item.mediaUrl ? <img src={item.mediaUrl} alt="" loading="lazy"/> : <strong>{item.text}</strong>}
@@ -558,6 +558,21 @@ export default function ProfileDetailPage({
               <h2>{english ? "Life through my eyes" : "A vida através dos meus olhos"}</h2>
             </header>
             {activeSection === "moments" && <>
+              {portraits.length > 0 && <section className="nk-profile-registration-gallery" aria-labelledby="nk-profile-registration-title">
+                <header>
+                  <h3 id="nk-profile-registration-title">{english ? "My photos" : "As minhas fotografias"}</h3>
+                  <span>{portraits.length} {english ? (portraits.length === 1 ? "photo" : "photos") : (portraits.length === 1 ? "fotografia" : "fotografias")}</span>
+                </header>
+                <div className="nk-profile-registration-gallery__grid">
+                  {portraits.map((url, index) => (
+                    <button key={url} type="button"
+                      aria-label={english ? `Open profile photo ${index + 1}` : `Abrir fotografia do perfil ${index + 1}`}
+                      onClick={() => { changePhoto(index); setPhotoOpen(true); }}>
+                      <img src={url} alt="" loading="lazy" decoding="async"/>
+                    </button>
+                  ))}
+                </div>
+              </section>}
               {profile.cover_url && (
           <div className="nk-profile-detail__cover" aria-hidden="true">
             <img
@@ -569,7 +584,7 @@ export default function ProfileDetailPage({
             <div />
           </div>
         )}
-              <ProfileMoments key={profile.id} items={profile.moments || []} english={english} showEmpty={!publications.length}/>
+              <ProfileMoments key={profile.id} items={profile.moments || []} english={english} showEmpty={!publications.length && !portraits.length && !profile.cover_url}/>
               <ProfileGallery items={publications} personName={profile.nome_publico} english={english}/>
             </>}
           </div>
