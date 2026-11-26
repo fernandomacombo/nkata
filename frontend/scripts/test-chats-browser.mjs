@@ -206,7 +206,16 @@ try {
     detail.on("pageerror",error=>profileErrors.push(error.message));
     await detail.route("**/avatar-*-test.svg",route=>route.fulfill({contentType:"image/svg+xml",body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="300"><rect width="100" height="300" fill="#987"/></svg>'}));
     await detail.route("**/api/presenca/",route=>route.fulfill({json:{perfis:{"2":120}}}));
-    await detail.route("**/api/perfis/2/sinais/",route=>route.fulfill({json:{signals:[],quota:{credit_mode:true,credit_balance:45}}}));
+    let signalPosts=0, nativeSignalDialogs=0;
+    const signalOffers=[{type:"OLA",label:"Olá",cost:1,available:true},{type:"FLOR",label:"Flor",cost:2,available:true},{type:"BEIJINHO",label:"Beijinho",cost:3,available:true}];
+    detail.on("dialog",async dialog=>{nativeSignalDialogs++;await dialog.dismiss();});
+    await detail.route("**/api/perfis/2/sinais/",async route=>{
+      if(route.request().method()==="POST"){
+        signalPosts++;
+        assert.deepEqual(route.request().postDataJSON(),{tipo:"FLOR",expected_cost:2});
+      }
+      return route.fulfill({json:{signals:signalOffers.map(item=>({...item,sent_to_profile_today:signalPosts>0&&item.type==="FLOR"})),quota:{credit_mode:true,credit_balance:45-2*signalPosts},message:"Sinal enviado."}});
+    });
     await detail.goto("http://127.0.0.1:5178/"+html+"?profile=1");
     await detail.getByRole("heading",{name:/Ana Maria de Sousa Fernandes/}).waitFor();
     await detail.getByText("27 anos",{exact:true}).waitFor();
@@ -231,6 +240,28 @@ try {
     await secondary.locator("summary").click();
     const signals=await detail.locator(".nk-profile-signals__grid > button").first().boundingBox();
     assert.ok(signals && signals.height<100,"Signal actions must remain compact");
+    const flower=detail.locator(".nk-profile-signals__grid").getByRole("button",{name:/Flor/});
+    const confirmSignal=detail.getByRole("dialog",{name:"Confirmar envio"});
+    await flower.click();
+    await confirmSignal.waitFor();
+    await confirmSignal.getByText("2 créditos",{exact:true}).waitFor();
+    await confirmSignal.getByText("45 créditos",{exact:true}).waitFor();
+    await confirmSignal.getByText("43 créditos",{exact:true}).waitFor();
+    assert.equal(signalPosts,0,"Opening the modal must not send a signal");
+    await confirmSignal.getByRole("button",{name:"Cancelar",exact:true}).click();
+    await confirmSignal.waitFor({state:"detached"});
+    assert.equal(signalPosts,0,"Cancel must not spend credits");
+    await flower.click();
+    await confirmSignal.waitFor();
+    await detail.keyboard.press("Escape");
+    await confirmSignal.waitFor({state:"detached"});
+    assert.equal(signalPosts,0,"Escape must not spend credits");
+    await flower.click();
+    await confirmSignal.getByRole("button",{name:"Confirmar envio",exact:true}).click();
+    await confirmSignal.waitFor({state:"detached"});
+    await detail.locator(".nk-profile-signals__quota").getByText("43 créditos",{exact:true}).waitFor();
+    assert.equal(signalPosts,1,"One explicit confirmation must send exactly one request");
+    assert.equal(nativeSignalDialogs,0,"Browser confirmation prompts must not appear");
     await secondary.locator("summary").click();
     assert.equal(await detail.getByText("Gostaria de conhecer alguém entre 25–35 anos",{exact:true}).count(),1);
     assert.equal(await detail.getByText("Relacionamento sério",{exact:true}).count(),1);
