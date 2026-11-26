@@ -61,7 +61,7 @@ const signalLabels = {
   OLA: ["Hello", "Hello, I liked your profile and would like to know you better."],
 };
 
-function SignalConfirmDialog({ offer, personName, balance, english, onClose, onConfirm }) {
+function SignalConfirmDialog({ offer, personName, english, onClose, onConfirm }) {
   const dialogRef = useRef(null);
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -78,19 +78,12 @@ function SignalConfirmDialog({ offer, personName, balance, english, onClose, onC
       <div className="nk-signal-confirm__body">
         <button type="button" className="nk-signal-confirm__close" onClick={onClose} aria-label={english ? "Close" : "Fechar"}><X size={20}/></button>
         <span className="nk-signal-confirm__icon"><Icon size={28} strokeWidth={1.6} aria-hidden="true"/></span>
-        <h2 id="nk-signal-confirm-title">{english ? "Confirm signal" : "Confirmar envio"}</h2>
-        <p id="nk-signal-confirm-description">{english ? `Send ${label} to ${personName}?` : `Enviar ${label} para ${personName}?`}</p>
-        <dl className="nk-signal-confirm__cost">
-          <div><dt>{english ? "Sending cost" : "Custo do envio"}</dt><dd>{credits(offer.cost)}</dd></div>
-          {Number.isFinite(balance) && <>
-            <div><dt>{english ? "Current balance" : "Saldo actual"}</dt><dd>{credits(balance)}</dd></div>
-            <div><dt>{english ? "Balance after sending" : "Saldo após envio"}</dt><dd>{credits(balance - offer.cost)}</dd></div>
-          </>}
-        </dl>
-        <p className="nk-signal-confirm__note">{english ? "Credits are only charged after confirmation and successful sending." : "Os créditos só serão descontados após a confirmação e o envio bem-sucedido."}</p>
+        <h2 id="nk-signal-confirm-title">{english ? `Send ${label}?` : `Enviar ${label.toLocaleLowerCase("pt")}?`}</h2>
+        <p className="nk-signal-confirm__recipient">{english ? `To ${personName}` : `Para ${personName}`}</p>
+        <p id="nk-signal-confirm-description" className="nk-signal-confirm__price">{credits(offer.cost)}</p>
         <div className="nk-signal-confirm__actions">
           <button type="button" className="nk-button nk-button--quiet" autoFocus onClick={onClose}>{english ? "Cancel" : "Cancelar"}</button>
-          <button type="button" className="nk-button nk-button--wine" onClick={onConfirm}>{english ? "Confirm sending" : "Confirmar envio"}</button>
+          <button type="button" className="nk-button nk-button--wine" onClick={onConfirm}>{english ? "Send" : "Enviar"}</button>
         </div>
       </div>
     </dialog>
@@ -765,7 +758,6 @@ export default function ProfileDetailPage({
       {signalConfirmation && signalConfirmation.profileId === profile.id && <SignalConfirmDialog
         offer={signalConfirmation}
         personName={profile.nome_publico}
-        balance={quota?.credit_balance}
         english={english}
         onClose={() => setSignalConfirmation(null)}
         onConfirm={() => handleSignal(signalConfirmation.type, signalConfirmation)}
