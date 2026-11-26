@@ -443,17 +443,33 @@ export default function ProfileDetailPage({
           <section className="nk-profile-detail__content">
             <div className="nk-profile-detail__heading">
               <div className="nk-profile-intro">
-                <span className="nk-eyebrow nk-eyebrow--dark">
-                  {profile.verificado ? <BadgeCheck size={15}/> : <ShieldCheck size={15}/>} {profile.verificado ? (english ? "Verified profile" : "Perfil verificado") : (english ? "Identity not verified" : "Identidade por verificar")}
-                </span>
-                <h1>{profile.nome_publico}{profile.idade ? <span className="nk-profile-intro__age">, {profile.idade}</span> : ""}</h1>
+                <h1 className="nk-profile-intro__name">
+                  <span className="nk-profile-intro__name-text">{profile.nome_publico}</span>
+                  {profile.verificado === true && !String(profile.id).startsWith("demo-") && (
+                    <span className="nk-profile-intro__verified" title={english ? "Identity verified by NKATA" : "Identidade verificada pelo NKATA"}>
+                      <BadgeCheck size={27} strokeWidth={1.8} aria-hidden="true" />
+                      <span className="nk-profile-intro__sr-only">{english ? "Identity verified" : "Identidade verificada"}</span>
+                    </span>
+                  )}
+                  {profile.idade ? <span className="nk-profile-intro__age">{profile.idade} {english ? "years old" : "anos"}</span> : null}
+                </h1>
+                {profile.verificado === true && !String(profile.id).startsWith("demo-") && (
+                  <p className="nk-profile-intro__verified-label">{english ? "Identity verified by NKATA" : "Identidade verificada pelo NKATA"}</p>
+                )}
                 <div className="nk-profile-intro__meta">
                   {profile.cidade && <span><MapPin size={17}/>{profile.cidade}</span>}
-                  {profile.objetivo_display && <span><Heart size={17}/>{objectiveLabel(profile.objetivo_display, english)}</span>}
                 </div>
-                {ageRange && <div className="nk-profile-intro__looking"><UserRound size={17}/><div><small>{english ? "Who I would like to meet" : "Quem gostaria de conhecer"}</small><strong>{ages[0]}–{ages[1]} {english ? "years old" : "anos"}</strong></div></div>}
+                {(profile.objetivo_display || ageRange) && (
+                  <div className="nk-profile-intro__looking nk-profile-intro__intention">
+                    <Heart size={22} strokeWidth={1.7} aria-hidden="true"/>
+                    <div>
+                      {profile.objetivo_display && <strong>{objectiveLabel(profile.objetivo_display, english)}</strong>}
+                      {ageRange && <small>{english ? "Would like to meet someone aged" : "Gostaria de conhecer alguém entre"} {ages[0]}–{ages[1]} {english ? "years old" : "anos"}</small>}
+                    </div>
+                  </div>
+                )}
                 <div className="nk-profile-intro__primary">
-                  {onAskChat && !String(profile.id).startsWith("demo-") && <button type="button" className="nk-button nk-button--wine" disabled={askingChat} onClick={askChat}><MessageCircle size={18}/> {askingChat ? (english ? "Sending…" : "A enviar…") : (english ? "Request a chat" : "Pedir conversa")}</button>}
+                  {onAskChat && !String(profile.id).startsWith("demo-") && <button type="button" className="nk-button nk-button--wine" disabled={askingChat} onClick={askChat}><MessageCircle size={18}/> {askingChat ? (english ? "Sending…" : "A enviar…") : (english ? "Request a chat" : "Pedir para conversar")}</button>}
               <button
                 type="button"
                 className={`nk-button nk-button--quiet ${interestActive ? "is-active" : ""}`}
