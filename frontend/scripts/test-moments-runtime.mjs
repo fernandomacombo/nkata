@@ -12,10 +12,11 @@ test('Moment request sends caption and persisted appearance; returns server mome
     assert.equal(options.body.get('caption'), 'DIA_TRANQUILO');
     assert.equal(options.body.get('theme'), 'sand');
     assert.equal(options.body.get('font'), 'italic');
+    assert.equal(options.body.get('visibilidade'), 'MATCHES');
     return new Response(JSON.stringify({ id: 1, text: 'Um dia tranquilo por aqui.', theme: 'sand', font: 'italic' }), { status: 201, headers: { 'content-type': 'application/json' } });
   };
   try {
-    const moment = await api.createMoment({ caption: 'DIA_TRANQUILO', theme: 'sand', font: 'italic' });
+    const moment = await api.createMoment({ caption: 'DIA_TRANQUILO', theme: 'sand', font: 'italic', visibility: 'MATCHES' });
     assert.equal(moment.id, 1);
     assert.equal(moment.text, 'Um dia tranquilo por aqui.');
   } finally { globalThis.fetch = oldFetch; globalThis.document = oldDocument; }

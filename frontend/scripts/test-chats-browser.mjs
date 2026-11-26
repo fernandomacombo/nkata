@@ -15,6 +15,7 @@ import ChatsPage from "/src/pages/ChatsPage.jsx";
 import MemberHomePage from "/src/pages/MemberHomePage.jsx";
 import MomentWindows from "/src/components/moments/MomentWindows.jsx";
 import AutoplayMomentViewer from "/src/components/moments/AutoplayMomentViewer.jsx";
+import MomentsPage from "/src/pages/MomentsPage.jsx";
 import DiscoverPage from "/src/pages/DiscoverPage.jsx";
 import ProfileDetailPage from "/src/pages/ProfileDetailPage.jsx";
 import HeartLoader from "/src/components/HeartLoader.jsx";
@@ -61,7 +62,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("windowviewer") ? <WindowViewerHarness/> : new URLSearchParams(window.location.search).has("windows") ? <WindowsHarness/> : new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
+createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("momentstudio") ? <MomentsPage/> : new URLSearchParams(window.location.search).has("windowviewer") ? <WindowViewerHarness/> : new URLSearchParams(window.location.search).has("windows") ? <WindowsHarness/> : new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -145,6 +146,28 @@ try {
    assert.equal(await wviewer.getByLabel("Perfil do momento").textContent(),"Pessoa 2");
    assert.equal(viewerErrors.length,0,viewerErrors.join("; "));
    await wviewer.close();
+   const studio=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   const studioErrors=[];studio.on("pageerror",e=>studioErrors.push(e.message));
+   let submitted=null;
+   await studio.route("**/api/momentos/",async route=>{
+     if(route.request().method()==="POST"){submitted=route.request().postData();return route.fulfill({json:{moment:{id:90,moderation_status:"PENDENTE",media_type:"TEXTO"},message:"Enviado"}});}
+     return route.fulfill({json:{results:[],review_items:[],capabilities:{media_enabled:false}}});
+   });
+   await studio.goto("http://127.0.0.1:5178/"+html+"?momentstudio=1");
+   await studio.getByRole("button",{name:"Novo Momento",exact:true}).click();
+   await studio.getByRole("button",{name:"Romântico",exact:true}).click();
+   assert.equal(await studio.getByLabel("Frase do Momento").inputValue(),"CONHECER_COM_CALMA");
+   await studio.getByRole("button",{name:"Noite",exact:true}).click();
+   await studio.getByRole("button",{name:/Itálica/}).click();
+   await studio.getByRole("button",{name:"Apenas matches",exact:true}).click();
+   assert.equal(await studio.getByRole("button",{name:/Adicionar foto ou vídeo/}).isDisabled(),true);
+   assert.ok(await studio.locator(".nk-janelas-studio__canvas").evaluate(el=>el.classList.contains("nk-moment-theme-midnight")&&el.classList.contains("nk-moment-font-italic")));
+   assert.ok(await studio.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
+   await studio.getByRole("button",{name:"Publicar",exact:true}).click();
+   await studio.getByText("Enviado",{exact:true}).waitFor();
+   assert.match(submitted,/CONHECER_COM_CALMA/);assert.match(submitted,/MATCHES/);assert.match(submitted,/midnight/);assert.match(submitted,/italic/);
+   assert.equal(studioErrors.length,0,studioErrors.join("; "));
+   await studio.close();
    for (const width of [375,1366]) {
      const discovery=await browser.newPage({viewport:{width,height:820},reducedMotion:"reduce"});
      const discoveryErrors=[];
