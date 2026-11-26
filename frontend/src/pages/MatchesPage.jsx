@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import Presence from "../components/profiles/Presence.jsx";
 import { useEffect, useState } from "react";
 import {
@@ -141,14 +142,7 @@ export default function MatchesPage({
         )}
 
         {loading ? (
-          <div className="nk-match-list" aria-label={english ? "Loading matches" : "A carregar matches"}>
-            {[1, 2, 3].map((item) => (
-              <div className="nk-match-skeleton" key={item}>
-                <span />
-                <div><em /><em /><em /></div>
-              </div>
-            ))}
-          </div>
+          <HeartLoader page="matches"/>
         ) : matches.length ? (
           <div className="nk-match-list">
             {matches.map((match) => (
