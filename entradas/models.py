@@ -61,10 +61,13 @@ class PedidoEntrada(models.Model):
     )
     # As fotografias adicionais do registo começam privadas.
     foto_extra_1_visivel = models.BooleanField(default=False)
+    foto_extra_1_motivo = models.CharField(max_length=500, blank=True, default="")
     foto_extra_1_estado = models.CharField(max_length=12, default="PENDENTE", choices=[("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("REJEITADO", "Rejeitado")])
     foto_extra_2_visivel = models.BooleanField(default=False)
+    foto_extra_2_motivo = models.CharField(max_length=500, blank=True, default="")
     foto_extra_2_estado = models.CharField(max_length=12, default="PENDENTE", choices=[("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("REJEITADO", "Rejeitado")])
     foto_extra_3_visivel = models.BooleanField(default=False)
+    foto_extra_3_motivo = models.CharField(max_length=500, blank=True, default="")
     foto_extra_3_estado = models.CharField(max_length=12, default="PENDENTE", choices=[("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("REJEITADO", "Rejeitado")])
     bi_frente = models.ImageField(
         storage=identity_media_storage,
@@ -134,6 +137,8 @@ class QuestionarioEntrada(models.Model):
     sobre_si = models.TextField(help_text="Fale um pouco sobre si.")
     o_que_valoriza = models.TextField(help_text="O que mais valoriza numa relação?")
     o_que_nao_aceita = models.TextField(help_text="O que não aceita numa relação?")
+    regras_versao = models.CharField(max_length=20, blank=True, default="")
+    regras_aceites_em = models.DateTimeField(null=True, blank=True)
     aceita_regras = models.BooleanField(default=False)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
@@ -171,6 +176,7 @@ class PerfilNKATA(models.Model):
     destaque_publico = models.BooleanField(default=False, db_index=True)
     destaque_publico_consentido_em = models.DateTimeField(null=True, blank=True)
     foto_destaque_publico_aprovada = models.BooleanField(default=False)
+    foto_destaque_publico_motivo = models.CharField(max_length=500, blank=True, default="")
     foto_destaque_publico_estado = models.CharField(max_length=12, default="PENDENTE", choices=[("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("REJEITADO", "Rejeitado")])
     destaque_publico_exibicoes = models.PositiveBigIntegerField(default=0, editable=False)
     destaque_publico_ultima_exibicao_em = models.DateTimeField(

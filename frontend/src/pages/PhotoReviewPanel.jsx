@@ -90,7 +90,7 @@ export default function PhotoReviewPanel() {
       onCancel={(event) => { if (busy) event.preventDefault(); }}>
       {rejection && <form onSubmit={(event) => { event.preventDefault(); review(rejection, "reject"); }}>
         <h3 id="nk-reject-title">Rejeitar fotografia de {rejection.name}</h3>
-        <label htmlFor="nk-reject-reason">Motivo da rejeição</label>
+        <label htmlFor="nk-reject-reason">Motivo da rejeição (visível para o membro)</label>
         <textarea id="nk-reject-reason" value={reason} onChange={(event) => setReason(event.target.value)}
           required maxLength={500} rows={4} autoFocus />
         {error && <p role="alert">{error}</p>}

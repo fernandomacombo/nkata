@@ -651,11 +651,15 @@ export default function App() {
       setNotifications((current) => current.map((item) => (
         item.id === notification.id ? { ...item, read: true } : item
       )));
-      markNotificationRead(notification.id).catch(() => {
+      await markNotificationRead(notification.id).catch(() => {
         loadNotifications({ silent: true });
       });
     }
 
+    if (Number.isInteger(notification.photoSlot)) {
+      window.location.assign(`/conta/?section=profile#fotografia-${notification.photoSlot}`);
+      return;
+    }
     if (notification.type === "PEDIDO_CHAT" || notification.conversationId) {
       setActivePage("chats", { conversationId: notification.conversationId, requestId: notification.requestId });
       return;

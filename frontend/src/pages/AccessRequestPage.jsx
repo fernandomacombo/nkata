@@ -1,3 +1,4 @@
+import CommunityRules from "../components/CommunityRules.jsx";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -385,6 +386,7 @@ export default function AccessRequestPage({ onBack, onFinish, onTrack }) {
                   <article><span>Imagens</span><strong>2 fotografias</strong></article>
                 </div>
 
+                <CommunityRules />
                 <label className={`nk-access-consent ${fieldError(errors, "aceita_verificacao") ? "has-error" : ""}`}>
                   <input type="checkbox" checked={values.aceita_verificacao} onChange={(event) => updateValue("aceita_verificacao", event.target.checked)} />
                   <span>

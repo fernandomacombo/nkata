@@ -28,6 +28,12 @@ export default function RegistrationPhotosManager({ language = "PT" }) {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!loading && /^#fotografia-[0-3]$/.test(window.location.hash)) {
+      document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "center" });
+    }
+  }, [loading]);
+
   async function upload(slot, file) {
     if (!file) return;
     setBusy(String(slot)); setError(""); setNotice("");
@@ -73,13 +79,14 @@ export default function RegistrationPhotosManager({ language = "PT" }) {
     {notice && <p role="status" className="nk-photo__success">{notice}</p>}
     {loading && <p>A carregar...</p>}
     <div className="nk-photo__grid">
-      {items.map(item => <article className="nk-photo__card" key={item.slot}>
+      {items.map(item => <article id={`fotografia-${item.slot}`} className="nk-photo__card" key={item.slot}>
         <div className="nk-photo__image">
           {item.exists ? <img src={`${API_BASE_URL}${item.media_url}?v=${item.version || 0}`} alt={`Fotografia ${item.slot + 1}`} loading="lazy" /> : <ImagePlus size={32}/>}
         </div>
         <div><strong>Fotografia {item.slot + 1}</strong><small>{item.exists ? (english ? item.review_status : statusLabel[item.review_status] || "A aguardar revisão") : "Sem fotografia"}</small><span>{item.visible ? "Visível para membros" : "Privada"}</span></div>
+        {item.review_status === "REJEITADO" && <p role="status">{item.rejection_reason} {english ? "Choose Replace to submit another photo." : "Escolha Substituir para enviar outra fotografia."}</p>}
         <div className="nk-photo__actions">
-          <label className="nk-photo__upload"><ImagePlus size={15}/> {item.exists ? "Substituir" : "Adicionar"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onChange={e => {const file=e.target.files?.[0];upload(item.slot,file);e.target.value="";}}/></label>
+          <label className="nk-photo__upload"><ImagePlus size={15}/> {item.exists ? (english ? "Replace" : "Substituir") : (english ? "Add" : "Adicionar")}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onChange={e => {const file=e.target.files?.[0];upload(item.slot,file);e.target.value="";}}/></label>
           {item.exists && <button type="button" onClick={() => setVisibility(item)} disabled={Boolean(busy) || (!item.visible && item.review_status !== "APROVADO")}><span>{item.visible ? <EyeOff size={15}/> : <Eye size={15}/>}</span>{item.visible ? "Ocultar" : "Mostrar"}</button>}
           {item.exists && <button type="button" onClick={() => remove(item)} disabled={Boolean(busy)}><Trash2 size={15}/> Eliminar</button>}
         </div>

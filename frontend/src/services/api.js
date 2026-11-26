@@ -111,6 +111,8 @@ function normalizeAccount(account) {
     destaque_publico_consentido_em: account.destaque_publico_consentido_em || null,
     destaque_publico_exibicoes: Number(account.destaque_publico_exibicoes || 0),
     foto_destaque_publico_aprovada: Boolean(account.foto_destaque_publico_aprovada),
+    foto_destaque_publico_estado: account.foto_destaque_publico_estado,
+    foto_destaque_publico_motivo: account.foto_destaque_publico_motivo,
     destaque_publico_elegivel: Boolean(account.destaque_publico_elegivel),
   };
 }
@@ -189,6 +191,7 @@ function normalizeNotification(notification) {
     text: notification.texto || "",
     read: Boolean(notification.lida),
     profile: normalizeProfile(notification.perfil),
+    photoSlot: notification.photo_slot ?? null,
     requestId: notification.request_id || null,
     conversationId: notification.conversation_id || null,
     matchId: notification.match_id || null,
