@@ -213,7 +213,7 @@ function ReviewItem({ moment, onDelete, english }) {
   );
 }
 
-export default function MomentsPage({ onOpenProfile, userId }) {
+export default function MomentsPage({ onOpenProfile, userId, openComposerInitially = false, onComposerRequestHandled }) {
   const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -225,7 +225,8 @@ export default function MomentsPage({ onOpenProfile, userId }) {
   const composerRef = useRef(null);
   const [media, setMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState("");
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(openComposerInitially);
+  useEffect(()=>{if(openComposerInitially)onComposerRequestHandled?.();},[openComposerInitially,onComposerRequestHandled]);
   useEffect(() => {
     if (composerOpen) composerRef.current?.scrollIntoView({block:"start",behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
   }, [composerOpen]);

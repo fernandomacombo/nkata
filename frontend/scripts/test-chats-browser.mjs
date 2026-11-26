@@ -371,9 +371,17 @@ try {
       results:[],review_items:[],capabilities:{publish_media_enabled:true,credit_mode:true,
       publication_offer:{free_photo_remaining:1,photo_cost:0,video_cost:5,balance:55,spending_enabled:true}}
     }}));
+    await feed.route("**/api/momentos/",route=>route.fulfill({json:{results:[{id:301,profile:{id:44,nome_publico:"Janela de teste"},moderation_status:"APROVADO",expires_at:new Date(Date.now()+3600000).toISOString(),media_type:"TEXTO",text:"Momento do Início",visibility:"TODOS",visibility_label:"Todos os membros"},{id:302,profile:{id:45,nome_publico:"Janela expirada"},moderation_status:"APROVADO",expires_at:new Date(Date.now()-1000).toISOString(),media_type:"TEXTO",text:"Expirado"}]}}));
+    await feed.route("**/api/momentos/*/reacoes/",route=>route.fulfill({json:{reactions:{enabled:true,options:[],counts:{}}}}));
     await feed.route("**/api/presenca/", route=>route.fulfill({json:{perfis:{}}}));
     await feed.goto("http://127.0.0.1:5178/"+html+"?feed=1");
     await feed.getByRole("heading",{name:"Pergunta de teste"}).waitFor();
+    await feed.getByRole("button",{name:"Abrir momento de Janela de teste"}).waitFor();
+    assert.equal(await feed.getByRole("button",{name:"Abrir momento de Janela expirada"}).count(),0);
+    await feed.getByRole("button",{name:"Abrir momento de Janela de teste"}).click();
+    await feed.getByRole("dialog",{name:"Momento de Janela de teste"}).waitFor();
+    await feed.getByRole("button",{name:"Fechar Momento"}).click();
+    assert.ok(await feed.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"Home Windows must fit viewport");
     assert.equal(await feed.locator(".nk-poll-share").count(),0);
     assert.equal(await feed.locator("#nk-feed-composer").isVisible(),false,"Composer must not appear until plus is pressed");
     await feed.getByRole("button",{name:"Nova publicação",exact:true}).click();
