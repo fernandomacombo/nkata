@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Eye, EyeOff, ImagePlus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, ImagePlus, RefreshCw, Trash2 } from "lucide-react";
 import { API_BASE_URL, request } from "../../services/api.js";
 import "../../profile-photos.css";
 
@@ -40,6 +40,7 @@ export default function RegistrationPhotosManager({ language = "PT" }) {
     try {
       const form = new FormData();
       form.append("foto", file);
+      form.append("publicar_fotos_perfil", "on");
       const result = await request(`/api/minha-conta/fotografias/${slot}/`, { method: "POST", body: form });
       setItems(result.results || []);
       setNotice(english ? "New photo submitted for approval." : "Nova fotografia enviada para aprovação.");
@@ -51,10 +52,10 @@ export default function RegistrationPhotosManager({ language = "PT" }) {
     setBusy(String(item.slot)); setError(""); setNotice("");
     try {
       const result = await request(`/api/minha-conta/fotografias/${item.slot}/`, {
-        method: "PATCH", body: { visible: !item.visible },
+        method: "PATCH", body: { visible: true },
       });
       setItems(result.results || []);
-      setNotice(item.visible ? "Fotografia ocultada." : "Fotografia visível para outros membros.");
+      setNotice(english ? "Photo added to your profile." : "Fotografia adicionada ao seu perfil.");
     } catch (e) { setError(e.message); }
     finally { setBusy(""); }
   }
@@ -72,7 +73,7 @@ export default function RegistrationPhotosManager({ language = "PT" }) {
 
   return <section className="nk-registration-photos">
     <header className="nk-registration-photos__heading">
-      <div><h2>{english ? "Registration photos" : "Fotografias do perfil"}</h2><p>{english ? "Manage the additional photos you submitted when joining. Photos are private by default." : "Veja as fotografias adicionais do registo. Por defeito são privadas; a publicação exige aprovação da equipa."}</p></div>
+      <div><h2>{english ? "Registration photos" : "Fotografias do perfil"}</h2><p>{english ? "Photos added here appear on your profile after approval." : "As fotografias que adicionar aqui serão apresentadas no seu perfil após aprovação."}</p></div>
       <button type="button" onClick={load} disabled={loading} title="Atualizar"><RefreshCw size={17}/></button>
     </header>
     {error && <p role="alert" className="nk-photo__error">{error}</p>}
@@ -83,11 +84,11 @@ export default function RegistrationPhotosManager({ language = "PT" }) {
         <div className="nk-photo__image">
           {item.exists ? <img src={`${API_BASE_URL}${item.media_url}?v=${item.version || 0}`} alt={`Fotografia ${item.slot + 1}`} loading="lazy" /> : <ImagePlus size={32}/>}
         </div>
-        <div><strong>Fotografia {item.slot + 1}</strong><small>{item.exists ? (english ? item.review_status : statusLabel[item.review_status] || "A aguardar revisão") : "Sem fotografia"}</small><span>{item.visible ? "Visível para membros" : "Privada"}</span></div>
+        <div><strong>Fotografia {item.slot + 1}</strong><small>{item.exists ? (english ? item.review_status : statusLabel[item.review_status] || "A aguardar revisão") : "Sem fotografia"}</small><span>{item.visible ? (english ? "On your profile" : "No seu perfil") : item.exists && item.review_status === "APROVADO" ? (english ? "Not yet on your profile" : "Ainda não publicada") : ""}</span></div>
         {item.review_status === "REJEITADO" && <p role="status">{item.rejection_reason} {english ? "Choose Replace to submit another photo." : "Escolha Substituir para enviar outra fotografia."}</p>}
         <div className="nk-photo__actions">
           <label className="nk-photo__upload"><ImagePlus size={15}/> {item.exists ? (english ? "Replace" : "Substituir") : (english ? "Add" : "Adicionar")}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onChange={e => {const file=e.target.files?.[0];upload(item.slot,file);e.target.value="";}}/></label>
-          {item.exists && <button type="button" onClick={() => setVisibility(item)} disabled={Boolean(busy) || (!item.visible && item.review_status !== "APROVADO")}><span>{item.visible ? <EyeOff size={15}/> : <Eye size={15}/>}</span>{item.visible ? "Ocultar" : "Mostrar"}</button>}
+          {item.exists && item.review_status === "APROVADO" && !item.publication_authorized && <button type="button" onClick={() => setVisibility(item)} disabled={Boolean(busy)}><Eye size={15}/>{english ? "Add to profile" : "Adicionar ao perfil"}</button>}
           {item.exists && <button type="button" onClick={() => remove(item)} disabled={Boolean(busy)}><Trash2 size={15}/> Eliminar</button>}
         </div>
       </article>)}
