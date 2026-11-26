@@ -21,3 +21,18 @@ test('Moment request sends caption and persisted appearance; returns server mome
     assert.equal(moment.text, 'Um dia tranquilo por aqui.');
   } finally { globalThis.fetch = oldFetch; globalThis.document = oldDocument; }
 });
+
+const seenApi = await import('../src/services/seenMoments.js');
+test('Moment viewing memory is isolated, expires, and stores no content',()=>{
+ const now=1700000000000, data=new Map(), storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)};
+ const a=seenApi.seenStorageKey(1),b=seenApi.seenStorageKey(2);
+ assert.equal(seenApi.seenStorageKey(null),null);
+ seenApi.writeSeenMoments(storage,a,{"10":now+1000,"11":now-1,"bad":now+1000,"12":now+86400001},now);
+ assert.deepEqual(seenApi.readSeenMoments(storage,a,now),{"10":now+1000});
+ assert.deepEqual(seenApi.readSeenMoments(storage,b,now),{});
+ seenApi.writeSeenMoments(storage,a,{"13":now+2000},now);
+ assert.deepEqual(seenApi.readSeenMoments(storage,a,now+1001),{"13":now+2000});
+ assert.deepEqual(seenApi.readSeenMoments({getItem:()=>"{broken"},a,now),{});
+ assert.deepEqual(seenApi.writeSeenMoments(null,a,{"10":now+1000},now),{"10":now+1000});
+ assert.equal(Object.keys(seenApi.pruneSeenMoments(Object.fromEntries(Array.from({length:600},(_,i)=>[i,now+1000+i])),now)).length,500);
+});

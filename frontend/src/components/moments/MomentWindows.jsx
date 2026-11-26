@@ -18,9 +18,9 @@ const inspirations = [
 ];
 
 function WindowCard({ group, index, seen, english, onOpen }) {
-  const moment = group.moments.find(item => !seen.has(item.id)) || group.moments[0];
+  const moment = group.moments.find(item => !seen.has(Number(item.id))) || group.moments[0];
   const Accent = accents[index % accents.length];
-  const allSeen = group.moments.every(item => seen.has(item.id));
+  const allSeen = group.mine || group.moments.every(item => seen.has(Number(item.id)));
   const tall = index % 4 === 0 || index % 4 === 3;
   return <button type="button" className={"nk-janelas__window " + (tall ? "is-tall" : "is-short") + (allSeen ? " is-seen" : "")}
     aria-label={(english ? "Open Moment by " : "Abrir momento de ") + group.profile.nome_publico} onClick={() => onOpen(group, moment.id)}>
@@ -40,8 +40,8 @@ function WindowCard({ group, index, seen, english, onOpen }) {
 export default function MomentWindows({groups, english, composerOpen, onCreate, onOpen, seen = new Set()}) {
   const active = activeMomentGroups(groups);
   const [filter, setFilter] = useState("all");
-  const unseen = active.flatMap(group => group.mine ? [] : group.moments.filter(moment => !seen.has(moment.id)).map(moment => ({group, id:moment.id})));
-  const visible = active.filter(group => filter === "all" || (filter === "new" ? group.moments.some(m => !seen.has(m.id)) : group.moments.every(m => seen.has(m.id))));
+  const unseen = active.flatMap(group => group.mine ? [] : group.moments.filter(moment => !seen.has(Number(moment.id))).map(moment => ({group, id:moment.id})));
+  const visible = active.filter(group => filter === "all" || (!group.mine && (filter === "new" ? group.moments.some(m => !seen.has(Number(m.id))) : group.moments.every(m => seen.has(Number(m.id))))));
   const inspiration = useMemo(() => inspirations[Math.floor(Date.now()/86400000) % inspirations.length][english ? 1 : 0], [english]);
   const left = visible.filter((_,i) => i%2===0);
   const right = visible.filter((_,i) => i%2===1);

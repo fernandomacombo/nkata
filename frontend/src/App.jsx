@@ -838,7 +838,7 @@ export default function App() {
       )}
 
       {activePage === "moments" && memberAuthenticated && (
-        <MomentsPage onOpenProfile={handleOpenProfile} />
+        <MomentsPage key={sessionIdentity} userId={session?.user?.id} onOpenProfile={handleOpenProfile} />
       )}
 
       {activePage === "saved" && (

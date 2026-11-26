@@ -16,6 +16,7 @@ import MemberHomePage from "/src/pages/MemberHomePage.jsx";
 import MomentWindows from "/src/components/moments/MomentWindows.jsx";
 import AutoplayMomentViewer from "/src/components/moments/AutoplayMomentViewer.jsx";
 import MomentsPage from "/src/pages/MomentsPage.jsx";
+import useSeenMoments from "/src/hooks/useSeenMoments.js";
 import DiscoverPage from "/src/pages/DiscoverPage.jsx";
 import ProfileDetailPage from "/src/pages/ProfileDetailPage.jsx";
 import HeartLoader from "/src/components/HeartLoader.jsx";
@@ -37,6 +38,11 @@ function WindowsHarness(){
  const [seen,setSeen]=useState(new Set()),[opened,setOpened]=useState(""),[composer,setComposer]=useState(false);
  const groups=Array.from({length:4},(_,i)=>({profile:{id:i+1,nome_publico:"Janela "+(i+1)},moments:[{id:i+20,moderation_status:i===3?"PENDENTE":"APROVADO",expires_at:new Date(Date.now()+(i===2?-1000:3600000)).toISOString(),media_type:"TEXTO",text:"Frase "+i}]}));
  return <main><output aria-label="Janela aberta">{opened}</output><MomentWindows groups={groups} english={false} seen={seen} composerOpen={composer} onCreate={()=>setComposer(x=>!x)} onOpen={(group,id)=>{setSeen(s=>new Set([...s,id]));setOpened(group.profile.nome_publico)}}/></main>;
+}
+function SeenMemoryHarness(){
+ const [user,setUser]=useState(101);
+ const {seen,markSeen}=useSeenMoments(user);
+ return <main><button onClick={()=>setUser(101)}>Membro A</button><button onClick={()=>setUser(102)}>Membro B</button><button onClick={()=>markSeen({id:70,moderation_status:"APROVADO",expires_at:new Date(Date.now()+3600000).toISOString()})}>Ver 70</button><output aria-label="Vistos">{Array.from(seen).join(",")}</output></main>;
 }
 function WindowViewerHarness(){
  const [opened,setOpened]=useState(true),[profile,setProfile]=useState("");
@@ -62,7 +68,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("momentstudio") ? <MomentsPage/> : new URLSearchParams(window.location.search).has("windowviewer") ? <WindowViewerHarness/> : new URLSearchParams(window.location.search).has("windows") ? <WindowsHarness/> : new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
+createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("seenmemory") ? <SeenMemoryHarness/> : new URLSearchParams(window.location.search).has("momentstudio") ? <MomentsPage/> : new URLSearchParams(window.location.search).has("windowviewer") ? <WindowViewerHarness/> : new URLSearchParams(window.location.search).has("windows") ? <WindowsHarness/> : new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -168,6 +174,17 @@ try {
    assert.match(submitted,/CONHECER_COM_CALMA/);assert.match(submitted,/MATCHES/);assert.match(submitted,/midnight/);assert.match(submitted,/italic/);
    assert.equal(studioErrors.length,0,studioErrors.join("; "));
    await studio.close();
+   const memory=await browser.newPage({viewport:{width:375,height:812}});
+   await memory.goto("http://127.0.0.1:5178/"+html+"?seenmemory=1");
+   await memory.getByRole("button",{name:"Ver 70"}).click();
+   await memory.waitForFunction(()=>document.querySelector('[aria-label="Vistos"]').textContent==="70");
+   await memory.reload();
+   await memory.waitForFunction(()=>document.querySelector('[aria-label="Vistos"]')?.textContent==="70");
+   await memory.getByRole("button",{name:"Membro B"}).click();
+   await memory.waitForFunction(()=>document.querySelector('[aria-label="Vistos"]').textContent==="");
+   await memory.getByRole("button",{name:"Membro A"}).click();
+   await memory.waitForFunction(()=>document.querySelector('[aria-label="Vistos"]').textContent==="70");
+   await memory.close();
    for (const width of [375,1366]) {
      const discovery=await browser.newPage({viewport:{width,height:820},reducedMotion:"reduce"});
      const discoveryErrors=[];

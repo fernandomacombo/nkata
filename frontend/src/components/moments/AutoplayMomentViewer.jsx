@@ -202,7 +202,12 @@ export default function AutoplayMomentViewer({
     setMomentIndex(initialMomentIndex);
   }, [safeInitialGroup, initialMomentIndex]);
 
-  useEffect(() => { if (moment?.id && (!windowsMode || Date.parse(moment.expires_at) > Date.now())) onViewed?.(moment.id); }, [moment?.id, onViewed, windowsMode]);
+  useEffect(() => {
+    if(!onViewed || !moment?.id || moment.mine || !(Date.parse(moment.expires_at)>Date.now()))return undefined;
+    const delay=windowsMode && !window.matchMedia("(prefers-reduced-motion: reduce)").matches?650:0;
+    const timer=window.setTimeout(()=>{if(Date.parse(moment.expires_at)>Date.now())onViewed(moment);},delay);
+    return()=>window.clearTimeout(timer);
+  }, [moment, onViewed, windowsMode]);
 
   useEffect(() => { setBurst(null); }, [moment?.id]);
 

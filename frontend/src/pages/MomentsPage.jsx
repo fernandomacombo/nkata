@@ -21,6 +21,7 @@ import {
 import AutoplayMomentViewer from "../components/moments/AutoplayMomentViewer.jsx";
 import MomentWindows, { activeMomentGroups } from "../components/moments/MomentWindows.jsx";
 import MomentStudio from "../components/moments/MomentStudio.jsx";
+import useSeenMoments from "../hooks/useSeenMoments.js";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import { createMoment, deleteMoment, fetchMoments, groupMomentsByProfile, MOMENTS_REFRESH_MS } from "../services/momentsApi.js";
@@ -212,7 +213,7 @@ function ReviewItem({ moment, onDelete, english }) {
   );
 }
 
-export default function MomentsPage({ onOpenProfile }) {
+export default function MomentsPage({ onOpenProfile, userId }) {
   const english = useInterfaceLanguage() === "EN";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -231,8 +232,7 @@ export default function MomentsPage({ onOpenProfile }) {
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState("");
   const [viewerGroup, setViewerGroup] = useState(null);
-  const [seenMoments, setSeenMoments] = useState(() => new Set());
-  const markSeen = useCallback(id => setSeenMoments(old => old.has(id) ? old : new Set([...old, id])), []);
+  const {seen:seenMoments,markSeen}=useSeenMoments(userId);
   const closeViewer = useCallback(() => setViewerGroup(null), []);
   const fileRef = useRef(null);
   const activeRequest = useRef(null);
