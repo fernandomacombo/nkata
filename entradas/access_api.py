@@ -327,6 +327,12 @@ def api_pedir_acesso(request):
         }, status=400)
 
     form.instance.verificacao_apos_entrada = deferred_identity
+    # The new registration screen explicitly identifies these as profile photos.
+    # Old clients without this acknowledgement keep the original private default.
+    if data.get("publicar_fotos_perfil") == "on":
+        for slot in (1, 2, 3):
+            if getattr(form.instance, f"foto_extra_{slot}"):
+                setattr(form.instance, f"foto_extra_{slot}_visivel", True)
     try:
         pedido = save_limited_request(form)
     except ValidationError as error:
