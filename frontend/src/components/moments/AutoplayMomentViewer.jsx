@@ -149,6 +149,8 @@ export default function AutoplayMomentViewer({
   const timerRef = useRef(null);
   const intervalRef = useRef(null);
   const currentMomentIdRef = useRef(null);
+  const gestureStart = useRef(null);
+  const [burst, setBurst] = useState(null);
 
   const group = groups[groupIndex] || null;
   const moments = group?.moments || [];
@@ -200,7 +202,9 @@ export default function AutoplayMomentViewer({
     setMomentIndex(initialMomentIndex);
   }, [safeInitialGroup, initialMomentIndex]);
 
-  useEffect(() => { if (moment?.id) onViewed?.(moment.id); }, [moment?.id, onViewed]);
+  useEffect(() => { if (moment?.id && (!windowsMode || Date.parse(moment.expires_at) > Date.now())) onViewed?.(moment.id); }, [moment?.id, onViewed, windowsMode]);
+
+  useEffect(() => { setBurst(null); }, [moment?.id]);
 
   useEffect(() => {
     if (!windowsMode || !moment?.expires_at) return undefined;
@@ -216,17 +220,18 @@ export default function AutoplayMomentViewer({
 
     if (!moment || moment.media_type === "VIDEO") return undefined;
 
-    const startedAt = Date.now();
+    const revealDelay = windowsMode && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 650 : 0;
+    const startedAt = Date.now() + revealDelay;
     intervalRef.current = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       const elapsed = Date.now() - startedAt;
-      setProgress(Math.min(100, (elapsed / STILL_DURATION_MS) * 100));
+      setProgress(Math.max(0, Math.min(100, (elapsed / STILL_DURATION_MS) * 100)));
     }, 80);
 
-    timerRef.current = window.setTimeout(goNext, STILL_DURATION_MS);
+    timerRef.current = window.setTimeout(goNext, STILL_DURATION_MS + revealDelay);
 
     return clearStillTimer;
-  }, [clearStillTimer, goNext, moment?.id, moment?.media_type]);
+  }, [clearStillTimer, goNext, moment?.id, moment?.media_type, windowsMode]);
 
   useEffect(() => {
     if (!moment?.id) return undefined;
@@ -280,6 +285,7 @@ export default function AutoplayMomentViewer({
       const result = await toggleMomentReaction(reactionMomentId, reactionType);
       if (currentMomentIdRef.current === reactionMomentId) {
         setReactions(result.reactions || null);
+        if (windowsMode && result.reactions?.mine === reactionType) setBurst({ type: reactionType, key: Date.now() });
       }
     } catch (requestError) {
       if (currentMomentIdRef.current === reactionMomentId) {
@@ -292,7 +298,7 @@ export default function AutoplayMomentViewer({
     }
   };
 
-  if (!moment || !group) return null;
+  if (!moment || !group || (windowsMode && !(Date.parse(moment.expires_at) > Date.now()))) return null;
 
   return createPortal(
     <div
@@ -301,7 +307,7 @@ export default function AutoplayMomentViewer({
       aria-modal="true"
       aria-label={`${english ? "Moment by" : "Momento de"} ${moment.profile.nome_publico}`}
     >
-      <div className="nk-moment-viewer__frame">
+      <div className={"nk-moment-viewer__frame" + (windowsMode && !moment.mine && onOpenProfile ? " nk-janelas-has-cta" : "")}>
         <div className="nk-moment-viewer__progress" aria-hidden="true">
           {moments.map((item, itemIndex) => {
             const itemProgress = itemIndex < momentIndex
@@ -348,7 +354,12 @@ export default function AutoplayMomentViewer({
           </div>
         </header>
 
-        <div key={windowsMode ? moment.id : undefined} className={`nk-moment-viewer__content is-${moment.media_type.toLowerCase()} nk-moment-theme-${moment.theme || "wine"} nk-moment-font-${moment.font || "serif"}`}>
+        <div key={windowsMode ? moment.id : undefined} className={`nk-moment-viewer__content is-${moment.media_type.toLowerCase()} nk-moment-theme-${moment.theme || "wine"} nk-moment-font-${moment.font || "serif"}`}
+          onPointerDown={windowsMode ? event => { if (!event.target.closest("button, video")) gestureStart.current = { x:event.clientX, y:event.clientY }; } : undefined}
+          onPointerCancel={windowsMode ? () => {gestureStart.current = null;} : undefined}
+          onPointerUp={windowsMode ? event => {const start=gestureStart.current;gestureStart.current=null;if(!start)return;const dx=event.clientX-start.x,dy=event.clientY-start.y;if(Math.abs(dx)>55 && Math.abs(dx)>Math.abs(dy)*1.5){if(dx<0)goNext();else goPrevious();}} : undefined}>
+          {windowsMode && <div className="nk-janelas__reveal" aria-hidden="true"><span className="nk-janelas__door is-left"/><span className="nk-janelas__door is-right"/><span className="nk-janelas__seal"><Heart size={30} strokeWidth={1.5}/></span></div>}
+          {windowsMode && burst && <div className="nk-janelas__burst" key={burst.key} aria-hidden="true" onAnimationEnd={event=>{if(event.target===event.currentTarget)setBurst(null);}}>{Array.from({length:8},(_,i)=><span key={i} style={{"--jw-angle": (i*45)+"deg","--jw-distance": (65+i%3*24)+"px"}}><ReactionIcon type={burst.type} size={22}/></span>)}</div>}
           <MomentMedia
             moment={moment}
             onVideoProgress={setProgress}

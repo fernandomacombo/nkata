@@ -227,6 +227,7 @@ export default function MomentsPage({ onOpenProfile }) {
   const [viewerGroup, setViewerGroup] = useState(null);
   const [seenMoments, setSeenMoments] = useState(() => new Set());
   const markSeen = useCallback(id => setSeenMoments(old => old.has(id) ? old : new Set([...old, id])), []);
+  const closeViewer = useCallback(() => setViewerGroup(null), []);
   const fileRef = useRef(null);
   const activeRequest = useRef(null);
   const changingMoment = useRef(false);
@@ -495,7 +496,7 @@ export default function MomentsPage({ onOpenProfile }) {
           initialMomentIndex={viewerGroup.momentIndex}
           windowsMode
           onViewed={markSeen}
-          onClose={() => setViewerGroup(null)}
+          onClose={closeViewer}
           onDelete={handleDelete}
           onOpenProfile={(profile) => {
             setViewerGroup(null);

@@ -14,6 +14,7 @@ import {createRoot} from "react-dom/client";
 import ChatsPage from "/src/pages/ChatsPage.jsx";
 import MemberHomePage from "/src/pages/MemberHomePage.jsx";
 import MomentWindows from "/src/components/moments/MomentWindows.jsx";
+import AutoplayMomentViewer from "/src/components/moments/AutoplayMomentViewer.jsx";
 import DiscoverPage from "/src/pages/DiscoverPage.jsx";
 import ProfileDetailPage from "/src/pages/ProfileDetailPage.jsx";
 import HeartLoader from "/src/components/HeartLoader.jsx";
@@ -36,6 +37,11 @@ function WindowsHarness(){
  const groups=Array.from({length:4},(_,i)=>({profile:{id:i+1,nome_publico:"Janela "+(i+1)},moments:[{id:i+20,moderation_status:i===3?"PENDENTE":"APROVADO",expires_at:new Date(Date.now()+(i===2?-1000:3600000)).toISOString(),media_type:"TEXTO",text:"Frase "+i}]}));
  return <main><output aria-label="Janela aberta">{opened}</output><MomentWindows groups={groups} english={false} seen={seen} composerOpen={composer} onCreate={()=>setComposer(x=>!x)} onOpen={(group,id)=>{setSeen(s=>new Set([...s,id]));setOpened(group.profile.nome_publico)}}/></main>;
 }
+function WindowViewerHarness(){
+ const [opened,setOpened]=useState(true),[profile,setProfile]=useState("");
+ const [groups]=useState(()=>Array.from({length:2},(_,i)=>{const profile={id:i+1,nome_publico:"Pessoa "+(i+1)};return {profile,moments:[{id:50+i,profile,moderation_status:"APROVADO",expires_at:new Date(Date.now()+3600000).toISOString(),media_type:"TEXTO",text:"Frase "+i,visibility:"TODOS",visibility_label:"Todos os membros"}]};}));
+ return <main><output aria-label="Perfil do momento">{profile}</output>{opened&&<AutoplayMomentViewer groups={groups} windowsMode onClose={()=>setOpened(false)} onOpenProfile={p=>{setProfile(p.nome_publico);setOpened(false)}}/>}</main>;
+}
 function LoaderHarness(){
  const [context,setContext]=useState("profile");
  const [state,setState]=useState("loading");
@@ -55,7 +61,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("windows") ? <WindowsHarness/> : new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
+createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("windowviewer") ? <WindowViewerHarness/> : new URLSearchParams(window.location.search).has("windows") ? <WindowsHarness/> : new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -125,6 +131,20 @@ try {
    for(const width of [375,1366]){await windows.setViewportSize({width,height:812});assert.ok(await windows.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"Windows must fit viewport");}
    assert.equal(windowErrors.length,0,windowErrors.join("; "));
    await windows.close();
+   const wviewer=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
+   const viewerErrors=[];wviewer.on("pageerror",e=>viewerErrors.push(e.message));
+   await wviewer.route("**/api/momentos/*/reacoes/",route=>route.fulfill({json:{reactions:{enabled:true,options:[],counts:{}}}}));
+   await wviewer.goto("http://127.0.0.1:5178/"+html+"?windowviewer=1");
+   await wviewer.getByRole("dialog",{name:"Momento de Pessoa 1"}).waitFor();
+   assert.equal(await wviewer.locator(".nk-janelas__reveal").evaluate(el=>getComputedStyle(el).display),"none");
+   const cta=wviewer.getByRole("button",{name:"Conhecer Pessoa 1"});
+   assert.ok(await cta.evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.height>=40;}),"CTA must fit viewport");
+   await wviewer.keyboard.press("ArrowRight");
+   await wviewer.getByRole("dialog",{name:"Momento de Pessoa 2"}).waitFor();
+   await wviewer.getByRole("button",{name:"Conhecer Pessoa 2"}).click();
+   assert.equal(await wviewer.getByLabel("Perfil do momento").textContent(),"Pessoa 2");
+   assert.equal(viewerErrors.length,0,viewerErrors.join("; "));
+   await wviewer.close();
    for (const width of [375,1366]) {
      const discovery=await browser.newPage({viewport:{width,height:820},reducedMotion:"reduce"});
      const discoveryErrors=[];
