@@ -85,6 +85,7 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
             "status",
             "visivel",
             "tema_perfil",
+            "criado_em",
         ]
 
     def get_foto_principal(self, obj):

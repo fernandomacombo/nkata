@@ -39,6 +39,10 @@ export function PresenceProvider({ children, member, identity, page }) {
   return <PresenceContext.Provider value={snapshot}>{children}</PresenceContext.Provider>;
 }
 
+export function usePresenceSnapshot() {
+  return useContext(PresenceContext);
+}
+
 export function usePresence(profileId, english = false) {
   const age = useContext(PresenceContext)[profileId];
   let label = "";
