@@ -128,7 +128,7 @@ function ProfileGallery({ items, personName, english }) {
   );
 }
 
-function ProfileMoments({ items = [], english }) {
+function ProfileMoments({ items = [], english, showEmpty = false }) {
   const [now, setNow] = useState(Date.now);
   const [selectedId, setSelectedId] = useState(null);
   useEffect(() => {
@@ -143,7 +143,13 @@ function ProfileMoments({ items = [], english }) {
     document.addEventListener("keydown", close);
     return () => document.removeEventListener("keydown", close);
   }, [selected]);
-  if (!current.length) return null;
+  if (!current.length) return showEmpty ? (
+    <div className="nk-profile-section-empty">
+      <Images size={28} strokeWidth={1.5} aria-hidden="true"/>
+      <h3>{english ? "Nothing shared yet" : "Ainda sem publicações"}</h3>
+      <p>{english ? "New moments and publications will appear here." : "Os novos momentos e publicações vão aparecer aqui."}</p>
+    </div>
+  ) : null;
   function remaining(item) {
     const minutes = Math.max(1, Math.ceil((Date.parse(item.expiresAt) - now) / 60000));
     return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
@@ -196,6 +202,7 @@ export default function ProfileDetailPage({
   const [photoOpen, setPhotoOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [activeSection, setActiveSection] = useState("about");
   const [shareStatus, setShareStatus] = useState("");
   const [safetyMode, setSafetyMode] = useState("");
   const [safetyLoading, setSafetyLoading] = useState(false);
@@ -213,13 +220,13 @@ export default function ProfileDetailPage({
   ].filter(Boolean))], [profile?.foto_url, profile?.gallery]);
   const activePortrait = portraits[photoIndex] || portraits[0];
   const hasImage = Boolean(activePortrait) && !imageFailed;
-  const publications = (profile?.gallery || []).filter(item => !String(item.id).startsWith("registo-") && item.mediaUrl && item.mediaUrl !== profile.cover_url);
+  const publications = (profile?.gallery || []).filter(item => !String(item.id).startsWith("registo-") && item.mediaUrl && item.mediaUrl !== profile?.cover_url);
   function changePhoto(index) {
     setPhotoIndex((index + portraits.length) % portraits.length);
     setImageFailed(false);
   }
   useEffect(() => {
-    setPhotoIndex(0); setImageFailed(false); setPhotoOpen(false); setMoreOpen(false); setBioExpanded(false);
+    setPhotoIndex(0); setImageFailed(false); setPhotoOpen(false); setMoreOpen(false); setBioExpanded(false); setActiveSection("about");
     setChatError(""); setSignalData(null); setSignalStatus(""); setSignalError("");
   }, [profile?.id]);
   useEffect(() => {
@@ -602,24 +609,71 @@ export default function ProfileDetailPage({
           </section>
         </div>
 
-        <section className="nk-profile-essentials nk-profile-essentials--wide">
-          <h2>{english ? "Get to know me" : "Conheça-me melhor"}</h2>
-          <div className="nk-profile-essentials__grid">
-            <section className="nk-profile-detail__block nk-profile-essentials__bio">
-              <span>{english ? "About me" : "Sobre mim"}</span>
+        <section className="nk-profile-sections" aria-label={english ? "Explore this profile" : "Explorar este perfil"}>
+          <div className="nk-profile-sections__tabs" role="tablist" aria-label={english ? "Profile sections" : "Secções do perfil"}>
+            {[
+              { id: "about", label: english ? "About me" : "Sobre mim", Icon: UserRound },
+              { id: "affinities", label: english ? "Affinities" : "Afinidades", Icon: Heart },
+              { id: "moments", label: english ? "Moments" : "Momentos", Icon: Images },
+            ].map(({ id, label, Icon }, index, tabs) => (
+              <button key={id} id={`nk-profile-tab-${id}`} type="button" role="tab"
+                aria-selected={activeSection === id}
+                aria-controls={`nk-profile-panel-${id}`}
+                tabIndex={activeSection === id ? 0 : -1}
+                onClick={() => setActiveSection(id)}
+                onKeyDown={(event) => {
+                  const targetIndex = event.key === "ArrowRight" ? (index + 1) % tabs.length
+                    : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length
+                    : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
+                  if (targetIndex < 0) return;
+                  event.preventDefault();
+                  setActiveSection(tabs[targetIndex].id);
+                  document.getElementById(`nk-profile-tab-${tabs[targetIndex].id}`)?.focus();
+                }}>
+                <Icon size={19} strokeWidth={1.7} aria-hidden="true"/><span>{label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="nk-profile-sections__panel" id="nk-profile-panel-about" role="tabpanel" aria-labelledby="nk-profile-tab-about" tabIndex={0} hidden={activeSection !== "about"}>
+            <header className="nk-profile-section-heading">
+              <span>{english ? "01 / MY PERSONALITY" : "01 / A MINHA PERSONALIDADE"}</span>
+              <h2>{english ? "Get to know me" : "Conhece-me melhor"}</h2>
+            </header>
+            <section className="nk-profile-section-bio">
               <p className="nk-profile-intro__bio" id="nk-profile-bio">{bioPreview || (english ? "No introduction yet." : "Ainda sem apresentação.")}{bioLong && !bioExpanded ? "…" : ""}</p>
               {bioLong && <button type="button" className="nk-profile-bio-toggle" aria-expanded={bioExpanded} aria-controls="nk-profile-bio" onClick={() => setBioExpanded(value => !value)}>{bioExpanded ? (english ? "Read less" : "Ver menos") : (english ? "Read more" : "Ler mais")}</button>}
             </section>
-            {(profile.o_que_valoriza || profile.o_que_nao_aceita) && <div className="nk-profile-essentials__values">
+            {hasPersonalPreferences && <section className="nk-profile-section-lifestyle">
+              <h3>{english ? "Lifestyle" : "Estilo de vida"}</h3>
+              <ProfilePreferences values={personalPreferences} english={english}/>
+            </section>}
+          </div>
+          <div className="nk-profile-sections__panel" id="nk-profile-panel-affinities" role="tabpanel" aria-labelledby="nk-profile-tab-affinities" tabIndex={0} hidden={activeSection !== "affinities"}>
+            <header className="nk-profile-section-heading">
+              <span>{english ? "02 / VALUES AND CONNECTIONS" : "02 / VALORES E LIGAÇÕES"}</span>
+              <h2>{english ? "What matters in a relationship" : "O que importa numa relação"}</h2>
+              <p>{english ? "Discover this person's values. Shared affinities are not calculated yet." : "Descobre os valores desta pessoa. As afinidades em comum ainda não são calculadas."}</p>
+            </header>
+            {(profile.o_que_valoriza || profile.o_que_nao_aceita) ? <div className="nk-profile-sections__values">
               {profile.o_que_valoriza && <DetailBlock title={english ? "What I value" : "O que valorizo"}>{profile.o_que_valoriza}</DetailBlock>}
               {profile.o_que_nao_aceita && <DetailBlock title={english ? "What I don’t accept" : "O que não aceito"}>{profile.o_que_nao_aceita}</DetailBlock>}
+            </div> : <div className="nk-profile-section-empty">
+              <Heart size={28} strokeWidth={1.5} aria-hidden="true"/>
+              <p>{english ? "No values shared yet." : "Ainda não foram partilhados valores pessoais."}</p>
             </div>}
-            {hasPersonalPreferences && <section className="nk-profile-detail__block nk-profile-essentials__facts"><span>{english ? "Lifestyle" : "Estilo de vida"}</span><ProfilePreferences values={personalPreferences} english={english}/></section>}
+          </div>
+          <div className="nk-profile-sections__panel" id="nk-profile-panel-moments" role="tabpanel" aria-labelledby="nk-profile-tab-moments" tabIndex={0} hidden={activeSection !== "moments"}>
+            <header className="nk-profile-section-heading">
+              <span>{english ? "03 / MY WORLD" : "03 / O MEU MUNDO"}</span>
+              <h2>{english ? "Life through my eyes" : "A vida através dos meus olhos"}</h2>
+            </header>
+            {activeSection === "moments" && <>
+              <ProfileMoments key={profile.id} items={profile.moments || []} english={english} showEmpty={!publications.length}/>
+              <ProfileGallery items={publications} personName={profile.nome_publico} english={english}/>
+            </>}
           </div>
         </section>
 
-        <ProfileMoments key={profile.id} items={profile.moments || []} english={english}/>
-        <ProfileGallery items={publications} personName={profile.nome_publico} english={english}/>
         <div className="nk-profile-privacy"><LockKeyhole size={15}/>{english ? "Phone, email and documents are kept private." : "Telefone, email e documentos permanecem privados."}</div>
         {loading && <span className="nk-profile-detail__updating">{english ? "Refreshing profile…" : "A atualizar o perfil…"}</span>}
       </div>
