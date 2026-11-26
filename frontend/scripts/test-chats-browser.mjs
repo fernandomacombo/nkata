@@ -154,8 +154,10 @@ try {
    await wviewer.close();
    const denied=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
    await denied.route("**/api/momentos/*/reacoes/",route=>route.fulfill({status:403,json:{detail:"Acesso revogado"}}));
+   const deniedResponse=denied.waitForResponse(response=>response.url().includes("/api/momentos/50/reacoes/")&&response.status()===403);
    await denied.goto("http://127.0.0.1:5178/"+html+"?windowviewer=1");
-   await denied.getByLabel("Perfil do momento").waitFor();
+   await deniedResponse;
+   await denied.getByLabel("Perfil do momento").waitFor({state:"attached"});
    await denied.getByRole("dialog",{name:/Momento de Pessoa/}).waitFor({state:"detached"});
    await denied.close();
    const studio=await browser.newPage({viewport:{width:375,height:812},reducedMotion:"reduce"});
