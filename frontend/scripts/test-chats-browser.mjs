@@ -27,7 +27,10 @@ function LibraryHarness(){
 }
 function DiscoveryHarness(){
  const [loading,setLoading]=useState(true),[saved,setSaved]=useState([]),[opened,setOpened]=useState("");
- const profiles=Array.from({length:7},(_,i)=>({id:i+11,nome_publico:"Pessoa "+(i+1),idade:25+i,cidade:i%2?"Beira":"Maputo",verificado:i!==1,objetivo_display:"Relacionamento sério",foto_url:"/discovery-test.svg",criado_em:new Date(Date.now()-i*86400000).toISOString()})).reverse();
+ const preview=new URLSearchParams(window.location.search).has("visual");
+ const names=["Mariana Nhantumbo","Isabel Mucavele","Sofia Machel","Daniel Mabunda","Luísa Macamo","Cláudia Cossa","Andreia Mucavele","Edson Matavele","Nelson Maúa","Amélia Chissano","Sara Mucavele"];
+ const cities=["Maputo","Beira","Matola","Nampula","Vilankulo"];
+ const profiles=Array.from({length:preview?11:7},(_,i)=>({id:i+11,nome_publico:preview?names[i]:"Pessoa "+(i+1),idade:25+i,cidade:preview?cities[i%5]:i%2?"Beira":"Maputo",verificado:i!==1,objetivo_display:"Relacionamento sério",foto_url:preview?"/discovery-preview-"+i+".svg":"/discovery-test.svg",criado_em:new Date(Date.now()-i*86400000).toISOString()})).reverse();
  return <PresenceProvider member={true} identity="discovery" page={loading?"loading":"discover"}><div className="nk-app"><button onClick={()=>setLoading(false)}>Carregar descoberta</button><output aria-label="Perfil aberto">{opened}</output><DiscoverPage authenticated profiles={profiles} loading={loading} onReload={()=>{}} onOpenProfile={p=>setOpened(p.nome_publico)} isSaved={p=>saved.includes(p.id)} onToggleSaved={p=>setSaved(old=>old.includes(p.id)?old.filter(id=>id!==p.id):[...old,p.id])}/></div></PresenceProvider>;
 }
 function LoaderHarness(){
@@ -135,6 +138,28 @@ try {
      assert.ok(await discovery.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"Discovery must fit viewport");
      assert.equal(discoveryErrors.length,0,discoveryErrors.join("\\n"));
      await discovery.close();
+   }
+   if (process.env.NKATA_CAPTURE_DISCOVERY==="1") {
+     await fs.mkdir("visual-review",{recursive:true});
+     for(const width of [390,1366]){
+       const preview=await browser.newPage({viewport:{width,height:900},deviceScaleFactor:1,reducedMotion:"reduce"});
+       await preview.route("**/discovery-preview-*.svg",route=>{
+         const index=Number(route.request().url().match(/preview-(\d+)\.svg/)[1]);
+         const palette=["#dbc9ad","#bdac93","#bda6a8","#c8b5a2","#dfccba","#a6b9a3"];
+         const skin=["#98694d","#ae7956","#825239","#9e6d50"];
+         const clothes=["#f1e9df","#c8a584","#7c3453","#f3eee6","#7b9181","#deb7b2"];
+         const body='<svg xmlns="http://www.w3.org/2000/svg" width="360" height="450" viewBox="0 0 360 450"><rect width="360" height="450" fill="'+palette[index%6]+'"/><circle cx="300" cy="75" r="100" fill="#fff" opacity=".18"/><ellipse cx="180" cy="145" rx="'+(index%2?98:80)+'" ry="108" fill="#30262a"/><ellipse cx="180" cy="167" rx="70" ry="91" fill="'+skin[index%4]+'"/><path d="M18 450 Q25 304 180 283 Q335 304 342 450" fill="'+clothes[index%6]+'"/><path d="M151 246V288Q180 310 209 288V246" fill="'+skin[index%4]+'"/><path d="M135 160h12m66 0h12" stroke="#382a28" stroke-width="4" stroke-linecap="round"/><path d="M164 211q16 8 32 0" fill="none" stroke="#603a36" stroke-width="3" stroke-linecap="round"/></svg>';
+         return route.fulfill({contentType:"image/svg+xml",body});
+       });
+       await preview.route("**/api/presenca/",route=>route.fulfill({json:{perfis:Object.fromEntries(Array.from({length:11},(_,i)=>[11+i,i%2?120:0]))}}));
+       await preview.goto("http://127.0.0.1:5178/"+html+"?discovery=1&visual=1");
+       await preview.getByRole("button",{name:"Carregar descoberta"}).evaluate(button=>button.click());
+       await preview.locator(".nk-flow__recent h2").filter({hasText:"Mariana Nhantumbo"}).waitFor();
+       await preview.locator(".nk-flow__mini").first().waitFor();
+       await preview.locator(".nk-flow img").evaluateAll(imgs=>Promise.all(imgs.map(img=>img.decode().catch(()=>{}))));
+       await preview.locator(".nk-flow").screenshot({path:"visual-review/discovery-"+engine.name()+"-"+width+".png",animations:"disabled"});
+       await preview.close();
+     }
    }
    const library=await browser.newPage();
    let privateRequests=0, releaseFirst;

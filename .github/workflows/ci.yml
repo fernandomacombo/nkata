@@ -115,7 +115,17 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.58.2
           npx playwright install --with-deps chromium webkit
       - name: Validar usabilidade dos Chats em Chromium e WebKit
+        env:
+          NKATA_CAPTURE_DISCOVERY: "1"
         run: node scripts/test-chats-browser.mjs
+      - name: Guardar capturas de revisão visual dos perfis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: discovery-visual-review
+          path: frontend/visual-review/*.png
+          if-no-files-found: warn
+          retention-days: 7
       - name: Validar painel de chamadas em Chromium e WebKit
         run: node scripts/test-call-panel-browser.mjs
       - name: Validar carteira pessoal em Chromium e WebKit
