@@ -88,3 +88,46 @@ class MomentCreditApiTests(TestCase):
         self.assertEqual(result.json()["moderation_status"], "APROVADO")
         self.assertEqual(credit_balance(self.user), 0)
         self.assertFalse(EnvioMomentoCreditoNKATA.objects.exists())
+
+    def test_refund_once_on_rejection_and_no_reapproval(self):
+        from .moment_credit_service import moderate_moment
+        from .wallet_statement import member_statement
+        self.fund()
+        response = self.submit(5, video=True)
+        self.assertEqual(response.status_code, 202, response.content)
+        pk = response.json()["moment"]["id"]
+        self.assertEqual(credit_balance(self.user), 40)
+        item, refund = moderate_moment(pk, action="reject", note="Rejeitado em teste")
+        self.assertEqual(item.moderacao_status, "REJEITADO")
+        self.assertEqual(refund.quantidade, 5)
+        self.assertEqual(credit_balance(self.user), 45)
+        _, repeat = moderate_moment(pk, action="reject", note="Rejeitado em teste")
+        self.assertEqual(refund.pk, repeat.pk)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(tipo="ESTORNO").count(), 1)
+        with self.assertRaises(MomentCreditError):
+            moderate_moment(pk, action="approve")
+        payload = self.client.get(self.url).json()["review_items"][0]
+        self.assertEqual(payload["refunded_credits"], 5)
+        statement = member_statement(self.user)
+        self.assertEqual(statement["summary"]["refunded"], 5)
+        self.assertEqual(next(row for row in statement["breakdown"] if row["code"] == "moments")["credits"], 5)
+
+    def test_free_rejection_does_not_mint_credits(self):
+        from .moment_credit_service import moderate_moment
+        response = self.submit(0)
+        self.assertEqual(response.status_code, 202, response.content)
+        _, refund = moderate_moment(response.json()["moment"]["id"], action="reject", note="Teste")
+        self.assertIsNone(refund)
+        self.assertEqual(credit_balance(self.user), 0)
+        self.assertEqual(self.client.get(self.url).json()["capabilities"]["moment_offer"]["photo_cost"], 2)
+
+    def test_approval_does_not_extend_twice(self):
+        from .moment_credit_service import moderate_moment
+        self.fund()
+        response = self.submit(5, video=True)
+        self.assertEqual(response.status_code, 202, response.content)
+        pk = response.json()["moment"]["id"]
+        first, _ = moderate_moment(pk, action="approve")
+        second, _ = moderate_moment(pk, action="approve")
+        self.assertEqual(first.expira_em, second.expira_em)
+        self.assertEqual(credit_balance(self.user), 40)

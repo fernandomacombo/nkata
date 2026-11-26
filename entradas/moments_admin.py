@@ -1,15 +1,12 @@
-from datetime import timedelta
-
 from django.contrib import admin
 from django.http import HttpResponseRedirect
-from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from .content_moderation_admin import automatic_review_panel, automatic_risk_badge
-from .content_moderation_service import record_human_decision
-from .models import PerfilNKATA
-from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
+from .moment_credit_service import moderate_moment
+from .wallet_service import WalletError
+from .moments_models import MomentoNKATA
 
 
 @admin.register(MomentoNKATA)
@@ -131,124 +128,50 @@ class MomentoNKATAAdmin(admin.ModelAdmin):
     regras_moderacao.short_description = "Regras rápidas"
 
     def _aprovar(self, momento):
-        now = timezone.now()
-        momento.moderacao_status = "APROVADO"
-        momento.moderacao_motivo = ""
-        momento.moderado_em = now
-        momento.expira_em = now + timedelta(hours=MOMENT_LIFETIME_HOURS)
-        momento.save(update_fields=[
-            "moderacao_status",
-            "moderacao_motivo",
-            "moderado_em",
-            "expira_em",
-        ])
-        record_human_decision("MOMENTO", momento.pk, "APROVADO")
+        return moderate_moment(momento.pk, action="approve")
 
     def _rejeitar(self, momento, grave=False):
-        momento.moderacao_status = "REJEITADO"
-        momento.moderacao_motivo = (
-            "Conteúdo rejeitado por violação grave das regras da comunidade."
-            if grave
-            else "Conteúdo não aprovado por não estar de acordo com as regras dos Momentos NKATA."
-        )
-        momento.moderado_em = timezone.now()
-        momento.save(update_fields=[
-            "moderacao_status",
-            "moderacao_motivo",
-            "moderado_em",
-        ])
-        record_human_decision(
-            "MOMENTO",
-            momento.pk,
-            "GRAVE" if grave else "REJEITADO",
-        )
+        note = ("Conteúdo rejeitado por violação grave das regras da comunidade." if grave
+                else "Conteúdo não aprovado por não estar de acordo com as regras dos Momentos NKATA.")
+        return moderate_moment(momento.pk, action="severe" if grave else "reject", note=note)
 
-        if grave:
-            PerfilNKATA.objects.filter(pk=momento.perfil_id).exclude(
-                status="BLOQUEADO"
-            ).update(status="PAUSADO", visivel=False)
+    def _apply_decision(self, request, obj, action):
+        try:
+            if action == "approve":
+                self._aprovar(obj)
+                message = "Momento aprovado."
+            else:
+                _, refund = self._rejeitar(obj, grave=action == "severe")
+                message = "Momento rejeitado."
+                if refund:
+                    message += f" Devolução registada: {refund.quantidade} créditos."
+                if action == "severe":
+                    message += " Perfil pausado para revisão."
+            self.message_user(request, message, level="success" if action == "approve" else "warning")
+            return True
+        except WalletError as error:
+            self.message_user(request, str(error), level="error")
+            return False
 
     def response_change(self, request, obj):
-        if "_aprovar_momento" in request.POST:
-            self._aprovar(obj)
-            self.message_user(
-                request,
-                "Momento aprovado. As 24 horas começam a contar agora.",
-                level="success",
-            )
-            return HttpResponseRedirect(request.path)
-
-        if "_rejeitar_momento" in request.POST:
-            self._rejeitar(obj)
-            self.message_user(
-                request,
-                "Momento rejeitado e mantido fora da comunidade.",
-                level="warning",
-            )
-            return HttpResponseRedirect(request.path)
-
-        if "_rejeitar_pausar_momento" in request.POST:
-            self._rejeitar(obj, grave=True)
-            self.message_user(
-                request,
-                "Momento rejeitado e perfil pausado para revisão da equipa.",
-                level="warning",
-            )
-            return HttpResponseRedirect(request.path)
-
+        for button, action in (("_aprovar_momento", "approve"), ("_rejeitar_momento", "reject"),
+                               ("_rejeitar_pausar_momento", "severe")):
+            if button in request.POST:
+                self._apply_decision(request, obj, action)
+                return HttpResponseRedirect(request.path)
         return super().response_change(request, obj)
 
     @admin.action(description="Aprovar Momentos selecionados")
     def aprovar_momentos(self, request, queryset):
-        ids = list(queryset.values_list("id", flat=True))
-        now = timezone.now()
-        updated = queryset.update(
-            moderacao_status="APROVADO",
-            moderacao_motivo="",
-            moderado_em=now,
-            expira_em=now + timedelta(hours=MOMENT_LIFETIME_HOURS),
-        )
-        for content_id in ids:
-            record_human_decision("MOMENTO", content_id, "APROVADO")
-        self.message_user(
-            request,
-            f"{updated} Momento(s) aprovado(s). As 24 horas começam agora.",
-        )
+        for item in queryset.order_by("pk"):
+            self._apply_decision(request, item, "approve")
 
     @admin.action(description="Rejeitar Momentos selecionados")
     def rejeitar_momentos(self, request, queryset):
-        ids = list(queryset.values_list("id", flat=True))
-        updated = queryset.update(
-            moderacao_status="REJEITADO",
-            moderacao_motivo=(
-                "Conteúdo não aprovado por não estar de acordo com as regras dos Momentos NKATA."
-            ),
-            moderado_em=timezone.now(),
-        )
-        for content_id in ids:
-            record_human_decision("MOMENTO", content_id, "REJEITADO")
-        self.message_user(request, f"{updated} Momento(s) rejeitado(s).")
+        for item in queryset.order_by("pk"):
+            self._apply_decision(request, item, "reject")
 
     @admin.action(description="Rejeitar e pausar perfil por violação grave")
     def rejeitar_e_pausar_perfis(self, request, queryset):
-        ids = list(queryset.values_list("id", flat=True))
-        profile_ids = list(queryset.values_list("perfil_id", flat=True).distinct())
-        rejected = queryset.update(
-            moderacao_status="REJEITADO",
-            moderacao_motivo=(
-                "Conteúdo rejeitado por violação grave das regras da comunidade."
-            ),
-            moderado_em=timezone.now(),
-        )
-        for content_id in ids:
-            record_human_decision("MOMENTO", content_id, "GRAVE")
-        paused = PerfilNKATA.objects.filter(id__in=profile_ids).exclude(
-            status="BLOQUEADO"
-        ).update(
-            status="PAUSADO",
-            visivel=False,
-        )
-        self.message_user(
-            request,
-            f"{rejected} Momento(s) rejeitado(s) e {paused} perfil/perfis pausado(s).",
-        )
+        for item in queryset.order_by("pk"):
+            self._apply_decision(request, item, "severe")

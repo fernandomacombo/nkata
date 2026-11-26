@@ -24,6 +24,8 @@ from .models import (
     PerfilNKATA,
 )
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
+from .moment_credit_service import moderate_moment, MomentCreditError
+from .wallet_service import WalletError
 from .post_safety_models import DenunciaPublicacaoNKATA
 from .posts_models import PublicacaoNKATA
 from .profile_media_api import profile_photo_url
@@ -1084,6 +1086,21 @@ def _action_content(request, object_id, action):
     note = str(request.data.get("note", "")).strip()[:240]
     if action in {"reject", "severe"} and not note:
         return None, "Indique o motivo da decisão de moderação.", 400
+    if content_type == "MOMENTO":
+        try:
+            with transaction.atomic():
+                item, refund = moderate_moment(item.pk, action=action, note=note)
+                message = "Conteúdo aprovado e disponibilizado." if action == "approve" else "Conteúdo rejeitado."
+                if action == "severe":
+                    message = "Conteúdo rejeitado e perfil pausado para revisão."
+                if refund:
+                    message += f" Devolução registada: {refund.quantidade} créditos."
+                _audit(request.user, item, message)
+            return item, message, 200
+        except MomentCreditError as error:
+            return None, str(error), error.status
+        except WalletError as error:
+            return None, str(error), 409
     if action == "approve":
         item.moderacao_status = "APROVADO"
         item.moderacao_motivo = ""

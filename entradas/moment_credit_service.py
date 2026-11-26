@@ -1,11 +1,13 @@
 """Commercial rules for temporary Moments, independent of permanent posts."""
 import uuid
+from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 from .identity_models import pedido_tem_identidade_verificada
-from .models import EnvioMomentoCreditoNKATA
-from .moments_models import MomentoNKATA
+from .models import EnvioMomentoCreditoNKATA, PerfilNKATA
+from .moments_models import MomentoNKATA, MOMENT_LIFETIME_HOURS
+from .content_moderation_service import record_human_decision
 from .user_roles import active_member_profile_for_user
 from .wallet_service import credit_balance, credit_spending_enabled, record_movement, WalletError
 
@@ -80,9 +82,47 @@ def submit_moment(user, *, key, expected, fingerprint, media_type, media, text, 
 @transaction.atomic
 def refund_rejected_moment(moment):
     """Exact retry returns the existing refund. No debit means no refund."""
+    if moment.moderacao_status != "REJEITADO":
+        raise MomentCreditError("Só um Momento rejeitado pode receber devolução.")
     get_user_model().objects.select_for_update().get(pk=moment.usuario_id)
     receipt = EnvioMomentoCreditoNKATA.objects.filter(momento_id=moment.pk, usuario_id=moment.usuario_id).first()
     if not receipt or not receipt.custo:
         return None
     return record_movement(moment.usuario, key=f"moment-refund:{receipt.chave}", kind="ESTORNO",
         amount=receipt.custo, reference=f"MOMENTO:{receipt.chave}", reason="Devolução por rejeição de Momento")
+
+@transaction.atomic
+def moderate_moment(moment_id, *, action, note=""):
+    """One locked decision path for both administration interfaces."""
+    item = MomentoNKATA.objects.select_for_update().filter(pk=moment_id).first()
+    if not item:
+        raise MomentCreditError("Momento não encontrado.", 404)
+    if action not in {"approve", "reject", "severe"}:
+        raise MomentCreditError("Ação de moderação inválida.", 400)
+    receipt = EnvioMomentoCreditoNKATA.objects.filter(momento_id=item.pk, usuario_id=item.usuario_id).first()
+    if action == "approve":
+        if item.moderacao_status == "APROVADO":
+            return item, None
+        if receipt and item.moderacao_status == "REJEITADO":
+            raise MomentCreditError("Este Momento já foi rejeitado. O membro deve enviar um novo conteúdo.")
+        now = timezone.now()
+        item.moderacao_status = "APROVADO"
+        item.moderacao_motivo = ""
+        item.moderado_em = now
+        item.expira_em = now + timedelta(hours=MOMENT_LIFETIME_HOURS)
+        item.save(update_fields=["moderacao_status", "moderacao_motivo", "moderado_em", "expira_em"])
+        with transaction.atomic():
+            record_human_decision("MOMENTO", item.pk, "APROVADO")
+        return item, None
+    if not note.strip():
+        raise MomentCreditError("Indique o motivo da decisão de moderação.", 400)
+    item.moderacao_status = "REJEITADO"
+    item.moderacao_motivo = note.strip()[:240]
+    item.moderado_em = timezone.now()
+    item.save(update_fields=["moderacao_status", "moderacao_motivo", "moderado_em"])
+    refund = refund_rejected_moment(item) if receipt else None
+    if action == "severe":
+        PerfilNKATA.objects.filter(pk=item.perfil_id).exclude(status="BLOQUEADO").update(status="PAUSADO", visivel=False)
+    with transaction.atomic():
+        record_human_decision("MOMENTO", item.pk, "GRAVE" if action == "severe" else "REJEITADO")
+    return item, refund

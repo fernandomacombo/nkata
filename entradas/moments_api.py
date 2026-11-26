@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from .content_moderation_queue import queue_content_media_analysis
 from .identity_models import pedido_tem_identidade_verificada
 from .media_validation import image_dimensions_are_safe, sanitized_image_upload
-from .models import AcaoPerfil, MatchPerfil
+from .models import AcaoPerfil, MatchPerfil, EnvioMomentoCreditoNKATA, MovimentoCreditoNKATA
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .profile_media_api import profile_photo_url
 from .plan_service import plan_for_user
@@ -86,6 +86,11 @@ def _moment_payload(request, momento):
         "remaining_seconds": remaining_seconds,
     }
     if payload["mine"] and momento.moderacao_status == "REJEITADO":
+        receipt = EnvioMomentoCreditoNKATA.objects.filter(momento_id=momento.pk, usuario_id=request.user.id).first()
+        if receipt and receipt.custo:
+            refunded = MovimentoCreditoNKATA.objects.filter(carteira__usuario=request.user, chave=f"moment-refund:{receipt.chave}", tipo="ESTORNO").first()
+            if refunded:
+                payload["refunded_credits"] = refunded.quantidade
         payload["moderation_note"] = (
             momento.moderacao_motivo
             or "Este conteúdo não está de acordo com as regras dos Momentos NKATA."
