@@ -1,9 +1,10 @@
-import Presence from "../components/profiles/Presence.jsx";
+import { usePresence } from "../components/profiles/Presence.jsx";
 import { ProfilePreferences } from "../components/MatchPreferences";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
+  Bookmark,
   Ban,
   Flag,
   Flower2,
@@ -14,7 +15,6 @@ import {
   MapPin,
   MessageCircle,
   MoreHorizontal,
-  Maximize2,
   ChevronLeft,
   ChevronRight,
   Play,
@@ -128,7 +128,7 @@ function ProfileGallery({ items, personName, english }) {
   );
 }
 
-function ProfileMoments({ items = [], english }) {
+function ProfileMoments({ items = [], english, showEmpty = false }) {
   const [now, setNow] = useState(Date.now);
   const [selectedId, setSelectedId] = useState(null);
   useEffect(() => {
@@ -143,7 +143,13 @@ function ProfileMoments({ items = [], english }) {
     document.addEventListener("keydown", close);
     return () => document.removeEventListener("keydown", close);
   }, [selected]);
-  if (!current.length) return null;
+  if (!current.length) return showEmpty ? (
+    <div className="nk-profile-section-empty">
+      <Images size={28} strokeWidth={1.5} aria-hidden="true"/>
+      <h3>{english ? "Nothing shared yet" : "Ainda sem publicações"}</h3>
+      <p>{english ? "New moments and publications will appear here." : "Os novos momentos e publicações vão aparecer aqui."}</p>
+    </div>
+  ) : null;
   function remaining(item) {
     const minutes = Math.max(1, Math.ceil((Date.parse(item.expiresAt) - now) / 60000));
     return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
@@ -191,11 +197,13 @@ export default function ProfileDetailPage({
     finally { setAskingChat(false); }
   }
   const english = useInterfaceLanguage() === "EN";
+  const presence = usePresence(profile?.id, english);
   const [imageFailed, setImageFailed] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [activeSection, setActiveSection] = useState("about");
   const [shareStatus, setShareStatus] = useState("");
   const [safetyMode, setSafetyMode] = useState("");
   const [safetyLoading, setSafetyLoading] = useState(false);
@@ -213,13 +221,13 @@ export default function ProfileDetailPage({
   ].filter(Boolean))], [profile?.foto_url, profile?.gallery]);
   const activePortrait = portraits[photoIndex] || portraits[0];
   const hasImage = Boolean(activePortrait) && !imageFailed;
-  const publications = (profile?.gallery || []).filter(item => !String(item.id).startsWith("registo-") && item.mediaUrl && item.mediaUrl !== profile.cover_url);
+  const publications = (profile?.gallery || []).filter(item => !String(item.id).startsWith("registo-") && item.mediaUrl && item.mediaUrl !== profile?.cover_url);
   function changePhoto(index) {
     setPhotoIndex((index + portraits.length) % portraits.length);
     setImageFailed(false);
   }
   useEffect(() => {
-    setPhotoIndex(0); setImageFailed(false); setPhotoOpen(false); setMoreOpen(false); setBioExpanded(false);
+    setPhotoIndex(0); setImageFailed(false); setPhotoOpen(false); setMoreOpen(false); setBioExpanded(false); setActiveSection("about");
     setChatError(""); setSignalData(null); setSignalStatus(""); setSignalError("");
   }, [profile?.id]);
   useEffect(() => {
@@ -408,11 +416,149 @@ export default function ProfileDetailPage({
   return (
     <main className={`nk-profile-detail nk-profile-redesign nk-profile-detail--theme-${profileTheme}`}>
       <div className="nk-shell">
-        <button type="button" className="nk-profile-detail__back" onClick={onBack}>
-          <ArrowLeft size={18} /> {english ? "Back" : "Voltar"}
-        </button>
+        <div className="nk-profile-editorial__toolbar">
+          <button type="button" className="nk-profile-detail__back" onClick={onBack} aria-label={english ? "Back" : "Voltar"}>
+            <ArrowLeft size={22} />
+          </button>
+          <span className="nk-profile-editorial__wordmark" aria-label="NKATA">NKATA</span>
+          <div className="nk-profile-more">
+                    <button type="button" className="nk-profile-detail__share" aria-expanded={moreOpen} onClick={() => setMoreOpen(value => !value)}><MoreHorizontal size={19}/><span className="nk-profile-intro__sr-only">{english ? "More" : "Mais"}</span></button>
+                    {moreOpen && <div className="nk-profile-more__menu">
+                      <button type="button" onClick={handleShare}><Share2 size={16}/>{shareStatus || (english ? "Share" : "Partilhar")}</button>
+                      <button type="button" onClick={() => {setMoreOpen(false);openSafetyAction("report");}}><Flag size={16}/>{english ? "Report" : "Denunciar"}</button>
+                      <button type="button" onClick={() => {setMoreOpen(false);openSafetyAction("block");}}><Ban size={16}/>{english ? "Block" : "Bloquear"}</button>
+                    </div>}
+                  </div>
+        </div>
 
-        {profile.cover_url && (
+        <div className="nk-profile-detail__layout">
+          <aside className="nk-profile-portrait">
+            <div className="nk-profile-detail__media">
+              {hasImage ? <img src={activePortrait} alt={english ? "Profile photograph" : "Fotografia de perfil"} decoding="async" onError={() => setImageFailed(true)} /> :
+                <div className="nk-profile-detail__fallback"><UserRound size={64} strokeWidth={1.15}/><span>{english ? "No photo" : "Sem fotografia"}</span></div>}
+              {hasImage && <button type="button" className="nk-profile-editorial__photo-open" aria-label={english ? "Enlarge photo" : "Ampliar fotografia"} onClick={() => setPhotoOpen(true)} />}
+            </div>
+            <div className="nk-profile-editorial__photo-meta">
+              <span className="nk-profile-editorial__presence" data-presence-id={profile.id}>
+                {presence.label && <>
+                  <span className={presence.online ? "is-online" : ""} aria-hidden="true" />
+                  {presence.online ? (english ? "Online now" : "Online agora") : presence.label}
+                </>}
+              </span>
+              {portraits.length > 0 && <button type="button" className="nk-profile-editorial__photo-count"
+                onClick={() => portraits.length > 1 ? changePhoto(photoIndex + 1) : hasImage && setPhotoOpen(true)}
+                disabled={portraits.length === 1 && !hasImage}
+                aria-label={portraits.length > 1 ? (english ? "Next photo" : "Fotografia seguinte") : (english ? "Enlarge photo" : "Ampliar fotografia")}>
+                <Images size={16} aria-hidden="true"/> {Math.min(photoIndex + 1, portraits.length)} / {portraits.length}
+              </button>}
+            </div>
+          </aside>
+
+          <section className="nk-profile-detail__content">
+            <div className="nk-profile-detail__heading">
+              <div className="nk-profile-intro">
+                <h1 className="nk-profile-intro__name">
+                  <span className="nk-profile-intro__name-text">{profile.nome_publico}</span>
+                  {profile.verificado === true && !String(profile.id).startsWith("demo-") && (
+                    <span className="nk-profile-intro__verified" title={english ? "Identity verified by NKATA" : "Identidade verificada pelo NKATA"}>
+                      <BadgeCheck size={27} strokeWidth={1.8} aria-hidden="true" />
+                      <span className="nk-profile-intro__sr-only">{english ? "Identity verified" : "Identidade verificada"}</span>
+                    </span>
+                  )}
+                </h1>
+                <div className="nk-profile-intro__meta">
+                  {profile.idade ? <span>{profile.idade} {english ? "years old" : "anos"}</span> : null}
+                  {profile.cidade && <span><MapPin size={17}/>{profile.cidade}</span>}
+                </div>
+                {profile.verificado === true && !String(profile.id).startsWith("demo-") && (
+                  <p className="nk-profile-intro__verified-label"><ShieldCheck size={16} aria-hidden="true"/>{english ? "Identity verified by NKATA" : "Identidade verificada pelo NKATA"}</p>
+                )}
+                {(profile.objetivo_display || ageRange) && (
+                  <div className="nk-profile-intro__looking nk-profile-intro__intention">
+                    <Heart size={22} strokeWidth={1.7} aria-hidden="true"/>
+                    <div>
+                      {profile.objetivo_display && <strong>{objectiveLabel(profile.objetivo_display, english)}</strong>}
+                      {ageRange && <small>{english ? "Would like to meet someone aged" : "Gostaria de conhecer alguém entre"} {ages[0]}–{ages[1]} {english ? "years old" : "anos"}</small>}
+                    </div>
+                  </div>
+                )}
+                <div className="nk-profile-intro__primary">
+                  {onAskChat && !String(profile.id).startsWith("demo-") && <button type="button" className="nk-button nk-button--wine" disabled={askingChat} onClick={askChat}><MessageCircle size={18}/> {askingChat ? (english ? "Sending…" : "A enviar…") : (english ? "Request a chat" : "Pedir para conversar")}</button>}
+                  <button type="button" className={`nk-profile-detail__save nk-profile-editorial__save ${saved ? "is-saved" : ""}`} onClick={() => onToggleSaved?.(profile)} aria-pressed={saved} aria-label={saved ? (english ? "Remove saved profile" : "Remover dos guardados") : (english ? "Save profile" : "Guardar perfil")}>
+                    <Bookmark size={21} fill={saved ? "currentColor" : "none"}/>
+                  </button>
+                </div>
+                {chatError && <p role="alert">{chatError}</p>}
+                {interestMessage && <div className={`nk-interest-message ${interestActive ? "is-active" : ""}`} role="status">{interestMessage}</div>}
+              </div>
+            </div>
+
+            {error && <div className="nk-profile-detail__notice">{english ? "Some profile details could not be refreshed." : "Alguns dados deste perfil não foram atualizados."}</div>}
+            {safetyStatus && <div className="nk-interest-message is-active" role="status">{safetyStatus}</div>}
+
+          </section>
+        </div>
+
+        <section className="nk-profile-sections" aria-label={english ? "Explore this profile" : "Explorar este perfil"}>
+          <div className="nk-profile-sections__tabs" role="tablist" aria-label={english ? "Profile sections" : "Secções do perfil"}>
+            {[
+              { id: "about", label: english ? "About me" : "Sobre mim", Icon: UserRound },
+              { id: "affinities", label: english ? "Affinities" : "Afinidades", Icon: Heart },
+              { id: "moments", label: english ? "Moments" : "Momentos", Icon: Images },
+            ].map(({ id, label, Icon }, index, tabs) => (
+              <button key={id} id={`nk-profile-tab-${id}`} type="button" role="tab"
+                aria-selected={activeSection === id}
+                aria-controls={`nk-profile-panel-${id}`}
+                tabIndex={activeSection === id ? 0 : -1}
+                onClick={() => setActiveSection(id)}
+                onKeyDown={(event) => {
+                  const targetIndex = event.key === "ArrowRight" ? (index + 1) % tabs.length
+                    : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length
+                    : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
+                  if (targetIndex < 0) return;
+                  event.preventDefault();
+                  setActiveSection(tabs[targetIndex].id);
+                  document.getElementById(`nk-profile-tab-${tabs[targetIndex].id}`)?.focus();
+                }}>
+                <Icon size={19} strokeWidth={1.7} aria-hidden="true"/><span>{label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="nk-profile-sections__panel" id="nk-profile-panel-about" role="tabpanel" aria-labelledby="nk-profile-tab-about" tabIndex={0} hidden={activeSection !== "about"}>
+            <header className="nk-profile-section-heading">
+              <span>{english ? "01 / MY PERSONALITY" : "01 / A MINHA PERSONALIDADE"}</span>
+              <h2>{english ? "Get to know me" : "Conhece-me melhor"}</h2>
+            </header>
+            <section className="nk-profile-section-bio">
+              <p className="nk-profile-intro__bio" id="nk-profile-bio">{bioPreview || (english ? "No introduction yet." : "Ainda sem apresentação.")}{bioLong && !bioExpanded ? "…" : ""}</p>
+              {bioLong && <button type="button" className="nk-profile-bio-toggle" aria-expanded={bioExpanded} aria-controls="nk-profile-bio" onClick={() => setBioExpanded(value => !value)}>{bioExpanded ? (english ? "Read less" : "Ver menos") : (english ? "Read more" : "Ler mais")}</button>}
+            </section>
+            {hasPersonalPreferences && <section className="nk-profile-section-lifestyle">
+              <h3>{english ? "Lifestyle" : "Estilo de vida"}</h3>
+              <ProfilePreferences values={personalPreferences} english={english}/>
+            </section>}
+          </div>
+          <div className="nk-profile-sections__panel" id="nk-profile-panel-affinities" role="tabpanel" aria-labelledby="nk-profile-tab-affinities" tabIndex={0} hidden={activeSection !== "affinities"}>
+            <header className="nk-profile-section-heading">
+              <span>{english ? "02 / VALUES AND CONNECTIONS" : "02 / VALORES E LIGAÇÕES"}</span>
+              <h2>{english ? "What matters in a relationship" : "O que importa numa relação"}</h2>
+              <p>{english ? "Discover this person's values. Shared affinities are not calculated yet." : "Descobre os valores desta pessoa. As afinidades em comum ainda não são calculadas."}</p>
+            </header>
+            {(profile.o_que_valoriza || profile.o_que_nao_aceita) ? <div className="nk-profile-sections__values">
+              {profile.o_que_valoriza && <DetailBlock title={english ? "What I value" : "O que valorizo"}>{profile.o_que_valoriza}</DetailBlock>}
+              {profile.o_que_nao_aceita && <DetailBlock title={english ? "What I don’t accept" : "O que não aceito"}>{profile.o_que_nao_aceita}</DetailBlock>}
+            </div> : <div className="nk-profile-section-empty">
+              <Heart size={28} strokeWidth={1.5} aria-hidden="true"/>
+              <p>{english ? "No values shared yet." : "Ainda não foram partilhados valores pessoais."}</p>
+            </div>}
+          </div>
+          <div className="nk-profile-sections__panel" id="nk-profile-panel-moments" role="tabpanel" aria-labelledby="nk-profile-tab-moments" tabIndex={0} hidden={activeSection !== "moments"}>
+            <header className="nk-profile-section-heading">
+              <span>{english ? "03 / MY WORLD" : "03 / O MEU MUNDO"}</span>
+              <h2>{english ? "Life through my eyes" : "A vida através dos meus olhos"}</h2>
+            </header>
+            {activeSection === "moments" && <>
+              {profile.cover_url && (
           <div className="nk-profile-detail__cover" aria-hidden="true">
             <img
               src={profile.cover_url}
@@ -423,38 +569,15 @@ export default function ProfileDetailPage({
             <div />
           </div>
         )}
+              <ProfileMoments key={profile.id} items={profile.moments || []} english={english} showEmpty={!publications.length}/>
+              <ProfileGallery items={publications} personName={profile.nome_publico} english={english}/>
+            </>}
+          </div>
+        </section>
 
-        <div className={`nk-profile-detail__layout ${profile.cover_url ? "has-cover" : ""}`}>
-          <aside className="nk-profile-portrait">
-            <div className="nk-profile-detail__media">
-              {hasImage ? <img src={activePortrait} alt={english ? "Profile photograph" : "Fotografia de perfil"} decoding="async" onError={() => setImageFailed(true)} /> :
-                <div className="nk-profile-detail__fallback"><UserRound size={64} strokeWidth={1.15}/><span>{english ? "No photo" : "Sem fotografia"}</span></div>}
-              <Presence profile={profile} english={english} />
-              {hasImage && <button type="button" className="nk-profile-portrait__expand" aria-label={english ? "Enlarge photo" : "Ampliar fotografia"} onClick={() => setPhotoOpen(true)}><Maximize2 size={18}/></button>}
-              {portraits.length > 1 && <div className="nk-profile-portrait__controls">
-                <button type="button" aria-label={english ? "Previous photo" : "Fotografia anterior"} onClick={() => changePhoto(photoIndex - 1)}><ChevronLeft size={20}/></button>
-                <span>{photoIndex + 1} / {portraits.length}</span>
-                <button type="button" aria-label={english ? "Next photo" : "Fotografia seguinte"} onClick={() => changePhoto(photoIndex + 1)}><ChevronRight size={20}/></button>
-              </div>}
-            </div>
-            {portraits.length > 1 && <div className="nk-profile-portrait__thumbs">{portraits.map((url, index) => <button type="button" key={url} aria-label={english ? `Photo ${index+1}` : `Fotografia ${index+1}`} aria-pressed={index === photoIndex} onClick={() => changePhoto(index)}><img src={url} alt="" loading="lazy"/></button>)}</div>}
-          </aside>
-
-          <section className="nk-profile-detail__content">
-            <div className="nk-profile-detail__heading">
-              <div className="nk-profile-intro">
-                <span className="nk-eyebrow nk-eyebrow--dark">
-                  {profile.verificado ? <BadgeCheck size={15}/> : <ShieldCheck size={15}/>} {profile.verificado ? (english ? "Verified profile" : "Perfil verificado") : (english ? "Identity not verified" : "Identidade por verificar")}
-                </span>
-                <h1>{profile.nome_publico}{profile.idade ? <span className="nk-profile-intro__age">, {profile.idade}</span> : ""}</h1>
-                <div className="nk-profile-intro__meta">
-                  {profile.cidade && <span><MapPin size={17}/>{profile.cidade}</span>}
-                  {profile.objetivo_display && <span><Heart size={17}/>{objectiveLabel(profile.objetivo_display, english)}</span>}
-                </div>
-                {ageRange && <div className="nk-profile-intro__looking"><UserRound size={17}/><div><small>{english ? "Who I would like to meet" : "Quem gostaria de conhecer"}</small><strong>{ages[0]}–{ages[1]} {english ? "years old" : "anos"}</strong></div></div>}
-                <div className="nk-profile-intro__primary">
-                  {onAskChat && !String(profile.id).startsWith("demo-") && <button type="button" className="nk-button nk-button--wine" disabled={askingChat} onClick={askChat}><MessageCircle size={18}/> {askingChat ? (english ? "Sending…" : "A enviar…") : (english ? "Request a chat" : "Pedir conversa")}</button>}
-              <button
+        <details className="nk-profile-editorial__secondary">
+          <summary><Sparkles size={18}/>{english ? "More ways to interact" : "Outras formas de interagir"}</summary>
+                        <button
                 type="button"
                 className={`nk-button nk-button--quiet ${interestActive ? "is-active" : ""}`}
                 aria-pressed={Boolean(interestActive)}
@@ -470,28 +593,7 @@ export default function ProfileDetailPage({
                       ? (english ? "Interest sent" : "Interesse enviado")
                       : (english ? "I'm interested" : "Tenho interesse")}
               </button>
-
-                </div>
-                {chatError && <p role="alert">{chatError}</p>}
-                {interestMessage && <div className={`nk-interest-message ${interestActive ? "is-active" : ""}`} role="status">{interestMessage}</div>}
-                <div className="nk-profile-detail__quick-actions">
-                  <button type="button" className={`nk-profile-detail__save ${saved ? "is-saved" : ""}`} onClick={() => onToggleSaved?.(profile)} aria-pressed={saved}><Heart size={18} fill={saved ? "currentColor" : "none"}/>{saved ? (english ? "Saved" : "Guardado") : (english ? "Save" : "Guardar")}</button>
-                  <div className="nk-profile-more">
-                    <button type="button" className="nk-profile-detail__share" aria-expanded={moreOpen} onClick={() => setMoreOpen(value => !value)}><MoreHorizontal size={19}/>{english ? "More" : "Mais"}</button>
-                    {moreOpen && <div className="nk-profile-more__menu">
-                      <button type="button" onClick={handleShare}><Share2 size={16}/>{shareStatus || (english ? "Share" : "Partilhar")}</button>
-                      <button type="button" onClick={() => {setMoreOpen(false);openSafetyAction("report");}}><Flag size={16}/>{english ? "Report" : "Denunciar"}</button>
-                      <button type="button" onClick={() => {setMoreOpen(false);openSafetyAction("block");}}><Ban size={16}/>{english ? "Block" : "Bloquear"}</button>
-                    </div>}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {error && <div className="nk-profile-detail__notice">{english ? "Some profile details could not be refreshed." : "Alguns dados deste perfil não foram atualizados."}</div>}
-            {safetyStatus && <div className="nk-interest-message is-active" role="status">{safetyStatus}</div>}
-
-            <section className={`nk-profile-signals ${limitReached ? "is-locked" : ""}`}>
+                      <section className={`nk-profile-signals ${limitReached ? "is-locked" : ""}`}>
               <div className="nk-profile-signals__heading">
                 <div>
                   <h2>{english ? "Send a signal" : "Enviar um sinal"}</h2>
@@ -583,27 +685,8 @@ export default function ProfileDetailPage({
                 </div>
               )}
             </section>
-          </section>
-        </div>
 
-        <section className="nk-profile-essentials nk-profile-essentials--wide">
-          <h2>{english ? "Get to know me" : "Conheça-me melhor"}</h2>
-          <div className="nk-profile-essentials__grid">
-            <section className="nk-profile-detail__block nk-profile-essentials__bio">
-              <span>{english ? "About me" : "Sobre mim"}</span>
-              <p className="nk-profile-intro__bio" id="nk-profile-bio">{bioPreview || (english ? "No introduction yet." : "Ainda sem apresentação.")}{bioLong && !bioExpanded ? "…" : ""}</p>
-              {bioLong && <button type="button" className="nk-profile-bio-toggle" aria-expanded={bioExpanded} aria-controls="nk-profile-bio" onClick={() => setBioExpanded(value => !value)}>{bioExpanded ? (english ? "Read less" : "Ver menos") : (english ? "Read more" : "Ler mais")}</button>}
-            </section>
-            {(profile.o_que_valoriza || profile.o_que_nao_aceita) && <div className="nk-profile-essentials__values">
-              {profile.o_que_valoriza && <DetailBlock title={english ? "What I value" : "O que valorizo"}>{profile.o_que_valoriza}</DetailBlock>}
-              {profile.o_que_nao_aceita && <DetailBlock title={english ? "What I don’t accept" : "O que não aceito"}>{profile.o_que_nao_aceita}</DetailBlock>}
-            </div>}
-            {hasPersonalPreferences && <section className="nk-profile-detail__block nk-profile-essentials__facts"><span>{english ? "Lifestyle" : "Estilo de vida"}</span><ProfilePreferences values={personalPreferences} english={english}/></section>}
-          </div>
-        </section>
-
-        <ProfileMoments key={profile.id} items={profile.moments || []} english={english}/>
-        <ProfileGallery items={publications} personName={profile.nome_publico} english={english}/>
+        </details>
         <div className="nk-profile-privacy"><LockKeyhole size={15}/>{english ? "Phone, email and documents are kept private." : "Telefone, email e documentos permanecem privados."}</div>
         {loading && <span className="nk-profile-detail__updating">{english ? "Refreshing profile…" : "A atualizar o perfil…"}</span>}
       </div>

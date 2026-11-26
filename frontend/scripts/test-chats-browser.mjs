@@ -26,7 +26,7 @@ function LibraryHarness(){
 function Harness(){
  const [page,setPage] = useState(new URLSearchParams(window.location.search).has("profile") ? "profile-test" : new URLSearchParams(window.location.search).has("feed") ? "feed-test" : "chats"), [id,setId] = useState(null), [accepted,setAccepted] = useState(false);
  return <div className="nk-app"><header className="nk-header"><span className="nk-header__member">Member</span></header>
- {page === "profile-test" ? <ProfileDetailPage authenticated profile={{id:2,nome_publico:"Ana Maria de Sousa Fernandes",idade:27,cidade:"Maputo",objetivo_display:"Relacionamento sério",sobre_si:["Prefiro conhecer pessoalmente.","Gosto de ler e pesquisar.","Valorizo o diálogo.","Esta última frase deve ficar visível ao expandir."].join(String.fromCharCode(10)),o_que_valoriza:"Respeito e carinho",o_que_nao_aceita:"Mentiras",preferencias:{ages:[25,35],height:165},foto_url:"/avatar-portrait-test.svg",gallery:[{id:"registo-1",mediaType:"IMAGEM",mediaUrl:"/avatar-extra-test.svg"},{id:22,mediaType:"IMAGEM",mediaUrl:"/avatar-post-test.svg"}],moments:[{id:7,mediaType:"TEXTO",text:"Um dia tranquilo por aqui.",expiresAt:new Date(Date.now()+3600000).toISOString()},{id:8,mediaType:"TEXTO",text:"Momento expirado",expiresAt:new Date(Date.now()-1000).toISOString()}]}} onAskChat={async()=>setPage("other")} onBack={()=>setPage("other")} onToggleInterest={()=>{}} onToggleSaved={()=>{}}/> : page === "feed-test" ? <MemberHomePage onNavigate={setPage} onOpenProfile={()=>setPage("profile")}/> : page === "chats" ? <ChatsPage conversationId={id} onSelect={setId} onBack={()=>setId(null)} onDiscover={()=>setPage("discover")} onOpenProfile={()=>setPage("profile")} safetyAccepted={accepted} onAcceptSafety={async()=>setAccepted(true)} /> : <main><h1>Other page</h1></main>}
+ {page === "profile-test" ? <ProfileDetailPage authenticated profile={{id:2,nome_publico:"Ana Maria de Sousa Fernandes",verificado:!new URLSearchParams(window.location.search).has("unverified"),idade:27,cidade:"Maputo",objetivo_display:"Relacionamento sério",sobre_si:["Prefiro conhecer pessoalmente.","Gosto de ler e pesquisar.","Valorizo o diálogo.","Esta última frase deve ficar visível ao expandir."].join(String.fromCharCode(10)),o_que_valoriza:"Respeito e carinho",o_que_nao_aceita:"Mentiras",preferencias:{ages:[25,35],height:165},foto_url:"/avatar-portrait-test.svg",gallery:[{id:"registo-1",mediaType:"IMAGEM",mediaUrl:"/avatar-extra-test.svg"},{id:22,mediaType:"IMAGEM",mediaUrl:"/avatar-post-test.svg"}],moments:[{id:7,mediaType:"TEXTO",text:"Um dia tranquilo por aqui.",expiresAt:new Date(Date.now()+3600000).toISOString()},{id:8,mediaType:"TEXTO",text:"Momento expirado",expiresAt:new Date(Date.now()-1000).toISOString()}]}} onAskChat={async()=>setPage("other")} onBack={()=>setPage("other")} onToggleInterest={()=>{}} onToggleSaved={()=>{}}/> : page === "feed-test" ? <MemberHomePage onNavigate={setPage} onOpenProfile={()=>setPage("profile")}/> : page === "chats" ? <ChatsPage conversationId={id} onSelect={setId} onBack={()=>setId(null)} onDiscover={()=>setPage("discover")} onOpenProfile={()=>setPage("profile")} safetyAccepted={accepted} onAcceptSafety={async()=>setAccepted(true)} /> : <main><h1>Other page</h1></main>}
  <BottomNavigation activePage={page} onNavigate={p=>{setPage(p);setId(null)}}/>
  </div>;
 }
@@ -208,21 +208,35 @@ try {
     await detail.route("**/api/presenca/",route=>route.fulfill({json:{perfis:{"2":120}}}));
     await detail.route("**/api/perfis/2/sinais/",route=>route.fulfill({json:{signals:[],quota:{credit_mode:true,credit_balance:45}}}));
     await detail.goto("http://127.0.0.1:5178/"+html+"?profile=1");
-    await detail.getByRole("heading",{name:"Ana Maria de Sousa Fernandes, 27",exact:true}).waitFor();
+    await detail.getByRole("heading",{name:/Ana Maria de Sousa Fernandes/}).waitFor();
+    await detail.getByText("27 anos",{exact:true}).waitFor();
+    await detail.getByText("Identidade verificada pelo NKATA",{exact:true}).waitFor();
+    assert.equal(await detail.locator(".nk-profile-intro__verified").count(),1,"Verified profile must show one badge");
+    await detail.locator(".nk-profile-editorial__presence").getByText(/Offline/).waitFor();
+    assert.equal(await detail.locator("[data-presence-id='2']").count(),1,"Presence marker must not be duplicated");
+    assert.equal(await detail.getByRole("tab",{name:"Sobre mim"}).getAttribute("aria-selected"),"true");
     assert.equal(await detail.getByText("Prefiro conhecer pessoalmente.",{exact:false}).count(),1);
     assert.equal(await detail.getByText("Esta última frase deve ficar visível ao expandir.",{exact:false}).count(),0);
     await detail.getByRole("button",{name:"Ler mais",exact:true}).click();
     await detail.getByText("Esta última frase deve ficar visível ao expandir.",{exact:false}).waitFor();
     await detail.getByRole("button",{name:"Ver menos",exact:true}).click();
     assert.equal(await detail.getByText("Esta última frase deve ficar visível ao expandir.",{exact:false}).count(),0);
-    const hero=await detail.locator(".nk-profile-detail__layout").boundingBox(), facts=await detail.locator(".nk-profile-essentials--wide").boundingBox();
+    const hero=await detail.locator(".nk-profile-detail__layout").boundingBox(), facts=await detail.locator(".nk-profile-sections").boundingBox();
     assert.ok(facts.y>=hero.y+hero.height-2 && Math.abs(facts.width-hero.width)<4,"Details must occupy full width below the hero");
+    const portrait=await detail.locator(".nk-profile-detail__media").boundingBox(), name=await detail.locator(".nk-profile-intro__name").boundingBox();
+    assert.ok(name.y>=portrait.y+portrait.height-2,"Name must appear below the full-width photo");
+    assert.ok(Math.abs(portrait.width-hero.width)<4,"Photo must span the profile width");
+    const secondary=detail.locator(".nk-profile-editorial__secondary");
+    assert.equal(await secondary.getAttribute("open"),null,"Secondary actions should start collapsed");
+    await secondary.locator("summary").click();
     const signals=await detail.locator(".nk-profile-signals__grid > button").first().boundingBox();
-    assert.ok(signals.height<100,"Signal actions must remain compact");
-    assert.equal(await detail.getByText("25–35 anos",{exact:true}).count(),1);
+    assert.ok(signals && signals.height<100,"Signal actions must remain compact");
+    await secondary.locator("summary").click();
+    assert.equal(await detail.getByText("Gostaria de conhecer alguém entre 25–35 anos",{exact:true}).count(),1);
     assert.equal(await detail.getByText("Relacionamento sério",{exact:true}).count(),1);
     assert.equal(await detail.getByText("Momento expirado",{exact:true}).count(),0);
-    await detail.getByRole("button",{name:"Fotografia 2",exact:true}).click();
+    await detail.getByRole("button",{name:"Fotografia seguinte",exact:true}).click();
+    assert.equal(await detail.locator(".nk-profile-editorial__photo-count").innerText(),"2 / 2");
     assert.ok((await detail.locator(".nk-profile-detail__media > img").getAttribute("src")).includes("avatar-extra-test"));
     await detail.getByRole("button",{name:"Ampliar fotografia"}).click();
     await detail.getByRole("dialog",{name:"Fotografia de perfil"}).waitFor();
@@ -230,13 +244,24 @@ try {
     await detail.getByRole("button",{name:"Mais",exact:true}).click();
     await detail.getByRole("button",{name:"Denunciar",exact:true}).waitFor();
     await detail.getByRole("button",{name:"Mais",exact:true}).click();
+    await detail.getByRole("tab",{name:"Afinidades"}).click();
+    await detail.getByText("Respeito e carinho",{exact:true}).waitFor();
+    assert.equal(await detail.getByRole("tab",{name:"Afinidades"}).getAttribute("aria-selected"),"true");
+    await detail.getByRole("tab",{name:"Momentos"}).click();
+    assert.equal(await detail.getByText("Momento expirado",{exact:true}).count(),0);
+    await detail.getByRole("heading",{name:"Galeria",exact:true}).waitFor();
     await detail.getByRole("button",{name:"Abrir momento 1"}).click();
     await detail.getByRole("dialog",{name:"Momento",exact:true}).waitFor();
     await detail.getByRole("button",{name:"Fechar momento"}).click();
     assert.ok(await detail.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth+2),"Profile must not overflow viewport");
     assert.equal(profileErrors.length,0,profileErrors.join("\n"));
-    await detail.getByRole("button",{name:"Pedir conversa",exact:true}).click();
+    await detail.getByRole("button",{name:"Pedir para conversar",exact:true}).click();
     await detail.getByRole("heading",{name:"Other page"}).waitFor();
+    await detail.goto("http://127.0.0.1:5178/"+html+"?profile=1&unverified=1");
+    await detail.getByRole("heading",{name:/Ana Maria de Sousa Fernandes/}).waitFor();
+    assert.equal(await detail.locator(".nk-profile-intro__verified").count(),0,"Unverified profiles must never display a verified badge");
+    assert.equal(await detail.getByText("Identidade verificada pelo NKATA",{exact:true}).count(),0);
+    assert.equal(profileErrors.length,0,profileErrors.join("\n"));
     await detail.close();
    }
   } finally {await browser.close();}
