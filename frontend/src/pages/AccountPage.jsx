@@ -1,3 +1,4 @@
+import CommunityRules from "../components/CommunityRules.jsx";
 import { MatchPreferences } from "../components/MatchPreferences";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -825,6 +826,7 @@ export default function AccountPage({
                 <MatchPreferences values={form.preferencias} onChange={(value) => updateField("preferencias", value)} section="search" english={english} />
               </fieldset>
             </form>
+            <CommunityRules english={english} />
             <RegistrationPhotosManager language={language} />
             <ProfileGalleryManager language={language} />
             </>
