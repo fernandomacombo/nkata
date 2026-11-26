@@ -13,6 +13,7 @@ import React, {useState} from "react";
 import {createRoot} from "react-dom/client";
 import ChatsPage from "/src/pages/ChatsPage.jsx";
 import MemberHomePage from "/src/pages/MemberHomePage.jsx";
+import DiscoverPage from "/src/pages/DiscoverPage.jsx";
 import ProfileDetailPage from "/src/pages/ProfileDetailPage.jsx";
 import HeartLoader from "/src/components/HeartLoader.jsx";
 import BottomNavigation from "/src/components/layout/BottomNavigation.jsx";
@@ -23,6 +24,11 @@ function LibraryHarness(){
  const {savedProfiles} = useProfileLibrary();
  function session(id){window.dispatchEvent(new CustomEvent("nkata:session-changed",{detail:id?{authenticated:true,user:{id}}:{authenticated:false}}));}
  return <main><h1>Biblioteca</h1><button onClick={()=>session(1)}>Conta A</button><button onClick={()=>session(2)}>Conta B</button><button onClick={()=>session(null)}>Sair</button><output aria-label="Guardados">{savedProfiles.map(p=>p.nome_publico).join(",")}</output></main>;
+}
+function DiscoveryHarness(){
+ const [loading,setLoading]=useState(true),[saved,setSaved]=useState([]),[opened,setOpened]=useState("");
+ const profiles=Array.from({length:7},(_,i)=>({id:i+11,nome_publico:"Pessoa "+(i+1),idade:25+i,cidade:i%2?"Beira":"Maputo",verificado:i!==1,objetivo_display:"Relacionamento sério",foto_url:"/discovery-test.svg",criado_em:new Date(Date.now()-i*86400000).toISOString()})).reverse();
+ return <PresenceProvider member={true} identity="discovery" page={loading?"loading":"discover"}><div className="nk-app"><button onClick={()=>setLoading(false)}>Carregar descoberta</button><output aria-label="Perfil aberto">{opened}</output><DiscoverPage authenticated profiles={profiles} loading={loading} onReload={()=>{}} onOpenProfile={p=>setOpened(p.nome_publico)} isSaved={p=>saved.includes(p.id)} onToggleSaved={p=>setSaved(old=>old.includes(p.id)?old.filter(id=>id!==p.id):[...old,p.id])}/></div></PresenceProvider>;
 }
 function LoaderHarness(){
  const [context,setContext]=useState("profile");
@@ -43,7 +49,7 @@ function Harness(){
  </div>;
 }
 document.body.classList.toggle("nk-app-mode", window.matchMedia("(max-width: 820px)").matches);
-createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
+createRoot(document.getElementById("root")).render(new URLSearchParams(window.location.search).has("loader") ? <LoaderHarness/> : new URLSearchParams(window.location.search).has("library") ? <LibraryHarness/> : new URLSearchParams(window.location.search).has("discovery") ? <DiscoveryHarness/> : <PresenceProvider member={true} identity="test" page="chats"><Harness/></PresenceProvider>);
 `);
 process.env.VITE_API_BASE_URL = "http://127.0.0.1:5178";
 const server = await createServer({server:{host:"127.0.0.1",port:5178,strictPort:true}});
@@ -95,6 +101,41 @@ try {
    assert.equal(await status.locator(".nk-heart-loader__particles svg").count(),7);
    assert.equal(loaderErrors.length,0,loaderErrors.join("\n"));
    await loader.close();
+   for (const width of [375,1366]) {
+     const discovery=await browser.newPage({viewport:{width,height:820},reducedMotion:"reduce"});
+     const discoveryErrors=[];
+     discovery.on("pageerror",error=>discoveryErrors.push(error.message));
+     await discovery.route("**/discovery-test.svg",route=>route.fulfill({contentType:"image/svg+xml",body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="130"><rect width="100" height="130" fill="#987"/></svg>'}));
+     await discovery.route("**/api/presenca/",route=>route.fulfill({json:{perfis:{11:0,12:120,13:120,14:120,15:120,16:0,17:120}}}));
+     await discovery.goto("http://127.0.0.1:5178/"+html+"?discovery=1");
+     await discovery.locator(".nk-heart-loader").getByText("A descobrir novas pessoas",{exact:true}).waitFor();
+     await discovery.getByRole("button",{name:"Carregar descoberta"}).evaluate(button=>button.click());
+     const recent=discovery.locator(".nk-flow__recent");
+     await recent.getByRole("heading",{name:"Novos rostos"}).waitFor();
+     await recent.getByRole("heading",{name:"Pessoa 1, 25"}).waitFor();
+     assert.equal(await recent.locator(".nk-flow__slide").count(),5);
+     assert.equal(await discovery.locator(".nk-flow__mini").count(),2);
+     const geometry=await recent.locator(".nk-flow__stage").evaluate(el=>{
+       const stage=el.getBoundingClientRect(),center=el.querySelector('[data-position="0"]').getBoundingClientRect(),left=el.querySelector('[data-position="-1"]').getBoundingClientRect(),right=el.querySelector('[data-position="1"]').getBoundingClientRect();
+       return {center:Math.abs((stage.left+stage.width/2)-(center.left+center.width/2)),left:left.width,right:right.width,main:center.width};
+     });
+     assert.ok(geometry.center<2 && Math.abs(geometry.left-geometry.right)<2 && geometry.main>geometry.left,"Featured card must be centered and larger: "+JSON.stringify(geometry));
+     await recent.getByRole("button",{name:"Seguinte"}).click();
+     await recent.getByRole("heading",{name:"Pessoa 2, 26"}).waitFor();
+     assert.equal(await recent.locator(".nk-flow__identity .nk-flow__verified").count(),0);
+     await recent.getByRole("button",{name:"Conhecer Pessoa"}).click();
+     await discovery.getByLabel("Perfil aberto").getByText("Pessoa 2").waitFor();
+     await recent.getByRole("button",{name:"Guardar perfil"}).click();
+     await discovery.getByRole("button",{name:"Guardados",exact:true}).click();
+     assert.equal(await discovery.locator(".nk-flow__mini").count(),1);
+     await discovery.getByRole("button",{name:"Todos",exact:true}).click();
+     await discovery.getByRole("button",{name:"Pesquisar perfis"}).click();
+     await discovery.getByRole("searchbox").fill("Pessoa 7");
+     assert.equal(await discovery.locator(".nk-flow__mini").count(),1);
+     assert.ok(await discovery.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"Discovery must fit viewport");
+     assert.equal(discoveryErrors.length,0,discoveryErrors.join("\\n"));
+     await discovery.close();
+   }
    const library=await browser.newPage();
    let privateRequests=0, releaseFirst;
    await library.route("**/api/minha-conta/guardados/",async route=>{

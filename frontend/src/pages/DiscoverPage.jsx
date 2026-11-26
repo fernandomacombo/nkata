@@ -10,7 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 import CompactPageHeader from "../components/layout/CompactPageHeader.jsx";
-import ProfileCard from "../components/profiles/ProfileCard.jsx";
+import DiscoveryFlow from "../components/discovery/DiscoveryFlow.jsx";
 import ProfileFilters from "../components/profiles/ProfileFilters.jsx";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 import { fetchPublicProfilePreviews } from "../services/api.js";
@@ -197,7 +197,6 @@ export default function DiscoverPage({
   };
 
   const hasActiveFilters = Boolean(query || city || objective || minAge || maxAge);
-  const hasProfiles = profiles.length > 0;
 
   const filteredProfiles = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -232,6 +231,8 @@ export default function DiscoverPage({
   if (!authenticated) {
     return <GuestProfilesExperience onRequireLogin={onRequireLogin} />;
   }
+
+  if (!loading) return <DiscoveryFlow {...{english, profiles, filteredProfiles, loadError, onReload, onOpenProfile, isSaved, onToggleSaved, query, setQuery, city, setCity, objective, setObjective, minAge, setMinAge, maxAge, setMaxAge, clearFilters, hasActiveFilters}} />;
 
   return (
     <main className="nk-discover">
@@ -270,43 +271,7 @@ export default function DiscoverPage({
           </button>
         </div>
 
-        {loading ? (
-          <HeartLoader page="discover"/>
-        ) : filteredProfiles.length ? (
-          <div className="nk-profile-grid">
-            {filteredProfiles.map((profile) => (
-              <ProfileCard
-                key={profile.id}
-                profile={profile}
-                onOpen={onOpenProfile}
-                saved={isSaved(profile)}
-                onToggleSaved={onToggleSaved}
-              />
-            ))}
-          </div>
-        ) : !hasProfiles ? (
-          <div className="nk-empty-state nk-empty-state--community">
-            <ShieldCheck size={28} />
-            <h2>{english ? "No profiles yet" : "Ainda não há perfis"}</h2>
-            <p>{english ? "New members will appear here after approval." : "Novos membros aparecerão aqui após aprovação."}</p>
-            <button type="button" onClick={onReload}>
-              {english ? "Refresh profiles" : "Atualizar perfis"}
-            </button>
-          </div>
-        ) : (
-          <div className="nk-empty-state">
-            <ShieldCheck size={28} />
-            <h2>{english ? "No results" : "Nenhum resultado"}</h2>
-            <p>
-              {hasActiveFilters
-                ? (english ? "Change or clear the filters." : "Altere ou limpe os filtros.")
-                : (english ? "Refresh to try again." : "Atualize para tentar novamente.")}
-            </p>
-            <button type="button" onClick={hasActiveFilters ? clearFilters : onReload}>
-              {hasActiveFilters ? (english ? "Clear filters" : "Limpar filtros") : (english ? "Refresh profiles" : "Atualizar perfis")}
-            </button>
-          </div>
-        )}
+        <HeartLoader page="discover"/>
       </section>
     </main>
   );

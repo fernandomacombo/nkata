@@ -85,6 +85,7 @@ class PerfilResumoSerializer(serializers.ModelSerializer):
             "status",
             "visivel",
             "tema_perfil",
+            "criado_em",
         ]
 
     def get_foto_principal(self, obj):
@@ -125,7 +126,6 @@ class PerfilDetalheSerializer(PerfilResumoSerializer):
         fields = PerfilResumoSerializer.Meta.fields + [
             "o_que_valoriza",
             "o_que_nao_aceita",
-            "criado_em",
             "preferencias",
         ]
 
