@@ -14,6 +14,7 @@ import {createRoot} from "react-dom/client";
 import ChatsPage from "/src/pages/ChatsPage.jsx";
 import MemberHomePage from "/src/pages/MemberHomePage.jsx";
 import ProfileDetailPage from "/src/pages/ProfileDetailPage.jsx";
+import HeartLoader from "/src/components/HeartLoader.jsx";
 import BottomNavigation from "/src/components/layout/BottomNavigation.jsx";
 import { PresenceProvider } from "/src/components/profiles/Presence.jsx";
 import useProfileLibrary from "/src/hooks/useProfileLibrary.js";
@@ -24,11 +25,14 @@ function LibraryHarness(){
  return <main><h1>Biblioteca</h1><button onClick={()=>session(1)}>Conta A</button><button onClick={()=>session(2)}>Conta B</button><button onClick={()=>session(null)}>Sair</button><output aria-label="Guardados">{savedProfiles.map(p=>p.nome_publico).join(",")}</output></main>;
 }
 function LoaderHarness(){
+ const [context,setContext]=useState("profile");
  const [state,setState]=useState("loading");
  return <div>
    <button onClick={()=>setState("loaded")}>Simular perfil carregado</button>
+   <button onClick={()=>{setContext("chats");setState("loading");}}>Simular carregamento chats</button>
+   <button onClick={()=>{setContext("discover");setState("loading");}}>Simular carregamento explorar</button>
    <button onClick={()=>setState("error")}>Simular falha</button>
-   <ProfileDetailPage loading={state==="loading"} profile={state==="loaded"?{id:"demo-loader",nome_publico:"Perfil de teste",idade:29}:null} error={state==="error"?"Falha de teste":""} onBack={()=>{}}/>
+   {context!=="profile" && state==="loading" ? <HeartLoader page={context}/> : <ProfileDetailPage loading={state==="loading"} profile={state==="loaded"?{id:"demo-loader",nome_publico:"Perfil de teste",idade:29}:null} error={state==="error"?"Falha de teste":""} onBack={()=>{}}/>}
  </div>;
 }
 function Harness(){
@@ -65,6 +69,12 @@ try {
    await loader.getByRole("button",{name:"Simular falha"}).click();
    await status.waitFor({state:"detached"});
    await loader.getByRole("heading",{name:"Perfil não disponível"}).waitFor();
+   assert.equal(loaderErrors.length,0,loaderErrors.join("\n"));
+   await loader.getByRole("button",{name:"Simular carregamento chats"}).click();
+   await status.getByText("A preparar as suas conversas",{exact:true}).waitFor();
+   await loader.getByRole("button",{name:"Simular carregamento explorar"}).click();
+   await status.getByText("A descobrir novas pessoas",{exact:true}).waitFor();
+   assert.equal(await status.locator(".nk-heart-loader__particles svg").count(),7);
    assert.equal(loaderErrors.length,0,loaderErrors.join("\n"));
    await loader.close();
    const library=await browser.newPage();
