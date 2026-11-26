@@ -704,6 +704,7 @@ export default function AccountPage({
             {[
               ["summary", english ? "Summary" : "Resumo"],
               ["profile", english ? "Profile" : "Perfil"],
+              ["photos", english ? "Photos" : "Fotografias"],
               ["plan", english ? "Wallet" : "Carteira"],
               ["interests", english ? "Interests" : "Interesses"],
               ["preferences", english ? "Appearance" : "Aparência"],
@@ -833,10 +834,10 @@ export default function AccountPage({
               </fieldset>
             </form>
             <CommunityRules english={english} />
-            <RegistrationPhotosManager language={language} />
-            <ProfileGalleryManager language={language} />
             </>
           )}
+
+          {accountSection === "photos" && <><RegistrationPhotosManager language={language} /><ProfileGalleryManager language={language} /></>}
 
           {accountSection === "plan" && <PlanPanel language={language} />}
 
