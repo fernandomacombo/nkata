@@ -252,8 +252,10 @@ export default function MomentsPage({ onOpenProfile, userId, openComposerInitial
       const result = await fetchMoments({ signal: controller.signal });
       if (!controller.signal.aborted) setData(result);
     } catch (requestError) {
-      if (!silent && !controller.signal.aborted) {
-        setError(requestError.message || (english ? "Unable to load Moments." : "Não foi possível carregar os Momentos."));
+      if (!controller.signal.aborted) {
+        setViewerGroup(null);
+        if ([401,403,404].includes(requestError.status)) setData(null);
+        if (!silent || [401,403,404].includes(requestError.status)) setError(requestError.message || (english ? "Unable to load Moments." : "Não foi possível carregar os Momentos."));
       }
     } finally {
       if (activeRequest.current === controller) {
@@ -283,6 +285,11 @@ export default function MomentsPage({ onOpenProfile, userId, openComposerInitial
   }, [mediaPreview]);
 
   const moments = data?.results || [];
+  useEffect(()=>{
+    if(!viewerGroup || !data)return;
+    const authorised=new Set((data.results||[]).filter(m=>m.moderation_status==="APROVADO" && Date.parse(m.expires_at)>Date.now()).map(m=>m.id));
+    if(viewerGroup.groups.some(group=>group.moments.some(m=>!authorised.has(m.id))))closeViewer();
+  },[data,viewerGroup,closeViewer]);
   const reviewItems = data?.review_items || [];
   const groups = useMemo(() => groupMomentsByProfile(moments), [moments]);
   const capabilities = data?.capabilities || null;
@@ -397,7 +404,10 @@ export default function MomentsPage({ onOpenProfile, userId, openComposerInitial
           onOpen={(group, momentId) => {
             const active = activeMomentGroups(groups);
             const index = active.findIndex(item => item.profile.id === group.profile.id);
-            if (index >= 0) setViewerGroup({ groups: active, index, momentIndex: Math.max(0, active[index].moments.findIndex(item => item.id === momentId)) });
+            if (index >= 0) {
+              const momentIndex=active[index].moments.findIndex(item=>item.id===momentId);
+              if(momentIndex>=0)setViewerGroup({groups:active,index,momentIndex});
+            }
           }}
         />}
         {composerOpen && <form id="nk-moment-composer" ref={composerRef}

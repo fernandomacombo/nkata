@@ -439,8 +439,8 @@ export default function MemberHomePage({ onNavigate, onOpenProfile, userId, onCr
         </button>
       </CompactPageHeader>
 
-      <section className={"nk-shell nk-member-home__layout nk-member-home__layout--discovery"+(!loading?" nk-living-layout":"")}>
-        {!loading && <HomeWindows english={english} userId={userId} onOpenProfile={onOpenProfile} onExplore={()=>onNavigate("moments")} onCreate={onCreateMoment || (()=>onNavigate("moments"))}/>}
+      <section className={"nk-shell nk-member-home__layout nk-member-home__layout--discovery"+(!loading||data?" nk-living-layout":"")}>
+        {(!loading||data) && <HomeWindows english={english} userId={userId} onOpenProfile={onOpenProfile} onExplore={()=>onNavigate("moments")} onCreate={onCreateMoment || (()=>onNavigate("moments"))}/>}
         <DiscoveryPanel
           english={english}
           onOpenProfile={onOpenProfile}

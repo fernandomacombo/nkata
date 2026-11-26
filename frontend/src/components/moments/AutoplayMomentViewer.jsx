@@ -215,8 +215,10 @@ export default function AutoplayMomentViewer({
     if (!windowsMode || !moment?.expires_at) return undefined;
     const remaining = Date.parse(moment.expires_at) - Date.now();
     if (!Number.isFinite(remaining) || remaining <= 0) { onClose(); return undefined; }
+    const check=()=>{if(Date.parse(moment.expires_at)<=Date.now())onClose();};
     const timer = window.setTimeout(onClose, remaining);
-    return () => window.clearTimeout(timer);
+    document.addEventListener("visibilitychange",check);
+    return () => {window.clearTimeout(timer);document.removeEventListener("visibilitychange",check);};
   }, [windowsMode, moment?.id, moment?.expires_at, onClose]);
 
   useEffect(() => {
@@ -248,9 +250,10 @@ export default function AutoplayMomentViewer({
     setReactionsLoading(true);
 
     fetchMomentReactions(moment.id, { signal: controller.signal })
-      .then((result) => setReactions(result))
+      .then((result) => { if (!controller.signal.aborted && currentMomentIdRef.current === moment.id) setReactions(result); })
       .catch((requestError) => {
-        if (requestError.name !== "AbortError") {
+        if (!controller.signal.aborted && currentMomentIdRef.current === moment.id && requestError.name !== "AbortError") {
+          if(windowsMode && [401,403,404].includes(requestError.status)){onClose();return;}
           setReactionError(requestError.message || (english ? "Reactions unavailable." : "Reações indisponíveis."));
         }
       })
@@ -294,6 +297,7 @@ export default function AutoplayMomentViewer({
       }
     } catch (requestError) {
       if (currentMomentIdRef.current === reactionMomentId) {
+        if(windowsMode && [401,403,404].includes(requestError.status)){onClose();return;}
         setReactionError(requestError.message || (english ? "Unable to react." : "Não foi possível reagir."));
       }
     } finally {

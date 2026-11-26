@@ -33,12 +33,13 @@ export default function HomeWindows({english,userId,onOpenProfile,onExplore,onCr
   const open=(group,moment)=>{
     const index=groups.findIndex(g=>g.profile.id===group.profile.id);
     if(index<0||!(Date.parse(moment.expires_at)>Date.now()))return;
-    setViewer({groups,index,momentIndex:groups[index].moments.findIndex(m=>m.id===moment.id)});
+    const momentIndex=groups[index].moments.findIndex(m=>m.id===moment.id);
+    if(momentIndex>=0)setViewer({groups,index,momentIndex});
   };
   // Close an open snapshot if any included Moment is no longer authorised by the latest feed.
   useEffect(()=>{
     if(!viewer||!data)return;
-    const ids=new Set(data.filter(m=>m.moderation_status==="APROVADO").map(m=>m.id));
+    const ids=new Set(data.filter(m=>m.moderation_status==="APROVADO"&&Date.parse(m.expires_at)>Date.now()).map(m=>m.id));
     if(viewer.groups.some(group=>group.moments.some(m=>!ids.has(m.id))))close();
   },[data,viewer,close]);
   return <section className="nk-living-windows" aria-label={english?"Today's windows":"Janelas de hoje"}>
