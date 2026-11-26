@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import useInterfaceLanguage from "../hooks/useInterfaceLanguage.js";
 
 const copy = {
@@ -19,8 +20,8 @@ export default function HeartLoader({ page = "home", compact = false }) {
   const english = useInterfaceLanguage() === "EN";
   const labels = copy[page] || copy.home;
   const [heading, subtitle] = english ? labels.slice(2) : labels;
-  return (
-          <div className={compact ? "nk-heart-loader nk-heart-loader--compact" : "nk-heart-loader"} role="status" aria-live="polite">
+  const content = (
+          <div className={compact ? "nk-heart-loader nk-heart-loader--compact" : "nk-heart-loader nk-heart-loader--fullscreen"} role="status" aria-live="polite">
             <div className="nk-heart-loader__brand" aria-hidden="true">NKATA</div>
             <div className="nk-heart-loader__animation" aria-hidden="true">
               <div className="nk-heart-loader__halo"/>
@@ -42,4 +43,5 @@ export default function HeartLoader({ page = "home", compact = false }) {
             <div className="nk-heart-loader__progress" aria-hidden="true"><i/></div>
           </div>
   );
+  return compact ? content : createPortal(content, document.body);
 }
