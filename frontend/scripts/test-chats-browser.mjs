@@ -241,12 +241,12 @@ try {
     const signals=await detail.locator(".nk-profile-signals__grid > button").first().boundingBox();
     assert.ok(signals && signals.height<100,"Signal actions must remain compact");
     const flower=detail.locator(".nk-profile-signals__grid").getByRole("button",{name:/Flor/});
-    const confirmSignal=detail.getByRole("dialog",{name:"Confirmar envio"});
+    const confirmSignal=detail.getByRole("dialog",{name:"Enviar flor?"});
     await flower.click();
     await confirmSignal.waitFor();
     await confirmSignal.getByText("2 créditos",{exact:true}).waitFor();
-    await confirmSignal.getByText("45 créditos",{exact:true}).waitFor();
-    await confirmSignal.getByText("43 créditos",{exact:true}).waitFor();
+    assert.equal(await confirmSignal.getByText("45 créditos",{exact:true}).count(),0,"Keep modal concise: balance is already shown outside");
+    assert.equal(await confirmSignal.getByText("43 créditos",{exact:true}).count(),0);
     assert.equal(signalPosts,0,"Opening the modal must not send a signal");
     await confirmSignal.getByRole("button",{name:"Cancelar",exact:true}).click();
     await confirmSignal.waitFor({state:"detached"});
@@ -257,7 +257,7 @@ try {
     await confirmSignal.waitFor({state:"detached"});
     assert.equal(signalPosts,0,"Escape must not spend credits");
     await flower.click();
-    await confirmSignal.getByRole("button",{name:"Confirmar envio",exact:true}).click();
+    await confirmSignal.getByRole("button",{name:"Enviar",exact:true}).click();
     await confirmSignal.waitFor({state:"detached"});
     await detail.locator(".nk-profile-signals__quota").getByText("43 créditos",{exact:true}).waitFor();
     assert.equal(signalPosts,1,"One explicit confirmation must send exactly one request");
