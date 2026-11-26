@@ -1,3 +1,4 @@
+import hashlib
 import mimetypes
 import os
 from datetime import timedelta
@@ -18,6 +19,9 @@ from .models import AcaoPerfil, MatchPerfil
 from .moments_models import MOMENT_LIFETIME_HOURS, MomentoNKATA
 from .profile_media_api import profile_photo_url
 from .plan_service import plan_for_user
+from .legacy_commercial import credit_only_enabled
+from .moment_credit_service import MomentCreditError, moment_offer, parse_moment_confirmation, submit_moment
+from .wallet_service import WalletError
 from .user_roles import active_member_profile_for_user
 
 
@@ -215,11 +219,17 @@ def _validate_media(file_obj):
 
 def _capabilities(user):
     plan = plan_for_user(user)
+    credit_mode = credit_only_enabled()
+    profile = _perfil_do_utilizador(user) if credit_mode else None
+    verified = bool(profile and pedido_tem_identidade_verificada(profile.pedido))
     return {
+        "credit_mode": credit_mode,
+        "identity_required": credit_mode and not verified,
+        "moment_offer": moment_offer(user) if credit_mode else None,
         "plan": plan["code"],
         "plan_label": plan["label"],
         "text_enabled": True,
-        "media_enabled": bool(plan["features"].get("status_media", False)),
+        "media_enabled": verified if credit_mode else bool(plan["features"].get("status_media", False)),
         "media_requires_moderation": True,
         "free_text_enabled": False,
         "caption_options": [
@@ -247,6 +257,7 @@ def api_momentos(request):
         try:
             momentos = list(_feed_queryset(request.user, perfil)[:60])
             em_revisao = list(_review_queryset(request.user))
+            capabilities = _capabilities(request.user)
         except DatabaseError:
             return Response(
                 {
@@ -259,10 +270,13 @@ def api_momentos(request):
         return Response({
             "results": [_moment_payload(request, momento) for momento in momentos],
             "review_items": [_moment_payload(request, momento) for momento in em_revisao],
-            "capabilities": _capabilities(request.user),
+            "capabilities": capabilities,
         })
 
-    capabilities = _capabilities(request.user)
+    try:
+        capabilities = _capabilities(request.user)
+    except DatabaseError:
+        return Response({"detail": "Os Momentos ainda precisam de ser preparados neste ambiente.", "setup_required": True}, status=503)
     free_text = str(request.data.get("texto", "") or "").strip()
     if free_text:
         return Response(
@@ -296,17 +310,56 @@ def api_momentos(request):
     if media and not capabilities["media_enabled"]:
         return Response(
             {
-                "detail": "Fotografias e vídeos nos Momentos exigem NKATA Quinzenal, Essencial ou Premium.",
-                "code": "paid_plan_required_for_status_media",
+                "detail": "Verifique a sua identidade para publicar fotografias ou vídeos nos Momentos." if capabilities["credit_mode"] else "A publicação de fotografias e vídeos não está disponível para esta conta.",
+                "code": "identity_required_for_moment_media" if capabilities["credit_mode"] else "paid_plan_required_for_status_media",
                 "capabilities": capabilities,
             },
             status=403,
         )
+    credit_submission = bool(media and capabilities["credit_mode"])
+    if credit_submission:
+        try:
+            key, expected = parse_moment_confirmation(request.data)
+        except MomentCreditError as error:
+            return Response({"detail": str(error)}, status=error.status)
+        digest = hashlib.sha256()
+        for chunk in media.chunks():
+            digest.update(chunk)
+        digest.update(f"|{media_type}|{caption_code}|{theme}|{font}|{visibility}".encode())
+        fingerprint = digest.hexdigest()
+        media.seek(0)
+
     if media_type == "IMAGEM":
         try:
             media = sanitized_image_upload(media)
         except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
             return Response({"media": ["Não foi possível preparar esta imagem."]}, status=400)
+
+    if credit_submission:
+        try:
+            momento, cost, created = submit_moment(
+                request.user, key=key, expected=expected, fingerprint=fingerprint,
+                media_type=media_type, media=media, text=caption["text"], theme=theme,
+                font=font, visibility=visibility,
+            )
+        except MomentCreditError as error:
+            return Response({"detail": str(error), "capabilities": _capabilities(request.user)}, status=error.status)
+        except WalletError as error:
+            return Response({"detail": str(error), "capabilities": _capabilities(request.user)}, status=409)
+        except (DatabaseError, OSError):
+            return Response({"detail": "Não foi possível registar o Momento. Nenhum crédito foi debitado."}, status=503)
+        # If queueing fails after commit, a retry can enqueue the same pending content.
+        queued = False
+        if momento.moderacao_status == "PENDENTE":
+            try:
+                queued = queue_content_media_analysis(content_type="MOMENTO", content_id=momento.pk, media_type=momento.tipo_media)
+            except DatabaseError:
+                pass
+        return Response({
+            "ok": True, "moment": _moment_payload(request, momento), "charged": cost,
+            "capabilities": _capabilities(request.user), "analysis_queued": queued,
+            "message": "Momento enviado para análise. As 24 horas começam após a aprovação." if created else "Momento já registado.",
+        }, status=202 if created else 200)
 
     moderation_status = "PENDENTE" if media else "APROVADO"
     moderated_at = timezone.now() if moderation_status == "APROVADO" else None

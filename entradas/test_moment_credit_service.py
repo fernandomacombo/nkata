@@ -14,3 +14,77 @@ class MomentCreditConfirmationTests(SimpleTestCase):
         for data in ({}, {"key":"bad","expected_cost":0}, {"key":str(uuid4()),"expected_cost":-1}, {"key":str(uuid4()),"expected_cost":1}):
             with self.assertRaises(MomentCreditError):
                 parse_moment_confirmation(data)
+
+from django.test import TestCase, override_settings
+from .test_conversations import profile
+from .test_profile_gallery_api import image_file, video_file
+from .models import EnvioMomentoCreditoNKATA, MovimentoCreditoNKATA
+from .moments_models import MomentoNKATA
+from .wallet_service import credit_balance, record_movement
+
+
+@override_settings(NKATA_CREDIT_ONLY_ENABLED=True, NKATA_CREDIT_TRANSITION_ENABLED=True,
+                   NKATA_CREDIT_SPENDING_ENABLED=True)
+class MomentCreditApiTests(TestCase):
+    def setUp(self):
+        self.member = profile(77)
+        self.user = self.member.usuario
+        self.client.force_login(self.user)
+        self.url = "/api/momentos/"
+
+    def submit(self, cost, key=None, video=False, **extra):
+        return self.client.post(self.url, {"media": video_file() if video else image_file(),
+            "key": str(key or uuid4()), "expected_cost": str(cost),
+            "caption": "SEM_LEGENDA", "visibilidade": "TODOS", **extra})
+
+    def fund(self):
+        record_movement(self.user, key="moment-test", kind="AJUSTE", amount=45,
+                        reference="TEST", reason="Saldo de teste")
+
+    def test_verified_member_and_free_photo(self):
+        capabilities = self.client.get(self.url).json()["capabilities"]
+        self.assertTrue(capabilities["credit_mode"])
+        self.assertTrue(capabilities["media_enabled"])
+        self.assertEqual(capabilities["moment_offer"]["photo_cost"], 0)
+        key = uuid4()
+        first = self.submit(0, key)
+        self.assertEqual(first.status_code, 202, first.content)
+        self.assertEqual(first.json()["moment"]["moderation_status"], "PENDENTE")
+        self.assertEqual(self.submit(0, key).status_code, 200)
+        self.assertEqual(EnvioMomentoCreditoNKATA.objects.count(), 1)
+        self.assertEqual(credit_balance(self.user), 0)
+        pk = first.json()["moment"]["id"]
+        self.assertEqual(self.client.delete(f"{self.url}{pk}/").status_code, 200)
+        self.assertEqual(self.submit(0, key).status_code, 409)
+        self.assertEqual(self.submit(0).status_code, 409)
+        self.assertEqual(self.submit(2).status_code, 409)
+
+    def test_photo_and_video_charged_once_and_stale_price_rejected(self):
+        self.fund()
+        self.assertEqual(self.submit(0).status_code, 202)
+        key = uuid4()
+        second = self.submit(2, key)
+        self.assertEqual(second.status_code, 202, second.content)
+        self.assertEqual(self.submit(2, key).status_code, 200)
+        self.assertEqual(self.submit(2, key, theme="forest").status_code, 409)
+        self.assertEqual(self.submit(5, key, video=True).status_code, 409)
+        self.assertEqual(self.submit(5, video=True).status_code, 202)
+        self.assertEqual(credit_balance(self.user), 38)
+        self.assertEqual(MovimentoCreditoNKATA.objects.filter(tipo="CONSUMO").count(), 2)
+        self.assertEqual(EnvioMomentoCreditoNKATA.objects.count(), 3)
+
+    def test_unverified_cannot_upload_media_but_can_read(self):
+        self.member.pedido.identidade_revogada = True
+        self.member.pedido.save()
+        capabilities = self.client.get(self.url).json()["capabilities"]
+        self.assertFalse(capabilities["media_enabled"])
+        self.assertTrue(capabilities["identity_required"])
+        self.assertEqual(self.submit(0).status_code, 403)
+        self.assertFalse(EnvioMomentoCreditoNKATA.objects.exists())
+
+    def test_text_still_free_and_approved(self):
+        result = self.client.post(self.url, {"caption": "DIA_TRANQUILO"})
+        self.assertEqual(result.status_code, 201, result.content)
+        self.assertEqual(result.json()["moderation_status"], "APROVADO")
+        self.assertEqual(credit_balance(self.user), 0)
+        self.assertFalse(EnvioMomentoCreditoNKATA.objects.exists())
