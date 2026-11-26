@@ -335,6 +335,10 @@ export default function MomentsPage({ onOpenProfile, userId }) {
     event.preventDefault();
     if (publishing || changingMoment.current || !canPublish) return;
     if (media && offer && !prior) {
+      if (!globalThis.crypto?.randomUUID) {
+        setError(english ? "A secure browser connection is required." : "É necessária uma ligação segura para publicar com créditos.");
+        return;
+      }
       operation.current = {media, signature, cost:expectedCost, key:crypto.randomUUID()};
     }
 
@@ -349,7 +353,7 @@ export default function MomentsPage({ onOpenProfile, userId }) {
       const publishedMoment = result.moment || result;
       setData((current) => {
         const base = current || {};
-        if (publishedMoment.moderation_status === "PENDENTE") {
+        if (["PENDENTE","REJEITADO"].includes(publishedMoment.moderation_status)) {
           return {
             ...base,
             review_items: [publishedMoment, ...(base.review_items || []).filter(item=>item.id!==publishedMoment.id)],
@@ -371,7 +375,8 @@ export default function MomentsPage({ onOpenProfile, userId }) {
       window.setTimeout(() => setStatus(""), 4200);
     } catch (requestError) {
       if (requestError.payload?.capabilities) setData(current=>({...current,capabilities:requestError.payload.capabilities}));
-      if (requestError.status>=400 && requestError.status<500) operation.current=null;
+      // Only explicit API validation/conflict responses guarantee no new charge.
+      if ([400,403,409].includes(requestError.status) && requestError.payload?.detail) operation.current=null;
       setError(requestError.message || (english ? "Unable to post the Moment." : "Não foi possível enviar o Momento."));
     } finally {
       changingMoment.current = false;
@@ -468,7 +473,7 @@ export default function MomentsPage({ onOpenProfile, userId }) {
         {reviewItems.length > 0 && (
           <section className="nk-moment-review">
             <div className="nk-moment-review__heading">
-              <h2>{english ? "Under review" : "Em análise"}</h2>
+              <h2>{english ? "My submissions" : "Os meus envios"}</h2>
               <span>{reviewItems.length}</span>
             </div>
             <div className="nk-moment-review__list">

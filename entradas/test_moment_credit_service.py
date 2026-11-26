@@ -131,3 +131,24 @@ class MomentCreditApiTests(TestCase):
         second, _ = moderate_moment(pk, action="approve")
         self.assertEqual(first.expira_em, second.expira_em)
         self.assertEqual(credit_balance(self.user), 40)
+
+    def test_audit_matches_moment_receipt_and_refund(self):
+        from io import StringIO
+        from django.core.management import call_command, CommandError
+        from unittest.mock import patch
+        from .moment_credit_service import moderate_moment
+        self.fund()
+        response = self.submit(5, video=True)
+        self.assertEqual(response.status_code, 202, response.content)
+        moderate_moment(response.json()["moment"]["id"], action="reject", note="Teste")
+        with patch("entradas.management.commands.auditar_creditos.connection.vendor", "sqlite"):
+            output = StringIO()
+            call_command("auditar_creditos", stdout=output, stderr=StringIO())
+            self.assertIn("ocorrências: 0", output.getvalue())
+            record_movement(self.user, key=f"moment:{uuid4()}", kind="CONSUMO", amount=-2,
+                            reference="TEST", reason="Movimento órfão de teste")
+            errors = StringIO()
+            with self.assertRaises(CommandError):
+                call_command("auditar_creditos", stdout=StringIO(), stderr=errors)
+            self.assertIn("MOMENTO_MOVIMENTO_SEM_RECIBO", errors.getvalue())
+            self.assertEqual(credit_balance(self.user), 43)
