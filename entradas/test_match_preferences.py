@@ -26,8 +26,12 @@ class MatchPreferencesTests(TestCase):
         self.assertFalse(QuestionarioEntrada.objects.filter(pedido=pedido).exists())
 
         answers["preferencias"]["ages"] = None
+        self.assertEqual(self.client.post(url, answers, content_type="application/json").status_code, 409)
+        answers["regras_versao"] = "2026-11-26"
         response = self.client.post(url, answers, content_type="application/json")
         self.assertEqual(response.status_code, 200, response.json())
+        self.assertEqual(pedido.questionario.regras_versao, answers["regras_versao"])
+        self.assertIsNotNone(pedido.questionario.regras_aceites_em)
         self.assertEqual(pedido.questionario.faixa_etaria_preferida, "Sem preferência")
         self.assertEqual(self.client.get(url).json()["values"]["preferencias"], answers["preferencias"])
 

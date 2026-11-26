@@ -1,4 +1,4 @@
-import CommunityRules from "../components/CommunityRules.jsx";
+import CommunityRules, { RULES_VERSION } from "../components/CommunityRules.jsx";
 import { MatchPreferences, legacyAges } from "../components/MatchPreferences";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -223,7 +223,7 @@ export default function QuestionnairePage({ token, onBack, onLogin }) {
     setRequestError("");
     setErrors({});
     try {
-      await submitQuestionnaire(token, values);
+      await submitQuestionnaire(token, { ...values, regras_versao: RULES_VERSION });
       setStep("password");
     } catch (error) {
       setRequestError(error.message);

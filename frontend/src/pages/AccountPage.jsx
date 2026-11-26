@@ -385,7 +385,10 @@ export default function AccountPage({
   const language = preferences?.idioma === "EN" ? "EN" : "PT";
   const english = language === "EN";
   const [form, setForm] = useState(emptyForm);
-  const [accountSection, setAccountSection] = useState(() => new URLSearchParams(window.location.search).get("section") === "plan" ? "plan" : "summary");
+  const [accountSection, setAccountSection] = useState(() => {
+    const section = new URLSearchParams(window.location.search).get("section");
+    return ["plan", "profile"].includes(section) ? section : "summary";
+  });
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(null);
   const [pendingPhotoUrl, setPendingPhotoUrl] = useState("");
@@ -536,7 +539,7 @@ export default function AccountPage({
       <section className="nk-shell nk-account__layout">
         <aside className="nk-account__sidebar">
           <article className="nk-account-card">
-            <div className="nk-account-card__photo">
+            <div id="fotografia-0" className="nk-account-card__photo">
               {displayedPhoto ? (
               <img src={displayedPhoto} alt={`${english ? "Photo of" : "Foto de"} ${account.nome_publico}`} decoding="async" />
               ) : (
@@ -570,6 +573,9 @@ export default function AccountPage({
               <ImageUp size={16} /> {english ? "Change photo" : "Alterar fotografia"}
             </button>
 
+            {account.foto_destaque_publico_estado === "REJEITADO" && (
+              <p role="status"><strong>{english ? "Main photo rejected." : "Fotografia principal rejeitada."}</strong> {account.foto_destaque_publico_motivo} {english ? "Choose Change photo to submit another." : "Escolha Alterar fotografia para enviar outra."}</p>
+            )}
             {pendingPhoto && (
               <div className="nk-account-card__photo-confirm">
                 <span>{english ? "New photo selected" : "Nova fotografia selecionada"}</span>

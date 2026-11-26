@@ -131,6 +131,14 @@ class ExtraPhotoModerationTests(TestCase):
 
         self.client.force_login(self.viewer)
         self.assertEqual(self.client.get(media_url).status_code, 404)
+        self.assertFalse(self.client.get("/api/minha-conta/notificacoes/").json()["results"])
+        self.client.force_login(self.owner)
+        account = self.client.get("/api/minha-conta/").json()
+        self.assertEqual(account["foto_destaque_publico_motivo"], body["reason"])
+        replacement = self.client.post("/api/minha-conta/foto/", {"foto": valid_photo("nova-principal.jpg")})
+        updated = replacement.json()["account"]
+        self.assertEqual(updated["foto_destaque_publico_estado"], "PENDENTE")
+        self.assertEqual(updated["foto_destaque_publico_motivo"], "")
 
     def test_rejection_hides_photo_and_owner_can_delete(self):
         self.client.force_login(self.moderator)
@@ -147,6 +155,14 @@ class ExtraPhotoModerationTests(TestCase):
         self.pedido.refresh_from_db()
         self.assertFalse(self.pedido.foto_extra_1_visivel)
         self.client.force_login(self.owner)
+        card = self.client.get("/api/minha-conta/fotografias/").json()["results"][0]
+        self.assertEqual(card["rejection_reason"], "Contacto visível")
+        notice = self.client.get("/api/minha-conta/notificacoes/").json()["results"][0]
+        self.assertEqual(notice["photo_slot"], 1)
+        self.assertFalse(notice["lida"])
+        replacement = self.client.post("/api/minha-conta/fotografias/1/", {"foto": valid_photo("nova.jpg")})
+        card = replacement.json()["results"][0]
+        self.assertEqual((card["review_status"], card["rejection_reason"]), ("PENDENTE", ""))
         response = self.client.delete("/api/minha-conta/fotografias/1/")
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["results"][0]["exists"])

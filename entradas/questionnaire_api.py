@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.decorators import (
     api_view,
@@ -20,6 +21,7 @@ from .profile_names import public_name_from_registration
 from .models import PedidoEntrada, PerfilNKATA, QuestionarioEntrada
 
 
+RULES_VERSION = "2026-11-26"
 User = get_user_model()
 
 
@@ -105,6 +107,9 @@ def _questionnaire_payload(pedido):
         for field in values:
             values[field] = getattr(questionario, field)
 
+    if questionario and questionario.regras_versao != RULES_VERSION:
+        values["aceita_regras"] = False
+
     return {
         "pedido": {
             "nome": pedido.nome_completo,
@@ -189,9 +194,15 @@ def api_questionario(request, token):
             status=400,
         )
 
+    if answers.get("regras_versao") != RULES_VERSION:
+        return Response({"detail": "Atualize a página para ler e aceitar a versão atual das regras."}, status=409)
+
     try:
         with transaction.atomic():
             questionario = form.save(commit=False)
+            if questionario.regras_versao != RULES_VERSION or not questionario.regras_aceites_em:
+                questionario.regras_versao = RULES_VERSION
+                questionario.regras_aceites_em = timezone.now()
             questionario.pedido = pedido
             questionario.save()
 

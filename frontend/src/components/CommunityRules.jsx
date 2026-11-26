@@ -1,3 +1,5 @@
+export const RULES_VERSION = "2026-11-26";
+
 const rules = [
   ["Perfil", "Crie apenas uma conta, tenha pelo menos 18 anos e use a sua própria identidade. Indique a sua idade verdadeira e respeite a privacidade das pessoas que menciona.", "Profile", "You must be at least 18. Use one account, your own identity and your actual age. Respect the privacy of anyone you mention."],
   ["Fotografias", "Escolha fotografias suas. Na principal, mostre o rosto com clareza. Evite expor terceiros sem autorização. Não publique nudez, imagens íntimas, documentos, números de telefone, contactos de redes sociais ou códigos QR.", "Photos", "Use photos of yourself and show your face clearly in your main photo. Get permission from anyone else pictured. Keep nudity, intimate images, documents, phone numbers, social handles and QR codes out of your photos."],
@@ -10,6 +12,7 @@ export default function CommunityRules({ english = false }) {
   return (
     <details>
       <summary>{english ? "Read the NKATA community rules" : "Ler as regras da comunidade NKATA"}</summary>
+      <small>{english ? "Version" : "Versão"} {RULES_VERSION}</small>
       {rules.map(([title, body, enTitle, enBody]) => (
         <p key={title}><strong>{english ? enTitle : title}</strong><br />{english ? enBody : body}</p>
       ))}

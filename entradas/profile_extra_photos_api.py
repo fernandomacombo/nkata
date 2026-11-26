@@ -36,6 +36,7 @@ def _owner_payload(profile):
         image = getattr(pedido, image_field)
         entries.append({
             "slot": slot,
+            "rejection_reason": getattr(pedido, f"foto_extra_{slot}_motivo"),
             "review_status": getattr(pedido, f"foto_extra_{slot}_estado"),
             "exists": bool(image),
             "visible": bool(image and getattr(pedido, flag_field)),
@@ -100,7 +101,8 @@ def api_manage_extra_photo(request, slot):
         setattr(pedido, image_field, image)
         setattr(pedido, flag_field, False)
         setattr(pedido, f"foto_extra_{slot}_estado", "PENDENTE")
-        pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", "atualizado_em"])
+        setattr(pedido, f"foto_extra_{slot}_motivo", "")
+        pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", f"foto_extra_{slot}_motivo", "atualizado_em"])
         if old_file and old_file.name != getattr(pedido, image_field).name:
             # A fotografia anterior é substituída apenas depois do registo guardado.
             transaction.on_commit(lambda: old_file.delete(save=False), robust=True)
@@ -112,7 +114,8 @@ def api_manage_extra_photo(request, slot):
     setattr(pedido, image_field, "")
     setattr(pedido, flag_field, False)
     setattr(pedido, f"foto_extra_{slot}_estado", "PENDENTE")
-    pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", "atualizado_em"])
+    setattr(pedido, f"foto_extra_{slot}_motivo", "")
+    pedido.save(update_fields=[image_field, flag_field, f"foto_extra_{slot}_estado", f"foto_extra_{slot}_motivo", "atualizado_em"])
     if old_file:
         transaction.on_commit(lambda: old_file.delete(save=False), robust=True)
     return Response(_owner_payload(profile))
