@@ -1,6 +1,6 @@
 import { usePresence } from "../components/profiles/Presence.jsx";
 import { ProfilePreferences } from "../components/MatchPreferences";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -60,6 +60,35 @@ const signalLabels = {
   BEIJINHO: ["Kiss", "A warm gesture without opening a private conversation."],
   OLA: ["Hello", "Hello, I liked your profile and would like to know you better."],
 };
+
+function SignalConfirmDialog({ offer, personName, english, onClose, onConfirm }) {
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); };
+  }, []);
+  const Icon = SIGNAL_ICONS[offer.type] || Sparkles;
+  const label = english ? (signalLabels[offer.type]?.[0] || offer.label) : offer.label;
+  const credits = value => `${value} ${english ? (value === 1 ? "credit" : "credits") : (value === 1 ? "crédito" : "créditos")}`;
+  return (
+    <dialog ref={dialogRef} className="nk-signal-confirm" aria-labelledby="nk-signal-confirm-title"
+      aria-describedby="nk-signal-confirm-description" onCancel={event => { event.preventDefault(); onClose(); }}
+      onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="nk-signal-confirm__body">
+        <button type="button" className="nk-signal-confirm__close" onClick={onClose} aria-label={english ? "Close" : "Fechar"}><X size={20}/></button>
+        <span className="nk-signal-confirm__icon"><Icon size={28} strokeWidth={1.6} aria-hidden="true"/></span>
+        <h2 id="nk-signal-confirm-title">{english ? `Send ${label}?` : `Enviar ${label.toLocaleLowerCase("pt")}?`}</h2>
+        <p className="nk-signal-confirm__recipient">{english ? `To ${personName}` : `Para ${personName}`}</p>
+        <p id="nk-signal-confirm-description" className="nk-signal-confirm__price">{credits(offer.cost)}</p>
+        <div className="nk-signal-confirm__actions">
+          <button type="button" className="nk-button nk-button--quiet" autoFocus onClick={onClose}>{english ? "Cancel" : "Cancelar"}</button>
+          <button type="button" className="nk-button nk-button--wine" onClick={onConfirm}>{english ? "Send" : "Enviar"}</button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
 
 function DetailBlock({ title, children }) {
   return (
@@ -212,6 +241,8 @@ export default function ProfileDetailPage({
   const [signalData, setSignalData] = useState(null);
   const [signalLoading, setSignalLoading] = useState(false);
   const [signalSending, setSignalSending] = useState("");
+  const [signalConfirmation, setSignalConfirmation] = useState(null);
+  const signalInFlight = useRef(false);
   const [signalError, setSignalError] = useState("");
   const [signalStatus, setSignalStatus] = useState("");
 
@@ -228,7 +259,7 @@ export default function ProfileDetailPage({
   }
   useEffect(() => {
     setPhotoIndex(0); setImageFailed(false); setPhotoOpen(false); setMoreOpen(false); setBioExpanded(false); setActiveSection("about");
-    setChatError(""); setSignalData(null); setSignalStatus(""); setSignalError("");
+    setChatError(""); setSignalData(null); setSignalStatus(""); setSignalError(""); setSignalConfirmation(null);
   }, [profile?.id]);
   useEffect(() => {
     if (!photoOpen && !moreOpen) return undefined;
@@ -334,16 +365,25 @@ export default function ProfileDetailPage({
     }
   };
 
-  const handleSignal = async (type) => {
+  const handleSignal = async (type, confirmation = null) => {
     if (!authenticated) {
       onRequireLogin?.();
       return;
     }
-    if (!profile?.id || String(profile.id).startsWith("demo-")) return;
+    if (!profile?.id || String(profile.id).startsWith("demo-") || signalInFlight.current) return;
+    if (confirmation && confirmation.profileId !== profile.id) { setSignalConfirmation(null); return; }
 
     const offer = signalData?.signals?.find(item => item.type === type);
-    if (signalData?.quota?.credit_mode && !offer?.available) return;
-    if (offer?.cost > 0 && !window.confirm(english ? `Send this signal for ${offer.cost} credits?` : `Enviar ${offer.label} por ${offer.cost} créditos?`)) return;
+    if (!offer || signalData?.identity_blocked || offer.sent_to_profile_today || signalData?.quota?.limit_reached || offer.available === false || (signalData?.quota?.credit_mode && !offer.available)) {
+      setSignalConfirmation(null);
+      return;
+    }
+    if (offer.cost > 0 && (!confirmation || confirmation.cost !== offer.cost)) {
+      setSignalConfirmation({ ...offer, profileId: profile.id });
+      return;
+    }
+    setSignalConfirmation(null);
+    signalInFlight.current = true;
     setSignalSending(type);
     setSignalError("");
     setSignalStatus("");
@@ -363,6 +403,7 @@ export default function ProfileDetailPage({
       }
       setSignalError(requestError.message || (english ? "Unable to send this signal." : "Não foi possível enviar este sinal."));
     } finally {
+      signalInFlight.current = false;
       setSignalSending("");
     }
   };
@@ -713,6 +754,14 @@ export default function ProfileDetailPage({
           {portraits.length > 1 && <div className="nk-profile-portrait__controls"><button type="button" onClick={() => changePhoto(photoIndex-1)} aria-label={english ? "Previous photo" : "Fotografia anterior"}><ChevronLeft size={20}/></button><span>{photoIndex+1} / {portraits.length}</span><button type="button" onClick={() => changePhoto(photoIndex+1)} aria-label={english ? "Next photo" : "Fotografia seguinte"}><ChevronRight size={20}/></button></div>}
         </section>
       </div>}
+
+      {signalConfirmation && signalConfirmation.profileId === profile.id && <SignalConfirmDialog
+        offer={signalConfirmation}
+        personName={profile.nome_publico}
+        english={english}
+        onClose={() => setSignalConfirmation(null)}
+        onConfirm={() => handleSignal(signalConfirmation.type, signalConfirmation)}
+      />}
 
       <SafetyDialog
         open={Boolean(safetyMode)}
