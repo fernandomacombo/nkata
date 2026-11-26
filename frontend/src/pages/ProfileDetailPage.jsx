@@ -1,3 +1,4 @@
+import HeartLoader from "../components/HeartLoader.jsx";
 import { usePresence } from "../components/profiles/Presence.jsx";
 import { ProfilePreferences } from "../components/MatchPreferences";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -412,27 +413,7 @@ export default function ProfileDetailPage({
     return (
       <main className="nk-profile-detail nk-profile-detail--loading">
         <div className="nk-shell">
-          <div className="nk-heart-loader" role="status" aria-live="polite">
-            <div className="nk-heart-loader__brand" aria-hidden="true">NKATA</div>
-            <div className="nk-heart-loader__animation" aria-hidden="true">
-              <div className="nk-heart-loader__halo"/>
-              <div className="nk-heart-loader__ring"/>
-              <svg className="nk-heart-loader__heart" viewBox="0 0 48 48"><path d="M24 41C20 37 5 27 5 16C5 5 18 2 24 12C30 2 43 5 43 16C43 27 28 37 24 41Z" fill="#842442"/></svg>
-              <div className="nk-heart-loader__particles">
-                {[
-                  [-72,-65,-24,0],[4,-96,10,.08],[76,-53,20,.12],[93,15,30,.05],
-                  [52,71,15,.18],[-56,70,-15,.1],[-92,5,-30,.15],
-                ].map(([x,y,rotation,delay],index) => (
-                  <svg key={index} viewBox="0 0 48 48" style={{"--x":x+"px","--y":y+"px","--r":rotation+"deg","--d":delay+"s"}}>
-                    <path d="M24 41C20 37 5 27 5 16C5 5 18 2 24 12C30 2 43 5 43 16C43 27 28 37 24 41Z" fill="currentColor"/>
-                  </svg>
-                ))}
-              </div>
-            </div>
-            <div className="nk-heart-loader__heading">{english ? "Preparing this profile for you" : "A preparar este perfil para si"}</div>
-            <div className="nk-heart-loader__sub">{english ? "Good connections start here." : "As boas conexões começam aqui."}</div>
-            <div className="nk-heart-loader__progress" aria-hidden="true"><i/></div>
-          </div>
+          <HeartLoader page="profile"/>
         </div>
       </main>
     );
